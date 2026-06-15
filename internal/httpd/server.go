@@ -39,7 +39,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	apiHandler := api.NewHandler(st, bus)
+	apiHandler := api.NewHandler(st, bus, bootFS)
 	apiHandler.RegisterRoutes(r)
 
 	return &Server{
