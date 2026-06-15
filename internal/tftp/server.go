@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/pin/tftp"
+	"github.com/pin/tftp/v3"
 	"github.com/pxego/pxego/internal/boot"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/models"
