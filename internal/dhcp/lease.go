@@ -1,6 +1,7 @@
 package dhcp
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -116,7 +117,7 @@ func (lm *LeaseManager) Allocate(cidr, mac string) (net.IP, error) {
 		CreatedAt: time.Now(),
 	}
 	pool.Leases[mac] = lease
-	lm.store.CreateLease(nil, lease)
+	lm.store.CreateLease(context.Background(), lease)
 	return ip, nil
 }
 
