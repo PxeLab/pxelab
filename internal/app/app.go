@@ -14,9 +14,6 @@ import (
 
 type App struct {
 	servers []Server
-	config  interface{}
-	db      interface{}
-	eventBus interface{}
 }
 
 func New() *App {
@@ -54,11 +51,16 @@ func (a *App) Run(ctx context.Context) error {
 		slog.Info("收到信号", "signal", sig)
 	}
 
+	// 通知所有服务 goroutine 退出
+	cancel()
+
 	// 反向顺序优雅关闭
 	for i := len(a.servers) - 1; i >= 0; i-- {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		slog.Info("关闭服务", "name", a.servers[i].Name())
-		a.servers[i].Stop(shutdownCtx)
+		if err := a.servers[i].Stop(shutdownCtx); err != nil {
+			slog.Error("服务关闭失败", "name", a.servers[i].Name(), "error", err)
+		}
 		cancel()
 	}
 
