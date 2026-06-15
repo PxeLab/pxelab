@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeGo - PXE Server Management</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0a0c10;
+    --bg-secondary: #111318;
+    --bg-card: #16181f;
+    --bg-card-hover: #1c1f28;
+    --bg-input: #1a1d26;
+    --border: #252830;
+    --border-light: #2d3040;
+    --text-primary: #e8eaed;
+    --text-secondary: #9aa0ab;
+    --text-muted: #5c6270;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-green: #22c55e;
+    --accent-yellow: #eab308;
+    --accent-red: #ef4444;
+    --accent-purple: #a855f7;
+    --accent-orange: #f97316;
+    --gradient-main: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    --glow-blue: 0 0 40px -10px rgba(59,130,246,0.3);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-lg: 0 10px 40px -10px rgba(0,0,0,0.5);
+    --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+  /* Layout */
+  .app { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 260px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    transition: var(--transition);
+  }
+  .sidebar-header {
+    padding: 20px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .sidebar-logo {
+    width: 36px;
+    height: 36px;
+    background: var(--gradient-main);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    color: var(--accent-blue);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sidebar-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .sidebar-title span { color: var(--text-muted); font-weight: 500; }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .nav-section {
+    padding: 8px 10px 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: var(--transition);
+    cursor: pointer;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--bg-card); color: var(--text-primary); }
+  .nav-item.active {
+    background: rgba(59,130,246,0.12);
+    color: var(--accent-blue);
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background: var(--accent-blue);
+    border-radius: 0 3px 3px 0;
+  }
+  .nav-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+    opacity: 0.7;
+  }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--bg-card);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+  }
+  .nav-item.active .nav-badge { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+
+  .sidebar-footer {
+    padding: 12px 10px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* Main */
+  .main {
+    flex: 1;
+    margin-left: 260px;
+    min-height: 100vh;
+  }
+
+  /* Top Bar */
+  .topbar {
+    height: 64px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    background: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topbar-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .topbar-title span { color: var(--text-muted); font-weight: 400; font-size: 14px; }
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Status Indicator */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .status-dot.green { background: var(--accent-green); box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+  .status-dot.yellow { background: var(--accent-yellow); box-shadow: 0 0 8px rgba(234,179,8,0.5); }
+  .status-dot.red { background: var(--accent-red); box-shadow: 0 0 8px rgba(239,68,68,0.5); }
+  .status-dot.blue { background: var(--accent-blue); box-shadow: 0 0 8px rgba(59,130,246,0.5); }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+  }
+
+  /* Content Area */
+  .content {
+    padding: 28px 32px;
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    transition: var(--transition);
+  }
+  .stat-card:hover {
+    border-color: var(--border-light);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+  .stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .stat-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+  .stat-icon.blue { background: rgba(59,130,246,0.12); color: var(--accent-blue); }
+  .stat-icon.green { background: rgba(34,197,94,0.12); color: var(--accent-green); }
+  .stat-icon.orange { background: rgba(249,115,22,0.12); color: var(--accent-orange); }
+  .stat-icon.purple { background: rgba(168,85,247,0.12); color: var(--accent-purple); }
+  .stat-icon.cyan { background: rgba(6,182,212,0.12); color: var(--accent-cyan); }
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-change {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .stat-change.up { color: var(--accent-green); }
+  .stat-change.down { color: var(--accent-red); }
+
+  /* Service Status Bar */
+  .service-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .service-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .service-badge:hover { border-color: var(--border-light); }
+  .service-badge .label { color: var(--text-secondary); font-weight: 500; }
+  .service-badge .name { color: var(--text-primary); font-family: var(--font-mono); }
+
+  /* Card Component */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: var(--transition);
+  }
+  .card:hover { border-color: var(--border-light); }
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+  .card-body { padding: 20px; }
+  .card-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr:last-child td { border-bottom: none; }
+  td .primary { color: var(--text-primary); font-weight: 500; }
+  td .mono { font-family: var(--font-mono); font-size: 12px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: var(--font-sans);
+    text-decoration: none;
+  }
+  .btn-primary {
+    background: var(--accent-blue);
+    color: white;
+  }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-secondary {
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--border-light); }
+  .btn-danger {
+    background: rgba(239,68,68,0.15);
+    color: var(--accent-red);
+    border: 1px solid rgba(239,68,68,0.2);
+  }
+  .btn-danger:hover { background: rgba(239,68,68,0.25); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Input */
+  .input {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    outline: none;
+    transition: var(--transition);
+    width: 100%;
+  }
+  .input:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+  .input::placeholder { color: var(--text-muted); }
+
+  .search-box {
+    position: relative;
+  }
+  .search-box .input { padding-left: 36px; }
+  .search-box .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  /* Form */
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* Select */
+  .select {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    outline: none;
+    transition: var(--transition);
+    width: 100%;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa0ab' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 32px;
+  }
+  .select:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+
+  /* Tags */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+  .tag-blue { background: rgba(59,130,246,0.12); color: var(--accent-blue); }
+  .tag-green { background: rgba(34,197,94,0.12); color: var(--accent-green); }
+  .tag-yellow { background: rgba(234,179,8,0.12); color: var(--accent-yellow); }
+  .tag-red { background: rgba(239,68,68,0.12); color: var(--accent-red); }
+  .tag-purple { background: rgba(168,85,247,0.12); color: var(--accent-purple); }
+  .tag-cyan { background: rgba(6,182,212,0.12); color: var(--accent-cyan); }
+  .tag-orange { background: rgba(249,115,22,0.12); color: var(--accent-orange); }
+
+  /* Grid Layouts */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+  /* Event Items */
+  .event-list { display: flex; flex-direction: column; }
+  .event-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .event-item:last-child { border-bottom: none; }
+  .event-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .event-content { flex: 1; min-width: 0; }
+  .event-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+  .event-type {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+  .event-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  .event-message {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+  .event-message strong { color: var(--text-secondary); font-weight: 600; }
+
+  /* IPMI Panel */
+  .ipmi-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .ipmi-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-input);
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: var(--font-sans);
+  }
+  .ipmi-btn:hover { border-color: var(--border-light); background: var(--bg-card-hover); }
+  .ipmi-btn .icon { font-size: 22px; }
+  .ipmi-btn .label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  .ipmi-btn.danger .icon { color: var(--accent-red); }
+  .ipmi-btn.danger:hover { border-color: rgba(239,68,68,0.3); }
+  .ipmi-btn.success .icon { color: var(--accent-green); }
+  .ipmi-btn.success:hover { border-color: rgba(34,197,94,0.3); }
+  .ipmi-btn.warning .icon { color: var(--accent-yellow); }
+  .ipmi-btn.info .icon { color: var(--accent-blue); }
+
+  /* File Browser */
+  .file-tree {
+    font-size: 13px;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-secondary);
+  }
+  .file-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+  .file-item .icon { font-size: 14px; width: 20px; text-align: center; }
+  .file-item .folder { color: var(--accent-yellow); }
+  .file-item .file { color: var(--accent-blue); }
+  .file-item .name { flex: 1; }
+  .file-item .size { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+  .file-item .tag { font-size: 10px; padding: 1px 6px; }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+  .empty-state h3 { font-size: 16px; color: var(--text-secondary); margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text-secondary); }
+  .tab.active {
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+  }
+
+  /* Toggle Switch */
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+  .toggle-track {
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background: var(--border);
+    transition: var(--transition);
+    position: relative;
+  }
+  .toggle-track.on { background: var(--accent-blue); }
+  .toggle-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: var(--transition);
+  }
+  .toggle-track.on .toggle-thumb { left: 20px; }
+  .toggle-label { font-size: 13px; color: var(--text-secondary); }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    width: 480px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; }
+  .modal-close {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 18px;
+    transition: var(--transition);
+  }
+  .modal-close:hover { background: var(--bg-card); color: var(--text-primary); }
+  .modal-body { padding: 24px; }
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  /* Toast */
+  .toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    box-shadow: var(--shadow-lg);
+    animation: slideIn 0.3s ease;
+    min-width: 300px;
+  }
+  .toast.success { border-color: rgba(34,197,94,0.3); }
+  .toast.error { border-color: rgba(239,68,68,0.3); }
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* Page Header */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .page-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .page-actions { display: flex; gap: 8px; }
+
+  /* Detail Grid */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .detail-item {}
+  .detail-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; font-weight: 600; }
+  .detail-value { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+  .detail-value.mono { font-family: var(--font-mono); font-size: 13px; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .content { padding: 16px; }
+    .topbar { padding: 0 16px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .detail-grid { grid-template-columns: 1fr; }
+    .ipmi-panel { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Animations */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-in { animation: fadeIn 0.4s ease forwards; }
+  .animate-in:nth-child(2) { animation-delay: 0.05s; }
+  .animate-in:nth-child(3) { animation-delay: 0.1s; }
+  .animate-in:nth-child(4) { animation-delay: 0.15s; }
+  .animate-in:nth-child(5) { animation-delay: 0.2s; }
+
+  /* SSE Live Indicator */
+  .live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+  .live-indicator.active { background: rgba(34,197,94,0.12); color: var(--accent-green); }
+  .live-indicator .pulse {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Progress bar */
+  .progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar { height: 100%; border-radius: 2px; background: var(--accent-blue); transition: width 0.5s ease; }
+
+  /* Pagination */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    transition: var(--transition);
+  }
+  .page-btn:hover { background: var(--bg-card); }
+  .page-btn.active { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">PX</div>
+      <div class="sidebar-title">Pxe<span>Go</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">概览</div>
+      <a class="nav-item active" onclick="switchPage('dashboard')" data-page="dashboard">
+        <span class="nav-icon">&#9632;</span>
+        仪表板
+        <span class="nav-badge">6</span>
+      </a>
+
+      <div class="nav-section">管理</div>
+      <a class="nav-item" onclick="switchPage('hosts')" data-page="hosts">
+        <span class="nav-icon">&#9679;</span>
+        主机管理
+        <span class="nav-badge">12</span>
+      </a>
+      <a class="nav-item" onclick="switchPage('profiles')" data-page="profiles">
+        <span class="nav-icon">&#9670;</span>
+        引导配置
+        <span class="nav-badge">5</span>
+      </a>
+      <a class="nav-item" onclick="switchPage('files')" data-page="files">
+        <span class="nav-icon">&#9635;</span>
+        文件管理
+        <span class="nav-badge">23</span>
+      </a>
+
+      <div class="nav-section">监控</div>
+      <a class="nav-item" onclick="switchPage('events')" data-page="events">
+        <span class="nav-icon">&#9776;</span>
+        事件日志
+        <span class="nav-badge">1.2k</span>
+      </a>
+
+      <div class="nav-section">系统</div>
+      <a class="nav-item" onclick="switchPage('settings')" data-page="settings">
+        <span class="nav-icon">&#9881;</span>
+        设置
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <a class="nav-item" onclick="switchPage('settings')">
+        <span class="nav-icon">&#8505;</span>
+        关于
+        <span class="nav-badge">v0.1.0</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn btn-secondary btn-icon" onclick="toggleSidebar()" style="display:none;" id="menuBtn">&#9776;</button>
+        <div>
+          <div class="topbar-title" id="pageTitle">仪表板</div>
+          <div class="page-desc" id="pageDesc" style="margin-top:0;font-size:12px;">服务运行状态概览</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="status-pill"><span class="status-dot green"></span> All Services Running</span>
+        <button class="btn btn-secondary btn-sm" onclick="showToast('success', '配置已重新加载')">&#8635; 重载</button>
+        <button class="btn btn-secondary btn-icon">&#8942;</button>
+      </div>
+    </header>
+
+    <div class="content" id="pageContent">
+      <!-- Content rendered by JS -->
+    </div>
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">新建主机</div>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== Data ======
+const hostData = [
+  { mac: '00:1a:2b:3c:4d:01', ip: '192.168.1.101', hostname: 'node-01', arch: 'x86_64', lastSeen: '10s ago', bootCount: 47, profile: 'ubuntu-22.04', status: 'online' },
+  { mac: '00:1a:2b:3c:4d:02', ip: '192.168.1.102', hostname: 'node-02', arch: 'x86_64', lastSeen: '2m ago', bootCount: 32, profile: 'debian-12', status: 'online' },
+  { mac: '00:1a:2b:3c:4d:03', ip: '192.168.1.103', hostname: 'node-03', arch: 'arm64', lastSeen: '15m ago', bootCount: 18, profile: 'ubuntu-22.04', status: 'offline' },
+  { mac: '00:1a:2b:3c:4d:04', ip: '192.168.1.104', hostname: 'node-04', arch: 'x86_64', lastSeen: '1h ago', bootCount: 89, profile: 'centos-9', status: 'offline' },
+  { mac: '00:1a:2b:3c:4d:05', ip: '192.168.1.105', hostname: 'node-05', arch: 'x86_64', lastSeen: '5m ago', bootCount: 12, profile: 'memtest86+', status: 'online' },
+  { mac: '00:1a:2b:3c:4d:06', ip: '192.168.1.106', hostname: '', arch: 'i386', lastSeen: '30s ago', bootCount: 3, profile: '', status: 'online' },
+];
+
+const profileData = [
+  { name: 'ubuntu-22.04', kernel: 'ubuntu/22.04/vmlinuz', initrd: 'ubuntu/22.04/initrd.img', cmdline: 'console=tty0 console=ttyS0,115200', type: 'ipxe', arch: 'x86_64', default: true },
+  { name: 'debian-12', kernel: 'debian/12/vmlinuz', initrd: 'debian/12/initrd.img', cmdline: 'console=tty0', type: 'ipxe', arch: 'x86_64', default: false },
+  { name: 'centos-9', kernel: 'centos/9/vmlinuz', initrd: 'centos/9/initrd.img', cmdline: 'console=tty0 net.ifnames=0', type: 'ipxe', arch: 'x86_64', default: false },
+  { name: 'memtest86+', kernel: 'memtest86+/memtest', initrd: '', cmdline: '', type: 'direct', arch: 'x86_64', default: false },
+  { name: 'local-boot', kernel: '', initrd: '', cmdline: '', type: 'local', arch: '*', default: false },
+];
+
+const eventData = [
+  { type: 'dhcp.ack', mac: '00:1a:2b:3c:4d:06', ip: '192.168.1.106', msg: '已分配 IP 地址', time: '刚刚', icon: 'DHCP', color: 'tag-cyan' },
+  { type: 'dhcp.discover', mac: '00:1a:2b:3c:4d:06', ip: '', msg: '收到 DHCP 发现请求', time: '3s ago', icon: 'DHCP', color: 'tag-blue' },
+  { type: 'boot.start', mac: '00:1a:2b:3c:4d:01', ip: '192.168.1.101', msg: '引导开始 - 配置文件 ubuntu-22.04', time: '10s ago', icon: 'BOOT', color: 'tag-green' },
+  { type: 'tftp.request', mac: '00:1a:2b:3c:4d:01', ip: '192.168.1.101', msg: 'TFTP 请求: undionly.kpxe', time: '12s ago', icon: 'TFTP', color: 'tag-orange' },
+  { type: 'http.request', mac: '', ip: '192.168.1.101', msg: 'HTTP 请求: /boot/ubuntu/22.04/vmlinuz', time: '14s ago', icon: 'HTTP', color: 'tag-purple' },
+  { type: 'ipmi.command', mac: '00:1a:2b:3c:4d:04', ip: '192.168.1.104', msg: '电源操作: Power On', time: '1m ago', icon: 'IPMI', color: 'tag-yellow' },
+];
+
+const fileData = [
+  { name: 'ipxe/', type: 'folder', size: '', items: '4 files' },
+  { name: 'ipxe/undionly.kpxe', type: 'file', size: '328 KB', tag: 'iPXE' },
+  { name: 'ipxe/ipxe-x86_64.efi', type: 'file', size: '512 KB', tag: 'iPXE' },
+  { name: 'ipxe/ipxe-arm64.efi', type: 'file', size: '486 KB', tag: 'iPXE' },
+  { name: 'ubuntu/', type: 'folder', size: '', items: '6 files' },
+  { name: 'ubuntu/22.04/vmlinuz', type: 'file', size: '8.2 MB', tag: 'Kernel' },
+  { name: 'ubuntu/22.04/initrd.img', type: 'file', size: '32 MB', tag: 'Initrd' },
+  { name: 'debian/', type: 'folder', size: '', items: '4 files' },
+  { name: 'centos/', type: 'folder', size: '', items: '3 files' },
+  { name: 'pxelinux.cfg/', type: 'folder', size: '', items: '2 files' },
+  { name: 'pxelinux.cfg/default', type: 'file', size: '1.2 KB', tag: 'PXE' },
+  { name: 'memtest86+/', type: 'folder', size: '', items: '1 file' },
+];
+
+// ====== Navigation ======
+const pageTitles = {
+  dashboard: ['仪表板', '服务运行状态概览'],
+  hosts: ['主机管理', '管理所有 PXE 客户端主机'],
+  profiles: ['引导配置', '管理 PXE/iPXE 引导配置文件'],
+  files: ['文件管理', '管理启动文件与上传'],
+  events: ['事件日志', '实时服务事件流'],
+  settings: ['设置', 'PxeGo 服务器配置'],
+};
+
+function switchPage(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  document.getElementById('pageTitle').textContent = pageTitles[page][0];
+  document.getElementById('pageDesc').textContent = pageTitles[page][1];
+  renderPage(page);
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ====== Toast ======
+function showToast(type, message) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  const icon = type === 'success' ? '&#10003;' : '&#10007;';
+  toast.innerHTML = `<span style="font-size:16px;">${icon}</span> ${message}`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+// ====== Modal ======
+function openModal(title, bodyHTML) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHTML;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+// ====== Renderers ======
+function renderPage(page) {
+  const container = document.getElementById('pageContent');
+  switch(page) {
+    case 'dashboard': renderDashboard(container); break;
+    case 'hosts': renderHosts(container); break;
+    case 'profiles': renderProfiles(container); break;
+    case 'files': renderFiles(container); break;
+    case 'events': renderEvents(container); break;
+    case 'settings': renderSettings(container); break;
+  }
+}
+
+function renderDashboard(el) {
+  el.innerHTML = `
+    <div class="service-bar">
+      <div class="service-badge">
+        <span class="status-dot green"></span>
+        <span class="label">DHCP</span>
+        <span class="name">:67</span>
+      </div>
+      <div class="service-badge">
+        <span class="status-dot green"></span>
+        <span class="label">TFTP</span>
+        <span class="name">:69</span>
+      </div>
+      <div class="service-badge">
+        <span class="status-dot green"></span>
+        <span class="label">HTTP</span>
+        <span class="name">:8080</span>
+      </div>
+      <div class="service-badge">
+        <span class="status-dot green"></span>
+        <span class="label">DNS</span>
+        <span class="name">:53</span>
+      </div>
+      <div class="service-badge">
+        <span class="status-dot yellow"></span>
+        <span class="label">IPMI</span>
+        <span class="name">Standby</span>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card animate-in">
+        <div class="stat-header">
+          <span class="stat-label">在线主机</span>
+          <span class="stat-icon green">&#9679;</span>
+        </div>
+        <div class="stat-value">4</div>
+        <div class="stat-change up">&#9650; 2 台新上线 (24h)</div>
+      </div>
+      <div class="stat-card animate-in">
+        <div class="stat-header">
+          <span class="stat-label">活跃租约</span>
+          <span class="stat-icon blue">&#9632;</span>
+        </div>
+        <div class="stat-value">6</div>
+        <div class="stat-change">IP 池: 192.168.1.100 - 192.168.1.200</div>
+      </div>
+      <div class="stat-card animate-in">
+        <div class="stat-header">
+          <span class="stat-label">事件总数</span>
+          <span class="stat-icon orange">&#9776;</span>
+        </div>
+        <div class="stat-value">1,284</div>
+        <div class="stat-change up">&#9650; 156 (24h)</div>
+      </div>
+      <div class="stat-card animate-in">
+        <div class="stat-header">
+          <span class="stat-label">引导总数</span>
+          <span class="stat-icon purple">&#9670;</span>
+        </div>
+        <div class="stat-value">201</div>
+        <div class="stat-change up">&#9650; 23 次网络引导</div>
+      </div>
+      <div class="stat-card animate-in">
+        <div class="stat-header">
+          <span class="stat-label">配置文件</span>
+          <span class="stat-icon cyan">&#9679;</span>
+        </div>
+        <div class="stat-value">5</div>
+        <div class="stat-change">5 个活动配置</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">近期事件</span>
+          <button class="btn btn-secondary btn-sm" onclick="switchPage('events')">查看全部 &#8594;</button>
+        </div>
+        <div class="card-body" style="padding: 8px 16px;">
+          <div class="event-list">
+            ${eventData.slice(0, 4).map(e => `
+              <div class="event-item">
+                <div class="event-icon ${e.color}" style="font-size:10px;font-weight:700;">${e.icon}</div>
+                <div class="event-content">
+                  <div class="event-header">
+                    <span class="event-type" style="color:var(--text-primary)">${e.type}</span>
+                    <span class="event-time">${e.time}</span>
+                  </div>
+                  <div class="event-message">${e.msg} — <strong>${e.mac}</strong></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">最近上线的主机</span>
+          <button class="btn btn-secondary btn-sm" onclick="switchPage('hosts')">查看全部 &#8594;</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>MAC</th><th>主机名</th><th>IP</th><th>状态</th><th>上线时间</th></tr></thead>
+              <tbody>
+                ${hostData.slice(0, 4).map(h => `
+                  <tr onclick="openHostDetail('${h.mac}')" style="cursor:pointer;">
+                    <td><span class="mono">${h.mac}</span></td>
+                    <td><span class="primary">${h.hostname || '&mdash;'}</span></td>
+                    <td><span class="mono">${h.ip}</span></td>
+                    <td><span class="tag ${h.status === 'online' ? 'tag-green' : 'tag-red'}">${h.status}</span></td>
+                    <td><span class="mono">${h.lastSeen}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderHosts(el) {
+  el.innerHTML = `
+    <div class="page-header">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="search-box" style="width:280px;">
+            <span class="search-icon">&#128269;</span>
+            <input class="input" placeholder="搜索 MAC / 主机名 / IP ..." style="width:100%;">
+          </div>
+          <span style="color:var(--text-muted);font-size:13px;">共 ${hostData.length} 台</span>
+        </div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary btn-sm">&#9660; 导出</button>
+        <button class="btn btn-primary btn-sm" onclick="openModal('新建主机', \`<div class="form-group"><label class="form-label">MAC 地址</label><input class="input" placeholder="00:11:22:33:44:55"></div><div class="form-group"><label class="form-label">主机名</label><input class="input" placeholder="node-01"></div><div class="form-row"><div class="form-group"><label class="form-label">引导配置</label><select class="select"><option>ubuntu-22.04</option><option>debian-12</option><option>centos-9</option></select></div><div class="form-group"><label class="form-label">备注</label><input class="input" placeholder="可选"></div></div>\`)">+ 新建主机</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>MAC</th><th>主机名</th><th>IP</th><th>架构</th><th>引导配置</th><th>状态</th><th>引导次数</th><th>最后在线</th><th></th></tr></thead>
+          <tbody>
+            ${hostData.map(h => `
+              <tr onclick="openHostDetail('${h.mac}')" style="cursor:pointer;">
+                <td><span class="mono primary">${h.mac}</span></td>
+                <td><span class="primary">${h.hostname || '&mdash;'}</span></td>
+                <td><span class="mono">${h.ip}</span></td>
+                <td><span class="tag ${h.arch === 'arm64' ? 'tag-purple' : 'tag-blue'}">${h.arch}</span></td>
+                <td><span style="color:var(--text-secondary);font-size:12px;">${h.profile || '&mdash;'}</span></td>
+                <td><span class="tag ${h.status === 'online' ? 'tag-green' : 'tag-red'}">${h.status}</span></td>
+                <td><span class="mono">${h.bootCount}</span></td>
+                <td><span class="mono" style="color:var(--text-muted)">${h.lastSeen}</span></td>
+                <td><button class="btn btn-secondary btn-icon" onclick="event.stopPropagation();" style="width:28px;height:28px;">&#8942;</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>显示 1-6 条，共 12 条</span>
+        <div class="page-btns">
+          <button class="page-btn">&laquo;</button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">&raquo;</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openHostDetail(mac) {
+  const h = hostData.find(x => x.mac === mac);
+  if (!h) return;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const container = document.getElementById('pageContent');
+  document.getElementById('pageTitle').textContent = '主机详情';
+  document.getElementById('pageDesc').textContent = `${h.hostname || '未命名'} · ${h.mac}`;
+
+  container.innerHTML = `
+    <div class="page-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn btn-secondary btn-sm" onclick="switchPage('hosts')">&#8592; 返回</button>
+        <div>
+          <span class="status-dot ${h.status === 'online' ? 'green' : 'red'}" style="margin-right:8px;"></span>
+          <span style="font-size:18px;font-weight:700;">${h.hostname || '未命名主机'}</span>
+          <span class="tag ${h.status === 'online' ? 'tag-green' : 'tag-red'}" style="margin-left:8px;">${h.status}</span>
+        </div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary btn-sm" onclick="showToast('success', 'WoL 魔术包已发送')">&#9889; Wake-on-LAN</button>
+        <button class="btn btn-secondary btn-sm">&#9998; 编辑</button>
+        <button class="btn btn-danger btn-sm">&#128465; 删除</button>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">基本信息</span></div>
+        <div class="card-body">
+          <div class="detail-grid">
+            <div class="detail-item">
+              <div class="detail-label">MAC 地址</div>
+              <div class="detail-value mono">${h.mac}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">IP 地址</div>
+              <div class="detail-value mono">${h.ip}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">架构</div>
+              <div class="detail-value"><span class="tag tag-blue">${h.arch}</span></div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">引导配置</div>
+              <div class="detail-value">${h.profile || '默认'}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">引导次数</div>
+              <div class="detail-value">${h.bootCount}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">最后在线</div>
+              <div class="detail-value mono">${h.lastSeen}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">IPMI 电源控制</span></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:10px 14px;background:var(--bg-input);border-radius:var(--radius-sm);border:1px solid var(--border);">
+            <span class="status-dot green"></span>
+            <span style="font-size:13px;">BMC 可达 · 10.0.0.5:623</span>
+          </div>
+          <div class="ipmi-panel">
+            <button class="ipmi-btn success" onclick="showToast('success', '开机命令已发送')">
+              <span class="icon">&#9654;</span>
+              <span class="label">Power On</span>
+            </button>
+            <button class="ipmi-btn danger" onclick="showToast('success', '关机命令已发送')">
+              <span class="icon">&#9632;</span>
+              <span class="label">Power Off</span>
+            </button>
+            <button class="ipmi-btn warning" onclick="showToast('success', '重启命令已发送')">
+              <span class="icon">&#8635;</span>
+              <span class="label">Power Cycle</span>
+            </button>
+            <button class="ipmi-btn info" onclick="showToast('success', '状态查询完成: Power On')">
+              <span class="icon">&#8505;</span>
+              <span class="label">Status</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">引导历史</span>
+          <span class="live-indicator active"><span class="pulse"></span> 实时</span>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>时间</th><th>事件类型</th><th>详情</th></tr></thead>
+              <tbody>
+                <tr><td><span class="mono">2026-06-15 10:23:15</span></td><td><span class="tag tag-green">boot.start</span></td><td>引导开始 - ubuntu-22.04</td></tr>
+                <tr><td><span class="mono">2026-06-15 10:23:12</span></td><td><span class="tag tag-orange">tftp.request</span></td><td>undionly.kpxe (328 KB)</td></tr>
+                <tr><td><span class="mono">2026-06-15 10:23:10</span></td><td><span class="tag tag-cyan">dhcp.ack</span></td><td>IP 192.168.1.101 已分配</td></tr>
+                <tr><td><span class="mono">2026-06-15 10:23:08</span></td><td><span class="tag tag-blue">dhcp.discover</span></td><td>DHCP 发现请求</td></tr>
+                <tr><td><span class="mono">2026-06-14 22:15:00</span></td><td><span class="tag tag-green">boot.start</span></td><td>引导开始 - memtest86+</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderProfiles(el) {
+  const defaultProfile = profileData.find(p => p.default);
+  el.innerHTML = `
+    <div class="page-header">
+      <div></div>
+      <div class="page-actions">
+        <button class="btn btn-secondary btn-sm">&#9660; 导入</button>
+        <button class="btn btn-primary btn-sm" onclick='openModal("新建引导配置", \`
+          <div class="form-row"><div class="form-group"><label class="form-label">配置名称</label><input class="input" placeholder="rocky-9"></div><div class="form-group"><label class="form-label">引导类型</label><select class="select"><option>ipxe</option><option>pxelinux</option><option>direct</option><option>local</option></select></div></div>
+          <div class="form-group"><label class="form-label">内核路径</label><input class="input" placeholder="rocky/9/vmlinuz"></div>
+          <div class="form-group"><label class="form-label">Initrd 路径</label><input class="input" placeholder="rocky/9/initrd.img"></div>
+          <div class="form-group"><label class="form-label">命令行参数</label><input class="input" placeholder="console=tty0 net.ifnames=0"></div>
+          <div class="form-row"><div class="form-group"><label class="form-label">架构</label><select class="select"><option>x86_64</option><option>arm64</option><option>i386</option></select></div><div class="form-group"><label class="form-label">设为默认</label><div style="margin-top:8px;"><label class="toggle"><span class="toggle-track"><span class="toggle-thumb"></span></span></label></div></div></div>
+        \`)">+ 新建配置</button>
+      </div>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+      <div class="stat-card"><div class="stat-header"><span class="stat-label">总配置数</span></div><div class="stat-value">${profileData.length}</div></div>
+      <div class="stat-card"><div class="stat-header"><span class="stat-label">默认配置</span></div><div class="stat-value" style="font-size:16px;">${defaultProfile ? defaultProfile.name : '无'}</div></div>
+      <div class="stat-card"><div class="stat-header"><span class="stat-label">iPXE 类型</span></div><div class="stat-value">${profileData.filter(p => p.type === 'ipxe').length}</div></div>
+      <div class="stat-card"><div class="stat-header"><span class="stat-label">支持架构</span></div><div class="stat-value" style="font-size:16px;">x86_64, arm64</div></div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>名称</th><th>类型</th><th>架构</th><th>内核</th><th>Initrd</th><th>默认</th><th></th></tr></thead>
+          <tbody>
+            ${profileData.map(p => `
+              <tr>
+                <td><span class="primary">${p.name}</span></td>
+                <td><span class="tag ${p.type === 'ipxe' ? 'tag-purple' : p.type === 'local' ? 'tag-yellow' : 'tag-cyan'}">${p.type}</span></td>
+                <td><span class="mono">${p.arch}</span></td>
+                <td style="font-size:12px;font-family:var(--font-mono);max-width:200px;overflow:hidden;text-overflow:ellipsis;">${p.kernel || '&mdash;'}</td>
+                <td style="font-size:12px;font-family:var(--font-mono);max-width:200px;">${p.initrd || '&mdash;'}</td>
+                <td>${p.default ? '<span class="tag tag-green">默认</span>' : ''}</td>
+                <td><button class="btn btn-secondary btn-icon" style="width:28px;height:28px;">&#9998;</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderFiles(el) {
+  const folders = fileData.filter(f => f.type === 'folder');
+  const files = fileData.filter(f => f.type === 'file');
+  el.innerHTML = `
+    <div class="page-header">
+      <div>
+        <div class="search-box" style="width:280px;">
+          <span class="search-icon">&#128269;</span>
+          <input class="input" placeholder="搜索文件名..." style="width:100%;">
+        </div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary btn-sm">&#8635; 刷新</button>
+        <button class="btn btn-primary btn-sm" onclick="showToast('success', '文件上传功能')">+ 上传</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">/boot/</span>
+        <span style="font-size:12px;color:var(--text-muted);">${fileData.length} 个项目</span>
+      </div>
+      <div class="card-body" style="padding:8px 4px;">
+        <div class="file-tree">
+          ${fileData.map(f => `
+            <div class="file-item" onclick="${f.type === 'folder' ? '' : "showToast('info', '下载: " + f.name + "')"}">
+              <span class="icon ${f.type === 'folder' ? 'folder' : 'file'}">${f.type === 'folder' ? '&#128193;' : '&#128196;'}</span>
+              <span class="name">${f.name}</span>
+              <span class="size">${f.size || f.items || ''}</span>
+              ${f.tag ? `<span class="tag tag-blue" style="font-size:10px;">${f.tag}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderEvents(el) {
+  el.innerHTML = `
+    <div class="page-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="live-indicator active"><span class="pulse"></span> 实时流</span>
+        <span style="color:var(--text-muted);font-size:12px;">共 ${eventData.length}+ 条事件</span>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary btn-sm" onclick="showToast('success', '已清除过滤')">&#9660; 过滤</button>
+        <button class="btn btn-secondary btn-sm">&#128465; 清空</button>
+      </div>
+    </div>
+
+    <div class="service-bar">
+      <div class="service-badge" onclick="showToast('info', '过滤: 全部')"><span class="status-dot blue"></span> 全部 <span class="label">${eventData.length}</span></div>
+      <div class="service-badge" onclick="showToast('info', '过滤: DHCP')"><span class="status-dot cyan"></span> DHCP <span class="label">2</span></div>
+      <div class="service-badge" onclick="showToast('info', '过滤: TFTP')"><span class="status-dot orange"></span> TFTP <span class="label">1</span></div>
+      <div class="service-badge" onclick="showToast('info', '过滤: HTTP')"><span class="status-dot purple"></span> HTTP <span class="label">1</span></div>
+      <div class="service-badge" onclick="showToast('info', '过滤: BOOT')"><span class="status-dot green"></span> BOOT <span class="label">1</span></div>
+      <div class="service-badge" onclick="showToast('info', '过滤: IPMI')"><span class="status-dot yellow"></span> IPMI <span class="label">1</span></div>
+    </div>
+
+    <div class="card">
+      <div class="event-list" style="padding:4px 16px;">
+        ${eventData.map(e => `
+          <div class="event-item">
+            <div class="event-icon ${e.color}" style="font-size:10px;font-weight:700;">${e.icon}</div>
+            <div class="event-content">
+              <div class="event-header">
+                <span class="event-type" style="color:var(--text-primary)">${e.type}</span>
+                <span class="tag ${e.color}" style="font-size:10px;">${e.icon}</span>
+                <span class="event-time">${e.time}</span>
+              </div>
+              <div class="event-message">${e.msg} — <strong>${e.mac}</strong> ${e.ip ? '· ' + e.ip : ''}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderSettings(el) {
+  el.innerHTML = `
+    <div class="page-header">
+      <div></div>
+      <div class="page-actions">
+        <button class="btn btn-secondary btn-sm">&#8635; 重载配置</button>
+        <button class="btn btn-primary btn-sm" onclick="showToast('success', '配置已保存')">保存配置</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active">通用</div>
+      <div class="tab">DHCP</div>
+      <div class="tab">TFTP</div>
+      <div class="tab">DNS</div>
+      <div class="tab">HTTP</div>
+      <div class="tab">IPMI</div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">服务器名称</label>
+            <input class="input" value="PxeGo-Server">
+          </div>
+          <div class="form-group">
+            <label class="form-label">日志级别</label>
+            <select class="select">
+              <option selected>info</option>
+              <option>debug</option>
+              <option>warn</option>
+              <option>error</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">数据目录</label>
+            <input class="input" value="/var/lib/pxego">
+          </div>
+          <div class="form-group">
+            <label class="form-label">运行模式</label>
+            <select class="select">
+              <option selected>server</option>
+              <option>app</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">管理接口监听地址</label>
+          <input class="input" value=":8080">
+        </div>
+        <div class="form-group">
+          <label class="form-label">API 认证令牌</label>
+          <input class="input" type="password" value="pxego-secret-token-2026">
+        </div>
+        <div class="form-group">
+          <label class="toggle">
+            <span class="toggle-track on" onclick="this.classList.toggle('on')"><span class="toggle-thumb"></span></span>
+            <span class="toggle-label">启动时自动打开浏览器（app 模式）</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="toggle">
+            <span class="toggle-track on" onclick="this.classList.toggle('on')"><span class="toggle-thumb"></span></span>
+            <span class="toggle-label">启用事件日志持久化</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ====== Init ======
+renderPage('dashboard');
+</script>
+</body>
+</html>

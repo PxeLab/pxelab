@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeGo - PXE Server Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f4f5f7;
+    color: #1a1d23;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :root {
+    --bg-body: #f4f5f7;
+    --bg-surface: #ffffff;
+    --bg-card: #ffffff;
+    --bg-hover: #f8f9fc;
+    --bg-active: #eef2ff;
+    --border: #e2e5eb;
+    --border-light: #eceef2;
+    --text-primary: #1a1d23;
+    --text-secondary: #5f6678;
+    --text-muted: #939aab;
+    --accent: #4361ee;
+    --accent-bg: #eef2ff;
+    --accent-subtle: rgba(67,97,238,0.06);
+    --green: #10b981;
+    --green-bg: #ecfdf5;
+    --orange: #f59e0b;
+    --orange-bg: #fffbeb;
+    --red: #ef4444;
+    --red-bg: #fef2f2;
+    --purple: #8b5cf6;
+    --purple-bg: #f5f3ff;
+    --cyan: #06b6d4;
+    --cyan-bg: #ecfeff;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --radius-lg: 14px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,0.08);
+    --transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 3px; }
+
+  /* Layout */
+  .app { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed; top: 0; left: 0; bottom: 0;
+    z-index: 100;
+  }
+  .sidebar-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 13px;
+  }
+  .logo-text {
+    font-size: 16px; font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .logo-text span { color: var(--text-muted); font-weight: 500; }
+
+  .sidebar-nav {
+    flex: 1; padding: 12px 10px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .nav-section {
+    padding: 12px 12px 6px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text-muted);
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: var(--transition);
+    text-decoration: none;
+  }
+  .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .nav-item.active {
+    background: var(--accent-bg);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-icon {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; opacity: 0.7;
+  }
+  .nav-item.active .nav-icon { opacity: 1; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--bg-hover);
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 11px; font-weight: 600;
+    color: var(--text-muted);
+  }
+  .nav-item.active .nav-badge {
+    background: var(--accent-bg);
+    color: var(--accent);
+  }
+
+  .sidebar-footer {
+    padding: 10px;
+    border-top: 1px solid var(--border-light);
+  }
+  .sidebar-footer .nav-item { font-size: 12px; }
+
+  /* Main area */
+  .main { flex: 1; margin-left: 240px; min-height: 100vh; }
+
+  /* Top bar */
+  .topbar {
+    height: 60px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+    background: var(--bg-surface);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .page-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+  .page-subtitle { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+  .topbar-center { display: flex; align-items: center; gap: 6px; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  /* Breadcrumb chip */
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 6px;
+    font-size: 12px; font-weight: 500;
+    background: var(--bg-hover); color: var(--text-secondary);
+    cursor: pointer; transition: var(--transition);
+  }
+  .chip:hover { background: var(--border); }
+  .chip-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+  .chip-dot.green { background: var(--green); }
+  .chip-dot.yellow { background: var(--orange); }
+  .chip-dot.red { background: var(--red); }
+
+  .avatar {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: var(--accent-bg); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* Content */
+  .content { padding: 24px 32px 40px; }
+
+  /* Page transition */
+  .page { display: none; animation: fadeSlideIn 0.35s ease; }
+  .page.active { display: block; }
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Stats */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 16px; margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    transition: var(--transition);
+    position: relative; overflow: hidden;
+  }
+  .stat-card:hover { border-color: #c8cdd7; box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .stat-card::after {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 100%; height: 3px;
+  }
+  .stat-card.blue::after { background: var(--accent); }
+  .stat-card.green::after { background: var(--green); }
+  .stat-card.orange::after { background: var(--orange); }
+  .stat-card.purple::after { background: var(--purple); }
+  .stat-label {
+    font-size: 12px; font-weight: 500; color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+  .stat-trend {
+    font-size: 12px; margin-top: 4px;
+  }
+  .stat-trend.up { color: var(--green); }
+  .stat-trend.down { color: var(--red); }
+
+  /* Service Status Row */
+  .service-row {
+    display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .svc {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    transition: var(--transition);
+  }
+  .svc:hover { border-color: #c8cdd7; }
+  .svc .svc-name { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary); }
+  .svc .svc-port { color: var(--text-muted); font-size: 11px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.green { background: var(--green); box-shadow: 0 0 6px rgba(16,185,129,0.3); }
+  .dot.yellow { background: var(--orange); box-shadow: 0 0 6px rgba(245,158,11,0.3); }
+
+  /* Grid layouts */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  /* Card */
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: var(--transition);
+  }
+  .card-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-body { padding: 16px 20px; }
+  .card-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border-light);
+    font-size: 12px; color: var(--text-muted);
+  }
+
+  /* Data Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 10px 16px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    background: var(--bg-body);
+  }
+  td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-secondary);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg-hover); }
+
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .strong { color: var(--text-primary); font-weight: 500; }
+
+  .tag {
+    display: inline-flex; align-items: center;
+    padding: 1px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tag-blue { background: var(--accent-bg); color: var(--accent); }
+  .tag-green { background: var(--green-bg); color: var(--green); }
+  .tag-orange { background: var(--orange-bg); color: var(--orange); }
+  .tag-red { background: var(--red-bg); color: var(--red); }
+  .tag-purple { background: var(--purple-bg); color: var(--purple); }
+  .tag-cyan { background: var(--cyan-bg); color: var(--cyan); }
+  .tag-gray { background: var(--bg-hover); color: var(--text-muted); }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 10px 2px 8px; border-radius: 12px;
+    font-size: 11px; font-weight: 500;
+  }
+  .status-badge.online { background: var(--green-bg); color: var(--green); }
+  .status-badge.offline { background: var(--red-bg); color: var(--red); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 14px; border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 600;
+    border: none; cursor: pointer;
+    transition: var(--transition);
+    font-family: 'Inter', sans-serif;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #3651d4; }
+  .btn-secondary {
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--bg-hover); border-color: #c8cdd7; }
+  .btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.15); }
+  .btn-danger:hover { background: var(--red); color: white; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  .btn-icon { width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; }
+
+  /* Event Feed */
+  .event-feed { display: flex; flex-direction: column; }
+  .event-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border-light);
+    animation: eventPop 0.3s ease;
+  }
+  .event-row:last-child { border-bottom: none; }
+  @keyframes eventPop {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .event-icon {
+    width: 26px; height: 26px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .event-icon.dhcp { background: var(--accent-bg); color: var(--accent); }
+  .event-icon.tftp { background: var(--orange-bg); color: var(--orange); }
+  .event-icon.http { background: var(--purple-bg); color: var(--purple); }
+  .event-icon.boot { background: var(--green-bg); color: var(--green); }
+  .event-icon.ipmi { background: var(--cyan-bg); color: var(--cyan); }
+  .event-body { flex: 1; min-width: 0; }
+  .event-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 2px;
+  }
+  .event-type-label { font-size: 12px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+  .event-time { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .event-msg { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+  .event-msg b { color: var(--text-secondary); font-weight: 500; }
+
+  /* IPMI Buttons */
+  .ipmi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ipmi-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 14px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    cursor: pointer; transition: var(--transition);
+    font-family: 'Inter', sans-serif;
+  }
+  .ipmi-btn:hover {
+    border-color: #c8cdd7; box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+  .ipmi-btn:active { transform: translateY(0); }
+  .ipmi-btn .ib-icon { font-size: 20px; line-height: 1; }
+  .ipmi-btn .ib-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+  .ipmi-btn.green:hover { border-color: var(--green); }
+  .ipmi-btn.green .ib-icon { color: var(--green); }
+  .ipmi-btn.red:hover { border-color: var(--red); }
+  .ipmi-btn.red .ib-icon { color: var(--red); }
+  .ipmi-btn.orange:hover { border-color: var(--orange); }
+  .ipmi-btn.orange .ib-icon { color: var(--orange); }
+  .ipmi-btn.blue .ib-icon { color: var(--accent); }
+  .ipmi-btn.blue:hover { border-color: var(--accent); }
+
+  /* Event Filters */
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filter-chip {
+    padding: 4px 12px; border-radius: 16px;
+    font-size: 11px; font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    cursor: pointer; transition: var(--transition);
+  }
+  .filter-chip:hover { border-color: #c8cdd7; }
+  .filter-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  /* Detail grid */
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .detail-item { }
+  .detail-label { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-bottom: 3px; }
+  .detail-value { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+  .detail-value.mono { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+
+  .divider { border: none; border-top: 1px solid var(--border-light); margin: 16px 0; }
+
+  /* Live indicator */
+  .live-dot {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600;
+    color: var(--green);
+  }
+  .live-dot::before {
+    content: '';
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    animation: livePulse 1.5s ease-in-out infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Toast */
+  .toast-container {
+    position: fixed; bottom: 24px; right: 24px; z-index: 999;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .toast {
+    padding: 10px 16px; border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px;
+    animation: toastIn 0.3s ease;
+    min-width: 260px;
+  }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error { border-left: 3px solid var(--red); }
+  @keyframes toastIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* Simulated Event Stream Animation */
+  .event-stream { position: relative; }
+  .stream-overlay {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--bg-surface));
+    pointer-events: none;
+  }
+
+  /* Loading shimmer */
+  .shimmer {
+    height: 10px; border-radius: 4px;
+    background: linear-gradient(90deg, var(--bg-hover) 25%, var(--border-light) 50%, var(--bg-hover) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center; padding: 40px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state .icon { font-size: 36px; margin-bottom: 10px; opacity: 0.4; }
+  .empty-state h3 { font-size: 15px; color: var(--text-secondary); margin-bottom: 4px; }
+  .empty-state p { font-size: 12px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .tab {
+    padding: 8px 18px; font-size: 12px; font-weight: 500;
+    color: var(--text-muted); cursor: pointer; transition: var(--transition);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text-secondary); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Search */
+  .search-box {
+    position: relative; width: 240px;
+  }
+  .search-box input {
+    width: 100%; padding: 7px 12px 7px 32px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 12px; font-family: 'Inter', sans-serif;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    outline: none; transition: var(--transition);
+  }
+  .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(67,97,238,0.08); }
+  .search-box .s-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); font-size: 13px;
+  }
+
+  /* Toggle */
+  .toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  .toggle-track {
+    width: 36px; height: 20px; border-radius: 10px;
+    background: #d0d5dd; transition: var(--transition); position: relative;
+  }
+  .toggle-track.on { background: var(--accent); }
+  .toggle-knob {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: white; position: absolute; top: 2px; left: 2px;
+    transition: var(--transition);
+  }
+  .toggle-track.on .toggle-knob { left: 18px; }
+  .toggle-label { font-size: 12px; color: var(--text-secondary); }
+
+  /* Pagination */
+  .pagination {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 4px; padding-top: 12px; font-size: 12px; color: var(--text-muted);
+  }
+  .page-btn {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer; font-size: 11px;
+    transition: var(--transition);
+  }
+  .page-btn:hover { background: var(--bg-hover); }
+  .page-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .content { padding: 16px; }
+    .topbar { padding: 0 16px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .ipmi-grid { grid-template-columns: repeat(2, 1fr); }
+    .search-box { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-mark">PX</div>
+      <div class="logo-text">Pxe<span>Go</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="showPage('dashboard')" data-page="dashboard">
+        <span class="nav-icon">&#9632;</span>
+        Dashboard
+      </div>
+
+      <div class="nav-section">Management</div>
+      <div class="nav-item" onclick="showPage('hostDetail')" data-page="hostDetail">
+        <span class="nav-icon">&#9679;</span>
+        Hosts
+        <span class="nav-badge">12</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">&#9670;</span>
+        Boot Profiles
+        <span class="nav-badge">5</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">&#9635;</span>
+        Files
+        <span class="nav-badge">23</span>
+      </div>
+
+      <div class="nav-section">Monitoring</div>
+      <div class="nav-item" onclick="showPage('events')" data-page="events">
+        <span class="nav-icon">&#9776;</span>
+        Event Log
+        <span class="nav-badge">Live</span>
+      </div>
+
+      <div class="nav-section">System</div>
+      <div class="nav-item">
+        <span class="nav-icon">&#9881;</span>
+        Settings
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="nav-item">
+        <span class="chip"><span class="chip-dot green"></span> v0.1.0</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">Uptime 12d 7h</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn btn-secondary btn-icon" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display:none;">&#9776;</button>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="page-title" id="pageTitle">Dashboard</span>
+            <span class="chip" id="pageChip" style="font-size:11px;"><span class="chip-dot green"></span> All Systems Operational</span>
+          </div>
+        </div>
+      </div>
+      <div class="topbar-center" id="topbarCenter"></div>
+      <div class="topbar-right">
+        <button class="btn btn-secondary btn-sm" onclick="showToast('success', 'Configuration reloaded')">&#8635; Reload</button>
+        <button class="btn btn-secondary btn-sm">&#9881;</button>
+        <div class="avatar">A</div>
+      </div>
+    </header>
+
+    <div class="content" id="content">
+      <!-- Pages rendered by JS -->
+    </div>
+  </main>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ====== Data ======
+const hosts = [
+  { id: 1, mac: '00:1a:2b:3c:4d:01', ip: '192.168.1.101', hostname: 'node-01.example.com', arch: 'x86_64', profile: 'Ubuntu 22.04', lastSeen: '10s ago', bootCount: 47, status: 'online', bmc: '10.0.0.1' },
+  { id: 2, mac: '00:1a:2b:3c:4d:02', ip: '192.168.1.102', hostname: 'node-02.example.com', arch: 'x86_64', profile: 'Debian 12', lastSeen: '2m ago', bootCount: 32, status: 'online', bmc: '10.0.0.2' },
+  { id: 3, mac: '00:1a:2b:3c:4d:03', ip: '192.168.1.103', hostname: 'node-03.example.com', arch: 'arm64', profile: 'Ubuntu 22.04', lastSeen: '15m ago', bootCount: 18, status: 'offline', bmc: '10.0.0.3' },
+  { id: 4, mac: '00:1a:2b:3c:4d:04', ip: '192.168.1.104', hostname: 'node-04.example.com', arch: 'x86_64', profile: 'CentOS 9', lastSeen: '1h ago', bootCount: 89, status: 'offline', bmc: '10.0.0.4' },
+  { id: 5, mac: '00:1a:2b:3c:4d:05', ip: '192.168.1.105', hostname: 'node-05.example.com', arch: 'x86_64', profile: 'Memtest86+', lastSeen: '5m ago', bootCount: 12, status: 'online', bmc: '10.0.0.5' },
+];
+
+const eventsData = [
+  { type: 'dhcp', label: 'dhcp.ack', mac: '00:1a:2b:3c:4d:06', ip: '192.168.1.106', msg: 'Assigned IP', time: 'just now' },
+  { type: 'dhcp', label: 'dhcp.discover', mac: '00:1a:2b:3c:4d:06', ip: '', msg: 'DISCOVER received', time: '3s ago' },
+  { type: 'boot', label: 'boot.start', mac: '00:1a:2b:3c:4d:01', ip: '192.168.1.101', msg: 'Boot started — profile Ubuntu 22.04', time: '10s ago' },
+  { type: 'tftp', label: 'tftp.request', mac: '00:1a:2b:3c:4d:01', ip: '192.168.1.101', msg: 'undionly.kpxe (328 KB)', time: '12s ago' },
+  { type: 'http', label: 'http.request', mac: '', ip: '192.168.1.101', msg: '/boot/ubuntu/22.04/vmlinuz', time: '14s ago' },
+  { type: 'ipmi', label: 'ipmi.command', mac: '00:1a:2b:3c:4d:04', ip: '192.168.1.104', msg: 'Power On command sent', time: '1m ago' },
+  { type: 'dhcp', label: 'dhcp.offer', mac: '00:1a:2b:3c:4d:02', ip: '192.168.1.102', msg: 'IP offered', time: '2m ago' },
+  { type: 'boot', label: 'boot.end', mac: '00:1a:2b:3c:4d:01', ip: '192.168.1.101', msg: 'Boot complete — Ubuntu 22.04', time: '3m ago' },
+  { type: 'tftp', label: 'tftp.request', mac: '00:1a:2b:3c:4d:05', ip: '192.168.1.105', msg: 'memtest86+/memtest (4.2 MB)', time: '5m ago' },
+  { type: 'dhcp', label: 'dhcp.nak', mac: '00:1a:2b:3c:4d:07', ip: '', msg: 'NAK — no free lease', time: '6m ago' },
+];
+
+const bootHistory = [
+  { time: '2026-06-15 10:23:15', type: 'boot.start', detail: 'Ubuntu 22.04' },
+  { time: '2026-06-15 10:23:12', type: 'tftp.request', detail: 'undionly.kpxe' },
+  { time: '2026-06-15 10:23:10', type: 'dhcp.ack', detail: '192.168.1.101' },
+  { time: '2026-06-15 10:23:08', type: 'dhcp.discover', detail: 'DISCOVER' },
+  { time: '2026-06-14 22:15:00', type: 'boot.start', detail: 'Memtest86+' },
+  { time: '2026-06-14 18:00:00', type: 'ipmi.command', detail: 'Power Cycle via BMC' },
+];
+
+// ====== Navigation ======
+function showPage(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById(`page-${page}`);
+  if (target) target.classList.add('active');
+  updateTopbar(page);
+}
+
+function updateTopbar(page) {
+  const titles = {
+    dashboard: ['Dashboard', 'All Systems Operational'],
+    hostDetail: ['node-01.example.com', '00:1a:2b:3c:4d:01'],
+    events: ['Event Log', 'Real-time SSE stream'],
+  };
+  const t = titles[page] || ['PxeGo', ''];
+  document.getElementById('pageTitle').textContent = t[0];
+  document.getElementById('pageChip').innerHTML = `<span class="chip-dot green"></span> ${t[1]}`;
+}
+
+// ====== Toast ======
+function showToast(type, message) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span style="font-size:15px;">${type === 'success' ? '&#10003;' : '&#10007;'}</span> ${message}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2800);
+}
+
+// ====== Event Simulator ======
+let eventCounter = eventsData.length;
+
+function addRandomEvent() {
+  eventCounter++;
+  const types = ['dhcp', 'tftp', 'http', 'boot', 'ipmi'];
+  const type = types[Math.floor(Math.random() * types.length)];
+  const labels = {
+    dhcp: ['dhcp.discover', 'dhcp.offer', 'dhcp.ack'],
+    tftp: ['tftp.request'],
+    http: ['http.request'],
+    boot: ['boot.start', 'boot.end'],
+    ipmi: ['ipmi.command'],
+  };
+  const label = labels[type][Math.floor(Math.random() * labels[type].length)];
+  const msgs = {
+    dhcp: ['DISCOVER received', 'IP offered', 'Assigned IP'],
+    tftp: ['undionly.kpxe', 'ipxe-x86_64.efi', 'boot.ipxe'],
+    http: ['/boot/vmlinuz', '/boot/initrd.img', '/boot/ipxe?mac=xx'],
+    boot: ['Boot started — profile', 'Boot complete'],
+    ipmi: ['Power On command sent', 'Status: ON', 'Boot device set: PXE'],
+  };
+  const msgList = msgs[type];
+  const msg = msgList[Math.floor(Math.random() * msgList.length)];
+  const mac = `00:1a:2b:${String(Math.floor(Math.random()*255)).padStart(3,'0')}:${String(Math.floor(Math.random()*255)).padStart(3,'0')}:${String(Math.floor(Math.random()*255)).padStart(3,'0')}`;
+
+  const ev = { type, label, mac, ip: '192.168.1.' + Math.floor(Math.random()*50+100), msg, time: 'just now' };
+
+  // Update events page if active
+  const feed = document.getElementById('eventFeed');
+  if (feed) {
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    row.innerHTML = `
+      <div class="event-icon ${ev.type}">${ev.type.toUpperCase().slice(0,4)}</div>
+      <div class="event-body">
+        <div class="event-head">
+          <span class="event-type-label">${ev.label}</span>
+          <span class="event-time">just now</span>
+        </div>
+        <div class="event-msg">${ev.msg} — <b>${ev.mac}</b> ${ev.ip ? '· '+ev.ip : ''}</div>
+      </div>
+    `;
+    feed.insertBefore(row, feed.firstChild);
+    // Keep max 50 events
+    while (feed.children.length > 50) feed.removeChild(feed.lastChild);
+  }
+
+  // Update dashboard event list too
+  const dashFeed = document.getElementById('dashEvents');
+  if (dashFeed) {
+    const icons = { dhcp: 'DHCP', tftp: 'TFTP', http: 'HTTP', boot: 'BOOT', ipmi: 'IPMI' };
+    const colors = { dhcp: 'tag-blue', tftp: 'tag-orange', http: 'tag-purple', boot: 'tag-green', ipmi: 'tag-cyan' };
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    row.innerHTML = `
+      <div class="event-icon ${ev.type}">${icons[ev.type]}</div>
+      <div class="event-body">
+        <div class="event-head">
+          <span class="event-type-label">${ev.label}</span>
+          <span class="event-time">just now</span>
+        </div>
+        <div class="event-msg">${ev.msg} — <b>${ev.mac}</b></div>
+      </div>
+    `;
+    dashFeed.insertBefore(row, dashFeed.firstChild);
+    while (dashFeed.children.length > 8) dashFeed.removeChild(dashFeed.lastChild);
+  }
+}
+
+// ====== Renderer ======
+function renderAll() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="page active" id="page-dashboard">
+      ${renderDashboard()}
+    </div>
+    <div class="page" id="page-hostDetail">
+      ${renderHostDetail()}
+    </div>
+    <div class="page" id="page-events">
+      ${renderEvents()}
+    </div>
+  `;
+}
+
+function renderDashboard() {
+  return `
+    <div class="service-row">
+      <div class="svc"><span class="dot green"></span> DHCP <span class="svc-port">:67</span> <span class="svc-name">Full</span></div>
+      <div class="svc"><span class="dot green"></span> TFTP <span class="svc-port">:69</span></div>
+      <div class="svc"><span class="dot green"></span> HTTP <span class="svc-port">:8080</span> <span class="svc-name">API+UI</span></div>
+      <div class="svc"><span class="dot green"></span> DNS <span class="svc-port">:53</span></div>
+      <div class="svc"><span class="dot yellow"></span> IPMI <span class="svc-name">Standby</span></div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card blue">
+        <div class="stat-label">Active Leases</div>
+        <div class="stat-value">6</div>
+        <div class="stat-trend up">&#9650; 2 new (24h)</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Online Hosts</div>
+        <div class="stat-value">4</div>
+        <div class="stat-trend up">&#9650; 87% uptime</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">Total Events</div>
+        <div class="stat-value">1,284</div>
+        <div class="stat-trend up">&#9650; 156 (24h)</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-label">Net Boots</div>
+        <div class="stat-value">201</div>
+        <div class="stat-trend up">&#9650; 23 today</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">&#9881; Live Event Stream</span>
+          <span class="live-dot">Receiving</span>
+        </div>
+        <div class="card-body" style="padding:8px 16px;max-height:340px;overflow-y:auto;">
+          <div class="event-feed" id="dashEvents">
+            ${eventsData.slice(0, 5).map(e => `
+              <div class="event-row">
+                <div class="event-icon ${e.type}">${e.type.toUpperCase().slice(0,4)}</div>
+                <div class="event-body">
+                  <div class="event-head">
+                    <span class="event-type-label">${e.label}</span>
+                    <span class="event-time">${e.time}</span>
+                  </div>
+                  <div class="event-msg">${e.msg} — <b>${e.mac}</b></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">&#9679; Active Hosts</span>
+          <button class="btn btn-secondary btn-sm" onclick="showPage('hostDetail')">View All &#8594;</button>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>MAC</th><th>Hostname</th><th>Status</th><th>Last Seen</th></tr></thead>
+              <tbody>
+                ${hosts.slice(0, 4).map(h => `
+                  <tr onclick="showPage('hostDetail')" style="cursor:pointer;">
+                    <td><span class="mono strong">${h.mac}</span></td>
+                    <td class="strong">${h.hostname}</td>
+                    <td><span class="status-badge ${h.status}"><span class="dot ${h.status === 'online' ? 'green' : 'red'}"></span> ${h.status}</span></td>
+                    <td><span class="mono" style="color:var(--text-muted)">${h.lastSeen}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-footer">
+          Showing 4 of 12 hosts
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderHostDetail() {
+  const h = hosts[0];
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn btn-secondary btn-sm" onclick="showPage('dashboard')">&#8592; Back</button>
+        <span class="status-badge ${h.status}"><span class="dot ${h.status === 'online' ? 'green' : 'red'}"></span> ${h.status}</span>
+        <span style="font-size:15px;font-weight:600;">${h.hostname}</span>
+        <span class="tag tag-blue">${h.arch}</span>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-secondary btn-sm" onclick="showToast('success', 'WoL magic packet sent to ${h.mac}')">&#9889; Wake</button>
+        <button class="btn btn-secondary btn-sm">&#9998; Edit</button>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">&#8505; Identity</span></div>
+        <div class="card-body">
+          <div class="detail-grid">
+            <div class="detail-item"><div class="detail-label">MAC Address</div><div class="detail-value mono">${h.mac}</div></div>
+            <div class="detail-item"><div class="detail-label">IP Address</div><div class="detail-value mono">${h.ip}</div></div>
+            <div class="detail-item"><div class="detail-label">Architecture</div><div class="detail-value"><span class="tag tag-blue">${h.arch}</span></div></div>
+            <div class="detail-item"><div class="detail-label">Boot Profile</div><div class="detail-value">${h.profile}</div></div>
+            <div class="detail-item"><div class="detail-label">Boot Count</div><div class="detail-value">${h.bootCount}</div></div>
+            <div class="detail-item"><div class="detail-label">Last Seen</div><div class="detail-value mono">${h.lastSeen}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">&#9889; IPMI Remote Control</span></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 12px;background:var(--bg-body);border-radius:6px;font-size:12px;">
+            <span class="dot green"></span>
+            <span>BMC reachable at <b>${h.bmc}:623</b></span>
+          </div>
+          <div class="ipmi-grid">
+            <button class="ipmi-btn green" onclick="ipmiAction('Power On')">
+              <span class="ib-icon">&#9654;</span>
+              <span class="ib-label">Power On</span>
+            </button>
+            <button class="ipmi-btn red" onclick="ipmiAction('Power Off')">
+              <span class="ib-icon">&#9632;</span>
+              <span class="ib-label">Power Off</span>
+            </button>
+            <button class="ipmi-btn orange" onclick="ipmiAction('Power Cycle')">
+              <span class="ib-icon">&#8635;</span>
+              <span class="ib-label">Power Cycle</span>
+            </button>
+            <button class="ipmi-btn blue" onclick="ipmiAction('Status Query')">
+              <span class="ib-icon">&#8505;</span>
+              <span class="ib-label">Status: ON</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">&#8986; Boot History</span>
+          <span class="live-dot">Live</span>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Timestamp</th><th>Event</th><th>Detail</th></tr></thead>
+              <tbody>
+                ${bootHistory.map(b => `
+                  <tr>
+                    <td><span class="mono" style="color:var(--text-muted)">${b.time}</span></td>
+                    <td><span class="tag ${b.type === 'boot.start' ? 'tag-green' : b.type === 'dhcp.ack' ? 'tag-blue' : b.type === 'tftp.request' ? 'tag-orange' : b.type === 'dhcp.discover' ? 'tag-cyan' : 'tag-purple'}">${b.type}</span></td>
+                    <td>${b.detail}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card-footer">Last 6 events</div>
+      </div>
+    </div>
+  `;
+}
+
+function ipmiAction(action) {
+  showToast('success', `IPMI: ${action} command sent to BMC`);
+  // Simulate status response
+  if (action === 'Status Query') {
+    setTimeout(() => showToast('success', 'IPMI: Power State = ON'), 500);
+  }
+}
+
+function renderEvents() {
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="filter-row" style="margin-bottom:0;">
+        <div class="filter-chip active" onclick="filterEvents(this,'all')">All</div>
+        <div class="filter-chip" onclick="filterEvents(this,'dhcp')">DHCP</div>
+        <div class="filter-chip" onclick="filterEvents(this,'tftp')">TFTP</div>
+        <div class="filter-chip" onclick="filterEvents(this,'http')">HTTP</div>
+        <div class="filter-chip" onclick="filterEvents(this,'boot')">BOOT</div>
+        <div class="filter-chip" onclick="filterEvents(this,'ipmi')">IPMI</div>
+      </div>
+      <span class="live-dot">1.2k events</span>
+    </div>
+
+    <div class="card">
+      <div class="card-body event-stream" style="padding:8px 16px;max-height:500px;overflow-y:auto;">
+        <div class="event-feed" id="eventFeed">
+          ${eventsData.map(e => `
+            <div class="event-row" data-type="${e.type}">
+              <div class="event-icon ${e.type}">${e.type.toUpperCase().slice(0,4)}</div>
+              <div class="event-body">
+                <div class="event-head">
+                  <span class="event-type-label">${e.label}</span>
+                  <span class="tag tag-${e.type === 'dhcp' ? 'blue' : e.type === 'tftp' ? 'orange' : e.type === 'http' ? 'purple' : e.type === 'boot' ? 'green' : 'cyan'}" style="font-size:10px;">${e.type}</span>
+                  <span class="event-time">${e.time}</span>
+                </div>
+                <div class="event-msg">${e.msg} — <b>${e.mac}</b> ${e.ip ? '· '+e.ip : ''}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="stream-overlay"></div>
+      </div>
+    </div>
+  `;
+}
+
+function filterEvents(el, type) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('#eventFeed .event-row').forEach(row => {
+    if (type === 'all') {
+      row.style.display = '';
+    } else {
+      row.style.display = row.dataset.type === type ? '' : 'none';
+    }
+  });
+}
+
+// ====== Init ======
+renderAll();
+
+// Start simulated event stream
+setInterval(addRandomEvent, 4000);
+</script>
+</body>
+</html>

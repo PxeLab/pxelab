@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go version *)",
+      "Bash(go env *)",
+      "Bash(go doc *)",
+      "Skill(frontend-design)",
+      "Skill(huashu-design)",
+      "Skill(ui-ux-pro-max:ui-ux-pro-max)",
+      "Bash(python3 *)",
+      "Bash(start *)",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:gitlab.sigsum.org)",
+      "Skill(writing-plans)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(git version *)",
+      "Bash(go mod *)",
+      "Bash(go get *)",
+      "Bash(go build *)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}
