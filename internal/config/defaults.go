@@ -1,5 +1,7 @@
 package config
 
+import "path/filepath"
+
 const (
 	DefaultPortDHCP     = 67
 	DefaultPortDHCP4011 = 4011
@@ -11,15 +13,16 @@ const (
 )
 
 func DefaultConfig() *Config {
+	dataDir := DefaultDataDir()
 	return &Config{
 		Global: GlobalConfig{
-			DataDir: DefaultDataDir(),
+			DataDir: dataDir,
 		},
 		Boot: BootConfig{
-			RootDir: "/etc/pxego/boot",
+			RootDir: filepath.Join(dataDir, "boot"),
 		},
 		Store: StoreConfig{
-			DSN: "pxego.db",
+			DSN: filepath.Join(dataDir, "pxego.db"),
 		},
 		Log: LogConfig{
 			Level: DefaultLogLevel,
