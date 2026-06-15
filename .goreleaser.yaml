@@ -1,0 +1,117 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+    - cd web && npm ci && npm run build
+
+builds:
+  - id: pxego
+    main: ./cmd/pxego
+    binary: pxego
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - "7"
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+    tags:
+      - netgo
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: binary
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - README.md
+      - contrib/config.example.yaml
+      - contrib/pxego.service
+      - contrib/com.pxego.plist
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+
+snapshot:
+  name_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat(\(.+\))?!?:'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix(\(.+\))?!?:'
+      order: 1
+    - title: Maintenance
+      regexp: '^chore(\(.+\))?:'
+      order: 2
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+release:
+  github:
+    owner: pxego
+    name: pxego
+  draft: true
+  prerelease: auto
+
+nfpms:
+  - id: packages
+    package_name: pxego
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    vendor: PxeGo
+    homepage: https://github.com/pxego/pxego
+    maintainer: PxeGo Team
+    description: All-in-one PXE server (DHCP/TFTP/DNS/HTTP)
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: contrib/pxego.service
+        dst: /etc/systemd/system/pxego.service
+        type: config
+      - src: contrib/config.example.yaml
+        dst: /etc/pxego/config.yaml
+        type: config
+    scripts:
+      postinstall: contrib/postinstall.sh
+
+brews:
+  - name: pxego
+    repository:
+      owner: pxego
+      name: homebrew-tap
+    homepage: https://github.com/pxego/pxego
+    description: All-in-one PXE server
+    license: MIT
+    commit_author:
+      name: goreleaserbot
+      email: bot@pxego.dev
+    install: |
+      bin.install "pxego"
+      (etc/"pxego").install "contrib/config.example.yaml"
+    service: |
+      run [opt_bin/"pxego"]
+      keep_alive true
+      run_at_load true

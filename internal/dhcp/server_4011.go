@@ -7,9 +7,6 @@ import (
 	"net"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/store"
 )
 
 type ProxyServer4011 struct {
@@ -19,14 +16,12 @@ type ProxyServer4011 struct {
 	conn    *net.UDPConn
 }
 
-func NewProxyServer4011(cfg *config.Config, st store.Interface, bus *eventbus.Bus) (*ProxyServer4011, error) {
-	handler := NewHandler(cfg, st, bus)
-	addr := fmt.Sprintf("0.0.0.0:%d", config.DefaultPortDHCP4011)
+func NewProxyServer4011(addr string, handler *Handler) *ProxyServer4011 {
 	return &ProxyServer4011{
 		name:    "ProxyDHCP-4011",
 		addr:    addr,
 		handler: handler,
-	}, nil
+	}
 }
 
 func (s *ProxyServer4011) Name() string { return s.name }
@@ -67,6 +62,7 @@ func (s *ProxyServer4011) Start(ctx context.Context) error {
 }
 
 func (s *ProxyServer4011) Stop(ctx context.Context) error {
+	slog.Info("ProxyDHCP 服务关闭")
 	if s.conn != nil {
 		return s.conn.Close()
 	}

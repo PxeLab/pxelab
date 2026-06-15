@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type BootFileServer struct {
@@ -19,13 +20,27 @@ func (b *BootFileServer) Root() string {
 }
 
 func (b *BootFileServer) Read(path string) ([]byte, error) {
-	fullPath := filepath.Join(b.rootDir, path)
-	// 安全检查：防止目录遍历
-	absRoot, _ := filepath.Abs(b.rootDir)
-	absFile, _ := filepath.Abs(fullPath)
-	if len(absFile) < len(absRoot) || absFile[:len(absRoot)] != absRoot {
+	cleanPath := filepath.Clean(path)
+	if strings.Contains(cleanPath, "..") {
 		return nil, fmt.Errorf("路径越权: %s", path)
 	}
+	fullPath := filepath.Join(b.rootDir, cleanPath)
+
+	absRoot, err := filepath.Abs(b.rootDir)
+	if err != nil {
+		return nil, fmt.Errorf("获取根路径失败: %w", err)
+	}
+	absFile, err := filepath.Abs(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("获取文件路径失败: %w", err)
+	}
+
+	// 安全检查：确认文件路径在 rootDir 之下
+	rootPrefix := absRoot + string(filepath.Separator)
+	if !strings.HasPrefix(absFile, rootPrefix) && absFile != absRoot {
+		return nil, fmt.Errorf("路径越权: %s", path)
+	}
+
 	return os.ReadFile(fullPath)
 }
 

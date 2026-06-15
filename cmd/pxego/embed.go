@@ -6,10 +6,10 @@ import (
 	"net/http"
 )
 
-//go:embed web/dist/*
+//go:embed webdist/*
 var spaFS embed.FS
 
 func spaHandler() http.Handler {
-	subFS, _ := fs.Sub(spaFS, "web/dist")
+	subFS, _ := fs.Sub(spaFS, "webdist")
 	return http.FileServer(http.FS(subFS))
 }

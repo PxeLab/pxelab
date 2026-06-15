@@ -1,1 +1,57 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-bg-base: #0a0c10;
+  --color-bg-elevated: #111318;
+  --color-bg-card: #16181f;
+  --color-bg-hover: #1c1f2c;
+  --color-bg-input: #1a1d2e;
+  --color-border-muted: #232738;
+  --color-text-primary: #e8eaed;
+  --color-text-secondary: #9aa0ab;
+  --color-text-muted: #6b7294;
+  --color-accent-blue: #3b82f6;
+  --color-accent-green: #22c55e;
+  --color-accent-yellow: #eab308;
+  --color-accent-red: #ef4444;
+  --color-accent-cyan: #06b6d4;
+  --color-accent-purple: #a855f7;
+  --color-accent-orange: #f97316;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #16181f 25%, #1c1f2c 50%, #16181f 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232738;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3f52;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #232738 transparent;
+}

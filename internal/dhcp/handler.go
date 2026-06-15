@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/pxego/pxego/internal/boot"
@@ -21,11 +22,11 @@ type Handler struct {
 	eventBus *eventbus.Bus
 }
 
-func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Handler {
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, leaseMgr *LeaseManager) *Handler {
 	return &Handler{
 		config:   cfg,
 		store:    st,
-		leaseMgr: NewLeaseManager(st),
+		leaseMgr: leaseMgr,
 		eventBus: bus,
 	}
 }
@@ -33,9 +34,24 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Hand
 func (h *Handler) InitSubnets() {
 	for _, iface := range h.config.Interfaces {
 		for _, subnet := range iface.Subnets {
-			r, _ := NewIPRange(subnet.Pool, subnet.Pool)
-			_ = r
-			// TODO: 解析 pool 字符串为 start-end
+			// 解析 pool 格式 "192.168.1.100-192.168.1.200"
+			poolParts := strings.SplitN(subnet.Pool, "-", 2)
+			if len(poolParts) != 2 {
+				slog.Warn("子网池格式无效，跳过", "cidr", subnet.CIDR, "pool", subnet.Pool)
+				continue
+			}
+			ipRange, err := NewIPRange(strings.TrimSpace(poolParts[0]), strings.TrimSpace(poolParts[1]))
+			if err != nil {
+				slog.Warn("创建 IP 范围失败，跳过", "cidr", subnet.CIDR, "error", err)
+				continue
+			}
+			gateway := net.ParseIP(subnet.Gateway)
+			if gateway == nil {
+				slog.Warn("网关地址无效，跳过", "cidr", subnet.CIDR, "gateway", subnet.Gateway)
+				continue
+			}
+			h.leaseMgr.AddSubnet(subnet.CIDR, ipRange, gateway)
+			slog.Info("子网已注册", "cidr", subnet.CIDR, "pool", subnet.Pool)
 		}
 	}
 }
@@ -72,32 +88,43 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 
 	// 确定 DHCP 模式
 	dhcpMode := "hybrid"
-	if isPXE {
-		for _, iface := range h.config.Interfaces {
-			if iface.DHCP == "proxy" || iface.DHCP == "hybrid" {
-				dhcpMode = "proxy"
-			} else if iface.DHCP == "full" {
-				dhcpMode = "full"
-			}
+	for _, iface := range h.config.Interfaces {
+		if isPXE && (iface.DHCP == "proxy" || iface.DHCP == "hybrid") {
+			dhcpMode = "proxy"
+		} else if iface.DHCP == "full" {
+			dhcpMode = "full"
 		}
 	}
 
-	// 获取 NextServer
-	var nextServer net.IP
+	// 查找匹配子网（通过 peer IP）
+	var subnetCfg *config.SubnetConfig
 	for _, iface := range h.config.Interfaces {
 		for _, subnet := range iface.Subnets {
-			if subnet.NextServer != "" {
-				nextServer = net.ParseIP(subnet.NextServer)
+			_, cidrNet, err := net.ParseCIDR(subnet.CIDR)
+			if err == nil {
+				peerIP := peer.(*net.UDPAddr).IP
+				if cidrNet.Contains(peerIP) {
+					subnetCfg = &subnet
+					break
+				}
 			}
 		}
+		if subnetCfg != nil {
+			break
+		}
+	}
+
+	var nextServer net.IP
+	if subnetCfg != nil && subnetCfg.NextServer != "" {
+		nextServer = net.ParseIP(subnetCfg.NextServer)
 	}
 
 	var reply *dhcpv4.DHCPv4
 	switch mt {
 	case dhcpv4.MessageTypeDiscover:
-		reply = h.handleDiscover(pkt, dhcpMode, nextServer)
+		reply = h.handleDiscover(pkt, dhcpMode, nextServer, subnetCfg)
 	case dhcpv4.MessageTypeRequest:
-		reply = h.handleRequest(pkt, dhcpMode, nextServer)
+		reply = h.handleRequest(pkt, dhcpMode, nextServer, subnetCfg)
 	}
 
 	if reply != nil {
@@ -110,7 +137,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	}
 }
 
-func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, nextServer net.IP) *dhcpv4.DHCPv4 {
+func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, nextServer net.IP, subnetCfg *config.SubnetConfig) *dhcpv4.DHCPv4 {
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil
@@ -126,8 +153,15 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, nextServer net
 			reply.BootFileName = boot.BootFileForArch(arch)
 		}
 	case "full":
-		if ip, err := h.leaseMgr.Allocate("", pkt.ClientHWAddr.String()); err == nil {
+		cidr := ""
+		if subnetCfg != nil {
+			cidr = subnetCfg.CIDR
+		}
+		if ip, err := h.leaseMgr.Allocate(cidr, pkt.ClientHWAddr.String()); err == nil {
 			reply.YourIPAddr = ip
+		} else {
+			slog.Warn("IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
+			return nil
 		}
 		if nextServer != nil {
 			reply.ServerIPAddr = nextServer
@@ -137,7 +171,9 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, nextServer net
 	return reply
 }
 
-func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, nextServer net.IP) *dhcpv4.DHCPv4 {
+func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, nextServer net.IP, subnetCfg *config.SubnetConfig) *dhcpv4.DHCPv4 {
+	_ = mode
+	_ = subnetCfg
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil

@@ -10,7 +10,13 @@ run:
 	go run ./cmd/pxego
 
 clean:
-	rm -rf bin/
+	rm -rf bin/ dist/
 
 frontend:
 	cd web && npm ci && npm run build
+
+release:
+	goreleaser release --clean
+
+release-snapshot:
+	goreleaser release --clean --snapshot

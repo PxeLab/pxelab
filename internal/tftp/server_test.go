@@ -1,0 +1,45 @@
+package tftp
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/pxego/pxego/internal/boot"
+	"github.com/pxego/pxego/internal/eventbus"
+)
+
+func TestNewServer(t *testing.T) {
+	bus := eventbus.New()
+	bootFS := boot.NewBootFileServer(t.TempDir())
+
+	s := NewServer(0, bootFS, bus)
+	if s == nil {
+		t.Fatal("expected non-nil server")
+	}
+	if s.Name() != "TFTP" {
+		t.Errorf("expected name 'TFTP', got %s", s.Name())
+	}
+}
+
+func TestServerStartStop(t *testing.T) {
+	bus := eventbus.New()
+	bootFS := boot.NewBootFileServer(t.TempDir())
+
+	s := NewServer(0, bootFS, bus)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	// Start should not block and return nil
+	if err := s.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// Stop should not block and return nil
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer stopCancel()
+	if err := s.Stop(stopCtx); err != nil {
+		t.Fatal(err)
+	}
+}

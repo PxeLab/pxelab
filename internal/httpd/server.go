@@ -24,11 +24,10 @@ type Server struct {
 	api    *api.Handler
 }
 
-func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer) *Server {
+func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler) *Server {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
-	r.Use(chimw.RealIP)
 	r.Use(CORSMiddleware)
 	if cfg.Auth.Token != "" {
 		r.Use(AuthMiddleware(cfg.Auth.Token))
@@ -39,8 +38,30 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	apiHandler := api.NewHandler(st, bus, bootFS)
+	apiHandler := api.NewHandler(cfg, st, bus, bootFS)
 	apiHandler.RegisterRoutes(r)
+
+	// 启动文件 HTTP 服务（iPXE 等通过网络引导）
+	if bootFS != nil {
+		r.Get("/boot/*", func(w http.ResponseWriter, r *http.Request) {
+			filePath := chi.URLParam(r, "*")
+			if filePath == "" {
+				filePath = r.URL.Query().Get("path")
+			}
+			data, err := bootFS.Read(filePath)
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Write(data)
+		})
+	}
+
+	// 前端 SPA
+	if spaHandler != nil {
+		r.Handle("/*", spaHandler)
+	}
 
 	return &Server{
 		name:   "HTTP",

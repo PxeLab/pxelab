@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/glebarez/sqlite"
@@ -15,6 +17,12 @@ type sqliteStore struct {
 }
 
 func NewSQLite(dsn string) (Interface, error) {
+	// 确保数据库目录存在
+	if dir := filepath.Dir(dsn); dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, err
+		}
+	}
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Warn),
 	})

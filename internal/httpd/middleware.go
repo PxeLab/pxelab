@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"net/http"
+	"strings"
 )
 
 func CORSMiddleware(next http.Handler) http.Handler {
@@ -17,9 +18,27 @@ func CORSMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// publicPaths 是不需要认证的路径前缀
+var publicPaths = []string{
+	"/health",
+	"/api/v1/status",
+	"/boot/",
+}
+
 func AuthMiddleware(token string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// 空 token 表示不启用认证
+			if token == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+			for _, p := range publicPaths {
+				if strings.HasPrefix(r.URL.Path, p) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
 			if r.Header.Get("Authorization") != "Bearer "+token {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return

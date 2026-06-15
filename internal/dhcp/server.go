@@ -7,9 +7,6 @@ import (
 	"net"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/store"
 )
 
 type Server struct {
@@ -19,16 +16,12 @@ type Server struct {
 	conn    *net.UDPConn
 }
 
-func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus) (*Server, error) {
-	handler := NewHandler(cfg, st, bus)
-	handler.InitSubnets()
-
-	addr := fmt.Sprintf("0.0.0.0:%d", config.DefaultPortDHCP)
+func NewServer(addr string, handler *Handler) *Server {
 	return &Server{
 		name:    "DHCP",
 		addr:    addr,
 		handler: handler,
-	}, nil
+	}
 }
 
 func (s *Server) Name() string { return s.name }

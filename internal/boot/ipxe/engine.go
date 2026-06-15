@@ -22,6 +22,8 @@ type TemplateData struct {
 	MAC        string
 	IP         string
 	Hostname   string
+	URL        string
+	WIM        string
 	Menu       *MenuData
 	OS         *OSData
 }

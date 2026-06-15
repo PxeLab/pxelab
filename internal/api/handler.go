@@ -3,29 +3,41 @@ package api
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pxego/pxego/internal/boot"
+	"github.com/pxego/pxego/internal/config"
 	"github.com/pxego/pxego/internal/eventbus"
+	"github.com/pxego/pxego/internal/ipmi"
 	"github.com/pxego/pxego/internal/store"
 )
 
 type Handler struct {
-	Host    *HostHandler
-	Profile *ProfileHandler
-	Event   *EventHandler
-	File    *FileHandler
+	Host     *HostHandler
+	Profile  *ProfileHandler
+	Event    *EventHandler
+	File     *FileHandler
+	WOL      *WOLHandler
+	IPMI     *IPMIHandler
+	Lease    *LeaseHandler
+	Settings *SettingsHandler
+	Services map[string]string
 }
 
-func NewHandler(st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer) *Handler {
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer) *Handler {
 	return &Handler{
-		Host:    &HostHandler{store: st},
-		Profile: &ProfileHandler{store: st},
-		Event:   &EventHandler{store: st, eventBus: bus},
-		File:    &FileHandler{bootFS: bootFS},
+		Host:     &HostHandler{store: st},
+		Profile:  &ProfileHandler{store: st},
+		Event:    &EventHandler{store: st, eventBus: bus},
+		File:     &FileHandler{bootFS: bootFS},
+		WOL:      &WOLHandler{store: st},
+		IPMI:     &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
+		Lease:    &LeaseHandler{store: st},
+		Settings: NewSettingsHandler(cfg),
+		Services: map[string]string{},
 	}
 }
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/status", StatusHandler)
+		r.Get("/status", h.Status)
 
 		r.Get("/events", h.Event.List)
 		r.Get("/events/stream", h.Event.Stream)
@@ -35,6 +47,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/hosts/{id}", h.Host.Get)
 		r.Put("/hosts/{id}", h.Host.Update)
 		r.Delete("/hosts/{id}", h.Host.Delete)
+		r.Post("/hosts/{id}/wake", h.WOL.Wake)
+		r.Post("/hosts/{id}/power", h.IPMI.PowerAction)
 
 		r.Get("/profiles", h.Profile.List)
 		r.Post("/profiles", h.Profile.Create)
@@ -43,6 +57,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Delete("/profiles/{id}", h.Profile.Delete)
 
 		r.Get("/files", h.File.List)
+		r.Post("/files/upload", h.File.Upload)
 		r.Delete("/files", h.File.Delete)
+
+		r.Get("/leases", h.Lease.List)
+
+		r.Get("/settings", h.Settings.Get)
+		r.Put("/settings", h.Settings.Update)
 	})
 }

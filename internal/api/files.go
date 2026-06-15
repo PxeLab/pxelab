@@ -1,6 +1,7 @@
 package api
 
 import (
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -39,6 +40,57 @@ func (h *FileHandler) List(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	OK(w, files)
+}
+
+func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(50 << 20); err != nil {
+		Error(w, http.StatusBadRequest, "无效的 multipart 表单")
+		return
+	}
+	defer r.MultipartForm.RemoveAll()
+
+	rootDir := h.bootFS.Root()
+	var uploaded []map[string]any
+
+	for _, headers := range r.MultipartForm.File {
+		for _, header := range headers {
+			file, err := header.Open()
+			if err != nil {
+				Error(w, http.StatusInternalServerError, "文件打开失败")
+				return
+			}
+
+			clean := filepath.Clean(header.Filename)
+			if strings.Contains(clean, "..") || strings.HasPrefix(clean, "/") || strings.HasPrefix(clean, "\\") {
+				file.Close()
+				Error(w, http.StatusBadRequest, "无效的文件名")
+				return
+			}
+
+			dst := filepath.Join(rootDir, clean)
+			dstFile, err := os.Create(dst)
+			if err != nil {
+				file.Close()
+				Error(w, http.StatusInternalServerError, "文件创建失败")
+				return
+			}
+
+			written, err := io.Copy(dstFile, file)
+			file.Close()
+			dstFile.Close()
+			if err != nil {
+				Error(w, http.StatusInternalServerError, "文件写入失败")
+				return
+			}
+
+			uploaded = append(uploaded, map[string]any{
+				"name": header.Filename,
+				"size": written,
+			})
+		}
+	}
+
+	Created(w, uploaded)
 }
 
 func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
