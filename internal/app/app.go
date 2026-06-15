@@ -44,6 +44,7 @@ func (a *App) Run(ctx context.Context) error {
 	// 信号处理
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
 
 	select {
 	case <-ctx.Done():
