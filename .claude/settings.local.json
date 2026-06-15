@@ -23,7 +23,9 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(go test *)",
-      "Bash(./pxego --help)"
+      "Bash(./pxego --help)",
+      "Bash(go list *)",
+      "Bash(findstr \"Arch \")"
     ]
   }
 }
