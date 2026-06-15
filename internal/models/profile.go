@@ -52,7 +52,7 @@ type MenuEntry struct {
 }
 
 // Scan 和 Value 实现 sql.Scanner 和 driver.Valuer 以便 GORM 存储
-func (bm *BootMenu) Scan(value interface{}) error {
+func (bm *BootMenu) Scan(value any) error {
 	if value == nil {
 		return nil
 	}
