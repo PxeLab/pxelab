@@ -26,6 +26,10 @@ Thumbs.db
 # Dependencies
 web/node_modules/
 
+# Build output
+web/dist/
+*.tsbuildinfo
+
 # Environment
 .env
 .env.local
