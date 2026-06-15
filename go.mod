@@ -5,6 +5,7 @@ go 1.25.11
 require (
 	github.com/glebarez/sqlite v1.11.0
 	github.com/insomniacslk/dhcp v0.0.0-20260603135910-a415979eb11e
+	github.com/pin/tftp v2.1.0+incompatible
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	golang.org/x/sync v0.21.0
