@@ -35,7 +35,6 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Settings: NewSettingsHandler(cfg),
 		Services: map[string]string{},
 	}
-	// 用配置中的接口信息初始化服务状态（运行时 main.go 会覆盖）
 	for i, iface := range cfg.Interfaces {
 		name := iface.Name
 		if name == "" {
@@ -88,5 +87,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		r.Get("/settings", h.Settings.Get)
 		r.Put("/settings", h.Settings.Update)
+
+		r.Get("/interfaces", h.ListInterfaces)
 	})
 }

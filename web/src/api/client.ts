@@ -201,6 +201,17 @@ export interface SettingsData {
   data_dir: string
 }
 
+export interface InterfaceInfo {
+  name: string
+  mac: string
+  ips: string[]
+  up: boolean
+}
+
+export function getInterfaces(): Promise<ApiResponse<InterfaceInfo[]>> {
+  return request<InterfaceInfo[]>('GET', '/interfaces')
+}
+
 export function getSettings(): Promise<ApiResponse<SettingsData>> {
   return request<SettingsData>('GET', '/settings')
 }
@@ -230,4 +241,5 @@ export const api = {
   getLeases,
   getSettings,
   updateSettings,
+  getInterfaces,
 }

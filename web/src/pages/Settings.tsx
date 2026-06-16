@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
-import { api, type SettingsData } from '../api/client'
+import { api, type SettingsData, type InterfaceInfo } from '../api/client'
 
 type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'ipmi'
 
@@ -27,6 +27,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState<Tab>('general')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [availableIfaces, setAvailableIfaces] = useState<InterfaceInfo[]>([])
   const [config, setConfig] = useState({
     serverName: '', logLevel: 'info', dataDir: '', mode: 'server',
     listenAddr: ':8080', authToken: '',
@@ -45,7 +46,8 @@ export default function Settings() {
   async function loadSettings() {
     setLoading(true)
     try {
-      const res = await api.getSettings()
+      const [res, ifaceRes] = await Promise.all([api.getSettings(), api.getInterfaces()])
+      setAvailableIfaces(ifaceRes.data)
       const d = res.data
       setConfig(prev => ({
         ...prev,
@@ -234,9 +236,26 @@ export default function Settings() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  {renderField('接口名称', iface.name, v => {
-                    const next = [...config.interfaces]; next[i] = {...next[i], name: v}; setConfig({...config, interfaces: next})
-                  }, { placeholder: 'eth0' })}
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">接口名称</label>
+                    <select
+                      className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
+                      value={iface.name}
+                      onChange={e => {
+                        const sel = availableIfaces.find(x => x.name === e.target.value)
+                        const next = [...config.interfaces]
+                        next[i] = {...next[i], name: e.target.value, ip: sel?.ips?.[0] || next[i].ip}
+                        setConfig({...config, interfaces: next})
+                      }}
+                    >
+                      <option value="">-- 选择网卡 --</option>
+                      {availableIfaces.map(ai => (
+                        <option key={ai.name} value={ai.name}>
+                          {ai.name} {ai.ips?.length ? `(${ai.ips[0]})` : ''} {!ai.up ? '[未连接]' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   {renderField('IP 地址', iface.ip, v => {
                     const next = [...config.interfaces]; next[i] = {...next[i], ip: v}; setConfig({...config, interfaces: next})
                   }, { placeholder: '192.168.1.100' })}
