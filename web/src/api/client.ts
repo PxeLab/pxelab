@@ -189,6 +189,26 @@ export function getLeases(): Promise<ApiResponse<Lease[]>> {
   return request<Lease[]>('GET', '/leases')
 }
 
+// ── Settings ──
+export interface SettingsData {
+  server: { name: string; app_mode: boolean; token: string }
+  dhcp: { enabled: boolean; range: string; gateway: string; subnet: string; lease_time: number; dns_servers: string }
+  tftp: { enabled: boolean; port: number; root: string }
+  dns: { enabled: boolean; port: number; upstream: string }
+  http: { port: number; boot_dir: string }
+  ipmi: { enabled: boolean; timeout: number }
+  log_level: string
+  data_dir: string
+}
+
+export function getSettings(): Promise<ApiResponse<SettingsData>> {
+  return request<SettingsData>('GET', '/settings')
+}
+
+export function updateSettings(data: SettingsData): Promise<ApiResponse<unknown>> {
+  return request<unknown>('PUT', '/settings', data)
+}
+
 // ── Convenience namespace (backward-compat) ──
 export const api = {
   getStatus,
@@ -208,4 +228,6 @@ export const api = {
   uploadFile,
   deleteFile,
   getLeases,
+  getSettings,
+  updateSettings,
 }

@@ -1,0 +1,11 @@
+import{c as i,u as m,j as r}from"./index-DiTfoIg_.js";/**
+ * @license lucide-react v0.500.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const u=[["path",{d:"m15 18-6-6 6-6",key:"1wnfg3"}]],v=i("chevron-left",u);/**
+ * @license lucide-react v0.500.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const f=[["path",{d:"m9 18 6-6-6-6",key:"mthhwq"}]],j=i("chevron-right",f),y=({page:t,total:s,size:n,onChange:o})=>{const{t:d}=m(),a=Math.ceil(s/n);if(a<=1)return null;const c=[],b=Math.max(1,t-2),l=Math.min(a,t+2);for(let e=b;e<=l;e++)c.push(e);const x=(t-1)*n+1,h=Math.min(t*n,s);return r.jsxs("div",{className:"flex items-center justify-between pt-4 text-xs text-[var(--text-muted)]",children:[r.jsx("span",{children:d("pagination.showing",{from:x,to:h,total:s})}),r.jsxs("div",{className:"flex gap-1",children:[r.jsx("button",{onClick:()=>o(t-1),disabled:t<=1,className:"w-7 h-7 flex items-center justify-center rounded border border-[var(--bg-border)] bg-transparent text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--bg-card)] transition-colors",children:r.jsx(v,{size:14})}),c.map(e=>r.jsx("button",{onClick:()=>o(e),className:`w-7 h-7 flex items-center justify-center rounded border text-xs font-mono transition-colors ${e===t?"bg-blue-500 border-blue-500 text-white":"border-[var(--bg-border)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-card)]"}`,children:e},e)),r.jsx("button",{onClick:()=>o(t+1),disabled:t>=a,className:"w-7 h-7 flex items-center justify-center rounded border border-[var(--bg-border)] bg-transparent text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--bg-card)] transition-colors",children:r.jsx(j,{size:14})})]})]})};export{y as P};

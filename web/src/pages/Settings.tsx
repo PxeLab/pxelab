@@ -1,57 +1,128 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Save, RefreshCw } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
+import { api, type SettingsData } from '../api/client'
 
 type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'ipmi'
 
+interface InterfaceConfig {
+  name: string; ip: string; dhcpMode: string; subnet: string; pool: string
+  gateway: string; dnsServers: string; leaseTime: string; nextServer: string
+  tftp: boolean; http: boolean; dns: boolean
+}
+
+const defaultIface: InterfaceConfig = {
+  name: '', ip: '', dhcpMode: 'full', subnet: '', pool: '',
+  gateway: '', dnsServers: '8.8.8.8', leaseTime: '86400', nextServer: '',
+  tftp: true, http: true, dns: false,
+}
+
 export default function Settings() {
   const { t } = useTranslation()
-  const { success } = useToast()
+  const { success, error } = useToast()
   const [activeTab, setActiveTab] = useState<Tab>('general')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [config, setConfig] = useState({
-    serverName: 'PxeGo-Server',
-    logLevel: 'info',
-    dataDir: '/var/lib/pxego',
-    mode: 'server',
-    listenAddr: ':8080',
-    authToken: 'pxego-secret-token',
-    autoOpen: true,
-    persistEvents: true,
-    interfaces: [{ name: 'eth0', ip: '192.168.1.100', dhcpMode: 'full', subnet: '192.168.1.0/24', pool: '192.168.1.100-200', gateway: '192.168.1.1', dnsServers: '8.8.8.8', leaseTime: '86400', nextServer: '', tftp: true, http: true, dns: false }],
-    dhcpEnabled: true,
-    dhcpRange: '192.168.1.100-200',
-    dhcpGateway: '192.168.1.1',
-    dhcpSubnet: '255.255.255.0',
-    dhcpDns: '8.8.8.8',
-    dhcpLeaseTime: '86400',
-    tftpEnabled: true,
-    tftpPort: '69',
-    tftpRoot: '/var/lib/pxego/boot',
-    dnsEnabled: false,
-    dnsPort: '53',
-    dnsUpstream: '8.8.8.8:53',
-    httpPort: '8080',
-    httpBootDir: '/var/lib/pxego/boot',
-    ipmiEnabled: false,
-    ipmiTimeout: '5',
+    serverName: '', logLevel: 'info', dataDir: '', mode: 'server',
+    listenAddr: ':8080', authToken: '',
+    autoOpen: true, persistEvents: true,
+    interfaces: [{ ...defaultIface }],
+    dhcpEnabled: true, dhcpRange: '', dhcpGateway: '', dhcpSubnet: '',
+    dhcpDns: '', dhcpLeaseTime: '86400',
+    tftpEnabled: true, tftpPort: '69', tftpRoot: '',
+    dnsEnabled: false, dnsPort: '53', dnsUpstream: '8.8.8.8:53',
+    httpPort: '80', httpBootDir: '',
+    ipmiEnabled: false, ipmiTimeout: '5',
   })
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'general', label: t('settings.general') },
-    { key: 'interfaces', label: '网络接口' },
-    { key: 'dhcp', label: t('settings.dhcp') },
-    { key: 'tftp', label: t('settings.tftp') },
-    { key: 'dns', label: t('settings.dns') },
-    { key: 'http', label: 'HTTP' },
-    { key: 'ipmi', label: 'IPMI' },
-  ]
+  useEffect(() => { loadSettings() }, [])
 
-  function handleSave() {
-    success(t('settings.saved'))
+  async function loadSettings() {
+    setLoading(true)
+    try {
+      const res = await api.getSettings()
+      const d = res.data
+      setConfig(prev => ({
+        ...prev,
+        serverName: d.server.name || prev.serverName,
+        logLevel: d.log_level || prev.logLevel,
+        dataDir: d.data_dir || prev.dataDir,
+        authToken: d.server.token || prev.authToken,
+        autoOpen: d.server.app_mode ?? prev.autoOpen,
+        dhcpEnabled: d.dhcp.enabled ?? prev.dhcpEnabled,
+        dhcpRange: d.dhcp.range || prev.dhcpRange,
+        dhcpGateway: d.dhcp.gateway || prev.dhcpGateway,
+        dhcpSubnet: d.dhcp.subnet || prev.dhcpSubnet,
+        dhcpDns: d.dhcp.dns_servers || prev.dhcpDns,
+        dhcpLeaseTime: String(d.dhcp.lease_time) || prev.dhcpLeaseTime,
+        tftpEnabled: d.tftp.enabled ?? prev.tftpEnabled,
+        tftpPort: String(d.tftp.port) || prev.tftpPort,
+        tftpRoot: d.tftp.root || prev.tftpRoot,
+        dnsEnabled: d.dns.enabled ?? prev.dnsEnabled,
+        dnsPort: String(d.dns.port) || prev.dnsPort,
+        dnsUpstream: d.dns.upstream || prev.dnsUpstream,
+        httpPort: String(d.http.port) || prev.httpPort,
+        httpBootDir: d.http.boot_dir || prev.httpBootDir,
+        ipmiEnabled: d.ipmi.enabled ?? prev.ipmiEnabled,
+        ipmiTimeout: String(d.ipmi.timeout) || prev.ipmiTimeout,
+      }))
+    } catch (err: any) {
+      error(err.message || '加载设置失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const data: SettingsData = {
+        log_level: config.logLevel,
+        data_dir: config.dataDir,
+        server: {
+          name: config.serverName,
+          app_mode: config.autoOpen,
+          token: config.authToken,
+        },
+        dhcp: {
+          enabled: config.dhcpEnabled,
+          range: config.dhcpRange,
+          gateway: config.dhcpGateway,
+          subnet: config.dhcpSubnet,
+          lease_time: parseInt(config.dhcpLeaseTime) || 86400,
+          dns_servers: config.dhcpDns,
+        },
+        tftp: {
+          enabled: config.tftpEnabled,
+          port: parseInt(config.tftpPort) || 69,
+          root: config.tftpRoot,
+        },
+        dns: {
+          enabled: config.dnsEnabled,
+          port: parseInt(config.dnsPort) || 53,
+          upstream: config.dnsUpstream,
+        },
+        http: {
+          port: parseInt(config.httpPort) || 80,
+          boot_dir: config.httpBootDir,
+        },
+        ipmi: {
+          enabled: config.ipmiEnabled,
+          timeout: parseInt(config.ipmiTimeout) || 5,
+        },
+      }
+      await api.updateSettings(data)
+      success(t('settings.saved'))
+    } catch (err: any) {
+      error(err.message || '保存失败')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function renderField(label: string, value: string, onChange: (v: string) => void, opts?: { type?: string; placeholder?: string }) {
@@ -69,16 +140,26 @@ export default function Settings() {
     )
   }
 
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'general', label: t('settings.general') },
+    { key: 'interfaces', label: '网络接口' },
+    { key: 'dhcp', label: t('settings.dhcp') },
+    { key: 'tftp', label: t('settings.tftp') },
+    { key: 'dns', label: t('settings.dns') },
+    { key: 'http', label: 'HTTP' },
+    { key: 'ipmi', label: 'IPMI' },
+  ]
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div></div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => success('配置已重载')}>
+          <Button variant="secondary" size="sm" disabled={loading} onClick={loadSettings}>
             <RefreshCw size={14} /> {t('common.reload', '重载配置')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleSave}>
-            <Save size={14} /> {t('settings.save')}
+          <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
+            <Save size={14} /> {saving ? '保存中...' : t('settings.save')}
           </Button>
         </div>
       </div>
@@ -101,6 +182,13 @@ export default function Settings() {
       </div>
 
       <Card>
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+            <span className="ml-3 text-sm text-[var(--text-muted)]">加载中...</span>
+          </div>
+        ) : (
+          <>
         {activeTab === 'general' && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -207,7 +295,7 @@ export default function Settings() {
                 </div>
               </div>
             ))}
-            <Button variant="secondary" size="sm" onClick={() => setConfig({...config, interfaces: [...config.interfaces, { name: '', ip: '', dhcpMode: 'full', subnet: '', pool: '', gateway: '', dnsServers: '8.8.8.8', leaseTime: '86400', nextServer: '', tftp: true, http: true, dns: false }]})}>
+            <Button variant="secondary" size="sm" onClick={() => setConfig({...config, interfaces: [...config.interfaces, { ...defaultIface }]})}>
               添加接口
             </Button>
           </div>
@@ -263,6 +351,8 @@ export default function Settings() {
             {renderField(t('settings.ipmiTimeout', '超时时间'), config.ipmiTimeout, v => setConfig({...config, ipmiTimeout: v}))}
           </div>
         )}
+        </>
+      )}
       </Card>
     </div>
   )
