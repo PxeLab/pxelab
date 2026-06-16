@@ -19,7 +19,7 @@ func DefaultConfig() *Config {
 			DataDir: dataDir,
 		},
 		Boot: BootConfig{
-			RootDir: filepath.Join(dataDir, "boot"),
+			RootDir: "./boot",
 		},
 		Store: StoreConfig{
 			DSN: filepath.Join(dataDir, "pxego.db"),

@@ -12,6 +12,10 @@ type BootFileServer struct {
 }
 
 func NewBootFileServer(rootDir string) *BootFileServer {
+	// 自动创建根目录
+	if err := os.MkdirAll(rootDir, 0755); err != nil {
+		// 仅记录，不阻塞启动
+	}
 	return &BootFileServer{rootDir: rootDir}
 }
 
@@ -54,6 +58,9 @@ func (b *BootFileServer) List(dir string) ([]os.FileInfo, error) {
 	fullPath := filepath.Join(b.rootDir, dir)
 	entries, err := os.ReadDir(fullPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return []os.FileInfo{}, nil
+		}
 		return nil, err
 	}
 	infos := make([]os.FileInfo, 0, len(entries))
