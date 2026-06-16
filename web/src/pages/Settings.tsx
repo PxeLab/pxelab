@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
 
-type Tab = 'general' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'ipmi'
+type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'ipmi'
 
 export default function Settings() {
   const { t } = useTranslation()
@@ -21,6 +21,7 @@ export default function Settings() {
     authToken: 'pxego-secret-token',
     autoOpen: true,
     persistEvents: true,
+    interfaces: [{ name: 'eth0', ip: '192.168.1.100', dhcpMode: 'full', subnet: '192.168.1.0/24', pool: '192.168.1.100-200', gateway: '192.168.1.1', dnsServers: '8.8.8.8', leaseTime: '86400', nextServer: '', tftp: true, http: true, dns: false }],
     dhcpEnabled: true,
     dhcpRange: '192.168.1.100-200',
     dhcpGateway: '192.168.1.1',
@@ -41,6 +42,7 @@ export default function Settings() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'general', label: t('settings.general') },
+    { key: 'interfaces', label: '网络接口' },
     { key: 'dhcp', label: t('settings.dhcp') },
     { key: 'tftp', label: t('settings.tftp') },
     { key: 'dns', label: t('settings.dns') },
@@ -55,13 +57,13 @@ export default function Settings() {
   function renderField(label: string, value: string, onChange: (v: string) => void, opts?: { type?: string; placeholder?: string }) {
     return (
       <div className="form-group">
-        <label className="block text-xs font-semibold text-[#9aa0ab] mb-1.5">{label}</label>
+        <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{label}</label>
         <input
           type={opts?.type || 'text'}
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={opts?.placeholder}
-          className="w-full bg-[#1a1d2e] border border-[#232738] rounded-lg px-3.5 py-2 text-sm text-[#e8eaed] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10 transition-all placeholder-[#6b7294]"
+          className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10 transition-all placeholder-[var(--text-muted)]"
         />
       </div>
     )
@@ -82,7 +84,7 @@ export default function Settings() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-[#232738] mb-5">
+      <div className="flex gap-1 border-b border-[var(--bg-border)] mb-5">
         {tabs.map(tab => (
           <button
             key={tab.key}
@@ -90,7 +92,7 @@ export default function Settings() {
             className={`px-5 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
               activeTab === tab.key
                 ? 'text-blue-400 border-blue-500'
-                : 'text-[#6b7294] border-transparent hover:text-[#9aa0ab]'
+                : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-secondary)]'
             }`}
           >
             {tab.label}
@@ -104,8 +106,8 @@ export default function Settings() {
             <div className="grid grid-cols-2 gap-4">
               {renderField(t('common.serverName', '服务器名称'), config.serverName, v => setConfig({...config, serverName: v}))}
               <div>
-                <label className="block text-xs font-semibold text-[#9aa0ab] mb-1.5">{t('common.logLevel', '日志级别')}</label>
-                <select className="w-full bg-[#1a1d2e] border border-[#232738] rounded-lg px-3.5 py-2 text-sm text-[#e8eaed] outline-none focus:border-blue-500 appearance-none" value={config.logLevel} onChange={e => setConfig({...config, logLevel: e.target.value})}>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('common.logLevel', '日志级别')}</label>
+                <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={config.logLevel} onChange={e => setConfig({...config, logLevel: e.target.value})}>
                   <option>info</option>
                   <option>debug</option>
                   <option>warn</option>
@@ -116,8 +118,8 @@ export default function Settings() {
             <div className="grid grid-cols-2 gap-4">
               {renderField(t('settings.dataDir'), config.dataDir, v => setConfig({...config, dataDir: v}))}
               <div>
-                <label className="block text-xs font-semibold text-[#9aa0ab] mb-1.5">{t('common.mode', '运行模式')}</label>
-                <select className="w-full bg-[#1a1d2e] border border-[#232738] rounded-lg px-3.5 py-2 text-sm text-[#e8eaed] outline-none focus:border-blue-500 appearance-none" value={config.mode} onChange={e => setConfig({...config, mode: e.target.value})}>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('common.mode', '运行模式')}</label>
+                <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={config.mode} onChange={e => setConfig({...config, mode: e.target.value})}>
                   <option>server</option>
                   <option>app</option>
                 </select>
@@ -129,6 +131,85 @@ export default function Settings() {
               <Toggle checked={config.autoOpen} onChange={v => setConfig({...config, autoOpen: v})} label={t('settings.autoOpen', '启动时自动打开浏览器（app 模式）')} />
               <Toggle checked={config.persistEvents} onChange={v => setConfig({...config, persistEvents: v})} label={t('settings.persistEvents', '启用事件日志持久化')} />
             </div>
+          </div>
+        )}
+
+        {activeTab === 'interfaces' && (
+          <div className="space-y-6">
+            <p className="text-sm text-[var(--text-secondary)]">配置 PxeGo 在哪些网络接口上提供服务。每个接口可独立启用 DHCP/TFTP/HTTP/DNS。</p>
+            {config.interfaces.map((iface, i) => (
+              <div key={i} className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">接口 #{i + 1}</span>
+                  {config.interfaces.length > 1 && (
+                    <Button variant="ghost" size="sm" onClick={() => setConfig({...config, interfaces: config.interfaces.filter((_, j) => j !== i)})}>移除</Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {renderField('接口名称', iface.name, v => {
+                    const next = [...config.interfaces]; next[i] = {...next[i], name: v}; setConfig({...config, interfaces: next})
+                  }, { placeholder: 'eth0' })}
+                  {renderField('IP 地址', iface.ip, v => {
+                    const next = [...config.interfaces]; next[i] = {...next[i], ip: v}; setConfig({...config, interfaces: next})
+                  }, { placeholder: '192.168.1.100' })}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">DHCP 模式</label>
+                    <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={iface.dhcpMode} onChange={e => {
+                      const next = [...config.interfaces]; next[i] = {...next[i], dhcpMode: e.target.value}; setConfig({...config, interfaces: next})
+                    }}>
+                      <option value="full">full（完整 DHCP）</option>
+                      <option value="proxy">proxy（代理 DHCP）</option>
+                      <option value="hybrid">hybrid（混合）</option>
+                      <option value="off">off（关闭）</option>
+                    </select>
+                  </div>
+                  {renderField('子网', iface.subnet, v => {
+                    const next = [...config.interfaces]; next[i] = {...next[i], subnet: v}; setConfig({...config, interfaces: next})
+                  }, { placeholder: '192.168.1.0/24' })}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {renderField('地址池', iface.pool, v => {
+                    const next = [...config.interfaces]; next[i] = {...next[i], pool: v}; setConfig({...config, interfaces: next})
+                  }, { placeholder: '192.168.1.100-200' })}
+                  {renderField('租约时间（秒）', iface.leaseTime, v => {
+                    const next = [...config.interfaces]; next[i] = {...next[i], leaseTime: v}; setConfig({...config, interfaces: next})
+                  })}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {renderField('网关', iface.gateway, v => {
+                    const next = [...config.interfaces]; next[i] = {...next[i], gateway: v}; setConfig({...config, interfaces: next})
+                  }, { placeholder: '192.168.1.1' })}
+                  {renderField('DNS 服务器', iface.dnsServers, v => {
+                    const next = [...config.interfaces]; next[i] = {...next[i], dnsServers: v}; setConfig({...config, interfaces: next})
+                  }, { placeholder: '8.8.8.8' })}
+                </div>
+                {renderField('Next Server (TFTP 服务器)', iface.nextServer, v => {
+                  const next = [...config.interfaces]; next[i] = {...next[i], nextServer: v}; setConfig({...config, interfaces: next})
+                }, { placeholder: '同 IP 地址时留空' })}
+                <div className="flex items-center gap-6 pt-2 border-t border-[var(--bg-border)]">
+                  <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                    <input type="checkbox" checked={iface.tftp} onChange={e => {
+                      const next = [...config.interfaces]; next[i] = {...next[i], tftp: e.target.checked}; setConfig({...config, interfaces: next})
+                    }} className="rounded border-[var(--bg-border)]" /> TFTP
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                    <input type="checkbox" checked={iface.http} onChange={e => {
+                      const next = [...config.interfaces]; next[i] = {...next[i], http: e.target.checked}; setConfig({...config, interfaces: next})
+                    }} className="rounded border-[var(--bg-border)]" /> HTTP
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                    <input type="checkbox" checked={iface.dns} onChange={e => {
+                      const next = [...config.interfaces]; next[i] = {...next[i], dns: e.target.checked}; setConfig({...config, interfaces: next})
+                    }} className="rounded border-[var(--bg-border)]" /> DNS
+                  </label>
+                </div>
+              </div>
+            ))}
+            <Button variant="secondary" size="sm" onClick={() => setConfig({...config, interfaces: [...config.interfaces, { name: '', ip: '', dhcpMode: 'full', subnet: '', pool: '', gateway: '', dnsServers: '8.8.8.8', leaseTime: '86400', nextServer: '', tftp: true, http: true, dns: false }]})}>
+              添加接口
+            </Button>
           </div>
         )}
 

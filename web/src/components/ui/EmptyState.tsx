@@ -8,9 +8,9 @@ interface Props {
 }
 
 export const EmptyState: FC<Props> = ({ icon = '📦', title, description, action }) => (
-  <div className="text-center py-12 text-[#6b7294]">
+  <div className="text-center py-12 text-[var(--text-muted)]">
     <div className="text-4xl mb-3 opacity-50">{icon}</div>
-    <h3 className="text-base text-[#9aa0ab] mb-1.5">{title}</h3>
+    <h3 className="text-base text-[var(--text-secondary)] mb-1.5">{title}</h3>
     {description && <p className="text-sm mb-4">{description}</p>}
     {action && (
       <button

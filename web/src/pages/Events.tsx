@@ -104,7 +104,7 @@ export default function Events() {
             <StatusDot color={!paused ? 'green' : 'yellow'} pulse={!paused} />
             {!paused ? t('events.live', '实时') : t('events.paused', '已暂停')}
           </span>
-          <span className="text-xs text-[#6b7294]">{t('common.total', '共')} {total}+ {t('common.items', '条')}</span>
+          <span className="text-xs text-[var(--text-muted)]">{t('common.total', '共')} {total}+ {t('common.items', '条')}</span>
         </div>
         <div className="flex gap-2">
           <Button variant={paused ? 'primary' : 'secondary'} size="sm" onClick={togglePause}>
@@ -123,7 +123,7 @@ export default function Events() {
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
               filter === chip.key
                 ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                : 'border-[#232738] bg-[#16181f] text-[#9aa0ab] hover:border-[#2e3245]'
+                : 'border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[#2e3245]'
             }`}
           >
             <StatusDot color={chip.color} />
@@ -138,11 +138,11 @@ export default function Events() {
           {loading ? (
             <div className="p-5 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-12 bg-[#16181f] rounded animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[#16181f] via-[#1c1f2c] to-[#16181f] bg-[length:200%_100%]" />
+                <div key={i} className="h-12 bg-[var(--bg-card)] rounded animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[var(--bg-card)] via-[var(--bg-hover)] to-[var(--bg-card)] bg-[length:200%_100%]" />
               ))}
             </div>
           ) : events.length === 0 ? (
-            <p className="text-sm text-[#6b7294] text-center py-12">{t('events.noEvents')}</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-12">{t('events.noEvents')}</p>
           ) : (
             <div className="divide-y divide-[#232738]">
               {events.map((e, i) => {
@@ -159,15 +159,15 @@ export default function Events() {
                     }`}>{ic.label}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-xs font-semibold text-[#e8eaed]">{e.type}</span>
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">{e.type}</span>
                         <Tag color={ic.color}>{ic.label}</Tag>
-                        <span className="text-[11px] text-[#6b7294] font-mono ml-auto shrink-0">
+                        <span className="text-[11px] text-[var(--text-muted)] font-mono ml-auto shrink-0">
                           {new Date(e.timestamp).toLocaleTimeString()}
                         </span>
                       </div>
-                      <p className="text-xs text-[#6b7294]">
+                      <p className="text-xs text-[var(--text-muted)]">
                         {e.message}
-                        {e.mac && <> — <strong className="text-[#9aa0ab] font-semibold">{e.mac}</strong></>}
+                        {e.mac && <> — <strong className="text-[var(--text-secondary)] font-semibold">{e.mac}</strong></>}
                         {e.ip && <> · {e.ip}</>}
                       </p>
                     </div>
@@ -176,7 +176,7 @@ export default function Events() {
               })}
             </div>
           )}
-          <div className="px-5 py-3 border-t border-[#232738]">
+          <div className="px-5 py-3 border-t border-[var(--bg-border)]">
             <Pagination page={page} total={total} size={size} onChange={setPage} />
           </div>
         </Card>

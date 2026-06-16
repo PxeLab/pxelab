@@ -25,7 +25,29 @@
       "Bash(go test *)",
       "Bash(./pxego --help)",
       "Bash(go list *)",
-      "Bash(findstr \"Arch \")"
+      "Bash(findstr \"Arch \")",
+      "Bash(ls -la \"$\\(go env GOMODCACHE\\)/github.com/bougou/go-ipmi@v0.8.3/\")",
+      "Bash(git -C D:/NewCB/PxeGo status --short)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(git *)",
+      "Bash(npx tsc *)",
+      "Bash(go vet *)",
+      "Bash(env)",
+      "Bash(curl -x http://127.0.0.1:1081 -s -o /dev/null -w \"%{http_code}\" https://github.com)",
+      "Bash(xargs sed -i 's/bg-\\\\[#0a0c10\\\\]/bg-\\\\[var\\\\\\(--bg-base\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/bg-\\\\[#111318\\\\]/bg-\\\\[var\\\\\\(--bg-elevated\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/bg-\\\\[#16181f\\\\]/bg-\\\\[var\\\\\\(--bg-card\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/bg-\\\\[#1c1f2c\\\\]/bg-\\\\[var\\\\\\(--bg-hover\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/bg-\\\\[#1a1d2e\\\\]/bg-\\\\[var\\\\\\(--bg-input\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/border-\\\\[#232738\\\\]/border-\\\\[var\\\\\\(--bg-border\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/text-\\\\[#e8eaed\\\\]/text-\\\\[var\\\\\\(--text-primary\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/text-\\\\[#9aa0ab\\\\]/text-\\\\[var\\\\\\(--text-secondary\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/text-\\\\[#6b7294\\\\]/text-\\\\[var\\\\\\(--text-muted\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/placeholder-\\\\[#6b7294\\\\]/placeholder-\\\\[var\\\\\\(--text-muted\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/from-\\\\[#16181f\\\\]/from-\\\\[var\\\\\\(--bg-card\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/via-\\\\[#1c1f2c\\\\]/via-\\\\[var\\\\\\(--bg-hover\\\\\\)\\\\]/g')",
+      "Bash(xargs sed -i 's/to-\\\\[#16181f\\\\]/to-\\\\[var\\\\\\(--bg-card\\\\\\)\\\\]/g')"
     ]
   }
 }

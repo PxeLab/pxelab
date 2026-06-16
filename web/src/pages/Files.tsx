@@ -72,9 +72,9 @@ export default function Files() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6b7294]" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
-              className="w-[280px] bg-[#1a1d2e] border border-[#232738] rounded-lg py-2 pl-9 pr-3 text-sm text-[#e8eaed] placeholder-[#6b7294] outline-none focus:border-blue-500"
+              className="w-[280px] bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-blue-500"
               placeholder={t('common.search') + '...'}
               value={search} onChange={e => setSearch(e.target.value)}
             />
@@ -93,17 +93,17 @@ export default function Files() {
 
       <Card
         title={'/' + (currentDir === '.' ? '' : currentDir)}
-        footer={<span className="text-[#6b7294]">{files.length} {t('common.items', '个项目')}</span>}
+        footer={<span className="text-[var(--text-muted)]">{files.length} {t('common.items', '个项目')}</span>}
       >
         {currentDir !== '.' && (
-          <button onClick={() => setCurrentDir('.')} className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-[#9aa0ab] hover:bg-[#1c1f2c] hover:text-[#e8eaed] transition-colors mb-1">
+          <button onClick={() => setCurrentDir('.')} className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors mb-1">
             .. 返回上级
           </button>
         )}
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-9 bg-[#16181f] rounded animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[#16181f] via-[#1c1f2c] to-[#16181f] bg-[length:200%_100%]" />
+              <div key={i} className="h-9 bg-[var(--bg-card)] rounded animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[var(--bg-card)] via-[var(--bg-hover)] to-[var(--bg-card)] bg-[length:200%_100%]" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -111,19 +111,19 @@ export default function Files() {
         ) : (
           <div className="divide-y divide-[#232738]">
             {folders.map(f => (
-              <div key={f.name} className="flex items-center gap-3 px-2 py-2 rounded cursor-pointer hover:bg-[#1c1f2c] transition-colors group" onClick={() => enterDir(f.name)}>
+              <div key={f.name} className="flex items-center gap-3 px-2 py-2 rounded cursor-pointer hover:bg-[var(--bg-hover)] transition-colors group" onClick={() => enterDir(f.name)}>
                 <Folder size={16} className="text-yellow-500 shrink-0" />
-                <span className="flex-1 text-sm text-[#9aa0ab] group-hover:text-[#e8eaed]">{f.name}/</span>
-                <span className="text-[11px] text-[#6b7294] font-mono">—</span>
+                <span className="flex-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{f.name}/</span>
+                <span className="text-[11px] text-[var(--text-muted)] font-mono">—</span>
                 <Tag color="yellow">dir</Tag>
               </div>
             ))}
             {fileItems.map(f => (
-              <div key={f.name} className="flex items-center gap-3 px-2 py-2 rounded hover:bg-[#1c1f2c] transition-colors group">
+              <div key={f.name} className="flex items-center gap-3 px-2 py-2 rounded hover:bg-[var(--bg-hover)] transition-colors group">
                 <File size={16} className="text-blue-500 shrink-0" />
-                <span className="flex-1 text-sm text-[#9aa0ab] group-hover:text-[#e8eaed]">{f.name}</span>
-                <span className="text-[11px] text-[#6b7294] font-mono">{sizeStr(f.size)}</span>
-                <button onClick={() => handleDelete(f.name)} className="opacity-0 group-hover:opacity-100 text-[#6b7294] hover:text-red-400 transition-all">
+                <span className="flex-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{f.name}</span>
+                <span className="text-[11px] text-[var(--text-muted)] font-mono">{sizeStr(f.size)}</span>
+                <button onClick={() => handleDelete(f.name)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-red-400 transition-all">
                   <Trash2 size={14} />
                 </button>
               </div>

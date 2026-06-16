@@ -55,12 +55,12 @@ export default function HostDetail() {
   if (loading) {
     return <div className="space-y-6">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="bg-[#16181f] border border-[#232738] rounded-xl p-5 animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[#16181f] via-[#1c1f2c] to-[#16181f] bg-[length:200%_100%] h-32" />
+        <div key={i} className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-5 animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[var(--bg-card)] via-[var(--bg-hover)] to-[var(--bg-card)] bg-[length:200%_100%] h-32" />
       ))}
     </div>
   }
 
-  if (!host) return <p className="text-[#6b7294]">{t('common.notFound', '未找到')}</p>
+  if (!host) return <p className="text-[var(--text-muted)]">{t('common.notFound', '未找到')}</p>
 
   const hostEvents = events.filter(e => e.mac === host.mac)
 
@@ -99,8 +99,8 @@ export default function HostDetail() {
               { label: t('common.created', '创建时间'), value: new Date(host.created_at).toLocaleString(), mono: true },
             ].map((item, i) => (
               <div key={i}>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-[#6b7294] mb-1">{item.label}</div>
-                <div className={`text-sm font-medium text-[#e8eaed] ${item.mono ? 'font-mono text-xs' : ''}`}>{item.value}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">{item.label}</div>
+                <div className={`text-sm font-medium text-[var(--text-primary)] ${item.mono ? 'font-mono text-xs' : ''}`}>{item.value}</div>
               </div>
             ))}
           </div>
@@ -108,10 +108,10 @@ export default function HostDetail() {
 
         {/* IPMI Power Control */}
         <Card title={t('hosts.detail.powerControl')}>
-          <div className="flex items-center gap-3 mb-4 px-3.5 py-2.5 bg-[#1a1d2e] rounded-lg border border-[#232738] text-sm">
+          <div className="flex items-center gap-3 mb-4 px-3.5 py-2.5 bg-[var(--bg-input)] rounded-lg border border-[var(--bg-border)] text-sm">
             <StatusDot color={host.bmc_addr ? 'green' : 'yellow'} />
-            <span className="text-[#9aa0ab]">BMC</span>
-            <span className="font-mono text-xs text-[#6b7294]">{host.bmc_addr || t('common.notConfigured', '未配置')}</span>
+            <span className="text-[var(--text-secondary)]">BMC</span>
+            <span className="font-mono text-xs text-[var(--text-muted)]">{host.bmc_addr || t('common.notConfigured', '未配置')}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[
@@ -124,10 +124,10 @@ export default function HostDetail() {
                 key={action}
                 onClick={() => handlePower(action)}
                 disabled={powerLoading === action}
-                className={`flex flex-col items-center gap-2 py-4 rounded-lg border border-[#232738] bg-[#1a1d2e] cursor-pointer transition-all hover:bg-[#1c1f2c] disabled:opacity-50 ${color}`}
+                className={`flex flex-col items-center gap-2 py-4 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] cursor-pointer transition-all hover:bg-[var(--bg-hover)] disabled:opacity-50 ${color}`}
               >
                 <Icon size={22} />
-                <span className="text-xs font-semibold text-[#9aa0ab]">{label}</span>
+                <span className="text-xs font-semibold text-[var(--text-secondary)]">{label}</span>
               </button>
             ))}
           </div>
@@ -138,29 +138,29 @@ export default function HostDetail() {
       <div className="mt-5">
         <Card title={t('hosts.detail.bootHistory')}>
           {hostEvents.length === 0 ? (
-            <p className="text-sm text-[#6b7294] text-center py-4">{t('events.noEvents')}</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('events.noEvents')}</p>
           ) : (
             <div className="overflow-x-auto -mx-5">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7294] border-b border-[#232738]">{t('events.time')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7294] border-b border-[#232738]">{t('events.type')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7294] border-b border-[#232738]">{t('events.message')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('events.time')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('events.type')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('events.message')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {hostEvents.map((e, i) => (
                     <tr key={i}>
-                      <td className="px-4 py-3 border-b border-[#232738] font-mono text-xs text-[#6b7294]">
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)] font-mono text-xs text-[var(--text-muted)]">
                         {new Date(e.timestamp).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 border-b border-[#232738]">
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
                         <Tag color={e.type.includes('dhcp') ? 'cyan' : e.type.includes('tftp') ? 'orange' : e.type.includes('boot') ? 'green' : 'blue'}>
                           {e.type}
                         </Tag>
                       </td>
-                      <td className="px-4 py-3 border-b border-[#232738] text-[#9aa0ab]">{e.message}</td>
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)] text-[var(--text-secondary)]">{e.message}</td>
                     </tr>
                   ))}
                 </tbody>

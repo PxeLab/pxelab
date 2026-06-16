@@ -31,7 +31,7 @@ export function DataTable<T extends Record<string, any>>({
           <thead>
             <tr>
               {columns.map(col => (
-                <th key={col.key} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[#6b7294] border-b border-[#232738] whitespace-nowrap" style={{ width: col.width }}>
+                <th key={col.key} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)] whitespace-nowrap" style={{ width: col.width }}>
                   {col.label}
                 </th>
               ))}
@@ -41,8 +41,8 @@ export function DataTable<T extends Record<string, any>>({
             {Array.from({ length: 5 }).map((_, i) => (
               <tr key={i}>
                 {columns.map(col => (
-                  <td key={col.key} className="px-4 py-3 border-b border-[#232738]">
-                    <div className="h-4 bg-[#16181f] rounded animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[#16181f] via-[#1c1f2c] to-[#16181f] bg-[length:200%_100%]" />
+                  <td key={col.key} className="px-4 py-3 border-b border-[var(--bg-border)]">
+                    <div className="h-4 bg-[var(--bg-card)] rounded animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[var(--bg-card)] via-[var(--bg-hover)] to-[var(--bg-card)] bg-[length:200%_100%]" />
                   </td>
                 ))}
               </tr>
@@ -55,7 +55,7 @@ export function DataTable<T extends Record<string, any>>({
 
   if (data.length === 0) {
     return (
-      <div className="text-center py-12 text-[#6b7294]">
+      <div className="text-center py-12 text-[var(--text-muted)]">
         <p className="text-sm">{emptyText}</p>
       </div>
     )
@@ -74,7 +74,7 @@ export function DataTable<T extends Record<string, any>>({
             {columns.map(col => (
               <th
                 key={col.key}
-                className={`text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[#6b7294] border-b border-[#232738] whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-[#9aa0ab] select-none' : ''}`}
+                className={`text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)] whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-[var(--text-secondary)] select-none' : ''}`}
                 style={{ width: col.width }}
                 onClick={() => col.sortable && onSort?.(col.key)}
               >
@@ -91,7 +91,7 @@ export function DataTable<T extends Record<string, any>>({
               onClick={() => onRowClick?.(item)}
             >
               {columns.map(col => (
-                <td key={col.key} className={`px-4 py-3 border-b border-[#232738] text-[#9aa0ab] ${col.className || ''}`}>
+                <td key={col.key} className={`px-4 py-3 border-b border-[var(--bg-border)] text-[var(--text-secondary)] ${col.className || ''}`}>
                   {col.render ? col.render(item) : String(item[col.key] ?? '—')}
                 </td>
               ))}

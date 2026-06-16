@@ -13,7 +13,7 @@ export const Toggle: FC<ToggleProps> = ({ checked, onChange, label, disabled }) 
       type="button"
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-blue-500' : 'bg-[#232738]'}`}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-blue-500' : 'bg-[var(--bg-border)]'}`}
     >
       <span
         className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
@@ -21,6 +21,6 @@ export const Toggle: FC<ToggleProps> = ({ checked, onChange, label, disabled }) 
         }`}
       />
     </button>
-    {label && <span className="text-sm text-[#9aa0ab]">{label}</span>}
+    {label && <span className="text-sm text-[var(--text-secondary)]">{label}</span>}
   </label>
 )

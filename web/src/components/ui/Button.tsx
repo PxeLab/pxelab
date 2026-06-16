@@ -12,9 +12,9 @@ interface Props {
 
 const variantClasses = {
   primary: 'bg-blue-500 text-white hover:bg-blue-600',
-  secondary: 'bg-[#1a1d2e] text-[#e8eaed] border border-[#232738] hover:bg-[#1c1f2c] hover:border-[#2e3245]',
+  secondary: 'bg-[var(--bg-input)] text-[var(--text-primary)] border border-[var(--bg-border)] hover:bg-[var(--bg-hover)] hover:border-[#2e3245]',
   danger: 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20',
-  ghost: 'bg-transparent text-[#9aa0ab] hover:text-[#e8eaed] hover:bg-[#16181f]',
+  ghost: 'bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]',
 }
 
 export const Button: FC<Props> = ({ children, onClick, variant = 'secondary', size = 'md', className = '', disabled, type = 'button' }) => (

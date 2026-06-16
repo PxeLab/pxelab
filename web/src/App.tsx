@@ -15,7 +15,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 function LoadingFallback() {
   return (
     <div className="flex items-center justify-center py-20">
-      <div className="flex flex-col items-center gap-3 text-[#6b7294]">
+      <div className="flex flex-col items-center gap-3 text-[var(--text-muted)]">
         <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
         <span className="text-sm">加载中...</span>
       </div>

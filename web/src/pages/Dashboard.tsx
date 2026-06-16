@@ -70,10 +70,10 @@ export default function Dashboard() {
           { name: 'DNS', port: ':53' },
           { name: 'IPMI', port: 'Standby' },
         ].map(svc => (
-          <div key={svc.name} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#232738] bg-[#16181f] text-xs font-semibold">
+          <div key={svc.name} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-card)] text-xs font-semibold">
             <StatusDot color={serviceColor(svc.name)} />
-            <span className="text-[#9aa0ab] font-medium">{svc.name}</span>
-            <span className="text-[#e8eaed] font-mono">{svc.port}</span>
+            <span className="text-[var(--text-secondary)] font-medium">{svc.name}</span>
+            <span className="text-[var(--text-primary)] font-mono">{svc.port}</span>
           </div>
         ))}
       </div>
@@ -82,15 +82,15 @@ export default function Dashboard() {
       {loading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-[#16181f] border border-[#232738] rounded-xl p-5 animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[#16181f] via-[#1c1f2c] to-[#16181f] bg-[length:200%_100%]" />
+            <div key={i} className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-5 animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[var(--bg-card)] via-[var(--bg-hover)] to-[var(--bg-card)] bg-[length:200%_100%]" />
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
           {stats.map((s, i) => (
-            <div key={i} className="bg-[#16181f] border border-[#232738] rounded-xl p-5 hover:border-[#2e3245] transition-all">
+            <div key={i} className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-5 hover:border-[#2e3245] transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#6b7294]">{s.label}</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{s.label}</span>
                 <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${
                   s.color === 'green' ? 'bg-green-500/10 text-green-400' :
                   s.color === 'blue' ? 'bg-blue-500/10 text-blue-400' :
@@ -113,13 +113,13 @@ export default function Dashboard() {
           </button>
         }>
           {events.length === 0 ? (
-            <p className="text-sm text-[#6b7294] text-center py-4">{t('dashboard.noEvents')}</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('dashboard.noEvents')}</p>
           ) : (
             <div className="flex flex-col -mx-5">
               {events.slice(0, 4).map((e, i) => {
                 const ic = eventIcon(e.type)
                 return (
-                  <div key={i} className="flex items-start gap-3 px-5 py-2.5 border-b border-[#232738] last:border-b-0">
+                  <div key={i} className="flex items-start gap-3 px-5 py-2.5 border-b border-[var(--bg-border)] last:border-b-0">
                     <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 ${
                       ic.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
                       ic.color === 'orange' ? 'bg-orange-500/10 text-orange-400' :
@@ -130,14 +130,14 @@ export default function Dashboard() {
                     }`}>{ic.label}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-xs font-semibold text-[#e8eaed]">{e.type}</span>
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">{e.type}</span>
                         <Tag color={ic.color} children={ic.label} />
-                        <span className="text-[11px] text-[#6b7294] font-mono ml-auto shrink-0">
+                        <span className="text-[11px] text-[var(--text-muted)] font-mono ml-auto shrink-0">
                           {new Date(e.timestamp).toLocaleTimeString()}
                         </span>
                       </div>
-                      <p className="text-xs text-[#6b7294]">
-                        {e.message} — <strong className="text-[#9aa0ab] font-semibold">{e.mac || ''}</strong>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        {e.message} — <strong className="text-[var(--text-secondary)] font-semibold">{e.mac || ''}</strong>
                       </p>
                     </div>
                   </div>
@@ -154,32 +154,32 @@ export default function Dashboard() {
           </button>
         }>
           {hosts.length === 0 ? (
-            <p className="text-sm text-[#6b7294] text-center py-4">{t('hosts.empty', '暂无主机')}</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('hosts.empty', '暂无主机')}</p>
           ) : (
             <div className="overflow-x-auto -mx-5">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7294] border-b border-[#232738]">MAC</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7294] border-b border-[#232738]">{t('hosts.columns.hostname')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7294] border-b border-[#232738]">IP</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7294] border-b border-[#232738]">{t('hosts.columns.lastOnline')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">MAC</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.columns.hostname')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">IP</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.columns.lastOnline')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {hosts.slice(0, 4).map(h => (
                     <tr key={h.id} onClick={() => navigate('/hosts/' + h.id)} className="cursor-pointer hover:bg-white/[0.02]">
-                      <td className="px-4 py-3 border-b border-[#232738]">
-                        <span className="font-mono text-xs text-[#e8eaed]">{h.mac}</span>
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+                        <span className="font-mono text-xs text-[var(--text-primary)]">{h.mac}</span>
                       </td>
-                      <td className="px-4 py-3 border-b border-[#232738]">
-                        <span className="font-medium text-[#e8eaed]">{h.name || '—'}</span>
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+                        <span className="font-medium text-[var(--text-primary)]">{h.name || '—'}</span>
                       </td>
-                      <td className="px-4 py-3 border-b border-[#232738]">
-                        <span className="font-mono text-xs text-[#9aa0ab]">{h.ip}</span>
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+                        <span className="font-mono text-xs text-[var(--text-secondary)]">{h.ip}</span>
                       </td>
-                      <td className="px-4 py-3 border-b border-[#232738]">
-                        <span className="font-mono text-xs text-[#6b7294]">
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+                        <span className="font-mono text-xs text-[var(--text-muted)]">
                           {h.last_online ? new Date(h.last_online).toLocaleString() : '—'}
                         </span>
                       </td>

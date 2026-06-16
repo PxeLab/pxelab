@@ -82,11 +82,11 @@ export const ToastProvider: FC<{ children: ReactNode }> = ({ children }) => {
           return (
             <div
               key={t.id}
-              className={`flex items-center gap-2.5 px-4 py-3 rounded-lg bg-[#16181f] border ${colorMap[t.type]} shadow-lg text-sm text-[#e8eaed] min-w-[300px]`}
+              className={`flex items-center gap-2.5 px-4 py-3 rounded-lg bg-[var(--bg-card)] border ${colorMap[t.type]} shadow-lg text-sm text-[var(--text-primary)] min-w-[300px]`}
             >
               <Icon size={16} className={iconColorMap[t.type]} />
               <span className="flex-1">{t.message}</span>
-              <button onClick={() => removeToast(t.id)} className="text-[#6b7294] hover:text-[#e8eaed]">
+              <button onClick={() => removeToast(t.id)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                 <X size={14} />
               </button>
             </div>

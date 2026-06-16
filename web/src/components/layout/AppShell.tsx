@@ -72,26 +72,26 @@ export const AppShell: FC<Props> = ({ children }) => {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#0a0c10] text-[#e8eaed]">
+    <div className="flex min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)]">
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 bottom-0 w-[260px] bg-[#111318] border-r border-[#232738] z-50 flex flex-col transition-transform duration-200 ${
+        className={`fixed top-0 left-0 bottom-0 w-[260px] bg-[var(--bg-elevated)] border-r border-[var(--bg-border)] z-50 flex flex-col transition-transform duration-200 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0`}
       >
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-[#232738]">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] flex items-center justify-center font-extrabold text-sm text-blue-500 border border-[#232738] shrink-0">
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-[var(--bg-border)]">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] flex items-center justify-center font-extrabold text-sm text-blue-500 border border-[var(--bg-border)] shrink-0">
             PX
           </div>
           <span className="text-base font-bold tracking-tight">
-            Pxe<span className="text-[#6b7294] font-medium">Go</span>
+            Pxe<span className="text-[var(--text-muted)] font-medium">Go</span>
           </span>
         </div>
 
         <nav className="flex-1 px-2.5 py-3 flex flex-col gap-1">
           {navSections.map((section) => (
             <div key={section.label}>
-              <div className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-[#6b7294] font-semibold">
+              <div className="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
                 {t(section.label)}
               </div>
               {section.items.map((item) => {
@@ -104,7 +104,7 @@ export const AppShell: FC<Props> = ({ children }) => {
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-left relative ${
                       active
                         ? 'bg-blue-500/10 text-blue-400'
-                        : 'text-[#9aa0ab] hover:bg-[#16181f] hover:text-[#e8eaed]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     {active && (
@@ -114,7 +114,7 @@ export const AppShell: FC<Props> = ({ children }) => {
                     <span className="flex-1">{t(item.label)}</span>
                     {item.badge && (
                       <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
-                        active ? 'bg-blue-500/15 text-blue-400' : 'bg-[#16181f] text-[#6b7294]'
+                        active ? 'bg-blue-500/15 text-blue-400' : 'bg-[var(--bg-card)] text-[var(--text-muted)]'
                       }`}>
                         {item.badge}
                       </span>
@@ -126,14 +126,14 @@ export const AppShell: FC<Props> = ({ children }) => {
           ))}
         </nav>
 
-        <div className="px-2.5 py-3 border-t border-[#232738]">
+        <div className="px-2.5 py-3 border-t border-[var(--bg-border)]">
           <button
             onClick={() => navigate('/settings')}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#9aa0ab] hover:bg-[#16181f] hover:text-[#e8eaed] transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-colors"
           >
             <span className="text-sm opacity-70">{'ℹ'}</span>
             <span className="flex-1">{t('nav.about', '关于')}</span>
-            <span className="text-[11px] font-mono text-[#6b7294]">v0.1.0</span>
+            <span className="text-[11px] font-mono text-[var(--text-muted)]">v0.1.0</span>
           </button>
         </div>
       </aside>
@@ -146,11 +146,11 @@ export const AppShell: FC<Props> = ({ children }) => {
       {/* Main */}
       <main className="flex-1 lg:ml-[260px] min-h-screen">
         {/* Top Bar */}
-        <header className="h-16 border-b border-[#232738] flex items-center justify-between px-4 lg:px-8 bg-[#111318] sticky top-0 z-30">
+        <header className="h-16 border-b border-[var(--bg-border)] flex items-center justify-between px-4 lg:px-8 bg-[var(--bg-elevated)] sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 text-[#9aa0ab] hover:text-[#e8eaed]"
+              className="lg:hidden p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               <Menu size={20} />
             </button>
@@ -159,7 +159,7 @@ export const AppShell: FC<Props> = ({ children }) => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold bg-[#16181f] border border-[#232738] text-[#9aa0ab]">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold bg-[var(--bg-card)] border border-[var(--bg-border)] text-[var(--text-secondary)]">
               <StatusDot color="green" />
               All Services Running
             </span>

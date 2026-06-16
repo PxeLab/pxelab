@@ -2,16 +2,32 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Theme CSS Variables ── */
+:root {
+  --bg-base: #f5f6f8;
+  --bg-elevated: #ffffff;
+  --bg-card: #ebedf0;
+  --bg-hover: #e2e4e9;
+  --bg-input: #e8eaed;
+  --bg-border: #d4d6dd;
+  --text-primary: #1a1d2e;
+  --text-secondary: #4a4d5e;
+  --text-muted: #8b8fa0;
+}
+
+.dark {
+  --bg-base: #0a0c10;
+  --bg-elevated: #111318;
+  --bg-card: #16181f;
+  --bg-hover: #1c1f2c;
+  --bg-input: #1a1d2e;
+  --bg-border: #232738;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0ab;
+  --text-muted: #6b7294;
+}
+
 @theme {
-  --color-bg-base: #0a0c10;
-  --color-bg-elevated: #111318;
-  --color-bg-card: #16181f;
-  --color-bg-hover: #1c1f2c;
-  --color-bg-input: #1a1d2e;
-  --color-border-muted: #232738;
-  --color-text-primary: #e8eaed;
-  --color-text-secondary: #9aa0ab;
-  --color-text-muted: #6b7294;
   --color-accent-blue: #3b82f6;
   --color-accent-green: #22c55e;
   --color-accent-yellow: #eab308;
@@ -27,7 +43,7 @@
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, #16181f 25%, #1c1f2c 50%, #16181f 75%);
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -43,7 +59,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #232738;
+  background: var(--bg-border);
   border-radius: 3px;
 }
 
@@ -53,5 +69,5 @@
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #232738 transparent;
+  scrollbar-color: var(--bg-border) transparent;
 }

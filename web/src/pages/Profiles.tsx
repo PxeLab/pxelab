@@ -86,7 +86,7 @@ export default function Profiles() {
   const ipxeCount = profiles.filter(p => p.menu?.entries?.some(e => e.type === 'direct')).length
 
   const columns: Column<Profile>[] = [
-    { key: 'name', label: t('profiles.name'), render: (p) => <span className="font-medium text-[#e8eaed]">{p.name}</span> },
+    { key: 'name', label: t('profiles.name'), render: (p) => <span className="font-medium text-[var(--text-primary)]">{p.name}</span> },
     { key: 'type', label: t('profiles.entryType'), render: (p) => {
       const types = [...new Set(p.menu?.entries?.map(e => e.type) || [])]
       return <div className="flex gap-1">{types.map(t => <Tag key={t} children={t} />)}</div>
@@ -112,20 +112,20 @@ export default function Profiles() {
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-[#16181f] border border-[#232738] rounded-xl p-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-[#6b7294] mb-2">{t('profiles.total', '总配置数')}</div>
+        <div className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t('profiles.total', '总配置数')}</div>
           <div className="text-[28px] font-bold tracking-tight">{profiles.length}</div>
         </div>
-        <div className="bg-[#16181f] border border-[#232738] rounded-xl p-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-[#6b7294] mb-2">{t('profiles.isDefault')}</div>
+        <div className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t('profiles.isDefault')}</div>
           <div className="text-base font-bold">{defaultProfile?.name || '无'}</div>
         </div>
-        <div className="bg-[#16181f] border border-[#232738] rounded-xl p-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-[#6b7294] mb-2">iPXE</div>
+        <div className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">iPXE</div>
           <div className="text-[28px] font-bold tracking-tight">{ipxeCount}</div>
         </div>
-        <div className="bg-[#16181f] border border-[#232738] rounded-xl p-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-[#6b7294] mb-2">{t('profiles.arch')}</div>
+        <div className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t('profiles.arch')}</div>
           <div className="text-base font-bold font-mono">x86_64, arm64</div>
         </div>
       </div>
@@ -149,12 +149,12 @@ export default function Profiles() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#9aa0ab] mb-1">{t('profiles.name')}</label>
-              <input className="w-full bg-[#1a1d2e] border border-[#232738] rounded-lg px-3.5 py-2 text-sm text-[#e8eaed] outline-none focus:border-blue-500" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.name')}</label>
+              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#9aa0ab] mb-1">{t('profiles.arch')}</label>
-              <select className="w-full bg-[#1a1d2e] border border-[#232738] rounded-lg px-3.5 py-2 text-sm text-[#e8eaed] outline-none focus:border-blue-500 appearance-none" value={form.arch} onChange={e => setForm({...form, arch: e.target.value})}>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.arch')}</label>
+              <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={form.arch} onChange={e => setForm({...form, arch: e.target.value})}>
                 <option>x86_64</option>
                 <option>arm64</option>
                 <option>i386</option>
@@ -162,33 +162,33 @@ export default function Profiles() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[#9aa0ab] mb-1">{t('profiles.description')}</label>
-            <input className="w-full bg-[#1a1d2e] border border-[#232738] rounded-lg px-3.5 py-2 text-sm text-[#e8eaed] outline-none focus:border-blue-500" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.description')}</label>
+            <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
           </div>
           <label className="flex items-center gap-2.5 cursor-pointer">
-            <button type="button" onClick={() => setForm({...form, is_default: !form.is_default})} className={`relative w-10 h-5.5 rounded-full transition-colors ${form.is_default ? 'bg-blue-500' : 'bg-[#232738]'}`}>
+            <button type="button" onClick={() => setForm({...form, is_default: !form.is_default})} className={`relative w-10 h-5.5 rounded-full transition-colors ${form.is_default ? 'bg-blue-500' : 'bg-[var(--bg-border)]'}`}>
               <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform ${form.is_default ? 'translate-x-4.5' : ''}`} />
             </button>
-            <span className="text-sm text-[#9aa0ab]">{t('profiles.isDefault')}</span>
+            <span className="text-sm text-[var(--text-secondary)]">{t('profiles.isDefault')}</span>
           </label>
 
-          <div className="border-t border-[#232738] pt-4">
+          <div className="border-t border-[var(--bg-border)] pt-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-[#e8eaed]">{t('profiles.menuEntries')}</span>
+              <span className="text-sm font-semibold text-[var(--text-primary)]">{t('profiles.menuEntries')}</span>
               <Button size="sm" onClick={() => setForm(prev => ({ ...prev, entries: [...prev.entries, { label: '', type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '' }] }))}>
                 + {t('profiles.addEntry')}
               </Button>
             </div>
             {form.entries.map((entry, i) => (
-              <div key={i} className="bg-[#1a1d2e] border border-[#232738] rounded-lg p-4 mb-3">
+              <div key={i} className="bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg p-4 mb-3">
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div>
-                    <label className="block text-xs text-[#6b7294] mb-0.5">{t('profiles.entryLabel')}</label>
-                    <input className="w-full bg-[#111318] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-[#e8eaed] outline-none focus:border-blue-500" value={entry.label} onChange={e => updateEntry(i, 'label', e.target.value)} />
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.entryLabel')}</label>
+                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.label} onChange={e => updateEntry(i, 'label', e.target.value)} />
                   </div>
                   <div>
-                    <label className="block text-xs text-[#6b7294] mb-0.5">{t('profiles.entryType')}</label>
-                    <select className="w-full bg-[#111318] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-[#e8eaed] outline-none" value={entry.type} onChange={e => updateEntry(i, 'type', e.target.value as any)}>
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.entryType')}</label>
+                    <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={entry.type} onChange={e => updateEntry(i, 'type', e.target.value as any)}>
                       <option value="direct">direct</option>
                       <option value="local">local</option>
                       <option value="chain">chain</option>
@@ -201,30 +201,30 @@ export default function Profiles() {
                   <>
                     <div className="grid grid-cols-2 gap-3 mb-2">
                       <div>
-                        <label className="block text-xs text-[#6b7294] mb-0.5">{t('profiles.kernel')}</label>
-                        <input className="w-full bg-[#111318] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-[#e8eaed] outline-none focus:border-blue-500" value={entry.kernel || ''} onChange={e => updateEntry(i, 'kernel', e.target.value)} />
+                        <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.kernel')}</label>
+                        <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.kernel || ''} onChange={e => updateEntry(i, 'kernel', e.target.value)} />
                       </div>
                       <div>
-                        <label className="block text-xs text-[#6b7294] mb-0.5">{t('profiles.initrd')}</label>
-                        <input className="w-full bg-[#111318] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-[#e8eaed] outline-none focus:border-blue-500" value={entry.initrd || ''} onChange={e => updateEntry(i, 'initrd', e.target.value)} />
+                        <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.initrd')}</label>
+                        <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.initrd || ''} onChange={e => updateEntry(i, 'initrd', e.target.value)} />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs text-[#6b7294] mb-0.5">{t('profiles.cmdline')}</label>
-                      <input className="w-full bg-[#111318] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-[#e8eaed] outline-none focus:border-blue-500" value={entry.cmdline || ''} onChange={e => updateEntry(i, 'cmdline', e.target.value)} />
+                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
+                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.cmdline || ''} onChange={e => updateEntry(i, 'cmdline', e.target.value)} />
                     </div>
                   </>
                 )}
                 {entry.type === 'chain' && (
                   <div>
-                    <label className="block text-xs text-[#6b7294] mb-0.5">{t('profiles.url')}</label>
-                    <input className="w-full bg-[#111318] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-[#e8eaed] outline-none focus:border-blue-500" value={entry.url || ''} onChange={e => updateEntry(i, 'url', e.target.value)} />
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.url')}</label>
+                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.url || ''} onChange={e => updateEntry(i, 'url', e.target.value)} />
                   </div>
                 )}
                 {entry.type === 'wds' && (
                   <div>
-                    <label className="block text-xs text-[#6b7294] mb-0.5">{t('profiles.wim')}</label>
-                    <input className="w-full bg-[#111318] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-[#e8eaed] outline-none focus:border-blue-500" value={entry.wim || ''} onChange={e => updateEntry(i, 'wim', e.target.value)} />
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wim')}</label>
+                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.wim || ''} onChange={e => updateEntry(i, 'wim', e.target.value)} />
                   </div>
                 )}
               </div>
