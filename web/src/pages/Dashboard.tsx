@@ -23,8 +23,8 @@ export default function Dashboard() {
           api.getEvents({ page: '1', size: '5' }),
         ])
         setStatus(s.data)
-        setHosts(h.data.hosts)
-        setEvents(e.data.events)
+        setHosts(h.data.hosts ?? [])
+        setEvents(e.data.events ?? [])
       } catch (err) {
         console.error('Failed to load dashboard', err)
       } finally {

@@ -16,7 +16,8 @@ func DefaultConfig() *Config {
 	dataDir := DefaultDataDir()
 	return &Config{
 		Global: GlobalConfig{
-			DataDir: dataDir,
+			DataDir:    dataDir,
+			ServerName: "pxego",
 		},
 		Boot: BootConfig{
 			RootDir: "./boot",

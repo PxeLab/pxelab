@@ -85,6 +85,10 @@ export function setBaseURL(url: string) {
   baseURL = url
 }
 
+export function getBaseURL(): string {
+  return baseURL
+}
+
 function buildQuery(params?: Record<string, unknown>): string {
   if (!params) return ''
   const sp = new URLSearchParams()
@@ -190,6 +194,21 @@ export function getLeases(): Promise<ApiResponse<Lease[]>> {
 }
 
 // ── Settings ──
+export interface InterfaceSettings {
+  name: string
+  ip: string
+  dhcp_mode: string
+  subnet: string
+  pools: string[]
+  gateway: string
+  dns_servers: string
+  lease_time: number
+  next_server: string
+  tftp: boolean
+  http: boolean
+  dns: boolean
+}
+
 export interface SettingsData {
   server: { name: string; app_mode: boolean; token: string }
   dhcp: { enabled: boolean; range: string; gateway: string; subnet: string; lease_time: number; dns_servers: string }
@@ -199,12 +218,14 @@ export interface SettingsData {
   ipmi: { enabled: boolean; timeout: number }
   log_level: string
   data_dir: string
+  interfaces: InterfaceSettings[]
 }
 
 export interface InterfaceInfo {
   name: string
   mac: string
-  ips: string[]
+  ipv4: string[]
+  ipv6: string[]
   up: boolean
 }
 

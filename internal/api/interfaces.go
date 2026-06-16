@@ -3,13 +3,13 @@ package api
 import (
 	"net"
 	"net/http"
-	"strings"
 )
 
 type InterfaceInfo struct {
 	Name string   `json:"name"`
 	MAC  string   `json:"mac"`
-	IPs  []string `json:"ips"`
+	IPv4 []string `json:"ipv4"`
+	IPv6 []string `json:"ipv6"`
 	Up   bool     `json:"up"`
 }
 
@@ -22,7 +22,6 @@ func (h *Handler) ListInterfaces(w http.ResponseWriter, r *http.Request) {
 
 	var result []InterfaceInfo
 	for _, iface := range ifaces {
-		// 跳过 loopback 和没有运行中的接口（保留 up 状态供前端判断）
 		if iface.Flags&net.FlagLoopback != 0 {
 			continue
 		}
@@ -32,19 +31,25 @@ func (h *Handler) ListInterfaces(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		var ips []string
+		var v4s, v6s []string
 		for _, addr := range addrs {
-			ip := addr.String()
-			if idx := strings.Index(ip, "/"); idx != -1 {
-				ip = ip[:idx]
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
 			}
-			ips = append(ips, ip)
+			ip := ipNet.IP.String()
+			if ipNet.IP.To4() != nil {
+				v4s = append(v4s, ip)
+			} else {
+				v6s = append(v6s, ip)
+			}
 		}
 
 		result = append(result, InterfaceInfo{
 			Name: iface.Name,
 			MAC:  iface.HardwareAddr.String(),
-			IPs:  ips,
+			IPv4: v4s,
+			IPv6: v6s,
 			Up:   iface.Flags&net.FlagUp != 0,
 		})
 	}

@@ -56,6 +56,11 @@ func (b *Bus) Publish(topic string, payload any) {
 	}
 }
 
+// PublishAsync 异步非阻塞发布，日志等高频场景使用
+func (b *Bus) PublishAsync(topic string, payload any) {
+	go b.Publish(topic, payload)
+}
+
 func (b *Bus) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()

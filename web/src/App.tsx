@@ -10,6 +10,7 @@ const HostDetail = lazy(() => import('./pages/HostDetail'))
 const Profiles = lazy(() => import('./pages/Profiles'))
 const Files = lazy(() => import('./pages/Files'))
 const Events = lazy(() => import('./pages/Events'))
+const Logs = lazy(() => import('./pages/Logs'))
 const Settings = lazy(() => import('./pages/Settings'))
 
 function LoadingFallback() {
@@ -36,6 +37,7 @@ function App() {
               <Route path="/profiles" element={<Profiles />} />
               <Route path="/files" element={<Files />} />
               <Route path="/events" element={<Events />} />
+              <Route path="/logs" element={<Logs />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </Suspense>

@@ -20,8 +20,8 @@ type LeaseManager struct {
 type SubnetPool struct {
 	CIDR    string
 	Gateway net.IP
-	Pool    *IPRange
-	Leases  map[string]*models.Lease // MAC → Lease
+	Pools   []*IPRange
+	Leases  map[string]*models.Lease
 }
 
 type IPRange struct {
@@ -61,13 +61,19 @@ func NewLeaseManager(st store.LeaseStore) *LeaseManager {
 	}
 }
 
-func (lm *LeaseManager) AddSubnet(cidr string, pool *IPRange, gateway net.IP) {
+func (lm *LeaseManager) ClearSubnets() {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	lm.subnets = make(map[string]*SubnetPool)
+}
+
+func (lm *LeaseManager) AddSubnet(cidr string, pools []*IPRange, gateway net.IP) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	lm.subnets[cidr] = &SubnetPool{
 		CIDR:    cidr,
 		Gateway: gateway,
-		Pool:    pool,
+		Pools:   pools,
 		Leases:  make(map[string]*models.Lease),
 	}
 }
@@ -88,37 +94,38 @@ func (lm *LeaseManager) Allocate(cidr, mac string) (net.IP, error) {
 		}
 	}
 
-	// 尝试分配第一个可用的 IP
-	ip := make(net.IP, len(pool.Pool.Start))
-	copy(ip, pool.Pool.Start)
-	for {
-		if bytesCompare(ip, pool.Pool.End) > 0 {
-			return nil, fmt.Errorf("子网 %s 无可用 IP", cidr)
-		}
-		// 检查是否已被占用
-		used := false
-		for _, lease := range pool.Leases {
-			if lease.IP == ip.String() {
-				used = true
-				break
+	// 遍历所有地址池
+	for _, r := range pool.Pools {
+		ip := make(net.IP, len(r.Start))
+		copy(ip, r.Start)
+		for {
+			if bytesCompare(ip, r.End) > 0 {
+				break // 当前池无可用 IP，尝试下一个
 			}
+			used := false
+			for _, lease := range pool.Leases {
+				if lease.IP == ip.String() {
+					used = true
+					break
+				}
+			}
+			if !used {
+				lease := &models.Lease{
+					MAC:       mac,
+					IP:        ip.String(),
+					SubnetID:  cidr,
+					ExpiresAt: time.Now().Add(1 * time.Hour),
+					CreatedAt: time.Now(),
+				}
+				pool.Leases[mac] = lease
+				lm.store.CreateLease(context.Background(), lease)
+				return ip, nil
+			}
+			incIP(ip)
 		}
-		if !used {
-			break
-		}
-		incIP(ip)
 	}
 
-	lease := &models.Lease{
-		MAC:       mac,
-		IP:        ip.String(),
-		SubnetID:  cidr,
-		ExpiresAt: time.Now().Add(1 * time.Hour),
-		CreatedAt: time.Now(),
-	}
-	pool.Leases[mac] = lease
-	lm.store.CreateLease(context.Background(), lease)
-	return ip, nil
+	return nil, fmt.Errorf("子网 %s 无可用 IP", cidr)
 }
 
 func incIP(ip net.IP) {

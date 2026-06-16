@@ -20,19 +20,21 @@ type Handler struct {
 	IPMI     *IPMIHandler
 	Lease    *LeaseHandler
 	Settings *SettingsHandler
+	Logs     *LogStreamHandler
 	Services map[string]string
 }
 
-func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer) *Handler {
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader) *Handler {
 	h := &Handler{
 		Host:     &HostHandler{store: st},
 		Profile:  &ProfileHandler{store: st},
-		Event:    &EventHandler{store: st, eventBus: bus},
+		Event:    NewEventHandler(st, bus),
 		File:     &FileHandler{bootFS: bootFS},
 		WOL:      &WOLHandler{store: st},
 		IPMI:     &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
 		Lease:    &LeaseHandler{store: st},
-		Settings: NewSettingsHandler(cfg),
+		Settings: NewSettingsHandler(cfg, reloader),
+		Logs:     NewLogStreamHandler(bus),
 		Services: map[string]string{},
 	}
 	for i, iface := range cfg.Interfaces {
@@ -64,6 +66,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		r.Get("/events", h.Event.List)
 		r.Get("/events/stream", h.Event.Stream)
+		r.Get("/logs/stream", h.Logs.Stream)
 
 		r.Get("/hosts", h.Host.List)
 		r.Post("/hosts", h.Host.Create)

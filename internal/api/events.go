@@ -1,26 +1,135 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/models"
 	"github.com/pxego/pxego/internal/store"
 )
 
+const ringBufferSize = 1000
+
+type eventRing struct {
+	events [ringBufferSize]models.Event
+	pos    int
+	full   bool
+	mu     sync.Mutex
+}
+
+func newEventRing() *eventRing {
+	return &eventRing{}
+}
+
+func (r *eventRing) Push(e models.Event) {
+	r.mu.Lock()
+	r.events[r.pos] = e
+	r.pos = (r.pos + 1) % ringBufferSize
+	if r.pos == 0 {
+		r.full = true
+	}
+	r.mu.Unlock()
+}
+
+func (r *eventRing) List(filter store.EventFilter) ([]models.Event, int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	total := r.pos
+	if r.full {
+		total = ringBufferSize
+	}
+
+	all := make([]models.Event, 0, total)
+	for i := 0; i < total; i++ {
+		idx := (r.pos - total + i) % ringBufferSize
+		if idx < 0 {
+			idx += ringBufferSize
+		}
+		all = append(all, r.events[idx])
+	}
+
+	// 反向：最新的在前
+	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
+		all[i], all[j] = all[j], all[i]
+	}
+
+	// 过滤
+	filtered := make([]models.Event, 0, len(all))
+	for _, e := range all {
+		if filter.Type != "" && string(e.Type) != filter.Type {
+			continue
+		}
+		if filter.Level != "" && string(e.Level) != filter.Level {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+
+	totalCount := int64(len(filtered))
+
+	// 分页
+	page := filter.Page
+	size := filter.Size
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 || size > 100 {
+		size = 50
+	}
+	start := (page - 1) * size
+	if start >= len(filtered) {
+		return []models.Event{}, totalCount
+	}
+	end := start + size
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+
+	return filtered[start:end], totalCount
+}
+
 type EventHandler struct {
 	store    store.Interface
 	eventBus *eventbus.Bus
+	ring     *eventRing
+	subOnce  sync.Once
+}
+
+func NewEventHandler(st store.Interface, bus *eventbus.Bus) *EventHandler {
+	return &EventHandler{
+		store:    st,
+		eventBus: bus,
+		ring:     newEventRing(),
+	}
+}
+
+func (h *EventHandler) ensureSubscribed() {
+	h.subOnce.Do(func() {
+		h.eventBus.Subscribe("event", func(e eventbus.Event) {
+			if evt, ok := e.Payload.(models.Event); ok {
+				h.ring.Push(evt)
+				// WARN/ERROR 级别持久化到数据库
+				if evt.Level == models.EventWarn || evt.Level == models.EventError {
+					if err := h.store.CreateEvent(context.Background(), &evt); err != nil {
+						// 静默失败，不影响主流程
+					}
+				}
+			}
+		})
+	})
 }
 
 func (h *EventHandler) List(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	size, _ := strconv.Atoi(r.URL.Query().Get("size"))
-	if page < 1 { page = 1 }
-	if size < 1 || size > 100 { size = 50 }
+
+	h.ensureSubscribed()
 
 	filter := store.EventFilter{
 		Type:  r.URL.Query().Get("type"),
@@ -29,12 +138,8 @@ func (h *EventHandler) List(w http.ResponseWriter, r *http.Request) {
 		Size:  size,
 	}
 
-	events, total, err := h.store.ListEvents(r.Context(), filter)
-	if err != nil {
-		Error(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	OK(w, map[string]any{"events": events, "meta": Meta{Page: page, Size: size, Total: total}})
+	events, total := h.ring.List(filter)
+	OK(w, map[string]any{"events": events, "meta": Meta{Page: filter.Page, Size: filter.Size, Total: total}})
 }
 
 func (h *EventHandler) Stream(w http.ResponseWriter, r *http.Request) {

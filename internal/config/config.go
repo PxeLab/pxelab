@@ -16,8 +16,9 @@ type Config struct {
 }
 
 type GlobalConfig struct {
-	DataDir string `mapstructure:"data_dir"`
-	AppMode bool   `mapstructure:"app_mode"`
+	DataDir    string `mapstructure:"data_dir"`
+	AppMode    bool   `mapstructure:"app_mode"`
+	ServerName string `mapstructure:"server_name"`
 }
 
 type InterfaceConfig struct {
@@ -31,13 +32,14 @@ type InterfaceConfig struct {
 }
 
 type SubnetConfig struct {
-	CIDR       string `mapstructure:"cidr"`
-	DHCP       string `mapstructure:"dhcp"`
-	Pool       string `mapstructure:"pool"`
-	Gateway    string `mapstructure:"gateway"`
-	DNSServers string `mapstructure:"dns_servers"`
-	NextServer string `mapstructure:"next_server"`
-	LeaseTime  int    `mapstructure:"lease_time"`
+	CIDR       string   `mapstructure:"cidr"`
+	DHCP       string   `mapstructure:"dhcp"`
+	Pool       string   `mapstructure:"pool"`       // 兼容旧格式单地址池
+	Pools      []string `mapstructure:"pools"`      // 多地址池 ["start1-end1", "start2-end2"]
+	Gateway    string   `mapstructure:"gateway"`
+	DNSServers string   `mapstructure:"dns_servers"`
+	NextServer string   `mapstructure:"next_server"`
+	LeaseTime  int      `mapstructure:"lease_time"`
 }
 
 type AuthConfig struct {
@@ -55,6 +57,7 @@ type StoreConfig struct {
 type LogConfig struct {
 	Level  string `mapstructure:"level"`
 	Format string `mapstructure:"format"`
+	File   string `mapstructure:"file"` // 日志文件路径，为空则不写文件
 }
 
 func (c *Config) Validate() error {

@@ -15,6 +15,7 @@
     "profiles": "Boot Profiles",
     "files": "Files",
     "events": "Event Log",
+    "logs": "Live Logs",
     "settings": "Settings",
     "about": "About"
   },

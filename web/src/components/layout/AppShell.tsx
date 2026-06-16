@@ -36,6 +36,7 @@ const navSections = [
     label: 'nav.section.monitor',
     items: [
       { path: '/events', label: 'nav.events', icon: Activity },
+      { path: '/logs', label: 'nav.logs', icon: Activity },
     ] as NavItem[],
   },
   {

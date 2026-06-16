@@ -1,0 +1,270 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Play, Pause, Trash2, Columns, LayoutGrid } from 'lucide-react'
+import { Button } from '../components/ui/Button'
+import { getBaseURL } from '../api/client'
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error'
+type LayoutMode = 1 | 2 | 4
+
+interface LogEntry {
+  time: string
+  level: LogLevel
+  message: string
+  service?: string
+  mac?: string
+  ip?: string
+  attrs?: Record<string, unknown>
+}
+
+interface PanelConfig {
+  id: number
+  service: string
+  level: LogLevel | ''
+  logs: LogEntry[]
+  paused: boolean
+}
+
+const SERVICES = [
+  { value: '', label: '全部' },
+  { value: 'DHCP', label: 'DHCP' },
+  { value: 'TFTP', label: 'TFTP' },
+  { value: 'HTTP', label: 'HTTP' },
+  { value: 'DNS', label: 'DNS' },
+  { value: 'IPMI', label: 'IPMI' },
+  { value: 'BOOT', label: 'BOOT' },
+]
+
+const LEVELS: { value: LogLevel | ''; label: string; color: string }[] = [
+  { value: '', label: '全部', color: '' },
+  { value: 'debug', label: 'DEBUG', color: 'text-gray-500' },
+  { value: 'info', label: 'INFO', color: 'text-blue-400' },
+  { value: 'warn', label: 'WARN', color: 'text-yellow-500' },
+  { value: 'error', label: 'ERROR', color: 'text-red-500' },
+]
+
+const LEVEL_COLORS: Record<string, string> = {
+  debug: 'bg-gray-500/20 text-gray-400',
+  info: 'bg-blue-500/20 text-blue-400',
+  warn: 'bg-yellow-500/20 text-yellow-500',
+  error: 'bg-red-500/20 text-red-500',
+}
+
+const SERVICE_COLORS: Record<string, string> = {
+  DHCP: 'bg-purple-500/20 text-purple-400',
+  TFTP: 'bg-cyan-500/20 text-cyan-400',
+  HTTP: 'bg-green-500/20 text-green-400',
+  DNS: 'bg-orange-500/20 text-orange-400',
+  IPMI: 'bg-pink-500/20 text-pink-400',
+  BOOT: 'bg-yellow-500/20 text-yellow-400',
+}
+
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso)
+    return d.toLocaleTimeString('zh-CN', { hour12: false })
+  } catch {
+    return iso
+  }
+}
+
+function createPanel(id: number): PanelConfig {
+  return { id, service: '', level: '', logs: [], paused: false }
+}
+
+export default function Logs() {
+  const [layout, setLayout] = useState<LayoutMode>(1)
+  const [panels, setPanels] = useState<PanelConfig[]>([createPanel(0)])
+  const [allPaused, setAllPaused] = useState(false)
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const bottomRefs = useRef<(HTMLDivElement | null)[]>([])
+  const autoScrollRef = useRef<(boolean)[]>([])
+
+  autoScrollRef.current = panels.map((_, i) => autoScrollRef.current[i] ?? true)
+
+  // 连接 SSE
+  useEffect(() => {
+    const es = new EventSource(getBaseURL() + '/api/v1/logs/stream')
+    eventSourceRef.current = es
+
+    es.onmessage = (e) => {
+      try {
+        const entry: LogEntry = JSON.parse(e.data)
+        setPanels(prev => prev.map(p => {
+          if (p.paused || allPaused) return p
+
+          // 按过滤条件判断
+          if (p.service && entry.service !== p.service) return p
+          if (p.level && entry.level !== p.level) return p
+
+          const next = [...p.logs, entry]
+          if (next.length > 500) next.splice(0, next.length - 500)
+          return { ...p, logs: next }
+        }))
+      } catch { /* ignore parse errors */ }
+    }
+
+    es.onerror = () => {
+      // 自动重连（EventSource 内置）
+    }
+
+    return () => { es.close() }
+  }, [allPaused])
+
+  // 自动滚动
+  useEffect(() => {
+    panels.forEach((_, i) => {
+      if (autoScrollRef.current[i] && bottomRefs.current[i]) {
+        bottomRefs.current[i]!.scrollIntoView({ behavior: 'smooth' })
+      }
+    })
+  })
+
+  // 布局变化时同步面板数量
+  const changeLayout = useCallback((mode: LayoutMode) => {
+    setLayout(mode)
+    setPanels(prev => {
+      const count = mode
+      while (prev.length < count) prev.push(createPanel(prev.length))
+      return prev.slice(0, count)
+    })
+    bottomRefs.current = bottomRefs.current.slice(0, mode)
+  }, [])
+
+  const clearPanel = useCallback((id: number) => {
+    setPanels(prev => prev.map(p => p.id === id ? { ...p, logs: [] } : p))
+  }, [])
+
+  const togglePausePanel = useCallback((id: number) => {
+    setPanels(prev => prev.map(p => p.id === id ? { ...p, paused: !p.paused } : p))
+  }, [])
+
+  const updatePanel = useCallback((id: number, upd: Partial<PanelConfig>) => {
+    setPanels(prev => prev.map(p => p.id === id ? { ...p, ...upd } : p))
+  }, [])
+
+  const gridCols = layout === 1 ? 'grid-cols-1' : layout === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-[var(--text-secondary)] mr-1">布局</span>
+          <Button
+            variant={layout === 1 ? 'primary' : 'secondary'} size="sm"
+            onClick={() => changeLayout(1)}
+          >
+            <Columns size={14} className="mr-1" /> 1
+          </Button>
+          <Button
+            variant={layout === 2 ? 'primary' : 'secondary'} size="sm"
+            onClick={() => changeLayout(2)}
+          >
+            <Columns size={14} className="mr-1" /> 2
+          </Button>
+          <Button
+            variant={layout === 4 ? 'primary' : 'secondary'} size="sm"
+            onClick={() => changeLayout(4)}
+          >
+            <LayoutGrid size={14} className="mr-1" /> 4
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary" size="sm"
+            onClick={() => setAllPaused(!allPaused)}
+          >
+            {allPaused ? <Play size={14} className="mr-1" /> : <Pause size={14} className="mr-1" />}
+            {allPaused ? '恢复全部' : '暂停全部'}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => {
+            setPanels(prev => prev.map(p => ({ ...p, logs: [] })))
+          }}>
+            <Trash2 size={14} className="mr-1" /> 清空全部
+          </Button>
+        </div>
+      </div>
+
+      {/* Log Panels */}
+      <div className={`grid ${gridCols} gap-4`}>
+        {panels.map((panel, idx) => (
+          <div key={panel.id} className={`flex flex-col ${layout === 4 ? 'max-h-[calc(50vh-2rem)]' : 'max-h-[calc(100vh-12rem)]'}`}>
+            {/* Panel Header */}
+            <div className="flex items-center justify-between px-3 py-2 rounded-t-xl border border-[var(--bg-border)] border-b-0 bg-[var(--bg-card)]">
+              <div className="flex items-center gap-2">
+                {/* Service filter */}
+                <select
+                  className="text-xs bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-1.5 py-1 text-[var(--text-primary)] outline-none"
+                  value={panel.service}
+                  onChange={e => updatePanel(panel.id, { service: e.target.value })}
+                >
+                  {SERVICES.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+                {/* Level filter */}
+                <select
+                  className="text-xs bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-1.5 py-1 text-[var(--text-primary)] outline-none"
+                  value={panel.level}
+                  onChange={e => updatePanel(panel.id, { level: e.target.value as LogLevel | '' })}
+                >
+                  {LEVELS.map(l => (
+                    <option key={l.value} value={l.value}>{l.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-[var(--text-muted)] font-mono mr-1">{panel.logs.length}</span>
+                <button
+                  onClick={() => clearPanel(panel.id)}
+                  className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-red-400 transition-colors"
+                  title="清空"
+                >
+                  <Trash2 size={13} />
+                </button>
+                <button
+                  onClick={() => togglePausePanel(panel.id)}
+                  className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                  title={panel.paused ? '恢复' : '暂停'}
+                >
+                  {panel.paused ? <Play size={13} /> : <Pause size={13} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Log Lines */}
+            <div
+              className="flex-1 overflow-y-auto rounded-b-xl border border-[var(--bg-border)] bg-[var(--bg-card)] font-mono text-xs leading-relaxed"
+              onScroll={e => {
+                const el = e.currentTarget
+                autoScrollRef.current[idx] = el.scrollHeight - el.scrollTop - el.clientHeight < 50
+              }}
+            >
+              {panel.logs.length === 0 ? (
+                <div className="flex items-center justify-center h-24 text-[var(--text-muted)] italic text-xs">
+                  等待日志...
+                </div>
+              ) : (
+                panel.logs.map((entry, li) => (
+                  <div key={li} className="flex items-start gap-2 px-3 py-0.5 hover:bg-[var(--bg-hover)] border-b border-[var(--bg-border)]/30 last:border-0">
+                    <span className="text-[var(--text-muted)] shrink-0 pt-0.5 tabular-nums">{formatTime(entry.time)}</span>
+                    <span className={`shrink-0 font-semibold ${LEVEL_COLORS[entry.level] || ''} px-1 rounded text-[10px] leading-4`}>
+                      {entry.level.toUpperCase()}
+                    </span>
+                    {entry.service && (
+                      <span className={`shrink-0 font-semibold ${SERVICE_COLORS[entry.service] || ''} px-1 rounded text-[10px] leading-4`}>
+                        {entry.service}
+                      </span>
+                    )}
+                    <span className="text-[var(--text-primary)] break-all flex-1">{entry.message}</span>
+                  </div>
+                ))
+              )}
+              <div ref={el => { bottomRefs.current[idx] = el }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

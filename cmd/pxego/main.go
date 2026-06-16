@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 
 	"github.com/pxego/pxego/internal/app"
@@ -15,6 +17,7 @@ import (
 	"github.com/pxego/pxego/internal/dns"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/httpd"
+	"github.com/pxego/pxego/internal/logbus"
 	"github.com/pxego/pxego/internal/store"
 	"github.com/pxego/pxego/internal/tftp"
 	"github.com/spf13/cobra"
@@ -24,7 +27,6 @@ var rootCmd = &cobra.Command{
 	Use:   "pxego",
 	Short: "PxeGo - 一体化 PXE 服务器",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// 检查是否应该以 Windows 服务模式运行
 		if handled, err := runAsService(); handled {
 			return err
 		}
@@ -39,7 +41,6 @@ func init() {
 func run(cmd *cobra.Command) error {
 	cfgFile, _ := cmd.Flags().GetString("config")
 
-	// 处理 --mode 简写标记
 	if mode, _ := cmd.Flags().GetString("mode"); mode == "app" {
 		cmd.Flags().Set("app-mode", "true")
 	}
@@ -51,19 +52,37 @@ func run(cmd *cobra.Command) error {
 		return fmt.Errorf("加载配置失败: %w", err)
 	}
 
-	// 初始化日志
-	var level slog.Level
+	// 创建事件总线
+	bus := eventbus.New()
+
+	// ── 日志设置 ──
+	var logLevel slog.Level
 	switch cfg.Log.Level {
 	case "debug":
-		level = slog.LevelDebug
+		logLevel = slog.LevelDebug
 	case "warn":
-		level = slog.LevelWarn
+		logLevel = slog.LevelWarn
 	case "error":
-		level = slog.LevelError
+		logLevel = slog.LevelError
 	default:
-		level = slog.LevelInfo
+		logLevel = slog.LevelInfo
 	}
-	slog.SetLogLoggerLevel(level)
+
+	// 日志输出：stderr + 可选日志文件
+	var logWriters io.Writer = os.Stderr
+	if cfg.Log.File != "" {
+		if err := os.MkdirAll(filepath.Dir(cfg.Log.File), 0755); err == nil {
+			f, err := os.OpenFile(cfg.Log.File, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err == nil {
+				logWriters = io.MultiWriter(os.Stderr, f)
+			}
+		}
+	}
+
+	slog.SetDefault(slog.New(logbus.NewBusHandler(
+		slog.NewTextHandler(logWriters, &slog.HandlerOptions{Level: logLevel}),
+		bus,
+	)))
 
 	slog.Info("PxeGo 启动", "data_dir", cfg.Global.DataDir)
 
@@ -77,21 +96,17 @@ func run(cmd *cobra.Command) error {
 	}
 	defer st.Close()
 
-	// 创建全局组件
-	bus := eventbus.New()
 	bootFS := boot.NewBootFileServer(cfg.Boot.RootDir)
 
-	// 创建 DHCP LeaseManager（共享实例）
+	extractBootFiles(cfg.Boot.RootDir)
+
 	leaseMgr := dhcp.NewLeaseManager(st)
 
-	// 创建共享 DHCP Handler
 	dhcpHandler := dhcp.NewHandler(cfg, st, bus, leaseMgr)
 	dhcpHandler.InitSubnets()
 
-	// 创建 App 编排器
 	pxeApp := app.New()
 
-	// 创建并注册各服务
 	if len(cfg.Interfaces) > 0 {
 		dhcpServer := dhcp.NewServer("0.0.0.0:67", dhcpHandler)
 		pxeApp.Register(dhcpServer)
@@ -103,10 +118,9 @@ func run(cmd *cobra.Command) error {
 	tftpServer := tftp.NewServer(config.DefaultPortTFTP, bootFS, bus)
 	pxeApp.Register(tftpServer)
 
-	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler())
+	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler)
 	pxeApp.Register(httpServer)
 
-	// 填充服务状态
 	svc := httpServer.API().Services
 	if len(cfg.Interfaces) > 0 {
 		svc["DHCP"] = "running"
@@ -117,7 +131,6 @@ func run(cmd *cobra.Command) error {
 		svc["DNS"] = "running"
 	}
 
-	// 自动打开浏览器
 	if appMode {
 		slog.Info("自动打开浏览器")
 		openBrowser("http://localhost:8080")

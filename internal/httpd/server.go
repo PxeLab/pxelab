@@ -24,7 +24,7 @@ type Server struct {
 	api    *api.Handler
 }
 
-func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler) *Server {
+func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader) *Server {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
@@ -38,7 +38,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	apiHandler := api.NewHandler(cfg, st, bus, bootFS)
+	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader)
 	apiHandler.RegisterRoutes(r)
 
 	// 启动文件 HTTP 服务（iPXE 等通过网络引导）
