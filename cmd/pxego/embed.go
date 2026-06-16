@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 //go:embed webdist/*
@@ -14,7 +15,34 @@ var spaFS embed.FS
 
 func spaHandler() http.Handler {
 	subFS, _ := fs.Sub(spaFS, "webdist")
-	return http.FileServer(http.FS(subFS))
+	fileServer := http.FileServer(http.FS(subFS))
+
+	// 读取 index.html 供 SPA fallback 使用
+	indexBytes, err := fs.ReadFile(subFS, "index.html")
+	if err != nil {
+		panic("嵌入的 SPA 缺少 index.html: " + err.Error())
+	}
+	indexStr := string(indexBytes)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 如果是 API 路径则不处理（已由上层路由处理）
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/boot/") || r.URL.Path == "/health" {
+			http.NotFound(w, r)
+			return
+		}
+
+		// 检查请求的是否是真实文件（有扩展名且文件存在）
+		ext := filepath.Ext(r.URL.Path)
+		if ext != "" {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		// SPA fallback：所有无扩展名的路径返回 index.html
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(indexStr))
+	})
 }
 
 //go:embed bootdist/*
