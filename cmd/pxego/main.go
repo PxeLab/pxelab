@@ -106,6 +106,17 @@ func run(cmd *cobra.Command) error {
 	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler())
 	pxeApp.Register(httpServer)
 
+	// 填充服务状态
+	svc := httpServer.API().Services
+	if len(cfg.Interfaces) > 0 {
+		svc["DHCP"] = "running"
+	}
+	svc["TFTP"] = "running"
+	svc["HTTP"] = "running"
+	if len(cfg.Interfaces) > 0 && cfg.Interfaces[0].DNS {
+		svc["DNS"] = "running"
+	}
+
 	// 自动打开浏览器
 	if appMode {
 		slog.Info("自动打开浏览器")

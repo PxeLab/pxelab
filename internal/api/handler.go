@@ -1,6 +1,8 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/pxego/pxego/internal/boot"
 	"github.com/pxego/pxego/internal/config"
@@ -22,7 +24,7 @@ type Handler struct {
 }
 
 func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer) *Handler {
-	return &Handler{
+	h := &Handler{
 		Host:     &HostHandler{store: st},
 		Profile:  &ProfileHandler{store: st},
 		Event:    &EventHandler{store: st, eventBus: bus},
@@ -33,6 +35,28 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Settings: NewSettingsHandler(cfg),
 		Services: map[string]string{},
 	}
+	// 用配置中的接口信息初始化服务状态（运行时 main.go 会覆盖）
+	for i, iface := range cfg.Interfaces {
+		name := iface.Name
+		if name == "" {
+			name = fmt.Sprintf("接口%d", i+1)
+		}
+		status := "enabled"
+		if iface.DHCP == "off" {
+			status = "disabled"
+		}
+		h.Services["DHCP/"+name] = status
+		if iface.TFTP {
+			h.Services["TFTP/"+name] = "enabled"
+		}
+		if iface.HTTP {
+			h.Services["HTTP/"+name] = "enabled"
+		}
+		if iface.DNS {
+			h.Services["DNS/"+name] = "enabled"
+		}
+	}
+	return h
 }
 
 func (h *Handler) RegisterRoutes(r chi.Router) {

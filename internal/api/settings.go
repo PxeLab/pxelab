@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/pxego/pxego/internal/config"
+	"gopkg.in/yaml.v3"
 )
 
 type SettingsHandler struct {
@@ -144,5 +145,7 @@ func saveConfig(path string, cfg *config.Config) error {
 		return err
 	}
 	defer f.Close()
-	return json.NewEncoder(f).Encode(cfg)
+	enc := yaml.NewEncoder(f)
+	enc.SetIndent(2)
+	return enc.Encode(cfg)
 }

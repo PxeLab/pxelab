@@ -74,6 +74,9 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 
 func (s *Server) Name() string { return s.name }
 
+// API 返回 API Handler，用于外部设置服务状态等
+func (s *Server) API() *api.Handler { return s.api }
+
 func (s *Server) Start(ctx context.Context) error {
 	addr := fmt.Sprintf(":%d", 8080)
 	s.srv = &http.Server{

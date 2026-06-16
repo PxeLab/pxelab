@@ -8,6 +8,7 @@ type AST struct {
 	MenuTitle string
 	Timeout   int
 	Default   string
+	Prompt    bool
 }
 
 type Label struct {
