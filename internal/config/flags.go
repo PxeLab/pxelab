@@ -46,6 +46,13 @@ func LoadConfig(cfgPath string) (*Config, error) {
 		return nil, err
 	}
 
+	// 记录配置文件路径，保存时写回同一位置
+	if used := v.ConfigFileUsed(); used != "" {
+		cfg.ConfigPath = used
+	} else if cfgPath != "" {
+		cfg.ConfigPath = cfgPath
+	}
+
 	// 根据 data_dir 派生默认值
 	dd := cfg.Global.DataDir
 	if cfg.Store.DSN == "" && dd != "" {

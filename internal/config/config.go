@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	ConfigPath string            `yaml:"-" json:"-" mapstructure:"-"` // 配置文件的完整路径，运行时追踪用
 	Global     GlobalConfig      `mapstructure:"global"`
 	Interfaces []InterfaceConfig `mapstructure:"interfaces"`
 	Auth       AuthConfig        `mapstructure:"auth"`

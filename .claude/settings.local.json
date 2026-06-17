@@ -47,7 +47,25 @@
       "Bash(xargs sed -i 's/placeholder-\\\\[#6b7294\\\\]/placeholder-\\\\[var\\\\\\(--text-muted\\\\\\)\\\\]/g')",
       "Bash(xargs sed -i 's/from-\\\\[#16181f\\\\]/from-\\\\[var\\\\\\(--bg-card\\\\\\)\\\\]/g')",
       "Bash(xargs sed -i 's/via-\\\\[#1c1f2c\\\\]/via-\\\\[var\\\\\\(--bg-hover\\\\\\)\\\\]/g')",
-      "Bash(xargs sed -i 's/to-\\\\[#16181f\\\\]/to-\\\\[var\\\\\\(--bg-card\\\\\\)\\\\]/g')"
+      "Bash(xargs sed -i 's/to-\\\\[#16181f\\\\]/to-\\\\[var\\\\\\(--bg-card\\\\\\)\\\\]/g')",
+      "Bash(curl -L -o undionly.kpxe https://boot.ipxe.org/undionly.kpxe)",
+      "Bash(curl -L -o ipxe.efi https://boot.ipxe.org/ipxe.efi)",
+      "Bash(curl -L -o ipxe32.efi https://boot.ipxe.org/ipxe32.efi)",
+      "Bash(curl -L -o ipxe-arm64.efi https://boot.ipxe.org/ipxe-arm64.efi)",
+      "Bash(curl -L -o ipxe-riscv64.efi https://boot.ipxe.org/ipxe-riscv64.efi)",
+      "Bash(xxd)",
+      "Bash(rm -f ipxe.efi ipxe32.efi ipxe-arm64.efi ipxe-riscv64.efi)",
+      "Bash(curl -sL -o ipxe.efi https://github.com/ipxe/ipxe/raw/master/src/bin/ipxe.efi)",
+      "Bash(curl -sI -L -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\)\" https://boot.ipxe.org/ipxe.efi)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" -o \"D:/NewCB/PxeGo/boot/ipxe.efi\" \"https://github.com/ipxe/ipxe/releases/download/v1.21.1/ipxe-1.21.1-embedded-ipxe.efi\")",
+      "Bash(wsl bash *)",
+      "Bash(curl -sL -o \"D:/NewCB/PxeGo/boot/ipxe.efi\" \"https://github.com/ipxe/ipxe/releases/download/v1.21.1/ipxe.efi\")",
+      "Bash(wsl sudo *)",
+      "Bash(wsl find *)",
+      "Bash(wsl rpm *)",
+      "Bash(npx vite *)",
+      "Bash(node *)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

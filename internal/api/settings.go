@@ -100,13 +100,19 @@ func generateToken() string {
 	return hex.EncodeToString(b)
 }
 
+func configPath(cfg *config.Config) string {
+	if cfg.ConfigPath != "" {
+		return cfg.ConfigPath
+	}
+	return filepath.Join(cfg.Global.DataDir, "config.yaml")
+}
+
 func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	cfg := h.cfg
 
 	if cfg.Auth.Token == "" {
 		cfg.Auth.Token = generateToken()
-		cfgPath := filepath.Join(cfg.Global.DataDir, "config.yaml")
-		saveConfig(cfgPath, cfg)
+		saveConfig(configPath(cfg), cfg)
 	}
 	if cfg.Global.ServerName == "" {
 		cfg.Global.ServerName = "pxego"
@@ -325,8 +331,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cfgPath := filepath.Join(h.cfg.Global.DataDir, "config.yaml")
-	if err := saveConfig(cfgPath, h.cfg); err != nil {
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
 		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
 		return
 	}
