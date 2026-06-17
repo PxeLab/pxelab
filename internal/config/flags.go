@@ -24,7 +24,7 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
 	v.AddConfigPath(".")
-	v.AddConfigPath("$HOME/.pxego")
+	v.AddConfigPath(DefaultDataDir())
 	v.AddConfigPath("/etc/pxego")
 
 	if cfgPath != "" {
@@ -51,6 +51,11 @@ func LoadConfig(cfgPath string) (*Config, error) {
 		cfg.ConfigPath = used
 	} else if cfgPath != "" {
 		cfg.ConfigPath = cfgPath
+	}
+
+	// 确保 DataDir 有默认值
+	if cfg.Global.DataDir == "" {
+		cfg.Global.DataDir = DefaultDataDir()
 	}
 
 	// 根据 data_dir 派生默认值
