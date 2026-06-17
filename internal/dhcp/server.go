@@ -27,11 +27,11 @@ func NewServer(addr string, handler *Handler) *Server {
 func (s *Server) Name() string { return s.name }
 
 func (s *Server) Start(ctx context.Context) error {
-	udpAddr, err := net.ResolveUDPAddr("udp", s.addr)
+	udpAddr, err := net.ResolveUDPAddr("udp4", s.addr)
 	if err != nil {
 		return err
 	}
-	s.conn, err = net.ListenUDP("udp", udpAddr)
+	s.conn, err = net.ListenUDP("udp4", udpAddr)
 	if err != nil {
 		return fmt.Errorf("监听 %s 失败: %w", s.addr, err)
 	}

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/pxego/pxego/internal/boot"
@@ -36,7 +37,6 @@ func (h *Handler) InitSubnets() {
 		for _, subnet := range iface.Subnets {
 			var pools []*IPRange
 
-			// 优先使用多地址池 Pools 字段
 			if len(subnet.Pools) > 0 {
 				for _, p := range subnet.Pools {
 					poolParts := strings.SplitN(p, "-", 2)
@@ -52,7 +52,6 @@ func (h *Handler) InitSubnets() {
 					pools = append(pools, ipRange)
 				}
 			} else if subnet.Pool != "" {
-				// 兼容旧格式：单个地址池字符串
 				poolParts := strings.SplitN(subnet.Pool, "-", 2)
 				if len(poolParts) != 2 {
 					slog.Warn("地址池格式无效，跳过", "cidr", subnet.CIDR, "pool", subnet.Pool)
@@ -82,7 +81,6 @@ func (h *Handler) InitSubnets() {
 	}
 }
 
-// ReloadSubnets 清空并重新加载子网配置，用于热重载
 func (h *Handler) ReloadSubnets() {
 	slog.Info("重载 DHCP 子网配置")
 	h.leaseMgr.ClearSubnets()
@@ -101,10 +99,11 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	mac := pkt.ClientHWAddr.String()
 	isPXE := IsPXEClient(pkt)
 
-	slog.Debug("收到 DHCP 包",
+	slog.Info("DHCP 请求",
 		"mac", mac,
-		"type", mt,
+		"type", mt.String(),
 		"isPXE", isPXE,
+		"vci", pkt.ClassIdentifier(),
 	)
 
 	msgType := "DHCP"
@@ -129,52 +128,205 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 		}
 	}
 
-	// 查找匹配子网（通过 peer IP）
+	slog.Info("DHCP 模式确定", "mode", dhcpMode, "mac", mac)
+
+	// 查找匹配子网
 	var subnetCfg *config.SubnetConfig
-	for _, iface := range h.config.Interfaces {
-		for _, subnet := range iface.Subnets {
-			_, cidrNet, err := net.ParseCIDR(subnet.CIDR)
-			if err == nil {
-				peerIP := peer.(*net.UDPAddr).IP
-				if cidrNet.Contains(peerIP) {
+	var serverIP net.IP
+	peerIP := peer.(*net.UDPAddr).IP
+
+	// 1) 通过 giaddr 匹配（中继场景）
+	if !pkt.GatewayIPAddr.IsUnspecified() && !pkt.GatewayIPAddr.IsLoopback() {
+		slog.Info("通过 giaddr 匹配子网", "giaddr", pkt.GatewayIPAddr)
+		for _, iface := range h.config.Interfaces {
+			for _, subnet := range iface.Subnets {
+				_, cidrNet, err := net.ParseCIDR(subnet.CIDR)
+				if err == nil && cidrNet.Contains(pkt.GatewayIPAddr) {
 					subnetCfg = &subnet
+					serverIP = net.ParseIP(iface.IP)
 					break
 				}
 			}
-		}
-		if subnetCfg != nil {
-			break
+			if subnetCfg != nil {
+				break
+			}
 		}
 	}
 
+	// 2) 通过 ciaddr 匹配（续租场景）
+	if subnetCfg == nil && !pkt.ClientIPAddr.IsUnspecified() {
+		slog.Info("通过 ciaddr 匹配子网", "ciaddr", pkt.ClientIPAddr)
+		for _, iface := range h.config.Interfaces {
+			for _, subnet := range iface.Subnets {
+				_, cidrNet, err := net.ParseCIDR(subnet.CIDR)
+				if err == nil && cidrNet.Contains(pkt.ClientIPAddr) {
+					subnetCfg = &subnet
+					serverIP = net.ParseIP(iface.IP)
+					break
+				}
+			}
+			if subnetCfg != nil {
+				break
+			}
+		}
+	}
+
+	// 3) 通过 peer IP 匹配（中继 / 非广播场景）
+	if subnetCfg == nil && !peerIP.IsUnspecified() {
+		slog.Info("通过 peer IP 匹配子网", "peer", peerIP)
+		for _, iface := range h.config.Interfaces {
+			for _, subnet := range iface.Subnets {
+				_, cidrNet, err := net.ParseCIDR(subnet.CIDR)
+				if err == nil && cidrNet.Contains(peerIP) {
+					subnetCfg = &subnet
+					serverIP = net.ParseIP(iface.IP)
+					break
+				}
+			}
+			if subnetCfg != nil {
+				break
+			}
+		}
+	}
+
+	// 4) 客户端从 0.0.0.0 广播且无中继：取唯一子网
+	if subnetCfg == nil && peerIP.IsUnspecified() && pkt.GatewayIPAddr.IsUnspecified() {
+		var allSubnets []config.SubnetConfig
+		for _, iface := range h.config.Interfaces {
+			allSubnets = append(allSubnets, iface.Subnets...)
+			if serverIP == nil && len(iface.Subnets) > 0 {
+				serverIP = net.ParseIP(iface.IP)
+			}
+		}
+		if len(allSubnets) == 1 {
+			subnetCfg = &allSubnets[0]
+			slog.Info("广播请求匹配唯一子网", "cidr", subnetCfg.CIDR, "mac", mac)
+		} else if len(allSubnets) > 1 {
+			slog.Warn("广播请求含多个子网，无法确定子网",
+				"mac", mac, "subnet_count", len(allSubnets))
+			return
+		} else {
+			slog.Warn("广播请求无可用子网", "mac", mac)
+			return
+		}
+	}
+
+	if subnetCfg == nil {
+		slog.Warn("未找到匹配子网", "mac", mac)
+		return
+	}
+
+	slog.Info("子网匹配成功",
+		"mac", mac,
+		"cidr", subnetCfg.CIDR,
+		"gateway", subnetCfg.Gateway,
+		"server_ip", serverIP,
+	)
+
 	var nextServer net.IP
-	if subnetCfg != nil && subnetCfg.NextServer != "" {
+	if subnetCfg.NextServer != "" {
 		nextServer = net.ParseIP(subnetCfg.NextServer)
+	}
+	if nextServer == nil && serverIP != nil {
+		nextServer = serverIP
 	}
 
 	var reply *dhcpv4.DHCPv4
 	switch mt {
 	case dhcpv4.MessageTypeDiscover:
-		reply = h.handleDiscover(pkt, dhcpMode, nextServer, subnetCfg)
+		reply = h.handleDiscover(pkt, dhcpMode, serverIP, nextServer, subnetCfg)
 	case dhcpv4.MessageTypeRequest:
-		reply = h.handleRequest(pkt, dhcpMode, nextServer, subnetCfg)
+		reply = h.handleRequest(pkt, dhcpMode, serverIP, nextServer, subnetCfg)
 	}
 
 	if reply != nil {
-		if nextServer != nil {
-			reply.UpdateOption(dhcpv4.OptServerIdentifier(nextServer))
+		dst := peer
+		if peerIP.IsUnspecified() {
+			dst = &net.UDPAddr{IP: net.IPv4bcast, Port: peer.(*net.UDPAddr).Port}
 		}
-		if _, err := conn.WriteTo(reply.ToBytes(), peer); err != nil {
+		if _, err := conn.WriteTo(reply.ToBytes(), dst); err != nil {
 			slog.Error("发送 DHCP 响应失败", "error", err)
+		} else {
+			slog.Info("DHCP 响应已发送",
+				"mac", mac,
+				"yiaddr", reply.YourIPAddr,
+				"type", mt.String(),
+			)
 		}
 	}
 }
 
-func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, nextServer net.IP, subnetCfg *config.SubnetConfig) *dhcpv4.DHCPv4 {
+// appendDHCPOptions 填充 DHCP 回复的必备选项
+func appendDHCPOptions(reply *dhcpv4.DHCPv4, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig) {
+	if serverIP != nil {
+		reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+	}
+	if nextServer != nil {
+		reply.ServerIPAddr = nextServer
+	}
+
+	if subnetCfg.CIDR != "" {
+		_, ipnet, err := net.ParseCIDR(subnetCfg.CIDR)
+		if err == nil {
+			reply.UpdateOption(dhcpv4.OptSubnetMask(ipnet.Mask))
+		}
+	}
+
+	if subnetCfg.Gateway != "" {
+		if gw := net.ParseIP(subnetCfg.Gateway); gw != nil {
+			reply.UpdateOption(dhcpv4.OptRouter(gw))
+		}
+	}
+
+	if subnetCfg.DNSServers != "" {
+		var dnsIPs []net.IP
+		for _, s := range strings.Split(subnetCfg.DNSServers, ",") {
+			if ip := net.ParseIP(strings.TrimSpace(s)); ip != nil {
+				dnsIPs = append(dnsIPs, ip)
+			}
+		}
+		if len(dnsIPs) > 0 {
+			reply.UpdateOption(dhcpv4.OptDNS(dnsIPs...))
+		}
+	}
+
+	leaseTime := subnetCfg.LeaseTime
+	if leaseTime <= 0 {
+		leaseTime = 3600
+	}
+	reply.UpdateOption(dhcpv4.OptIPAddressLeaseTime(time.Duration(leaseTime) * time.Second))
+}
+
+func iPXEScriptURL(serverIP net.IP, mac string) string {
+	return fmt.Sprintf("http://%s:8080/boot/ipxe/script?mac=%s", serverIP, mac)
+}
+
+func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig) *dhcpv4.DHCPv4 {
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil
 	}
+
+	// iPXE 第二阶段：返回脚本 URL 而非启动文件
+	if IsIPXEClient(pkt) {
+		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+		reply.BootFileName = scriptURL
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		if mode != "proxy" {
+			ip, err := h.leaseMgr.Allocate(subnetCfg.CIDR, pkt.ClientHWAddr.String())
+			if err != nil {
+				slog.Warn("IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
+				return nil
+			}
+			reply.YourIPAddr = ip
+			appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
+		}
+		slog.Info("iPXE 脚本 Offer", "mac", pkt.ClientHWAddr.String(), "url", scriptURL, "mode", mode)
+		return reply
+	}
+
+	// PXE ROM 客户端：提供启动文件 + Option 175.178（iPXE 启动后读取缓存）
+	scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 
 	switch mode {
 	case "proxy":
@@ -185,56 +337,51 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, nextServer net
 		if arch, ok := DetectClientArch(pkt); ok {
 			reply.BootFileName = boot.BootFileForArch(arch)
 		}
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 
-	case "full":
-		cidr := ""
-		if subnetCfg != nil {
-			cidr = subnetCfg.CIDR
-		}
-		if ip, err := h.leaseMgr.Allocate(cidr, pkt.ClientHWAddr.String()); err == nil {
-			reply.YourIPAddr = ip
-		} else {
+	case "full", "hybrid":
+		ip, err := h.leaseMgr.Allocate(subnetCfg.CIDR, pkt.ClientHWAddr.String())
+		if err != nil {
 			slog.Warn("IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
 			return nil
 		}
-		if nextServer != nil {
-			reply.ServerIPAddr = nextServer
-		}
+		reply.YourIPAddr = ip
+		appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
 		if arch, ok := DetectClientArch(pkt); ok {
 			reply.BootFileName = boot.BootFileForArch(arch)
 		}
-
-	case "hybrid":
-		cidr := ""
-		if subnetCfg != nil {
-			cidr = subnetCfg.CIDR
-		}
-		if ip, err := h.leaseMgr.Allocate(cidr, pkt.ClientHWAddr.String()); err == nil {
-			reply.YourIPAddr = ip
-		} else {
-			slog.Warn("IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
-			return nil
-		}
-		if nextServer != nil {
-			reply.ServerIPAddr = nextServer
-		}
-		if arch, ok := DetectClientArch(pkt); ok {
-			reply.BootFileName = boot.BootFileForArch(arch)
-		}
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		slog.Info("DHCP Offer", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode)
 	}
 
 	return reply
 }
 
-func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, nextServer net.IP, subnetCfg *config.SubnetConfig) *dhcpv4.DHCPv4 {
-	_ = mode
-	_ = subnetCfg
+func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig) *dhcpv4.DHCPv4 {
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil
 	}
-	if nextServer != nil {
-		reply.ServerIPAddr = nextServer
+	appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
+
+	// 设置 ACK 确认 IP：优先 ciaddr（续租），其次 Option 50（请求的 IP）
+	if !pkt.ClientIPAddr.IsUnspecified() {
+		reply.YourIPAddr = pkt.ClientIPAddr
+	} else if reqIP := pkt.RequestedIPAddress(); reqIP != nil && !reqIP.IsUnspecified() {
+		reply.YourIPAddr = reqIP
 	}
+
+	// 在 ACK 中也设置启动文件/脚本 URL + Option 175.178
+	if IsIPXEClient(pkt) {
+		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+		reply.BootFileName = scriptURL
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+	} else if arch, ok := DetectClientArch(pkt); ok {
+		reply.BootFileName = boot.BootFileForArch(arch)
+		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+	}
+
+	slog.Info("DHCP Ack", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName)
 	return reply
 }

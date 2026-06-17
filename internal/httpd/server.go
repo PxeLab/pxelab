@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/pxego/pxego/internal/api"
 	"github.com/pxego/pxego/internal/boot"
+	"github.com/pxego/pxego/internal/boot/ipxe"
 	"github.com/pxego/pxego/internal/config"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/store"
@@ -41,6 +43,70 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader)
 	apiHandler.RegisterRoutes(r)
 
+	// iPXE 引导脚本端点
+	r.Get("/boot/ipxe/script", func(w http.ResponseWriter, r *http.Request) {
+		mac := r.URL.Query().Get("mac")
+		engine := ipxe.New()
+		menuData := &ipxe.MenuData{
+			Title:   "PxeGo Boot Menu",
+			Timeout: 5000,
+			Default: 0,
+			Entries: []ipxe.MenuEntryData{
+				{Label: "Boot from local disk", Type: ipxe.BootLocal},
+			},
+		}
+		if mac != "" {
+			host, err := st.GetHostByMAC(r.Context(), mac)
+			if err == nil && host != nil && host.ProfileID != nil {
+				profile, err := st.GetProfile(r.Context(), *host.ProfileID)
+				if err == nil && profile != nil {
+					bootMenu, err := profile.GetMenu()
+					if err == nil && len(bootMenu.Entries) > 0 {
+						menuData.Title = profile.Name
+						var entries []ipxe.MenuEntryData
+						for _, e := range bootMenu.Entries {
+							entry := ipxe.MenuEntryData{
+								Label: e.Label,
+								Type:  ipxe.BootType(e.Type),
+							}
+							if e.Kernel != nil {
+								entry.Kernel = "http://" + r.Host + "/boot/" + *e.Kernel
+							}
+							if e.Initrd != nil {
+								entry.Initrd = "http://" + r.Host + "/boot/" + *e.Initrd
+							}
+							if e.Cmdline != nil {
+								entry.Cmdline = *e.Cmdline
+							}
+							if e.URL != nil {
+								entry.URL = *e.URL
+							}
+							if e.WIM != nil {
+								entry.WIM = *e.WIM
+							}
+							entries = append(entries, entry)
+						}
+						entries = append(entries, ipxe.MenuEntryData{Label: "Boot from local disk", Type: ipxe.BootLocal})
+						menuData.Entries = entries
+					}
+				}
+			}
+		}
+		script, err := engine.Render("menu", ipxe.TemplateData{
+			MAC:  mac,
+			Menu: menuData,
+			URL:  "http://" + r.Host,
+		})
+		if err != nil {
+			slog.Error("生成 iPXE 脚本失败", "error", err)
+			http.Error(w, "script error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Length", strconv.Itoa(len(script)))
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(script))
+	})
 	// 启动文件 HTTP 服务（iPXE 等通过网络引导）
 	if bootFS != nil {
 		r.Get("/boot/*", func(w http.ResponseWriter, r *http.Request) {

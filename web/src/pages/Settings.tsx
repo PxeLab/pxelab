@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
-import { api, type SettingsData, type InterfaceInfo, type InterfaceSettings } from '../api/client'
+import { api, setAuthToken, type SettingsData, type InterfaceInfo, type InterfaceSettings } from '../api/client'
 
 type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'ipmi'
 
@@ -109,6 +109,7 @@ export default function Settings() {
       const [res, ifaceRes] = await Promise.all([api.getSettings(), api.getInterfaces()])
       setAvailableIfaces(ifaceRes.data)
       const d = res.data
+      if (d.server.token) setAuthToken(d.server.token)
       setConfig(prev => ({
         ...prev,
         serverName: d.server.name || 'pxego',

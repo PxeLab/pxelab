@@ -68,8 +68,17 @@ func run(cmd *cobra.Command) error {
 		logLevel = slog.LevelInfo
 	}
 
-	// 日志输出：stderr + 可选日志文件
+	// 日志输出：stderr + 按服务分离的文件日志
 	var logWriters io.Writer = os.Stderr
+
+	// 默认日志目录: ~/.pxego/logs/
+	logDir := filepath.Join(cfg.Global.DataDir, "logs")
+	if cfg.Log.File != "" {
+		logDir = filepath.Dir(cfg.Log.File)
+	}
+	os.MkdirAll(logDir, 0755)
+
+	// 可选的组合日志文件
 	if cfg.Log.File != "" {
 		if err := os.MkdirAll(filepath.Dir(cfg.Log.File), 0755); err == nil {
 			f, err := os.OpenFile(cfg.Log.File, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -77,14 +86,22 @@ func run(cmd *cobra.Command) error {
 				logWriters = io.MultiWriter(os.Stderr, f)
 			}
 		}
+	} else {
+		// 默认写组合日志文件 ~/.pxego/logs/pxego.log
+		combinedPath := filepath.Join(logDir, "pxego.log")
+		f, err := os.OpenFile(combinedPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err == nil {
+			logWriters = io.MultiWriter(os.Stderr, f)
+		}
 	}
 
 	slog.SetDefault(slog.New(logbus.NewBusHandler(
 		slog.NewTextHandler(logWriters, &slog.HandlerOptions{Level: logLevel}),
 		bus,
+		logDir,
 	)))
 
-	slog.Info("PxeGo 启动", "data_dir", cfg.Global.DataDir)
+	slog.Info("PxeGo 启动", "data_dir", cfg.Global.DataDir, "log_dir", logDir)
 
 	// 初始化存储
 	st, err := store.NewSQLite(cfg.Store.DSN)
@@ -104,16 +121,20 @@ func run(cmd *cobra.Command) error {
 
 	dhcpHandler := dhcp.NewHandler(cfg, st, bus, leaseMgr)
 	dhcpHandler.InitSubnets()
-
 	pxeApp := app.New()
 
-	// DHCP 服务始终启动，有子网时分配 IP，无子网时静默处理
-	dhcpServer := dhcp.NewServer("0.0.0.0:67", dhcpHandler)
+	// DHCP 服务绑定到配置的接口 IP，确保广播正确接口
+	dhcpAddr := "0.0.0.0:67"
+	proxyAddr := "0.0.0.0:4011"
+	if len(cfg.Interfaces) > 0 && cfg.Interfaces[0].IP != "" {
+		dhcpAddr = cfg.Interfaces[0].IP + ":67"
+		proxyAddr = cfg.Interfaces[0].IP + ":4011"
+	}
+	dhcpServer := dhcp.NewServer(dhcpAddr, dhcpHandler)
 	pxeApp.Register(dhcpServer)
 
-	proxyDHCP := dhcp.NewProxyServer4011("0.0.0.0:4011", dhcpHandler)
+	proxyDHCP := dhcp.NewProxyServer4011(proxyAddr, dhcpHandler)
 	pxeApp.Register(proxyDHCP)
-
 	tftpServer := tftp.NewServer(config.DefaultPortTFTP, bootFS, bus)
 	pxeApp.Register(tftpServer)
 

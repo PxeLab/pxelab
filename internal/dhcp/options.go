@@ -1,6 +1,8 @@
 package dhcp
 
 import (
+	"strings"
+
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/iana"
 )
@@ -50,11 +52,28 @@ func DetectClientArch(pkt *dhcpv4.DHCPv4) (iana.Arch, bool) {
 	return 0, false
 }
 
-// IsPXEClient 检测客户端是否为 PXE 客户端（Option 60）
+// IsPXEClient 检测客户端是否为 PXE 客户端（Option 60 以 "PXEClient" 开头）
+// Intel PXE ROM 会发送 "PXEClient:Arch:xxxxx:UNDI:xxxxx" 格式
 func IsPXEClient(pkt *dhcpv4.DHCPv4) bool {
 	if pkt == nil {
 		return false
 	}
-	vci := pkt.ClassIdentifier()
-	return vci == "PXEClient"
+	return strings.HasPrefix(pkt.ClassIdentifier(), "PXEClient")
+}
+
+// BuildIPXEScriptOption 构建 iPXE Option 175 子选项 178（引导脚本 URL）
+func BuildIPXEScriptOption(url string) dhcpv4.Option {
+	// 子选项格式: [178(1)][len(1)][url(n)]
+	data := make([]byte, 0, 2+len(url))
+	data = append(data, 178, byte(len(url)))
+	data = append(data, []byte(url)...)
+	return dhcpv4.OptGeneric(dhcpv4.GenericOptionCode(175), data)
+}
+
+// IsIPXEClient 检测客户端是否已经是 iPXE 在运行（Option 60 精确等于 "iPXE"）
+func IsIPXEClient(pkt *dhcpv4.DHCPv4) bool {
+	if pkt == nil {
+		return false
+	}
+	return pkt.ClassIdentifier() == "iPXE"
 }

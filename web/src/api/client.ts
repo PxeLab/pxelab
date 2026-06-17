@@ -81,6 +81,40 @@ export interface ServiceStatus {
 
 let baseURL = ''
 
+// ── Auth token management ──
+
+function loadToken(): string | null {
+  try {
+    return localStorage.getItem('pxego_auth_token')
+  } catch {
+    return null
+  }
+}
+
+function saveToken(token: string) {
+  authToken = token
+  try {
+    localStorage.setItem('pxego_auth_token', token)
+  } catch {}
+}
+
+let authToken: string | null = loadToken()
+
+export function setAuthToken(token: string) {
+  saveToken(token)
+}
+
+export function clearAuthToken() {
+  authToken = null
+  try {
+    localStorage.removeItem('pxego_auth_token')
+  } catch {}
+}
+
+export function getAuthToken(): string | null {
+  return authToken || loadToken()
+}
+
 export function setBaseURL(url: string) {
   baseURL = url
 }
@@ -102,11 +136,16 @@ function buildQuery(params?: Record<string, unknown>): string {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<ApiResponse<T>> {
-  const opts: RequestInit = { method, headers: {} as Record<string, string> }
+  const headers: Record<string, string> = {}
+  const token = getAuthToken()
+  if (token) {
+    headers['Authorization'] = 'Bearer ' + token
+  }
+  const opts: RequestInit = { method, headers }
   if (body instanceof FormData) {
     opts.body = body
   } else if (body !== undefined) {
-    ;(opts.headers as Record<string, string>)['Content-Type'] = 'application/json'
+    headers['Content-Type'] = 'application/json'
     opts.body = JSON.stringify(body)
   }
   const res = await fetch(baseURL + '/api/v1' + path, opts)

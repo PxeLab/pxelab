@@ -182,7 +182,7 @@ func (s *sqliteStore) ListLeases(ctx context.Context) ([]models.Lease, error) {
 }
 
 func (s *sqliteStore) CreateLease(ctx context.Context, lease *models.Lease) error {
-	return s.db.WithContext(ctx).Create(lease).Error
+	return s.db.WithContext(ctx).Save(lease).Error
 }
 
 func (s *sqliteStore) DeleteLease(ctx context.Context, mac string) error {

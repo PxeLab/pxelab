@@ -27,11 +27,11 @@ func NewProxyServer4011(addr string, handler *Handler) *ProxyServer4011 {
 func (s *ProxyServer4011) Name() string { return s.name }
 
 func (s *ProxyServer4011) Start(ctx context.Context) error {
-	udpAddr, err := net.ResolveUDPAddr("udp", s.addr)
+	udpAddr, err := net.ResolveUDPAddr("udp4", s.addr)
 	if err != nil {
 		return err
 	}
-	s.conn, err = net.ListenUDP("udp", udpAddr)
+	s.conn, err = net.ListenUDP("udp4", udpAddr)
 	if err != nil {
 		return fmt.Errorf("监听 :4011 失败: %w", err)
 	}
