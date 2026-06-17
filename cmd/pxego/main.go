@@ -107,13 +107,12 @@ func run(cmd *cobra.Command) error {
 
 	pxeApp := app.New()
 
-	if len(cfg.Interfaces) > 0 {
-		dhcpServer := dhcp.NewServer("0.0.0.0:67", dhcpHandler)
-		pxeApp.Register(dhcpServer)
+	// DHCP 服务始终启动，有子网时分配 IP，无子网时静默处理
+	dhcpServer := dhcp.NewServer("0.0.0.0:67", dhcpHandler)
+	pxeApp.Register(dhcpServer)
 
-		proxyDHCP := dhcp.NewProxyServer4011("0.0.0.0:4011", dhcpHandler)
-		pxeApp.Register(proxyDHCP)
-	}
+	proxyDHCP := dhcp.NewProxyServer4011("0.0.0.0:4011", dhcpHandler)
+	pxeApp.Register(proxyDHCP)
 
 	tftpServer := tftp.NewServer(config.DefaultPortTFTP, bootFS, bus)
 	pxeApp.Register(tftpServer)

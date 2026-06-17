@@ -102,26 +102,29 @@ type EventHandler struct {
 }
 
 func NewEventHandler(st store.Interface, bus *eventbus.Bus) *EventHandler {
-	return &EventHandler{
+	h := &EventHandler{
 		store:    st,
 		eventBus: bus,
 		ring:     newEventRing(),
 	}
+	// 立即订阅事件，确保启动后所有事件都被收集到环形缓冲区
+	bus.Subscribe("event", func(e eventbus.Event) {
+		if evt, ok := e.Payload.(models.Event); ok {
+			h.ring.Push(evt)
+			// WARN/ERROR 级别持久化到数据库
+			if evt.Level == models.EventWarn || evt.Level == models.EventError {
+				if err := h.store.CreateEvent(context.Background(), &evt); err != nil {
+					// 静默失败，不影响主流程
+				}
+			}
+		}
+	})
+	return h
 }
 
 func (h *EventHandler) ensureSubscribed() {
 	h.subOnce.Do(func() {
-		h.eventBus.Subscribe("event", func(e eventbus.Event) {
-			if evt, ok := e.Payload.(models.Event); ok {
-				h.ring.Push(evt)
-				// WARN/ERROR 级别持久化到数据库
-				if evt.Level == models.EventWarn || evt.Level == models.EventError {
-					if err := h.store.CreateEvent(context.Background(), &evt); err != nil {
-						// 静默失败，不影响主流程
-					}
-				}
-			}
-		})
+		// 保留确保向后兼容，订阅已在构造函数中完成
 	})
 }
 
