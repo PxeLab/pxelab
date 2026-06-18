@@ -6,6 +6,12 @@
 - 三 NBP 引导加载器支持：iPXE（默认）、PXELinux、GRUB2
 - 每个网络接口可单独选择引导加载器（Settings 页面 + 后端 API + DHCP 分发）
 - 全架构自定义 iPXE 编译（BIOS/undionly.kpxe, BIOS/full ipxe.pxe, UEFI x64 ipxe.efi, UEFI IA32 ipxe32.efi, UEFI ARM64 ipxe-arm64.efi）
+- DHCP 响应增加 PXE Option 43（Discovery Control），UEFI PXE 兼容性
+
+### Fixed
+- DHCP 响应缺少必填 Option 53（DHCP Message Type），导致 UEFI 固件拒绝 OFFER/ACK
+- bootloaderForSubnet 指针比较 bug（循环变量副本地址 ≠ 切片元素地址），导致 bootloader 配置始终不生效
+- DHCP Offer/ACK 日志缺少 bootfile 和 bootloader 字段
 
 ### Changed
 - InterfaceConfig 新增 Bootloader 字段（config.yaml + API + 前端的完整链路）

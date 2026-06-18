@@ -297,6 +297,11 @@ func appendDHCPOptions(reply *dhcpv4.DHCPv4, serverIP, nextServer net.IP, subnet
 		leaseTime = 3600
 	}
 	reply.UpdateOption(dhcpv4.OptIPAddressLeaseTime(time.Duration(leaseTime) * time.Second))
+
+	// Option 43 · PXE Vendor Specific — Discovery Control
+	// 子选项 6 值 0x08 = 客户端以 DHCP 提供的启动文件为准，不额外走 PXE Discover
+	reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
+		[]byte{6, 1, 0x08}))
 }
 
 func iPXEScriptURL(serverIP net.IP, mac string) string {
@@ -308,6 +313,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	if err != nil {
 		return nil
 	}
+	reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
 
 	// iPXE 第二阶段：返回脚本 URL 而非启动文件
 	if IsIPXEClient(pkt) {
@@ -353,7 +359,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 			reply.BootFileName = boot.NBPFilename(arch, bootloader)
 		}
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-		slog.Info("DHCP Offer", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode)
+		slog.Info("DHCP Offer", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
 	}
 
 	return reply
@@ -364,6 +370,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 	if err != nil {
 		return nil
 	}
+	reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
 	appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
 
 	// 设置 ACK 确认 IP：优先 ciaddr（续租），其次 Option 50（请求的 IP）
@@ -384,14 +391,16 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	}
 
-	slog.Info("DHCP Ack", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName)
+	slog.Info("DHCP Ack", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
 	return reply
 }
 
 func (h *Handler) bootloaderForSubnet(target *config.SubnetConfig) string {
 	for _, iface := range h.config.Interfaces {
-		for i := range iface.Subnets {
-			if &iface.Subnets[i] == target {
+		for _, subnet := range iface.Subnets {
+			// Handle 中 subnetCfg 可能指向循环变量副本（值拷贝），不能用指针比较
+			// 改用 CIDR + Gateway 做值比较，CIDR 在配置中应当是唯一的
+			if subnet.CIDR == target.CIDR && subnet.Gateway == target.Gateway {
 				if iface.Bootloader == "" {
 					return "ipxe"
 				}
