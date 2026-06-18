@@ -1,0 +1,63 @@
+name: Ubuntu
+enabled: true
+menu_group: linux
+mirror: http://archive.ubuntu.com
+archive_mirror: http://old-releases.ubuntu.com
+local_base: netboot/ubuntu
+versions:
+    - codename: resolute
+      name: 26.04 LTS Resolute Raccoon
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://archive.ubuntu.com/ubuntu/resolute/amd64/linux
+        initrd: http://archive.ubuntu.com/ubuntu/resolute/amd64/initrd.gz
+      install_type: legacy
+    - codename: noble
+      name: 24.04 LTS Noble Numbat
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://archive.ubuntu.com/ubuntu/noble/amd64/linux
+        initrd: http://archive.ubuntu.com/ubuntu/noble/amd64/initrd.gz
+      install_type: legacy
+    - codename: jammy
+      name: 22.04 LTS Jammy Jellyfish
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://archive.ubuntu.com/ubuntu/jammy/amd64/linux
+        initrd: http://archive.ubuntu.com/ubuntu/jammy/amd64/initrd.gz
+      install_type: legacy
+    - codename: focal
+      name: 20.04 LTS Focal Fossa (Subiquity)
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://archive.ubuntu.com/ubuntu/focal/amd64/linux
+        initrd: http://archive.ubuntu.com/ubuntu/focal/amd64/initrd.gz
+      install_type: legacy
+    - codename: focal-legacy
+      name: 20.04 LTS Focal Fossa (Legacy)
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://archive.ubuntu.com/ubuntu/focal-legacy/amd64/linux
+        initrd: http://archive.ubuntu.com/ubuntu/focal-legacy/amd64/initrd.gz
+      install_type: legacy
+    - codename: bionic
+      name: 18.04 LTS Bionic Beaver
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://archive.ubuntu.com/ubuntu/bionic/amd64/linux
+        initrd: http://archive.ubuntu.com/ubuntu/bionic/amd64/initrd.gz
+      install_type: legacy
+    - codename: xenial
+      name: 16.04 LTS Xenial Xerus
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://archive.ubuntu.com/ubuntu/xenial/amd64/linux
+        initrd: http://archive.ubuntu.com/ubuntu/xenial/amd64/initrd.gz
+      install_type: legacy

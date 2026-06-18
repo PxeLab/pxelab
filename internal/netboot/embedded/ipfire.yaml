@@ -1,0 +1,14 @@
+name: IPFire
+enabled: true
+menu_group: linux
+mirror: https://downloads.ipfire.org
+local_base: netboot/ipfire
+versions:
+    - codename: 2.29-core202
+      name: 2.29 Core202
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: https://downloads.ipfire.org/releases/ipfire-2.x/2.29-core202/amd64/linux
+        initrd: https://downloads.ipfire.org/releases/ipfire-2.x/2.29-core202/amd64/initrd.gz
+      install_type: legacy

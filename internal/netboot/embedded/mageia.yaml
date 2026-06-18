@@ -1,0 +1,14 @@
+name: Mageia
+enabled: true
+menu_group: linux
+mirror: http://mirrors.kernel.org
+local_base: netboot/mageia
+versions:
+    - codename: cauldron
+      name: cauldron
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://mirrors.kernel.org/mageia/cauldron/amd64/linux
+        initrd: http://mirrors.kernel.org/mageia/cauldron/amd64/initrd.gz
+      install_type: legacy

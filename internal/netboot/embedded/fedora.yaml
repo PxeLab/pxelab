@@ -1,0 +1,30 @@
+name: Fedora
+enabled: true
+menu_group: linux
+mirror: http://mirrors.kernel.org
+local_base: netboot/fedora
+versions:
+    - codename: "44"
+      name: "44"
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://mirrors.kernel.org/fedora/44/amd64/linux
+        initrd: http://mirrors.kernel.org/fedora/44/amd64/initrd.gz
+      install_type: legacy
+    - codename: "43"
+      name: "43"
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://mirrors.kernel.org/fedora/43/amd64/linux
+        initrd: http://mirrors.kernel.org/fedora/43/amd64/initrd.gz
+      install_type: legacy
+    - codename: "42"
+      name: "42"
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://mirrors.kernel.org/fedora/42/amd64/linux
+        initrd: http://mirrors.kernel.org/fedora/42/amd64/initrd.gz
+      install_type: legacy

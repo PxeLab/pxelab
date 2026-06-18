@@ -1,0 +1,38 @@
+name: SmartOS
+enabled: true
+menu_group: unix
+mirror: https://netboot.smartos.org/os/
+local_base: netboot/smartos
+versions:
+    - codename: 20260611T215617Z
+      name: 20260611T215617Z
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: https://netboot.smartos.org/os/platform/i86pc/20260611T215617Z/amd64/linux
+        initrd: https://netboot.smartos.org/os/platform/i86pc/20260611T215617Z/amd64/initrd.gz
+      install_type: legacy
+    - codename: 20260611T000507Z
+      name: 20260611T000507Z
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: https://netboot.smartos.org/os/platform/i86pc/20260611T000507Z/amd64/linux
+        initrd: https://netboot.smartos.org/os/platform/i86pc/20260611T000507Z/amd64/initrd.gz
+      install_type: legacy
+    - codename: 20260528T000227Z
+      name: 20260528T000227Z
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: https://netboot.smartos.org/os/platform/i86pc/20260528T000227Z/amd64/linux
+        initrd: https://netboot.smartos.org/os/platform/i86pc/20260528T000227Z/amd64/initrd.gz
+      install_type: legacy
+    - codename: 20260522T154557Z
+      name: 20260522T154557Z
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: https://netboot.smartos.org/os/platform/i86pc/20260522T154557Z/amd64/linux
+        initrd: https://netboot.smartos.org/os/platform/i86pc/20260522T154557Z/amd64/initrd.gz
+      install_type: legacy

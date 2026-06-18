@@ -1,0 +1,65 @@
+name: NixOS
+enabled: true
+menu_group: linux
+local_base: netboot/nixos
+versions:
+    - codename: nixos-26.05
+      name: nixos-26.05
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-25.11
+      name: nixos-25.11
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-25.05
+      name: nixos-25.05
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-24.11
+      name: nixos-24.11
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-24.05
+      name: nixos-24.05
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-23.11
+      name: nixos-23.11
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-23.05
+      name: nixos-23.05
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-22.11
+      name: nixos-22.11
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-22.05
+      name: nixos-22.05
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-21.11
+      name: nixos-21.11
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-21.05
+      name: nixos-21.05
+      arch: amd64
+      enabled: true
+      install_type: legacy
+    - codename: nixos-20.09
+      name: nixos-20.09
+      arch: amd64
+      enabled: true
+      install_type: legacy

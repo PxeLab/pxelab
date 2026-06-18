@@ -1,48 +1,43 @@
 package netboot
 
-// DefaultCatalog returns a minimal built-in catalog for first-run usage.
-// Full catalog is populated via `pxego netboot sync`.
+import (
+	"embed"
+	"io/fs"
+	"path"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+//go:embed embedded/*.yaml
+var embeddedFS embed.FS
+
+// DefaultCatalog returns the built-in catalog shipped with the binary.
+// Generated from netboot.xyz — covers 27+ distros with versions and remote URLs.
+// Users can override any distro by placing a YAML file with the same name
+// in <data_dir>/netboot/catalog/; disk files take precedence at startup.
 func DefaultCatalog() *Catalog {
-	return &Catalog{
-		Distros: []*Distro{
-			{
-				Name:      "Ubuntu",
-				Enabled:   true,
-				MenuGroup: GroupLinux,
-				Mirror:    "http://archive.ubuntu.com",
-				Versions:  []*Version{},
-			},
-			{
-				Name:      "Debian",
-				Enabled:   true,
-				MenuGroup: GroupLinux,
-				Mirror:    "http://deb.debian.org",
-				Versions:  []*Version{},
-			},
-			{
-				Name:      "Clonezilla",
-				Enabled:   true,
-				MenuGroup: GroupTools,
-				Versions:  []*Version{},
-			},
-			{
-				Name:      "SystemRescue",
-				Enabled:   true,
-				MenuGroup: GroupTools,
-				Versions:  []*Version{},
-			},
-			{
-				Name:      "MemTest86",
-				Enabled:   true,
-				MenuGroup: GroupTools,
-				Versions:  []*Version{},
-			},
-			{
-				Name:      "GParted",
-				Enabled:   true,
-				MenuGroup: GroupTools,
-				Versions:  []*Version{},
-			},
-		},
+	c := &Catalog{}
+	entries, err := fs.ReadDir(embeddedFS, "embedded")
+	if err != nil {
+		return c
 	}
+	for _, e := range entries {
+		if e.IsDir() || (!strings.HasSuffix(e.Name(), ".yaml") && !strings.HasSuffix(e.Name(), ".yml")) {
+			continue
+		}
+		data, err := fs.ReadFile(embeddedFS, path.Join("embedded", e.Name()))
+		if err != nil {
+			continue
+		}
+		var d Distro
+		if err := yaml.Unmarshal(data, &d); err != nil {
+			continue
+		}
+		if d.Name == "" {
+			continue
+		}
+		c.Distros = append(c.Distros, &d)
+	}
+	return c
 }

@@ -1,0 +1,30 @@
+name: Fedora CoreOS
+enabled: true
+menu_group: linux
+mirror: https://builds.coreos.fedoraproject.org
+local_base: netboot/coreos
+versions:
+    - codename: 44.20260523.3.1
+      name: stable
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: https://builds.coreos.fedoraproject.org/prod/streams/44.20260523.3.1/amd64/linux
+        initrd: https://builds.coreos.fedoraproject.org/prod/streams/44.20260523.3.1/amd64/initrd.gz
+      install_type: legacy
+    - codename: 44.20260607.2.1
+      name: testing
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: https://builds.coreos.fedoraproject.org/prod/streams/44.20260607.2.1/amd64/linux
+        initrd: https://builds.coreos.fedoraproject.org/prod/streams/44.20260607.2.1/amd64/initrd.gz
+      install_type: legacy
+    - codename: 44.20260607.1.1
+      name: next
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: https://builds.coreos.fedoraproject.org/prod/streams/44.20260607.1.1/amd64/linux
+        initrd: https://builds.coreos.fedoraproject.org/prod/streams/44.20260607.1.1/amd64/initrd.gz
+      install_type: legacy

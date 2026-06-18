@@ -1,0 +1,14 @@
+name: Arch Linux
+enabled: true
+menu_group: linux
+mirror: mirrors.kernel.org
+local_base: netboot/archlinux
+versions:
+    - codename: 2026.06.01
+      name: 2026.06.01
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: mirrors.kernel.org/archlinux/2026.06.01/amd64/linux
+        initrd: mirrors.kernel.org/archlinux/2026.06.01/amd64/initrd.gz
+      install_type: legacy
