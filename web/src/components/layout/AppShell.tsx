@@ -30,6 +30,7 @@ const navSections = [
       { path: '/hosts', label: 'nav.hosts', icon: Server },
       { path: '/profiles', label: 'nav.profiles', icon: FileCode },
       { path: '/files', label: 'nav.files', icon: FolderOpen },
+      { path: '/netboot-catalog', label: 'nav.netboot', icon: Server },
     ] as NavItem[],
   },
   {

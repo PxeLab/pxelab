@@ -7,7 +7,7 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Tag } from '../components/ui/Tag'
 import { useToast } from '../components/ui/Toast'
-import { api, type Profile, type MenuEntry } from '../api/client'
+import { api, getNetbootCatalog, type Profile, type MenuEntry, type NetbootDistro } from '../api/client'
 
 export default function Profiles() {
   const { t } = useTranslation()
@@ -17,8 +17,14 @@ export default function Profiles() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Profile | null>(null)
   const [form, setForm] = useState({ name: '', description: '', arch: 'x86_64', is_default: false, entries: [] as MenuEntry[] })
+  const [showOSPicker, setShowOSPicker] = useState(false)
+  const [osCatalog, setOSCatalog] = useState<NetbootDistro[]>([])
+  const [pickerEntryIndex, setPickerEntryIndex] = useState(0)
 
   useEffect(() => { loadProfiles() }, [])
+  useEffect(() => {
+    getNetbootCatalog().then(res => setOSCatalog(res.data?.distros || [])).catch(() => {})
+  }, [])
 
   async function loadProfiles() {
     setLoading(true)
@@ -213,6 +219,15 @@ export default function Profiles() {
                       <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
                       <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.cmdline || ''} onChange={e => updateEntry(i, 'cmdline', e.target.value)} />
                     </div>
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => { setPickerEntryIndex(i); setShowOSPicker(true) }}
+                        className="text-xs text-blue-500 hover:text-blue-400"
+                      >
+                        从 OS 目录选择
+                      </button>
+                    </div>
                   </>
                 )}
                 {entry.type === 'chain' && (
@@ -231,6 +246,41 @@ export default function Profiles() {
             ))}
           </div>
         </div>
+
+        {showOSPicker && (
+          <Modal open={showOSPicker} onClose={() => setShowOSPicker(false)} title="选择操作系统" width="500px">
+            <div className="max-h-80 overflow-y-auto space-y-1">
+              {osCatalog.filter(d => d.enabled).map(distro => (
+                <div key={distro.name}>
+                  <div className="font-medium text-sm px-2 py-1 bg-[var(--bg-secondary)] rounded mb-1">
+                    {distro.name}
+                  </div>
+                  {distro.versions.filter(v => v.enabled).map(ver => (
+                    <button
+                      key={ver.codename}
+                      className="w-full text-left px-4 py-1.5 text-sm hover:bg-[var(--bg-hover)] rounded transition-colors"
+                      onClick={() => {
+                        if (ver.remote) {
+                          updateEntry(pickerEntryIndex, 'kernel', ver.remote.kernel)
+                          updateEntry(pickerEntryIndex, 'initrd', ver.remote.initrd)
+                        }
+                        updateEntry(pickerEntryIndex, 'cmdline', ver.cmdline || '')
+                        setShowOSPicker(false)
+                      }}
+                    >
+                      <span className="font-medium">{ver.name}</span>
+                      <span className="text-[var(--text-muted)] ml-2">({ver.arch})</span>
+                      {ver.local && <span className="text-green-500 ml-2 text-xs">本地</span>}
+                    </button>
+                  ))}
+                </div>
+              ))}
+              {osCatalog.length === 0 && (
+                <div className="text-center py-8 text-[var(--text-muted)] text-sm">暂无可用操作系统</div>
+              )}
+            </div>
+          </Modal>
+        )}
       </Modal>
     </div>
   )
