@@ -8,6 +8,7 @@ import (
 	"github.com/pxego/pxego/internal/config"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/ipmi"
+	"github.com/pxego/pxego/internal/netboot"
 	"github.com/pxego/pxego/internal/store"
 )
 
@@ -21,6 +22,7 @@ type Handler struct {
 	Lease    *LeaseHandler
 	Settings *SettingsHandler
 	Logs     *LogStreamHandler
+	Netboot  *NetbootHandler
 	Services map[string]string
 }
 
@@ -35,8 +37,10 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Lease:    &LeaseHandler{store: st},
 		Settings: NewSettingsHandler(cfg, reloader),
 		Logs:     NewLogStreamHandler(bus),
+		Netboot:  NewNetbootHandler(netboot.NewManager(netboot.DefaultCatalog())),
 		Services: map[string]string{},
 	}
+	h.Services["Netboot"] = "enabled"
 	for i, iface := range cfg.Interfaces {
 		name := iface.Name
 		if name == "" {
@@ -92,5 +96,10 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/settings", h.Settings.Update)
 
 		r.Get("/interfaces", h.ListInterfaces)
+
+			r.Get("/netboot/catalog", h.Netboot.GetCatalog)
+			r.Get("/netboot/catalog/{distro}", h.Netboot.GetDistro)
+			r.Get("/netboot/groups", h.Netboot.GetGroups)
+			r.Get("/netboot/check-files", h.Netboot.CheckFiles)
 	})
 }
