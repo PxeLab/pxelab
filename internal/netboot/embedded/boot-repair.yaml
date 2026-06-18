@@ -1,0 +1,12 @@
+name: Boot Repair CD
+enabled: true
+menu_group: tools
+versions:
+  - codename: current
+    name: "Boot Repair CD"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/current-e035b00c/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/current-e035b00c/initrd
+    cmdline: "ip=dhcp boot=casper netboot=http fetch=https://github.com/netbootxyz/ubuntu-squash/releases/download/current-e035b00c/filesystem.squashfs initrd=initrd"

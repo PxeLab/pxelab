@@ -1,0 +1,52 @@
+name: Debian Live
+enabled: true
+menu_group: live
+versions:
+  - codename: "13-gnome"
+    name: "13 (Trixie) GNOME"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/13.5.0-0aea8fe2/filesystem.squashfs initrd=initrd"
+  - codename: "13-kde"
+    name: "13 (Trixie) KDE"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/13.5.0-c5f83616/filesystem.squashfs initrd=initrd"
+  - codename: "13-xfce"
+    name: "13 (Trixie) XFCE"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/13.5.0-5048a26b/filesystem.squashfs initrd=initrd"
+  - codename: "13-cinnamon"
+    name: "13 (Trixie) Cinnamon"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/13.5.0-bcf1dab7/filesystem.squashfs initrd=initrd"
+  - codename: "13-mate"
+    name: "13 (Trixie) MATE"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/13.5.0-f3c0e3ad/filesystem.squashfs initrd=initrd"
+  - codename: "13-lxqt"
+    name: "13 (Trixie) LXQT"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-core-13/releases/download/13.4.0-0a426450/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/13.5.0-6936b7a0/filesystem.squashfs initrd=initrd"

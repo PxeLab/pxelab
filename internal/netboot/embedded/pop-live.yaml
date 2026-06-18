@@ -1,0 +1,28 @@
+name: Pop!_OS Live
+enabled: true
+menu_group: live
+versions:
+  - codename: "22.04"
+    name: "22.04"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/21-31dbd35b/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/21-31dbd35b/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/21-31dbd35b/filesystem.squashfs initrd=initrd"
+  - codename: "20.04"
+    name: "20.04"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/5-66b7e861/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/5-66b7e861/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/5-66b7e861/filesystem.squashfs initrd=initrd"
+  - codename: "20.04-nvidia"
+    name: "20.04 (NVIDIA)"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/5-6efd1d75/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/5-6efd1d75/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/5-6efd1d75/filesystem.squashfs initrd=initrd"

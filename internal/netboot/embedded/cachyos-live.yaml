@@ -1,0 +1,12 @@
+name: CachyOS Live
+enabled: true
+menu_group: live
+versions:
+  - codename: "260426"
+    name: "260426"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/260426-b5de98b7/vmlinuz
+      initrd: https://github.com/netbootxyz/asset-mirror/releases/download/260426-b5de98b7/initrd
+    cmdline: "archiso_http_srv=https://github.com/netbootxyz/asset-mirror/releases/download/260426-b5de98b7/ initrd=initrd"

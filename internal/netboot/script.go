@@ -96,8 +96,8 @@ func GenerateDistroScript(d *Distro, serverAddr, bootPrefix string) string {
 	return b.String()
 }
 
-// GenerateBootLine generates the kernel+initrd boot line for a version
-// Uses local file path if available, falls back to remote URL
+// GenerateBootLine generates the kernel+initrd boot line for a version.
+// Supports multiple boot types: kernel (default), memdisk, sanboot, memtest.
 func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string) string {
 	var kernelURL, initrdURL string
 
@@ -107,19 +107,44 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string) s
 	} else if v.Remote != nil {
 		kernelURL = v.Remote.Kernel
 		initrdURL = v.Remote.Initrd
-	} else {
-		return "# No boot files configured\n"
 	}
 
-	params := v.Cmdline
-	if kernelParams != "" && params == "" {
-		params = kernelParams
-	}
+	switch v.BootType {
+	case BootMemtest:
+		if kernelURL == "" {
+			return "# No boot file configured\n"
+		}
+		return fmt.Sprintf("kernel %s\nboot\n", kernelURL)
 
-	if params != "" {
-		return fmt.Sprintf("kernel %s %s\ninitrd %s\nboot\n", kernelURL, params, initrdURL)
+	case BootMemdisk:
+		if initrdURL == "" {
+			return "# No boot file configured\n"
+		}
+		return fmt.Sprintf("kernel memdisk\ninitrd %s\nboot\n", initrdURL)
+
+	case BootSanboot:
+		url := initrdURL
+		if url == "" {
+			url = kernelURL
+		}
+		if url == "" {
+			return "# No boot file configured\n"
+		}
+		return fmt.Sprintf("sanboot %s\n", url)
+
+	default: // BootKernel — standard kernel+initrd+boot
+		if kernelURL == "" && initrdURL == "" {
+			return "# No boot files configured\n"
+		}
+		params := v.Cmdline
+		if kernelParams != "" && params == "" {
+			params = kernelParams
+		}
+		if params != "" {
+			return fmt.Sprintf("kernel %s %s\ninitrd %s\nboot\n", kernelURL, params, initrdURL)
+		}
+		return fmt.Sprintf("kernel %s\ninitrd %s\nboot\n", kernelURL, initrdURL)
 	}
-	return fmt.Sprintf("kernel %s\ninitrd %s\nboot\n", kernelURL, initrdURL)
 }
 
 func distroLabel(d *Distro) string {

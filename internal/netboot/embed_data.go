@@ -3,7 +3,9 @@ package netboot
 import (
 	"embed"
 	"io/fs"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -40,4 +42,33 @@ func DefaultCatalog() *Catalog {
 		c.Distros = append(c.Distros, &d)
 	}
 	return c
+}
+
+// ExtractSeed extracts embedded catalog YAML files to targetDir.
+// Only writes files that do not already exist — preserves user modifications.
+func ExtractSeed(targetDir string) error {
+	entries, err := fs.ReadDir(embeddedFS, "embedded")
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || (!strings.HasSuffix(e.Name(), ".yaml") && !strings.HasSuffix(e.Name(), ".yml")) {
+			continue
+		}
+		targetPath := filepath.Join(targetDir, e.Name())
+		if _, err := os.Stat(targetPath); err == nil {
+			continue // don't overwrite existing files
+		}
+		data, err := fs.ReadFile(embeddedFS, path.Join("embedded", e.Name()))
+		if err != nil {
+			continue
+		}
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(targetPath, data, 0644); err != nil {
+			return err
+		}
+	}
+	return nil
 }

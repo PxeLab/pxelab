@@ -1,0 +1,12 @@
+name: EndeavourOS Live
+enabled: true
+menu_group: live
+versions:
+  - codename: "titan-neo"
+    name: "Titan Neo"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/Titan-Neo-2026.04.27-accd7e0f/vmlinuz
+      initrd: https://github.com/netbootxyz/asset-mirror/releases/download/Titan-Neo-2026.04.27-accd7e0f/initrd
+    cmdline: "misobasedir=endeavouros miso_http_srv=https://github.com/netbootxyz/asset-mirror/releases/download/Titan-Neo-2026.04.27-accd7e0f/ initrd=initrd"

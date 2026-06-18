@@ -1,0 +1,12 @@
+name: Tails
+enabled: true
+menu_group: live
+versions:
+  - codename: "7.8.1"
+    name: "Tails 7.8.1"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/7.8.1-17629562/vmlinuz
+      initrd: https://github.com/netbootxyz/asset-mirror/releases/download/7.8.1-17629562/initrd.img
+    cmdline: "initrd=initrd.img"

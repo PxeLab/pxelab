@@ -1,0 +1,11 @@
+name: Ultimate Boot CD
+enabled: true
+menu_group: tools
+versions:
+  - codename: "539"
+    name: "UBCD 5.39"
+    arch: i386
+    enabled: true
+    type: memdisk
+    remote:
+      initrd: https://mirror.sysadminguide.net/ubcd/ubcd539.iso

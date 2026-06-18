@@ -155,15 +155,17 @@ func run(cmd *cobra.Command) error {
 	tftpServer := tftp.NewServer(config.DefaultPortTFTP, bootFS, bus)
 	pxeApp.Register(tftpServer)
 
-	// Create netboot manager
-	netbootMgr := netboot.NewManager(netboot.DefaultCatalog())
-
-	// Try to load catalog from disk if exists
+	// Create netboot manager — extract embedded seed, then load from disk
 	catalogDir := filepath.Join(cfg.Global.DataDir, "netboot", "catalog")
-	if cat, err := netboot.LoadCatalog(catalogDir); err == nil {
-		netbootMgr.Reload(cat)
-		slog.Debug("loaded netboot catalog from disk", "path", catalogDir)
+	os.MkdirAll(catalogDir, 0755)
+	netboot.ExtractSeed(catalogDir)
+
+	cat, err := netboot.LoadCatalog(catalogDir)
+	if err != nil || len(cat.Distros) == 0 {
+		cat = netboot.DefaultCatalog() // fallback to embedded-only
+		slog.Warn("netboot catalog from disk empty, using embedded", "path", catalogDir)
 	}
+	netbootMgr := netboot.NewManager(cat)
 
 	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr)
 	pxeApp.Register(httpServer)

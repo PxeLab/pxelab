@@ -330,7 +330,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				iface.DHCP = "full"
 			}
 
-			if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" {
+			if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" || ir.NextServer != "" {
 				iface.Subnets = []config.SubnetConfig{{
 					CIDR:       ir.Subnet,
 					Pools:      ir.Pools,

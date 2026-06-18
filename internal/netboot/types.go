@@ -25,6 +25,16 @@ const (
 	InstallBSD       InstallType = "bsd"
 )
 
+// BootType defines the iPXE boot mechanism
+type BootType string
+
+const (
+	BootKernel  BootType = "kernel"   // standard kernel+initrd (default)
+	BootMemdisk BootType = "memdisk"  // kernel memdisk + initrd ISO
+	BootSanboot BootType = "sanboot"  // sanboot URL
+	BootMemtest BootType = "memtest"  // binary loaded as kernel, no initrd
+)
+
 // FileRef holds either local paths or remote URLs for boot files
 type FileRef struct {
 	Kernel string `yaml:"kernel" json:"kernel"`
@@ -54,6 +64,7 @@ type Version struct {
 	Local       *FileRef    `yaml:"local,omitempty" json:"local,omitempty"`
 	Remote      *FileRef    `yaml:"remote,omitempty" json:"remote,omitempty"`
 	Cmdline     string      `yaml:"cmdline,omitempty" json:"cmdline,omitempty"`
+	BootType    BootType    `yaml:"type,omitempty" json:"type,omitempty"`
 	InstallType InstallType `yaml:"install_type,omitempty" json:"install_type,omitempty"`
 }
 
