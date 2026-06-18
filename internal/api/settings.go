@@ -37,6 +37,7 @@ type SettingsResponse struct {
 	DNS        DNSSettings         `json:"dns"`
 	HTTP       HTTPSettings        `json:"http"`
 	IPMI       IPMISettings        `json:"ipmi"`
+	Netboot    NetbootSettings     `json:"netboot"`
 	LogLevel   string              `json:"log_level"`
 	DataDir    string              `json:"data_dir"`
 	Interfaces []InterfaceResponse `json:"interfaces"`
@@ -77,6 +78,10 @@ type HTTPSettings struct {
 type IPMISettings struct {
 	Enabled bool `json:"enabled"`
 	Timeout int  `json:"timeout"`
+}
+
+type NetbootSettings struct {
+	Enabled bool `json:"enabled"`
 }
 
 type InterfaceResponse struct {
@@ -152,6 +157,9 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		IPMI: IPMISettings{
 			Enabled: false,
 			Timeout: 5,
+		},
+		Netboot: NetbootSettings{
+			Enabled: cfg.Netboot.Enabled,
 		},
 	}
 
@@ -303,6 +311,8 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Server.Token != "" {
 		h.cfg.Auth.Token = req.Server.Token
 	}
+
+	h.cfg.Netboot.Enabled = req.Netboot.Enabled
 
 	if req.Interfaces != nil {
 		h.cfg.Interfaces = make([]config.InterfaceConfig, 0, len(req.Interfaces))

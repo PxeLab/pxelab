@@ -26,7 +26,7 @@ type Handler struct {
 	Services map[string]string
 }
 
-func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader) *Handler {
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager) *Handler {
 	h := &Handler{
 		Host:     &HostHandler{store: st},
 		Profile:  &ProfileHandler{store: st},
@@ -37,7 +37,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Lease:    &LeaseHandler{store: st},
 		Settings: NewSettingsHandler(cfg, reloader),
 		Logs:     NewLogStreamHandler(bus),
-		Netboot:  NewNetbootHandler(netboot.NewManager(netboot.DefaultCatalog())),
+		Netboot:  NewNetbootHandler(netbootMgr),
 		Services: map[string]string{},
 	}
 	h.Services["Netboot"] = "enabled"

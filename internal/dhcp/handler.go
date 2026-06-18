@@ -299,9 +299,9 @@ func appendDHCPOptions(reply *dhcpv4.DHCPv4, serverIP, nextServer net.IP, subnet
 	reply.UpdateOption(dhcpv4.OptIPAddressLeaseTime(time.Duration(leaseTime) * time.Second))
 
 	// Option 43 · PXE Vendor Specific — Discovery Control
-	// 子选项 6 值 0x08 = 客户端以 DHCP 提供的启动文件为准，不额外走 PXE Discover
+	// 子选项 6 值 0x0C = 禁用 PXE 服务器发现(bit2) + 禁止用户提示(bit3)
 	reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
-		[]byte{6, 1, 0x08}))
+		[]byte{6, 1, 0x0C}))
 }
 
 func iPXEScriptURL(serverIP net.IP, mac string) string {

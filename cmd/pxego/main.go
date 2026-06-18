@@ -17,6 +17,7 @@ import (
 	"github.com/pxego/pxego/internal/dns"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/httpd"
+	"github.com/pxego/pxego/internal/netboot"
 	"github.com/pxego/pxego/internal/logbus"
 	"github.com/pxego/pxego/internal/store"
 	"github.com/pxego/pxego/internal/tftp"
@@ -138,7 +139,17 @@ func run(cmd *cobra.Command) error {
 	tftpServer := tftp.NewServer(config.DefaultPortTFTP, bootFS, bus)
 	pxeApp.Register(tftpServer)
 
-	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler)
+	// Create netboot manager
+	netbootMgr := netboot.NewManager(netboot.DefaultCatalog())
+
+	// Try to load catalog from disk if exists
+	catalogDir := filepath.Join(cfg.Global.DataDir, "netboot", "catalog")
+	if cat, err := netboot.LoadCatalog(catalogDir); err == nil {
+		netbootMgr.Reload(cat)
+		slog.Debug("loaded netboot catalog from disk", "path", catalogDir)
+	}
+
+	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr)
 	pxeApp.Register(httpServer)
 
 	svc := httpServer.API().Services

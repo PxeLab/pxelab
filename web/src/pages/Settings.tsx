@@ -7,7 +7,7 @@ import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
 import { api, setAuthToken, type SettingsData, type InterfaceInfo, type InterfaceSettings } from '../api/client'
 
-type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'ipmi'
+type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'ipmi' | 'netboot'
 
 interface InterfaceConfig {
   name: string; ip: string; dhcpMode: string; bootloader: string; subnet: string
@@ -99,6 +99,7 @@ export default function Settings() {
     dnsEnabled: false, dnsPort: '53', dnsUpstream: '8.8.8.8:53',
     httpPort: '8080', httpBootDir: '',
     ipmiEnabled: false, ipmiTimeout: '5',
+    netbootEnabled: true,
   })
 
   useEffect(() => { loadSettings() }, [])
@@ -133,6 +134,7 @@ export default function Settings() {
         httpBootDir: d.http.boot_dir || prev.httpBootDir,
         ipmiEnabled: d.ipmi.enabled ?? prev.ipmiEnabled,
         ipmiTimeout: String(d.ipmi.timeout || prev.ipmiTimeout),
+        netbootEnabled: d.netboot?.enabled ?? prev.netbootEnabled,
       }))
       // 加载接口配置
       if (d.interfaces && d.interfaces.length > 0) {
@@ -293,6 +295,9 @@ export default function Settings() {
           enabled: config.ipmiEnabled,
           timeout: parseInt(config.ipmiTimeout) || 5,
         },
+        netboot: {
+          enabled: config.netbootEnabled,
+        },
         interfaces,
       }
       await api.updateSettings(data)
@@ -344,6 +349,7 @@ export default function Settings() {
     { key: 'dns', label: t('settings.dns') },
     { key: 'http', label: 'HTTP' },
     { key: 'ipmi', label: 'IPMI' },
+    { key: 'netboot', label: 'Netboot' },
   ]
 
   return (
@@ -697,6 +703,16 @@ export default function Settings() {
             <Toggle checked={config.ipmiEnabled} onChange={v => setConfig({...config, ipmiEnabled: v})} label="启用 IPMI 电源控制" />
             <p className="text-xs text-[var(--text-muted)]">IPMI 启用后，可在主机详情页远程开机、关机、重启支持 BMC/IPMI 的设备。需在主机编辑中填写 BMC 地址、用户名和密码。</p>
             {renderField(t('settings.ipmiTimeout', '超时时间（秒）'), config.ipmiTimeout, v => setConfig({...config, ipmiTimeout: v}))}
+          </div>
+        )}
+
+        {activeTab === 'netboot' && (
+          <div className="space-y-4">
+            <Toggle checked={config.netbootEnabled} onChange={v => setConfig({...config, netbootEnabled: v})} label="启用 OS 安装目录菜单" />
+            <p className="text-xs text-[var(--text-muted)]">
+              启用后，PXE 引导菜单将显示「[OS] 网络安装操作系统目录」选项，允许客户端从本地或远程引导文件安装操作系统。
+              可在「OS 安装目录」页面浏览所有可用发行版。
+            </p>
           </div>
         )}
         </>

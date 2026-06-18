@@ -10,7 +10,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 	var b strings.Builder
 	b.WriteString("#!ipxe\n\n")
 	b.WriteString(":netboot_menu\n")
-	b.WriteString("menu 📦 网络安装操作系统目录\n\n")
+	b.WriteString("menu [OS] 网络安装操作系统目录\n\n")
 
 	groups := c.Groups()
 	for _, g := range groups {

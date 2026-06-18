@@ -13,6 +13,7 @@ import (
 	"github.com/pxego/pxego/internal/boot"
 	"github.com/pxego/pxego/internal/boot/ipxe"
 	"github.com/pxego/pxego/internal/config"
+	"github.com/pxego/pxego/internal/netboot"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/store"
 )
@@ -23,10 +24,11 @@ type Server struct {
 	router chi.Router
 	srv    *http.Server
 	bootFS *boot.BootFileServer
-	api    *api.Handler
+	api         *api.Handler
+	netbootMgr  *netboot.Manager
 }
 
-func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader) *Server {
+func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager) *Server {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
@@ -40,7 +42,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader)
+	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader, netbootMgr)
 	apiHandler.RegisterRoutes(r)
 
 	// iPXE 引导脚本端点
@@ -51,9 +53,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 			Title:   "PxeGo Boot Menu",
 			Timeout: 5000,
 			Default: 0,
-			Entries: []ipxe.MenuEntryData{
-				{Label: "Boot from local disk", Type: ipxe.BootLocal},
-			},
+			Entries: buildDefaultEntries(cfg.Netboot.Enabled),
 		}
 		if mac != "" {
 			host, err := st.GetHostByMAC(r.Context(), mac)
@@ -87,6 +87,9 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 							entries = append(entries, entry)
 						}
 						entries = append(entries, ipxe.MenuEntryData{Label: "Boot from local disk", Type: ipxe.BootLocal})
+						if cfg.Netboot.Enabled {
+							entries = append(entries, ipxe.MenuEntryData{Label: "[OS] 网络安装操作系统目录", Type: ipxe.BootNetboot})
+						}
 						menuData.Entries = entries
 					}
 				}
@@ -124,18 +127,40 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		})
 	}
 
+	// Netboot OS catalog menu
+	if netbootMgr != nil && cfg.Netboot.Enabled {
+		r.Get("/netboot/menu.ipxe", func(w http.ResponseWriter, r *http.Request) {
+			serverAddr := r.Host
+			script := netboot.GenerateNetbootScript(netbootMgr.Catalog(), serverAddr)
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Header().Set("Content-Length", strconv.Itoa(len(script)))
+			w.Write([]byte(script))
+		})
+	}
+
 	// 前端 SPA
 	if spaHandler != nil {
 		r.Handle("/*", spaHandler)
 	}
 
 	return &Server{
-		name:   "HTTP",
-		cfg:    cfg,
-		router: r,
-		bootFS: bootFS,
-		api:    apiHandler,
+		name:        "HTTP",
+		cfg:         cfg,
+		router:      r,
+		bootFS:      bootFS,
+		api:         apiHandler,
+		netbootMgr:  netbootMgr,
 	}
+}
+
+func buildDefaultEntries(netbootEnabled bool) []ipxe.MenuEntryData {
+	entries := []ipxe.MenuEntryData{
+		{Label: "Boot from local disk", Type: ipxe.BootLocal},
+	}
+	if netbootEnabled {
+		entries = append(entries, ipxe.MenuEntryData{Label: "[OS] 网络安装操作系统目录", Type: ipxe.BootNetboot})
+	}
+	return entries
 }
 
 func (s *Server) Name() string { return s.name }
