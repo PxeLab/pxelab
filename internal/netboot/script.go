@@ -128,16 +128,16 @@ func versionLabel(d *Distro, v *Version) string {
 
 func groupTitle(name string) string {
 	titles := map[string]string{
-		"linux":       "--- Linux Distributions ---",
-		"linux-i386":  "--- Linux Distributions (32-bit) ---",
-		"linux-arm64": "--- Linux Distributions (arm64) ---",
-		"bsd":         "--- BSD Systems ---",
-		"live":        "--- Live CDs ---",
-		"live-arm":    "--- Live CDs (arm64) ---",
-		"tools":       "--- System Tools ---",
-		"unix":        "--- Unix ---",
-		"dos":         "--- DOS ---",
-		"windows":     "--- Windows ---",
+		"linux":       "== Linux Distributions ==",
+		"linux-i386":  "== Linux Distributions (32-bit) ==",
+		"linux-arm64": "== Linux Distributions (arm64) ==",
+		"bsd":         "== BSD Systems ==",
+		"live":        "== Live CDs ==",
+		"live-arm":    "== Live CDs (arm64) ==",
+		"tools":       "== System Tools ==",
+		"unix":        "== Unix ==",
+		"dos":         "== DOS ==",
+		"windows":     "== Windows ==",
 	}
 	if t, ok := titles[name]; ok {
 		return t
