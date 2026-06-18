@@ -14,6 +14,7 @@ const (
 	BootChain   BootType = "chain"
 	BootSANBoot BootType = "sanboot"
 	BootWDS     BootType = "wds"
+	BootNetboot BootType = "netboot"
 )
 
 type TemplateData struct {
@@ -26,6 +27,10 @@ type TemplateData struct {
 	WIM        string
 	Menu       *MenuData
 	OS         *OSData
+
+	// Netboot fields
+	KernelURL string
+	InitrdURL string
 }
 
 type MenuData struct {

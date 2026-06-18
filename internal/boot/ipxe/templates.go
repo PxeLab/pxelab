@@ -57,4 +57,8 @@ chain {{.URL}}
 	"sanboot": `#!ipxe
 sanboot {{.URL}}
 `,
+
+	"netboot": `#!ipxe
+chain {{.URL}}/netboot/menu.ipxe
+`,
 }
