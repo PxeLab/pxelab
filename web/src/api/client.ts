@@ -255,7 +255,7 @@ export interface SettingsData {
   tftp: { enabled: boolean; port: number; root: string }
   dns: { enabled: boolean; port: number; upstream: string }
   http: { port: number; boot_dir: string }
-  ipmi: { enabled: boolean; timeout: number }
+  ipmi?: { enabled: boolean; timeout: number }
   netboot: { enabled: boolean }
   log_level: string
   data_dir: string

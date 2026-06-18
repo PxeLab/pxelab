@@ -3,19 +3,25 @@
 ## [Unreleased]
 
 ### Added
+- iPXE 脚本生成测试套件（标签冲突检测、choose 语法验证、全发行版覆盖验证）
+- Settings 页面引导文件映射表（iPXE/PXELinux/GRUB2 三栏展示架构对应关系）
 - 三 NBP 引导加载器支持：iPXE（默认）、PXELinux、GRUB2
 - 每个网络接口可单独选择引导加载器（Settings 页面 + 后端 API + DHCP 分发）
 - 全架构自定义 iPXE 编译（BIOS/undionly.kpxe, BIOS/full ipxe.pxe, UEFI x64 ipxe.efi, UEFI IA32 ipxe32.efi, UEFI ARM64 ipxe-arm64.efi）
 - DHCP 响应增加 PXE Option 43（Discovery Control），UEFI PXE 兼容性
 
 ### Fixed
+- iPXE 菜单选择跳转 Bug：`choose selected && goto ${selected}` 中 `${selected}` 在解析期即被展开（值为空），导致 `goto` 落入脚本中第一个子菜单（4MLinux）。改为两行分离模式，确保变量在运行时展开
+- 标签（label）特殊字符过滤：`Pop!_OS`、`Memtest86+` 等名称中的 `!`、`+`、`'` 可能导致 iPXE 解析异常，现统一替换为 `_`
+- API `SettingsData.ipmi` 字段标记为可选（omitempty），兼容无 IPMI 模块的配置
 - DHCP 响应缺少必填 Option 53（DHCP Message Type），导致 UEFI 固件拒绝 OFFER/ACK
 - bootloaderForSubnet 指针比较 bug（循环变量副本地址 ≠ 切片元素地址），导致 bootloader 配置始终不生效
 - DHCP Offer/ACK 日志缺少 bootfile 和 bootloader 字段
 
 ### Changed
+- Settings 页面移除 IPMI 配置页签
+- 将 Choose/goto 生成的脚本从 `choose selected && goto ${selected} || goto exit` 改为 `choose selected || goto exit` + `goto ${selected}` 两行模式
 - InterfaceConfig 新增 Bootloader 字段（config.yaml + API + 前端的完整链路）
-- DHCP handler 根据接口选择的分发对应 NBP 文件名
 - NBP 映射逻辑从 boot.BootFileForArch 改为 boot.NBPFilename(arch, bootloader)
 - docs/ipxe-build.md iPXE 编译指南
 - DHCP Option 175.178 (iPXE boot script URL) 支持二阶段引导

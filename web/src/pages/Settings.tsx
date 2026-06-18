@@ -7,7 +7,7 @@ import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
 import { api, setAuthToken, type SettingsData, type InterfaceInfo, type InterfaceSettings } from '../api/client'
 
-type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'ipmi' | 'netboot'
+type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'netboot'
 
 interface InterfaceConfig {
   name: string; ip: string; dhcpMode: string; bootloader: string; subnet: string
@@ -98,7 +98,6 @@ export default function Settings() {
     tftpEnabled: true, tftpPort: '69', tftpRoot: '',
     dnsEnabled: false, dnsPort: '53', dnsUpstream: '8.8.8.8:53',
     httpPort: '8080', httpBootDir: '',
-    ipmiEnabled: false, ipmiTimeout: '5',
     netbootEnabled: true,
   })
 
@@ -132,8 +131,6 @@ export default function Settings() {
         dnsUpstream: d.dns.upstream || prev.dnsUpstream,
         httpPort: String(d.http.port > 0 ? d.http.port : 8080),
         httpBootDir: d.http.boot_dir || prev.httpBootDir,
-        ipmiEnabled: d.ipmi.enabled ?? prev.ipmiEnabled,
-        ipmiTimeout: String(d.ipmi.timeout || prev.ipmiTimeout),
         netbootEnabled: d.netboot?.enabled ?? prev.netbootEnabled,
       }))
       // 加载接口配置
@@ -291,10 +288,6 @@ export default function Settings() {
           port: parseInt(config.httpPort) || 8080,
           boot_dir: config.httpBootDir,
         },
-        ipmi: {
-          enabled: config.ipmiEnabled,
-          timeout: parseInt(config.ipmiTimeout) || 5,
-        },
         netboot: {
           enabled: config.netbootEnabled,
         },
@@ -348,7 +341,6 @@ export default function Settings() {
     { key: 'tftp', label: t('settings.tftp') },
     { key: 'dns', label: t('settings.dns') },
     { key: 'http', label: 'HTTP' },
-    { key: 'ipmi', label: 'IPMI' },
     { key: 'netboot', label: 'Netboot' },
   ]
 
@@ -634,46 +626,93 @@ export default function Settings() {
               {renderField(t('settings.tftpRoot', '根目录'), config.tftpRoot, v => setConfig({...config, tftpRoot: v}))}
             </div>
 
-            {/* 架构引导文件映射 */}
+             {/* 架构引导文件映射 */}
             <div className="pt-4 border-t border-[var(--bg-border)]">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">客户端架构 → 引导文件映射</h3>
-              <p className="text-xs text-[var(--text-muted)] mb-3">DHCP 根据客户端架构（Option 93）自动分配对应的引导文件。</p>
-              <div className="overflow-hidden rounded-lg border border-[var(--bg-border)]">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-[var(--bg-card)] border-b border-[var(--bg-border)]">
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-[var(--text-secondary)]">架构</th>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-[var(--text-secondary)]">架构代码</th>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-[var(--text-secondary)]">引导文件</th>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-[var(--text-secondary)]">状态</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      { arch: 'BIOS (x86)', code: '0', file: 'undionly.kpxe' },
-                      { arch: 'UEFI x64', code: '6', file: 'ipxe.efi' },
-                      { arch: 'UEFI IA32', code: '7', file: 'ipxe32.efi' },
-                      { arch: 'UEFI ARM64', code: '9', file: 'ipxe-arm64.efi' },
-                      { arch: 'UEFI RISC-V', code: '21', file: 'ipxe-riscv64.efi' },
-                    ].map(row => {
-                      const exists = existingBootFiles.includes(row.file)
-                      return (
-                        <tr key={row.code} className="border-b border-[var(--bg-border)] last:border-0">
-                          <td className="px-4 py-2.5 text-[var(--text-primary)] font-medium">{row.arch}</td>
-                          <td className="px-4 py-2.5 text-[var(--text-muted)]">{row.code}</td>
-                          <td className="px-4 py-2.5">
-                            <code className="text-xs bg-[var(--bg-card)] px-1.5 py-0.5 rounded text-[var(--text-primary)] font-mono">{row.file}</code>
-                          </td>
-                          <td className="px-4 py-2.5">{exists
-                            ? <span className="text-xs text-green-500 font-medium">✓ 存在</span>
-                            : <span className="text-xs text-[var(--text-muted)]">—</span>
-                          }</td>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">客户端架构 → 引导文件映射（只读）</h3>
+              <p className="text-xs text-[var(--text-muted)] mb-4">DHCP 根据客户端架构（Option 93 / Option 60 VCI）自动分配对应的 NBP 引导文件。在「网络接口」页签可切换每个接口的引导加载器。</p>
+
+              {[
+                {
+                  label: 'iPXE（默认）',
+                  color: 'text-blue-400',
+                  rows: [
+                    { arch: 'BIOS x86', code: '00000', file: 'undionly.kpxe' },
+                    { arch: 'UEFI IA32', code: '00006', file: 'ipxe32.efi' },
+                    { arch: 'UEFI x64', code: '00007', file: 'ipxe.efi' },
+                    { arch: 'EFI BC (x64)', code: '00009', file: 'ipxe.efi' },
+                    { arch: 'UEFI ARM64', code: '00011', file: 'ipxe-arm64.efi' },
+                    { arch: 'UEFI RISC-V 64', code: '00027', file: 'ipxe-riscv64.efi' },
+                  ],
+                },
+                {
+                  label: 'PXELinux',
+                  color: 'text-amber-400',
+                  rows: [
+                    { arch: 'BIOS x86', code: '00000', file: 'pxelinux.bios' },
+                    { arch: 'UEFI IA32', code: '00006', file: 'pxelinux.efi' },
+                    { arch: 'UEFI x64', code: '00007', file: 'pxelinux.efi' },
+                    { arch: 'EFI BC (x64)', code: '00009', file: 'pxelinux.efi' },
+                  ],
+                },
+                {
+                  label: 'GRUB2',
+                  color: 'text-green-400',
+                  note: 'BIOS 架构不支持 GRUB2',
+                  rows: [
+                    { arch: 'BIOS x86', code: '00000', file: '—' },
+                    { arch: 'UEFI x64', code: '00007', file: 'grubx64.efi' },
+                    { arch: 'EFI BC (x64)', code: '00009', file: 'grubx64.efi' },
+                    { arch: 'UEFI ARM64', code: '00011', file: 'grubaa64.efi' },
+                  ],
+                },
+              ].map(group => (
+                <div key={group.label} className="mb-4 last:mb-0">
+                  <h4 className="text-xs font-semibold mb-2">
+                    <span className={group.color}>{group.label}</span>
+                    {group.note && <span className="text-[var(--text-muted)] ml-1 font-normal">（{group.note}）</span>}
+                  </h4>
+                  <div className="overflow-hidden rounded-lg border border-[var(--bg-border)]">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-[var(--bg-card)] border-b border-[var(--bg-border)]">
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">架构</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">代码</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] hidden sm:table-cell">VCI 特征</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">引导文件</th>
+                          <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] w-14">状态</th>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody>
+                        {group.rows.map(row => {
+                          const exists = row.file !== '—' && existingBootFiles.includes(row.file)
+                          const vci = row.file !== '—' ? `PXEClient:Arch:${row.code}` : ''
+                          return (
+                            <tr key={group.label + row.code} className="border-b border-[var(--bg-border)] last:border-0">
+                              <td className="px-3 py-2 text-[var(--text-primary)] font-medium text-xs">{row.arch}</td>
+                              <td className="px-3 py-2 text-[var(--text-muted)] font-mono text-xs">{row.code}</td>
+                              <td className="px-3 py-2 hidden sm:table-cell">
+                                {vci ? <code className="text-[10px] bg-[var(--bg-card)] px-1 py-0.5 rounded text-[var(--text-muted)] font-mono">{vci}</code> : null}
+                              </td>
+                              <td className="px-3 py-2">
+                                {row.file === '—'
+                                  ? <span className="text-xs text-[var(--text-muted)]">不支持</span>
+                                  : <code className="text-[10px] bg-[var(--bg-card)] px-1 py-0.5 rounded text-[var(--text-primary)] font-mono">{row.file}</code>
+                                }
+                              </td>
+                              <td className="px-3 py-2">
+                                {row.file === '—' ? null
+                                  : exists ? <span className="text-xs text-green-500 font-medium">✓</span>
+                                  : <span className="text-xs text-[var(--text-muted)]">—</span>
+                                }
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
               <p className="text-xs text-[var(--text-muted)] mt-2">可在「文件管理」页面上传缺失的引导文件到 {config.tftpRoot || '启动目录'}。</p>
             </div>
           </div>
@@ -695,14 +734,6 @@ export default function Settings() {
               {renderField(t('settings.port'), config.httpPort, v => setConfig({...config, httpPort: v}))}
               {renderField(t('settings.httpBootDir', '启动文件目录'), config.httpBootDir, v => setConfig({...config, httpBootDir: v}))}
             </div>
-          </div>
-        )}
-
-        {activeTab === 'ipmi' && (
-          <div className="space-y-4">
-            <Toggle checked={config.ipmiEnabled} onChange={v => setConfig({...config, ipmiEnabled: v})} label="启用 IPMI 电源控制" />
-            <p className="text-xs text-[var(--text-muted)]">IPMI 启用后，可在主机详情页远程开机、关机、重启支持 BMC/IPMI 的设备。需在主机编辑中填写 BMC 地址、用户名和密码。</p>
-            {renderField(t('settings.ipmiTimeout', '超时时间（秒）'), config.ipmiTimeout, v => setConfig({...config, ipmiTimeout: v}))}
           </div>
         )}
 

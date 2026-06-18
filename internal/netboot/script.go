@@ -2,8 +2,11 @@ package netboot
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+var reLabelChars = regexp.MustCompile(`[^a-z0-9_]+`)
 
 // GenerateNetbootScript generates the full multi-level iPXE menu
 func GenerateNetbootScript(c *Catalog, serverAddr string) string {
@@ -24,7 +27,8 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 
 	b.WriteString("item --gap\n")
 	b.WriteString("item exit    Reboot\n")
-	b.WriteString("choose selected || goto exit\n\n")
+	b.WriteString("choose selected || goto exit\n")
+	b.WriteString("goto ${selected}\n\n")
 
 	// Generate per-distro submenus
 	for _, g := range groups {
@@ -40,7 +44,8 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 				b.WriteString(fmt.Sprintf("item %s %s %s\n", versionLabel, "   ", v.Name))
 			}
 			b.WriteString(fmt.Sprintf("item back_%s    <- Back\n", label))
-			b.WriteString("choose selected || goto netboot_menu\n\n")
+			b.WriteString("choose selected || goto netboot_menu\n")
+			b.WriteString("goto ${selected}\n\n")
 
 			// Generate per-version boot entries
 			for _, v := range d.Versions {
@@ -154,12 +159,16 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string) s
 	}
 }
 
+func sanitizeLabel(s string) string {
+	return reLabelChars.ReplaceAllString(strings.ToLower(s), "_")
+}
+
 func distroLabel(d *Distro) string {
-	return fmt.Sprintf("distro_%s", strings.ToLower(strings.ReplaceAll(d.Name, " ", "_")))
+	return fmt.Sprintf("distro_%s", sanitizeLabel(d.Name))
 }
 
 func versionLabel(d *Distro, v *Version) string {
-	return fmt.Sprintf("boot_%s_%s", strings.ToLower(strings.ReplaceAll(d.Name, " ", "_")), v.Codename)
+	return fmt.Sprintf("boot_%s_%s", sanitizeLabel(d.Name), sanitizeLabel(v.Codename))
 }
 
 func groupTitle(name string) string {
