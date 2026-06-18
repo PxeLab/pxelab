@@ -3,7 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- 三 NBP 引导加载器支持：iPXE（默认）、PXELinux、GRUB2
+- 每个网络接口可单独选择引导加载器（Settings 页面 + 后端 API + DHCP 分发）
 - 全架构自定义 iPXE 编译（BIOS/undionly.kpxe, BIOS/full ipxe.pxe, UEFI x64 ipxe.efi, UEFI IA32 ipxe32.efi, UEFI ARM64 ipxe-arm64.efi）
+
+### Changed
+- InterfaceConfig 新增 Bootloader 字段（config.yaml + API + 前端的完整链路）
+- DHCP handler 根据接口选择的分发对应 NBP 文件名
+- NBP 映射逻辑从 boot.BootFileForArch 改为 boot.NBPFilename(arch, bootloader)
 - docs/ipxe-build.md iPXE 编译指南
 - DHCP Option 175.178 (iPXE boot script URL) 支持二阶段引导
 - GET /boot/ipxe/script iPXE 引导菜单 HTTP 端点

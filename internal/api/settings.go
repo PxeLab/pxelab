@@ -83,6 +83,7 @@ type InterfaceResponse struct {
 	Name       string   `json:"name"`
 	IP         string   `json:"ip"`
 	DHCPMode   string   `json:"dhcp_mode"`
+	Bootloader string   `json:"bootloader"`
 	Subnet     string   `json:"subnet"`
 	Pools      []string `json:"pools"`
 	Gateway    string   `json:"gateway"`
@@ -159,6 +160,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Name:       iface.Name,
 			IP:         iface.IP,
 			DHCPMode:   iface.DHCP,
+			Bootloader: iface.Bootloader,
 			TFTP:       iface.TFTP,
 			HTTP:       iface.HTTP,
 			DNS:        iface.DNS,
@@ -309,6 +311,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				Name: ir.Name,
 				IP:   ir.IP,
 				DHCP: ir.DHCPMode,
+				Bootloader: ir.Bootloader,
 				TFTP: ir.TFTP,
 				HTTP: ir.HTTP,
 				DNS:  ir.DNS,

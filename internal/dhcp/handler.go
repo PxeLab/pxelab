@@ -231,12 +231,14 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 		nextServer = serverIP
 	}
 
+	bootloader := h.bootloaderForSubnet(subnetCfg)
+
 	var reply *dhcpv4.DHCPv4
 	switch mt {
 	case dhcpv4.MessageTypeDiscover:
-		reply = h.handleDiscover(pkt, dhcpMode, serverIP, nextServer, subnetCfg)
+		reply = h.handleDiscover(pkt, dhcpMode, serverIP, nextServer, subnetCfg, bootloader)
 	case dhcpv4.MessageTypeRequest:
-		reply = h.handleRequest(pkt, dhcpMode, serverIP, nextServer, subnetCfg)
+		reply = h.handleRequest(pkt, dhcpMode, serverIP, nextServer, subnetCfg, bootloader)
 	}
 
 	if reply != nil {
@@ -301,7 +303,7 @@ func iPXEScriptURL(serverIP net.IP, mac string) string {
 	return fmt.Sprintf("http://%s:8080/boot/ipxe/script?mac=%s", serverIP, mac)
 }
 
-func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig) *dhcpv4.DHCPv4 {
+func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, bootloader string) *dhcpv4.DHCPv4 {
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil
@@ -335,7 +337,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 			reply.ServerIPAddr = nextServer
 		}
 		if arch, ok := DetectClientArch(pkt); ok {
-			reply.BootFileName = boot.BootFileForArch(arch)
+			reply.BootFileName = boot.NBPFilename(arch, bootloader)
 		}
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 
@@ -348,7 +350,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		reply.YourIPAddr = ip
 		appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
 		if arch, ok := DetectClientArch(pkt); ok {
-			reply.BootFileName = boot.BootFileForArch(arch)
+			reply.BootFileName = boot.NBPFilename(arch, bootloader)
 		}
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 		slog.Info("DHCP Offer", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode)
@@ -357,7 +359,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	return reply
 }
 
-func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig) *dhcpv4.DHCPv4 {
+func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, bootloader string) *dhcpv4.DHCPv4 {
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil
@@ -377,11 +379,25 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		reply.BootFileName = scriptURL
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	} else if arch, ok := DetectClientArch(pkt); ok {
-		reply.BootFileName = boot.BootFileForArch(arch)
+		reply.BootFileName = boot.NBPFilename(arch, bootloader)
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	}
 
 	slog.Info("DHCP Ack", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName)
 	return reply
+}
+
+func (h *Handler) bootloaderForSubnet(target *config.SubnetConfig) string {
+	for _, iface := range h.config.Interfaces {
+		for i := range iface.Subnets {
+			if &iface.Subnets[i] == target {
+				if iface.Bootloader == "" {
+					return "ipxe"
+				}
+				return iface.Bootloader
+			}
+		}
+	}
+	return "ipxe"
 }

@@ -10,14 +10,14 @@ import { api, setAuthToken, type SettingsData, type InterfaceInfo, type Interfac
 type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'ipmi'
 
 interface InterfaceConfig {
-  name: string; ip: string; dhcpMode: string; subnet: string
+  name: string; ip: string; dhcpMode: string; bootloader: string; subnet: string
   pools: string[]
   gateway: string; dnsServers: string; leaseTime: string; nextServer: string
   tftp: boolean; http: boolean; dns: boolean
 }
 
 const defaultIface: InterfaceConfig = {
-  name: '', ip: '', dhcpMode: 'full', subnet: '',
+  name: '', ip: '', dhcpMode: 'full', bootloader: 'ipxe', subnet: '',
   pools: [''],
   gateway: '', dnsServers: '8.8.8.8', leaseTime: '3600', nextServer: '',
   tftp: true, http: true, dns: false,
@@ -142,6 +142,7 @@ export default function Settings() {
             name: ir.name || '',
             ip: ir.ip || '',
             dhcpMode: ir.dhcp_mode || 'full',
+            bootloader: ir.bootloader || 'ipxe',
             subnet: ir.subnet || '',
             pools: ir.pools && ir.pools.length > 0 ? ir.pools : [''],
             gateway: ir.gateway || '',
@@ -246,6 +247,7 @@ export default function Settings() {
           name: iface.name,
           ip: iface.ip,
           dhcp_mode: iface.dhcpMode,
+          bootloader: iface.bootloader,
           subnet: iface.subnet,
           pools: iface.pools.filter(p => p && p.includes('-')),
           gateway: iface.gateway,
@@ -497,6 +499,16 @@ export default function Settings() {
                       <option value="proxy">proxy（代理 DHCP）</option>
                       <option value="hybrid">hybrid（混合）</option>
                       <option value="off">off（关闭）</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">引导加载器</label>
+                    <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={iface.bootloader} onChange={e => {
+                      const next = [...config.interfaces]; next[i] = {...next[i], bootloader: e.target.value}; setConfig({...config, interfaces: next})
+                    }}>
+                      <option value="ipxe">iPXE（默认）</option>
+                      <option value="pxelinux">PXELinux</option>
+                      <option value="grub2">GRUB2</option>
                     </select>
                   </div>
                   {renderField('子网', iface.subnet, v => {

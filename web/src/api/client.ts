@@ -237,6 +237,7 @@ export interface InterfaceSettings {
   name: string
   ip: string
   dhcp_mode: string
+  bootloader: string
   subnet: string
   pools: string[]
   gateway: string

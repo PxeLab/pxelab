@@ -23,13 +23,14 @@ type GlobalConfig struct {
 }
 
 type InterfaceConfig struct {
-	Name    string         `mapstructure:"name"`
-	IP      string         `mapstructure:"ip"`
-	Subnets []SubnetConfig `mapstructure:"subnets"`
-	DHCP    string         `mapstructure:"dhcp"` // full | proxy | hybrid | off
-	TFTP    bool           `mapstructure:"tftp"`
-	HTTP    bool           `mapstructure:"http"`
-	DNS     bool           `mapstructure:"dns"`
+	Name       string         `mapstructure:"name"`
+	IP         string         `mapstructure:"ip"`
+	Subnets    []SubnetConfig `mapstructure:"subnets"`
+	DHCP       string         `mapstructure:"dhcp"` // full | proxy | hybrid | off
+	Bootloader string         `mapstructure:"bootloader"` // ipxe | pxelinux | grub2
+	TFTP       bool           `mapstructure:"tftp"`
+	HTTP       bool           `mapstructure:"http"`
+	DNS        bool           `mapstructure:"dns"`
 }
 
 type SubnetConfig struct {
@@ -65,6 +66,9 @@ func (c *Config) Validate() error {
 	for _, iface := range c.Interfaces {
 		if iface.DHCP != "" && iface.DHCP != "full" && iface.DHCP != "proxy" && iface.DHCP != "hybrid" && iface.DHCP != "off" {
 			return fmt.Errorf("interface %s: 无效的 DHCP 模式: %s", iface.Name, iface.DHCP)
+		}
+		if iface.Bootloader != "" && iface.Bootloader != "ipxe" && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" {
+			return fmt.Errorf("interface %s: 无效的引导加载器: %s", iface.Name, iface.Bootloader)
 		}
 	}
 	return nil
