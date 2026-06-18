@@ -12,6 +12,7 @@ type Config struct {
 	Interfaces []InterfaceConfig `mapstructure:"interfaces"`
 	Auth       AuthConfig        `mapstructure:"auth"`
 	Boot       BootConfig        `mapstructure:"boot"`
+	Netboot    NetbootConfig     `mapstructure:"netboot"`
 	Store      StoreConfig       `mapstructure:"store"`
 	Log        LogConfig         `mapstructure:"log"`
 }
@@ -50,6 +51,26 @@ type AuthConfig struct {
 
 type BootConfig struct {
 	RootDir string `mapstructure:"root_dir"`
+}
+
+type NetbootConfig struct {
+	Enabled        bool              `mapstructure:"enabled"`
+	DefaultBoot    string            `mapstructure:"default_boot"`
+	FallbackOnline bool              `mapstructure:"fallback_online"`
+	MenuTitle      string            `mapstructure:"menu_title"`
+	Sync           NetbootSyncConfig `mapstructure:"sync"`
+	Paths          NetbootPathConfig `mapstructure:"paths"`
+}
+
+type NetbootSyncConfig struct {
+	Auto bool   `mapstructure:"auto"`
+	Repo string `mapstructure:"repo"`
+}
+
+type NetbootPathConfig struct {
+	Catalog   string `mapstructure:"catalog"`
+	Scripts   string `mapstructure:"scripts"`
+	BootFiles string `mapstructure:"boot_files"`
 }
 
 type StoreConfig struct {

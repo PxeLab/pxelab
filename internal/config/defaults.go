@@ -22,6 +22,21 @@ func DefaultConfig() *Config {
 		Boot: BootConfig{
 			RootDir: "./boot",
 		},
+		Netboot: NetbootConfig{
+			Enabled:        true,
+			DefaultBoot:    "menu",
+			FallbackOnline: true,
+			MenuTitle:      "📦 网络安装操作系统目录",
+			Sync: NetbootSyncConfig{
+				Auto: false,
+				Repo: "contrib/netboot.xyz",
+			},
+			Paths: NetbootPathConfig{
+				Catalog:   "netboot/catalog",
+				Scripts:   "netboot/scripts",
+				BootFiles: "boot/netboot",
+			},
+		},
 		Store: StoreConfig{
 			DSN: filepath.Join(dataDir, "pxego.db"),
 		},
