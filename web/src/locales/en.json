@@ -17,7 +17,8 @@
     "events": "Event Log",
     "logs": "Live Logs",
     "settings": "Settings",
-    "about": "About"
+    "about": "About",
+    "netboot": "OS Catalog"
   },
   "dashboard": {
     "title": "Dashboard",
