@@ -35,6 +35,13 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	v.SetDefault("boot.root_dir", "")
 	v.SetDefault("log.level", "info")
 
+	// netboot defaults
+	v.SetDefault("netboot.enabled", true)
+	v.SetDefault("netboot.sync.repo", "contrib/netboot.xyz")
+	v.SetDefault("netboot.paths.catalog", "netboot/catalog")
+	v.SetDefault("netboot.paths.scripts", "netboot/scripts")
+	v.SetDefault("netboot.paths.boot_files", "boot/netboot")
+
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return nil, err
