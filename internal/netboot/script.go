@@ -116,6 +116,13 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string) s
 		}
 		return fmt.Sprintf("kernel %s\nboot\n", kernelURL)
 
+	case BootWimboot:
+		if kernelURL == "" || initrdURL == "" {
+			return "# Windows PE requires wimboot URL (kernel) and Windows base URL (initrd)\n"
+		}
+		return fmt.Sprintf("kernel %s\ninitrd -n bootmgr %s/bootmgr bootmgr\ninitrd -n bootmgr.efi %s/bootmgr.efi bootmgr.efi\ninitrd -n bcd %s/boot/bcd bcd\ninitrd -n boot.sdi %s/boot/boot.sdi boot.sdi\ninitrd -n boot.wim %s/sources/boot.wim boot.wim\nboot\n",
+			kernelURL, initrdURL, initrdURL, initrdURL, initrdURL, initrdURL)
+
 	case BootMemdisk:
 		if initrdURL == "" {
 			return "# No boot file configured\n"

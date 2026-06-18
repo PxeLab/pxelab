@@ -33,6 +33,7 @@ const (
 	BootMemdisk BootType = "memdisk"  // kernel memdisk + initrd ISO
 	BootSanboot BootType = "sanboot"  // sanboot URL
 	BootMemtest BootType = "memtest"  // binary loaded as kernel, no initrd
+	BootWimboot BootType = "wimboot"  // Windows PE via wimboot (kernel=wimboot URL, initrd=win_base)
 )
 
 // FileRef holds either local paths or remote URLs for boot files

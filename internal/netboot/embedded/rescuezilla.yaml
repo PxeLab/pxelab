@@ -1,0 +1,13 @@
+name: Rescuezilla
+enabled: true
+menu_group: tools
+logo: rescuezilla
+versions:
+  - codename: "2.6.1"
+    name: "Rescuezilla 2.6.1"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/2.6.1-123ed276/vmlinuz
+      initrd: https://github.com/netbootxyz/asset-mirror/releases/download/2.6.1-123ed276/initrd
+    cmdline: "ip=dhcp boot=casper netboot=url url=https://github.com/netbootxyz/asset-mirror/releases/download/2.6.1-123ed276/filesystem.squashfs initrd=initrd"
