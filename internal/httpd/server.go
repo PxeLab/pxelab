@@ -88,7 +88,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 						}
 						entries = append(entries, ipxe.MenuEntryData{Label: "Boot from local disk", Type: ipxe.BootLocal})
 						if cfg.Netboot.Enabled {
-							entries = append(entries, ipxe.MenuEntryData{Label: "[OS] 网络安装操作系统目录", Type: ipxe.BootNetboot})
+							entries = append(entries, ipxe.MenuEntryData{Label: "[OS] Netboot OS Install Catalog", Type: ipxe.BootNetboot})
 						}
 						menuData.Entries = entries
 					}

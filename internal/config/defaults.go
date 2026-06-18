@@ -26,7 +26,7 @@ func DefaultConfig() *Config {
 			Enabled:        true,
 			DefaultBoot:    "menu",
 			FallbackOnline: true,
-			MenuTitle:      "[OS] 网络安装操作系统目录",
+			MenuTitle:      "[OS] Netboot OS Install Catalog",
 			Sync: NetbootSyncConfig{
 				Auto: false,
 				Repo: "contrib/netboot.xyz",

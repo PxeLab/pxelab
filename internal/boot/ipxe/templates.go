@@ -36,6 +36,8 @@ initrd bootmgr.exe
 initrd boot.sdi
 initrd {{$entry.WIM}}
 boot
+{{else if eq $entry.Type "netboot"}}
+chain {{$.URL}}/netboot/menu.ipxe
 {{end}}
 {{end}}
 `,

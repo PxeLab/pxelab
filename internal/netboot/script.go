@@ -10,7 +10,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 	var b strings.Builder
 	b.WriteString("#!ipxe\n\n")
 	b.WriteString(":netboot_menu\n")
-	b.WriteString("menu [OS] 网络安装操作系统目录\n\n")
+	b.WriteString("menu [OS] Netboot OS Install Catalog\n\n")
 
 	groups := c.Groups()
 	for _, g := range groups {
@@ -22,7 +22,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 	}
 
 	b.WriteString("item --gap\n")
-	b.WriteString("item back    ← 返回上级菜单\n")
+	b.WriteString("item back    <- Back to Main Menu\n")
 	b.WriteString("choose selected || goto exit\n\n")
 
 	// Generate per-distro submenus
@@ -38,7 +38,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 				versionLabel := versionLabel(d, v)
 				b.WriteString(fmt.Sprintf("item %s %s %s\n", versionLabel, "   ", v.Name))
 			}
-			b.WriteString(fmt.Sprintf("item back_%s    ← 返回\n", label))
+			b.WriteString(fmt.Sprintf("item back_%s    <- Back\n", label))
 			b.WriteString("choose selected || goto netboot_menu\n\n")
 
 			// Generate per-version boot entries
@@ -128,16 +128,16 @@ func versionLabel(d *Distro, v *Version) string {
 
 func groupTitle(name string) string {
 	titles := map[string]string{
-		"linux":       "Linux 发行版",
-		"linux-i386":  "Linux 发行版 (32-bit)",
-		"linux-arm64": "Linux 发行版 (arm64)",
-		"bsd":         "BSD 系统",
-		"live":        "Live CDs",
-		"live-arm":    "Live CDs (arm64)",
-		"tools":       "系统工具",
-		"unix":        "Unix 安装",
-		"dos":         "DOS",
-		"windows":     "Windows",
+		"linux":       "--- Linux Distributions ---",
+		"linux-i386":  "--- Linux Distributions (32-bit) ---",
+		"linux-arm64": "--- Linux Distributions (arm64) ---",
+		"bsd":         "--- BSD Systems ---",
+		"live":        "--- Live CDs ---",
+		"live-arm":    "--- Live CDs (arm64) ---",
+		"tools":       "--- System Tools ---",
+		"unix":        "--- Unix ---",
+		"dos":         "--- DOS ---",
+		"windows":     "--- Windows ---",
 	}
 	if t, ok := titles[name]; ok {
 		return t
