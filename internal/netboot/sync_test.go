@@ -66,14 +66,14 @@ func TestLoadEndpoints_FileNotFound(t *testing.T) {
 }
 
 func TestSyncFromUpstream_NoRepo(t *testing.T) {
-	err := SyncFromUpstream("", "/tmp/test-catalog")
+	err := SyncFromUpstream("", "/tmp/test-catalog", "")
 	if err == nil {
 		t.Fatal("expected error for empty repo dir")
 	}
 }
 
 func TestSyncFromUpstream_NoCatalog(t *testing.T) {
-	err := SyncFromUpstream("/tmp/test-repo", "")
+	err := SyncFromUpstream("/tmp/test-repo", "", "")
 	if err == nil {
 		t.Fatal("expected error for empty catalog dir")
 	}
@@ -81,7 +81,7 @@ func TestSyncFromUpstream_NoCatalog(t *testing.T) {
 
 func TestSyncFromUpstream_RepoNotExist(t *testing.T) {
 	dir := t.TempDir()
-	err := SyncFromUpstream("/nonexistent/repo/path", dir)
+	err := SyncFromUpstream("/nonexistent/repo/path", dir, "")
 	if err == nil {
 		t.Fatal("expected error for non-existent repo")
 	}
@@ -142,7 +142,7 @@ func TestSyncFromUpstream_DefaultsFileNotFound(t *testing.T) {
 	}
 
 	catalogDir := t.TempDir()
-	err = SyncFromUpstream(repoDir, catalogDir)
+	err = SyncFromUpstream(repoDir, catalogDir, "")
 	if err == nil {
 		t.Fatal("expected error for missing defaults file")
 	}
@@ -154,11 +154,11 @@ func TestSyncFromUpstream_DefaultsFileNotFound(t *testing.T) {
 func TestSyncFromUpstream_NoGitRepo(t *testing.T) {
 	repoDir := t.TempDir() // No .git directory
 	catalogDir := t.TempDir()
-	err := SyncFromUpstream(repoDir, catalogDir)
+	err := SyncFromUpstream(repoDir, catalogDir, "")
 	if err == nil {
 		t.Fatal("expected error for non-git directory")
 	}
-	if !strings.Contains(err.Error(), "not a git repository") {
+	if !strings.Contains(err.Error(), "no repo URL configured") {
 		t.Fatalf("unexpected error message: %v", err)
 	}
 }
@@ -242,7 +242,7 @@ func TestSyncFromUpstream_Success(t *testing.T) {
 	}
 
 	catalogDir := t.TempDir()
-	err = SyncFromUpstream(repoDir, catalogDir)
+	err = SyncFromUpstream(repoDir, catalogDir, "")
 	if err != nil {
 		t.Fatalf("SyncFromUpstream failed: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestSyncFromUpstream_WithEndpoints(t *testing.T) {
 	}
 
 	catalogDir := t.TempDir()
-	err = SyncFromUpstream(repoDir, catalogDir)
+	err = SyncFromUpstream(repoDir, catalogDir, "")
 	if err != nil {
 		t.Fatalf("SyncFromUpstream failed: %v", err)
 	}

@@ -94,7 +94,7 @@ var netbootSyncCmd = &cobra.Command{
 		}
 
 		fmt.Println("正在从 netboot.xyz 同步发行版定义...")
-		if err := netboot.SyncFromUpstream(repoDir, catalogDir); err != nil {
+		if err := netboot.SyncFromUpstream(repoDir, catalogDir, cfg.Netboot.Sync.URL); err != nil {
 			return fmt.Errorf("同步失败: %w", err)
 		}
 		fmt.Println("同步完成")

@@ -11,7 +11,8 @@ import (
 )
 
 // SyncFromUpstream pulls the latest from netboot.xyz fork and converts to catalog YAML
-func SyncFromUpstream(repoDir, catalogDir string) error {
+// If repoDir does not exist, it will be cloned from repoURL.
+func SyncFromUpstream(repoDir, catalogDir, repoURL string) error {
 	if repoDir == "" {
 		return fmt.Errorf("repo directory is required")
 	}
@@ -23,9 +24,27 @@ func SyncFromUpstream(repoDir, catalogDir string) error {
 		return fmt.Errorf("create catalog dir: %w", err)
 	}
 
-	// Pull latest from fork
-	if err := gitPull(repoDir); err != nil {
-		return fmt.Errorf("git pull failed: %w", err)
+	// Auto-clone if repo doesn't exist
+	if _, err := os.Stat(filepath.Join(repoDir, ".git")); os.IsNotExist(err) {
+		if repoURL == "" {
+			return fmt.Errorf("repo %s does not exist and no repo URL configured", repoDir)
+		}
+		fmt.Printf("  正在克隆 netboot.xyz 仓库 (%s)...\n", repoURL)
+		parent := filepath.Dir(repoDir)
+		if err := os.MkdirAll(parent, 0755); err != nil {
+			return fmt.Errorf("create parent dir: %w", err)
+		}
+		cmd := exec.Command("git", "clone", repoURL, repoDir)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git clone failed: %w", err)
+		}
+	} else {
+		// Try to pull latest
+		if err := gitPull(repoDir); err != nil {
+			return fmt.Errorf("git pull failed: %w", err)
+		}
 	}
 
 	// Parse Ansible defaults

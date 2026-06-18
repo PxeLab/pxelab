@@ -29,6 +29,7 @@ func DefaultConfig() *Config {
 			MenuTitle:      "[OS] Netboot OS Install Catalog",
 			Sync: NetbootSyncConfig{
 				Auto: false,
+				URL:  "https://github.com/netbootxyz/netboot.xyz.git",
 				Repo: "contrib/netboot.xyz",
 			},
 			Paths: NetbootPathConfig{

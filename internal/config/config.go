@@ -65,6 +65,7 @@ type NetbootConfig struct {
 type NetbootSyncConfig struct {
 	Auto bool   `mapstructure:"auto"`
 	Repo string `mapstructure:"repo"`
+	URL  string `mapstructure:"url"`
 }
 
 type NetbootPathConfig struct {
