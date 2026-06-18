@@ -11,6 +11,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 	b.WriteString("#!ipxe\n\n")
 	b.WriteString(":netboot_menu\n")
 	b.WriteString("menu [OS] Netboot OS Install Catalog\n\n")
+	b.WriteString("item local    Boot from local disk\n")
 
 	groups := c.Groups()
 	for _, g := range groups {
@@ -22,7 +23,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 	}
 
 	b.WriteString("item --gap\n")
-	b.WriteString("item back    <- Back to Main Menu\n")
+	b.WriteString("item exit    Reboot\n")
 	b.WriteString("choose selected || goto exit\n\n")
 
 	// Generate per-distro submenus
@@ -57,6 +58,9 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 			b.WriteString("goto netboot_menu\n\n")
 		}
 	}
+
+	b.WriteString(":local\n")
+	b.WriteString("exit\n")
 
 	b.WriteString(":exit\n")
 	b.WriteString("exit 0\n")

@@ -17,19 +17,39 @@ import (
 )
 
 type Handler struct {
-	config   *config.Config
-	store    store.Interface
-	leaseMgr *LeaseManager
-	eventBus *eventbus.Bus
+	config          *config.Config
+	store           store.Interface
+	leaseMgr        *LeaseManager
+	eventBus        *eventbus.Bus
+	interfaceFilter int // -1 = 全部接口, >=0 = 只处理指定接口
 }
 
 func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, leaseMgr *LeaseManager) *Handler {
 	return &Handler{
-		config:   cfg,
-		store:    st,
-		leaseMgr: leaseMgr,
-		eventBus: bus,
+		config:          cfg,
+		store:           st,
+		leaseMgr:        leaseMgr,
+		eventBus:        bus,
+		interfaceFilter: -1,
 	}
+}
+
+// WithInterfaceFilter 创建一个只处理指定接口的派生 Handler
+func (h *Handler) WithInterfaceFilter(idx int) *Handler {
+	return &Handler{
+		config:          h.config,
+		store:           h.store,
+		leaseMgr:        h.leaseMgr,
+		eventBus:        h.eventBus,
+		interfaceFilter: idx,
+	}
+}
+
+func (h *Handler) filteredInterfaces() []config.InterfaceConfig {
+	if h.interfaceFilter >= 0 && h.interfaceFilter < len(h.config.Interfaces) {
+		return h.config.Interfaces[h.interfaceFilter : h.interfaceFilter+1]
+	}
+	return h.config.Interfaces
 }
 
 func (h *Handler) InitSubnets() {
@@ -120,7 +140,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 
 	// 确定 DHCP 模式
 	dhcpMode := "hybrid"
-	for _, iface := range h.config.Interfaces {
+	for _, iface := range h.filteredInterfaces() {
 		if isPXE && (iface.DHCP == "proxy" || iface.DHCP == "hybrid") {
 			dhcpMode = "proxy"
 		} else if iface.DHCP == "full" {
@@ -138,7 +158,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	// 1) 通过 giaddr 匹配（中继场景）
 	if !pkt.GatewayIPAddr.IsUnspecified() && !pkt.GatewayIPAddr.IsLoopback() {
 		slog.Info("通过 giaddr 匹配子网", "giaddr", pkt.GatewayIPAddr)
-		for _, iface := range h.config.Interfaces {
+		for _, iface := range h.filteredInterfaces() {
 			for _, subnet := range iface.Subnets {
 				_, cidrNet, err := net.ParseCIDR(subnet.CIDR)
 				if err == nil && cidrNet.Contains(pkt.GatewayIPAddr) {
@@ -156,7 +176,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	// 2) 通过 ciaddr 匹配（续租场景）
 	if subnetCfg == nil && !pkt.ClientIPAddr.IsUnspecified() {
 		slog.Info("通过 ciaddr 匹配子网", "ciaddr", pkt.ClientIPAddr)
-		for _, iface := range h.config.Interfaces {
+		for _, iface := range h.filteredInterfaces() {
 			for _, subnet := range iface.Subnets {
 				_, cidrNet, err := net.ParseCIDR(subnet.CIDR)
 				if err == nil && cidrNet.Contains(pkt.ClientIPAddr) {
@@ -174,7 +194,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	// 3) 通过 peer IP 匹配（中继 / 非广播场景）
 	if subnetCfg == nil && !peerIP.IsUnspecified() {
 		slog.Info("通过 peer IP 匹配子网", "peer", peerIP)
-		for _, iface := range h.config.Interfaces {
+		for _, iface := range h.filteredInterfaces() {
 			for _, subnet := range iface.Subnets {
 				_, cidrNet, err := net.ParseCIDR(subnet.CIDR)
 				if err == nil && cidrNet.Contains(peerIP) {
@@ -192,7 +212,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	// 4) 客户端从 0.0.0.0 广播且无中继：取唯一子网
 	if subnetCfg == nil && peerIP.IsUnspecified() && pkt.GatewayIPAddr.IsUnspecified() {
 		var allSubnets []config.SubnetConfig
-		for _, iface := range h.config.Interfaces {
+		for _, iface := range h.filteredInterfaces() {
 			allSubnets = append(allSubnets, iface.Subnets...)
 			if serverIP == nil && len(iface.Subnets) > 0 {
 				serverIP = net.ParseIP(iface.IP)
@@ -396,7 +416,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 }
 
 func (h *Handler) bootloaderForSubnet(target *config.SubnetConfig) string {
-	for _, iface := range h.config.Interfaces {
+	for _, iface := range h.filteredInterfaces() {
 		for _, subnet := range iface.Subnets {
 			// Handle 中 subnetCfg 可能指向循环变量副本（值拷贝），不能用指针比较
 			// 改用 CIDR + Gateway 做值比较，CIDR 在配置中应当是唯一的

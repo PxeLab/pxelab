@@ -124,18 +124,34 @@ func run(cmd *cobra.Command) error {
 	dhcpHandler.InitSubnets()
 	pxeApp := app.New()
 
-	// DHCP 服务绑定到配置的接口 IP，确保广播正确接口
-	dhcpAddr := "0.0.0.0:67"
-	proxyAddr := "0.0.0.0:4011"
-	if len(cfg.Interfaces) > 0 && cfg.Interfaces[0].IP != "" {
-		dhcpAddr = cfg.Interfaces[0].IP + ":67"
-		proxyAddr = cfg.Interfaces[0].IP + ":4011"
-	}
-	dhcpServer := dhcp.NewServer(dhcpAddr, dhcpHandler)
-	pxeApp.Register(dhcpServer)
+	// DHCP/ProxyDHCP — 每个接口各建一个服务，绑定到对应接口 IP
+	hasDHCP := false
+	for i, iface := range cfg.Interfaces {
+		if iface.DHCP == "off" || iface.IP == "" {
+			continue
+		}
+		hasDHCP = true
+		ifaceHandler := dhcpHandler.WithInterfaceFilter(i)
 
-	proxyDHCP := dhcp.NewProxyServer4011(proxyAddr, dhcpHandler)
-	pxeApp.Register(proxyDHCP)
+		dhcpAddr := iface.IP + ":67"
+		dhcpServer := dhcp.NewServer(dhcpAddr, ifaceHandler)
+		pxeApp.Register(dhcpServer)
+		slog.Info("DHCP 服务", "addr", dhcpAddr, "interface", iface.Name)
+
+		proxyAddr := iface.IP + ":4011"
+		proxyDHCP := dhcp.NewProxyServer4011(proxyAddr, ifaceHandler)
+		pxeApp.Register(proxyDHCP)
+		slog.Info("ProxyDHCP 服务", "addr", proxyAddr, "interface", iface.Name)
+	}
+
+	// 无接口配置时回退到 :67 + :4011 监听所有地址
+	if !hasDHCP {
+		dhcpServer := dhcp.NewServer("0.0.0.0:67", dhcpHandler)
+		pxeApp.Register(dhcpServer)
+		proxyDHCP := dhcp.NewProxyServer4011("0.0.0.0:4011", dhcpHandler)
+		pxeApp.Register(proxyDHCP)
+	}
+
 	tftpServer := tftp.NewServer(config.DefaultPortTFTP, bootFS, bus)
 	pxeApp.Register(tftpServer)
 
@@ -152,13 +168,22 @@ func run(cmd *cobra.Command) error {
 	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr)
 	pxeApp.Register(httpServer)
 
+	// 检查是否有接口启用了 DNS
+	hasDNS := false
+	for _, iface := range cfg.Interfaces {
+		if iface.DNS {
+			hasDNS = true
+			break
+		}
+	}
+
 	svc := httpServer.API().Services
 	if len(cfg.Interfaces) > 0 {
 		svc["DHCP"] = "running"
 	}
 	svc["TFTP"] = "running"
 	svc["HTTP"] = "running"
-	if len(cfg.Interfaces) > 0 && cfg.Interfaces[0].DNS {
+	if hasDNS {
 		svc["DNS"] = "running"
 	}
 
@@ -167,7 +192,7 @@ func run(cmd *cobra.Command) error {
 		openBrowser("http://localhost:8080")
 	}
 
-	if len(cfg.Interfaces) > 0 && cfg.Interfaces[0].DNS {
+	if hasDNS {
 		dnsServer := dns.NewServer(config.DefaultPortDNS, "8.8.8.8:53", bus)
 		pxeApp.Register(dnsServer)
 	}

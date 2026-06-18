@@ -49,12 +49,9 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 	r.Get("/boot/ipxe/script", func(w http.ResponseWriter, r *http.Request) {
 		mac := r.URL.Query().Get("mac")
 		engine := ipxe.New()
-		menuData := &ipxe.MenuData{
-			Title:   "PxeGo Boot Menu",
-			Timeout: 5000,
-			Default: 0,
-			Entries: buildDefaultEntries(cfg.Netboot.Enabled),
-		}
+
+		// Check for host-specific profile
+		var profileMenu *ipxe.MenuData
 		if mac != "" {
 			host, err := st.GetHostByMAC(r.Context(), mac)
 			if err == nil && host != nil && host.ProfileID != nil {
@@ -62,7 +59,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 				if err == nil && profile != nil {
 					bootMenu, err := profile.GetMenu()
 					if err == nil && len(bootMenu.Entries) > 0 {
-						menuData.Title = profile.Name
+						pm := &ipxe.MenuData{Title: profile.Name, Timeout: 5000, Default: 0}
 						var entries []ipxe.MenuEntryData
 						for _, e := range bootMenu.Entries {
 							entry := ipxe.MenuEntryData{
@@ -90,16 +87,39 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 						if cfg.Netboot.Enabled {
 							entries = append(entries, ipxe.MenuEntryData{Label: "[OS] Netboot OS Install Catalog", Type: ipxe.BootNetboot})
 						}
-						menuData.Entries = entries
+						pm.Entries = entries
+						profileMenu = pm
 					}
 				}
 			}
 		}
-		script, err := engine.Render("menu", ipxe.TemplateData{
-			MAC:  mac,
-			Menu: menuData,
-			URL:  "http://" + r.Host,
-		})
+
+		var script string
+		var err error
+		if profileMenu != nil {
+			// Render profile menu
+			script, err = engine.Render("menu", ipxe.TemplateData{
+				MAC:  mac,
+				Menu: profileMenu,
+				URL:  "http://" + r.Host,
+			})
+		} else if cfg.Netboot.Enabled {
+			// No profile — chain directly to netboot catalog
+			script, err = engine.Render("chain", ipxe.TemplateData{
+				URL: "http://" + r.Host + "/netboot/menu.ipxe",
+			})
+		} else {
+			// Fallback: minimal menu
+			script, err = engine.Render("menu", ipxe.TemplateData{
+				MAC: mac,
+				Menu: &ipxe.MenuData{
+					Title: "PxeGo Boot Menu",
+					Entries: []ipxe.MenuEntryData{
+						{Label: "Boot from local disk", Type: ipxe.BootLocal},
+					},
+				},
+			})
+		}
 		if err != nil {
 			slog.Error("生成 iPXE 脚本失败", "error", err)
 			http.Error(w, "script error", http.StatusInternalServerError)
@@ -151,16 +171,6 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		api:         apiHandler,
 		netbootMgr:  netbootMgr,
 	}
-}
-
-func buildDefaultEntries(netbootEnabled bool) []ipxe.MenuEntryData {
-	entries := []ipxe.MenuEntryData{
-		{Label: "Boot from local disk", Type: ipxe.BootLocal},
-	}
-	if netbootEnabled {
-		entries = append(entries, ipxe.MenuEntryData{Label: "[OS] 网络安装操作系统目录", Type: ipxe.BootNetboot})
-	}
-	return entries
 }
 
 func (s *Server) Name() string { return s.name }
