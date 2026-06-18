@@ -12,6 +12,37 @@ import (
 
 // SyncFromUpstream pulls the latest from netboot.xyz fork and converts to catalog YAML
 // If repoDir does not exist, it will be cloned from repoURL.
+// ansibleVersion holds a single version entry from netboot.xyz Ansible YAML
+type ansibleVersion struct {
+	Codename string `yaml:"code_name"`
+	Name     string `yaml:"name"`
+	Arch     string `yaml:"arch"`
+}
+
+// ansibleVersions handles both list and map-of-lists formats:
+//   versions:           vs:    versions:
+//     - code_name: x            stable:
+//       name: X                   - code_name: x
+//       arch: amd64                 name: X
+//                                  arch: amd64
+type ansibleVersions []ansibleVersion
+
+func (v *ansibleVersions) UnmarshalYAML(value *yaml.Node) error {
+	var slice []ansibleVersion
+	if err := value.Decode(&slice); err == nil {
+		*v = slice
+		return nil
+	}
+	var grouped map[string][]ansibleVersion
+	if err := value.Decode(&grouped); err != nil {
+		return err
+	}
+	for _, list := range grouped {
+		*v = append(*v, list...)
+	}
+	return nil
+}
+
 func SyncFromUpstream(repoDir, catalogDir, repoURL string) error {
 	if repoDir == "" {
 		return fmt.Errorf("repo directory is required")
@@ -65,17 +96,13 @@ func SyncFromUpstream(repoDir, catalogDir, repoURL string) error {
 
 	var ad struct {
 		Releases map[string]struct {
-			Name          string `yaml:"name"`
-			Enabled       bool   `yaml:"enabled"`
-			Menu          string `yaml:"menu"`
-			BaseDir       string `yaml:"base_dir"`
-			Mirror        string `yaml:"mirror"`
-			ArchiveMirror string `yaml:"archive_mirror"`
-			Versions      []struct {
-				Codename string `yaml:"code_name"`
-				Name     string `yaml:"name"`
-				Arch     string `yaml:"arch"`
-			} `yaml:"versions"`
+			Name          string          `yaml:"name"`
+			Enabled       bool            `yaml:"enabled"`
+			Menu          string          `yaml:"menu"`
+			BaseDir       string          `yaml:"base_dir"`
+			Mirror        string          `yaml:"mirror"`
+			ArchiveMirror string          `yaml:"archive_mirror"`
+			Versions      ansibleVersions `yaml:"versions"`
 		} `yaml:"releases"`
 	}
 
