@@ -81,23 +81,75 @@ type IPMISettings struct {
 }
 
 type NetbootSettings struct {
-	Enabled bool `json:"enabled"`
+	Enabled        bool         `json:"enabled"`
+	ScriptTemplate string       `json:"script_template"`
+	Boot           BootSettings `json:"boot"`
+}
+
+type BootSettings struct {
+	DefaultMenu     DefaultMenuSettings     `json:"default_menu"`
+	ProfileBehavior ProfileBehaviorSettings `json:"profile_behavior"`
+	CatalogRedirect CatalogRedirectSettings `json:"catalog_redirect"`
+	CatalogDisplay  CatalogDisplaySettings  `json:"catalog_display"`
+}
+
+type DefaultMenuSettings struct {
+	Title   string              `json:"title"`
+	Timeout int                 `json:"timeout"`
+	Default int                 `json:"default"`
+	Entries []MenuEntrySettings `json:"entries"`
+}
+
+type MenuEntrySettings struct {
+	Label   string  `json:"label"`
+	Type    string  `json:"type"`
+	Kernel  *string `json:"kernel,omitempty"`
+	Initrd  *string `json:"initrd,omitempty"`
+	Cmdline *string `json:"cmdline,omitempty"`
+	URL     *string `json:"url,omitempty"`
+	WIM     *string `json:"wim,omitempty"`
+}
+
+type ProfileBehaviorSettings struct {
+	AppendLocal    bool   `json:"append_local"`
+	AppendNetboot  bool   `json:"append_netboot"`
+	AppendPosition string `json:"append_position"`
+}
+
+type CatalogRedirectSettings struct {
+	Enabled    bool   `json:"enabled"`
+	TargetURL  string `json:"target_url"`
+	DetectArch bool   `json:"detect_arch"`
+	Preamble   string `json:"preamble"`
+}
+
+type CatalogDisplaySettings struct {
+	Title  string                `json:"title"`
+	Groups []CatalogGroupSettings `json:"groups"`
+}
+
+type CatalogGroupSettings struct {
+	Name    string `json:"name"`
+	Title   string `json:"title"`
+	Enabled bool   `json:"enabled"`
+	Order   int    `json:"order"`
 }
 
 type InterfaceResponse struct {
-	Name       string   `json:"name"`
-	IP         string   `json:"ip"`
-	DHCPMode   string   `json:"dhcp_mode"`
-	Bootloader string   `json:"bootloader"`
-	Subnet     string   `json:"subnet"`
-	Pools      []string `json:"pools"`
-	Gateway    string   `json:"gateway"`
-	DNSServers string   `json:"dns_servers"`
-	LeaseTime  int      `json:"lease_time"`
-	NextServer string   `json:"next_server"`
-	TFTP       bool     `json:"tftp"`
-	HTTP       bool     `json:"http"`
-	DNS        bool     `json:"dns"`
+	Name        string   `json:"name"`
+	IP          string   `json:"ip"`
+	DHCPMode    string   `json:"dhcp_mode"`
+	Bootloader  string   `json:"bootloader"`
+	ChainToIPXE bool     `json:"chain_to_ipxe"`
+	Subnet      string   `json:"subnet"`
+	Pools       []string `json:"pools"`
+	Gateway     string   `json:"gateway"`
+	DNSServers  string   `json:"dns_servers"`
+	LeaseTime   int      `json:"lease_time"`
+	NextServer  string   `json:"next_server"`
+	TFTP        bool     `json:"tftp"`
+	HTTP        bool     `json:"http"`
+	DNS         bool     `json:"dns"`
 }
 
 func generateToken() string {
@@ -159,7 +211,31 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Timeout: 5,
 		},
 		Netboot: NetbootSettings{
-			Enabled: cfg.Netboot.Enabled,
+			Enabled:        cfg.Netboot.Enabled,
+			ScriptTemplate: cfg.Netboot.ScriptTemplate,
+			Boot: BootSettings{
+				DefaultMenu: DefaultMenuSettings{
+					Title:   cfg.Netboot.Boot.DefaultMenu.Title,
+					Timeout: cfg.Netboot.Boot.DefaultMenu.Timeout,
+					Default: cfg.Netboot.Boot.DefaultMenu.Default,
+					Entries: convertMenuEntriesToAPI(cfg.Netboot.Boot.DefaultMenu.Entries),
+				},
+				ProfileBehavior: ProfileBehaviorSettings{
+					AppendLocal:    cfg.Netboot.Boot.ProfileBehavior.AppendLocal,
+					AppendNetboot:  cfg.Netboot.Boot.ProfileBehavior.AppendNetboot,
+					AppendPosition: cfg.Netboot.Boot.ProfileBehavior.AppendPosition,
+				},
+				CatalogRedirect: CatalogRedirectSettings{
+					Enabled:    cfg.Netboot.Boot.CatalogRedirect.Enabled,
+					TargetURL:  cfg.Netboot.Boot.CatalogRedirect.TargetURL,
+					DetectArch: cfg.Netboot.Boot.CatalogRedirect.DetectArch,
+					Preamble:   cfg.Netboot.Boot.CatalogRedirect.Preamble,
+				},
+				CatalogDisplay: CatalogDisplaySettings{
+					Title:  cfg.Netboot.Boot.CatalogDisplay.Title,
+					Groups: convertCatalogGroupsToAPI(cfg.Netboot.Boot.CatalogDisplay.Groups),
+				},
+			},
 		},
 	}
 
@@ -169,6 +245,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			IP:         iface.IP,
 			DHCPMode:   iface.DHCP,
 			Bootloader: iface.Bootloader,
+      ChainToIPXE: iface.ChainToIPXE,
 			TFTP:       iface.TFTP,
 			HTTP:       iface.HTTP,
 			DNS:        iface.DNS,
@@ -313,6 +390,31 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.cfg.Netboot.Enabled = req.Netboot.Enabled
+	h.cfg.Netboot.ScriptTemplate = req.Netboot.ScriptTemplate
+	h.cfg.Netboot.Boot = config.BootConfig{
+		RootDir: h.cfg.Boot.RootDir, // preserve existing root dir
+		DefaultMenu: config.DefaultMenuConfig{
+			Title:   req.Netboot.Boot.DefaultMenu.Title,
+			Timeout: req.Netboot.Boot.DefaultMenu.Timeout,
+			Default: req.Netboot.Boot.DefaultMenu.Default,
+			Entries: convertMenuEntriesFromAPI(req.Netboot.Boot.DefaultMenu.Entries),
+		},
+		ProfileBehavior: config.ProfileBehaviorConfig{
+			AppendLocal:    req.Netboot.Boot.ProfileBehavior.AppendLocal,
+			AppendNetboot:  req.Netboot.Boot.ProfileBehavior.AppendNetboot,
+			AppendPosition: req.Netboot.Boot.ProfileBehavior.AppendPosition,
+		},
+		CatalogRedirect: config.CatalogRedirectConfig{
+			Enabled:    req.Netboot.Boot.CatalogRedirect.Enabled,
+			TargetURL:  req.Netboot.Boot.CatalogRedirect.TargetURL,
+			DetectArch: req.Netboot.Boot.CatalogRedirect.DetectArch,
+			Preamble:   req.Netboot.Boot.CatalogRedirect.Preamble,
+		},
+		CatalogDisplay: config.CatalogDisplayConfig{
+			Title:  req.Netboot.Boot.CatalogDisplay.Title,
+			Groups: convertCatalogGroupsFromAPI(req.Netboot.Boot.CatalogDisplay.Groups),
+		},
+	}
 
 	if req.Interfaces != nil {
 		h.cfg.Interfaces = make([]config.InterfaceConfig, 0, len(req.Interfaces))
@@ -322,6 +424,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				IP:   ir.IP,
 				DHCP: ir.DHCPMode,
 				Bootloader: ir.Bootloader,
+      ChainToIPXE: ir.ChainToIPXE,
 				TFTP: ir.TFTP,
 				HTTP: ir.HTTP,
 				DNS:  ir.DNS,
@@ -354,6 +457,76 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	OK(w, map[string]string{"status": "saved"})
+}
+
+func convertMenuEntriesToAPI(entries []config.MenuEntry) []MenuEntrySettings {
+	if len(entries) == 0 {
+		return nil
+	}
+	result := make([]MenuEntrySettings, len(entries))
+	for i, e := range entries {
+		result[i] = MenuEntrySettings{
+			Label:   e.Label,
+			Type:    e.Type,
+			Kernel:  e.Kernel,
+			Initrd:  e.Initrd,
+			Cmdline: e.Cmdline,
+			URL:     e.URL,
+			WIM:     e.WIM,
+		}
+	}
+	return result
+}
+
+func convertCatalogGroupsToAPI(groups []config.CatalogGroup) []CatalogGroupSettings {
+	if len(groups) == 0 {
+		return nil
+	}
+	result := make([]CatalogGroupSettings, len(groups))
+	for i, g := range groups {
+		result[i] = CatalogGroupSettings{
+			Name:    g.Name,
+			Title:   g.Title,
+			Enabled: g.Enabled,
+			Order:   g.Order,
+		}
+	}
+	return result
+}
+
+func convertMenuEntriesFromAPI(entries []MenuEntrySettings) []config.MenuEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	result := make([]config.MenuEntry, len(entries))
+	for i, e := range entries {
+		result[i] = config.MenuEntry{
+			Label:   e.Label,
+			Type:    e.Type,
+			Kernel:  e.Kernel,
+			Initrd:  e.Initrd,
+			Cmdline: e.Cmdline,
+			URL:     e.URL,
+			WIM:     e.WIM,
+		}
+	}
+	return result
+}
+
+func convertCatalogGroupsFromAPI(groups []CatalogGroupSettings) []config.CatalogGroup {
+	if len(groups) == 0 {
+		return nil
+	}
+	result := make([]config.CatalogGroup, len(groups))
+	for i, g := range groups {
+		result[i] = config.CatalogGroup{
+			Name:    g.Name,
+			Title:   g.Title,
+			Enabled: g.Enabled,
+			Order:   g.Order,
+		}
+	}
+	return result
 }
 
 func saveConfig(path string, cfg *config.Config) error {
