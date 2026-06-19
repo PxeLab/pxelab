@@ -9,17 +9,19 @@ import { api, setAuthToken, type SettingsData, type InterfaceInfo, type Interfac
 
 type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'netboot'
 
+interface SubnetConfig {
+  cidr: string; dhcpMode: string; pools: string[]; gateway: string; dnsServers: string; leaseTime: string; nextServer: string
+}
+
 interface InterfaceConfig {
-  name: string; ip: string; dhcpMode: string; bootloader: string; chainToIPXE: boolean; subnet: string
-  pools: string[]
-  gateway: string; dnsServers: string; leaseTime: string; nextServer: string
+  name: string; ip: string; dhcpMode: string; bootloader: string; chainToIPXE: boolean
+  subnets: SubnetConfig[]
   tftp: boolean; http: boolean; dns: boolean
 }
 
 const defaultIface: InterfaceConfig = {
-  name: '', ip: '', dhcpMode: 'full', bootloader: 'ipxe', chainToIPXE: false, subnet: '',
-  pools: [''],
-  gateway: '', dnsServers: '8.8.8.8', leaseTime: '3600', nextServer: '',
+  name: '', ip: '', dhcpMode: 'hybrid', bootloader: 'ipxe', chainToIPXE: false,
+  subnets: [{ cidr: '', dhcpMode: 'full', pools: [''], gateway: '', dnsServers: '8.8.8.8', leaseTime: '3600', nextServer: '' }],
   tftp: true, http: true, dns: false,
 }
 
@@ -101,7 +103,7 @@ export default function Settings() {
     netbootEnabled: true,
     netbootScriptTemplate: "",
     boot: {
-      default_menu: { title: 'PxeGo Boot Menu', timeout: 5000, default: 0, entries: [] as MenuEntry[] },
+      default_menu: { title: 'PxeGo Boot Menu', timeout: 10, default: 0, entries: [] as MenuEntry[] },
       profile_behavior: { append_local: true, append_netboot: true, append_position: 'last' as 'last' | 'first' },
       catalog_redirect: { enabled: true, target_url: 'http://{{.URL}}/netboot/menu.ipxe?arch=${arch}&platform=${platform}', detect_arch: true, preamble: '' },
       catalog_display: {
@@ -182,22 +184,41 @@ export default function Settings() {
       if (d.interfaces && d.interfaces.length > 0) {
         setConfig(prev => ({
           ...prev,
-          interfaces: d.interfaces.map((ir: InterfaceSettings) => ({
-            name: ir.name || '',
-            ip: ir.ip || '',
-            dhcpMode: ir.dhcp_mode || 'full',
-            bootloader: ir.bootloader || 'ipxe',
-            chainToIPXE: ir.chain_to_ipxe || false,
-            subnet: ir.subnet || '',
-            pools: ir.pools && ir.pools.length > 0 ? ir.pools : [''],
-            gateway: ir.gateway || '',
-            dnsServers: ir.dns_servers || '8.8.8.8',
-            leaseTime: String(ir.lease_time || 3600),
-            nextServer: ir.next_server || '',
-            tftp: ir.tftp ?? true,
-            http: ir.http ?? true,
-            dns: ir.dns ?? false,
-          })),
+          interfaces: d.interfaces.map((ir: InterfaceSettings) => {
+            let subnets: SubnetConfig[]
+            if (ir.subnets && ir.subnets.length > 0) {
+              subnets = ir.subnets.map(s => ({
+                cidr: s.cidr || '',
+                dhcpMode: s.dhcp_mode || ir.dhcp_mode || 'full',
+                pools: s.pools && s.pools.length > 0 ? s.pools : [''],
+                gateway: s.gateway || '',
+                dnsServers: s.dns_servers || '8.8.8.8',
+                leaseTime: String(s.lease_time || 3600),
+                nextServer: s.next_server || '',
+              }))
+            } else {
+              subnets = [{
+                cidr: ir.subnet || '',
+                dhcpMode: ir.dhcp_mode || 'full',
+                pools: ir.pools && ir.pools.length > 0 ? ir.pools : [''],
+                gateway: ir.gateway || '',
+                dnsServers: ir.dns_servers || '8.8.8.8',
+                leaseTime: String(ir.lease_time || 3600),
+                nextServer: ir.next_server || '',
+              }]
+            }
+            return {
+              name: ir.name || '',
+              ip: ir.ip || '',
+              dhcpMode: ir.dhcp_mode || 'hybrid',
+              bootloader: ir.bootloader || 'ipxe',
+              chainToIPXE: ir.chain_to_ipxe || false,
+              subnets,
+              tftp: ir.tftp ?? true,
+              http: ir.http ?? true,
+              dns: ir.dns ?? false,
+            }
+          }),
         }))
       }
 
@@ -221,41 +242,35 @@ export default function Settings() {
     for (let i = 0; i < config.interfaces.length; i++) {
       const iface = config.interfaces[i]
       if (!iface.name) continue
-      if (iface.dhcpMode === 'full' || iface.dhcpMode === 'hybrid') {
-        if (iface.subnet && !validateCIDR(iface.subnet)) {
-          errs.push(`接口 #${i + 1}: 子网格式无效（如 192.168.1.0/24）`)
-        }
-        for (let pi = 0; pi < iface.pools.length; pi++) {
-          const pool = iface.pools[pi]
-          if (!pool) continue
-          const parts = pool.split('-')
-          if (parts.length !== 2 || !validateIP(parts[0].trim()) || !validateIP(parts[1].trim())) {
-            errs.push(`接口 #${i + 1}: 地址池 #${pi + 1} 格式无效（如 192.168.1.100-192.168.1.200）`)
-            continue
+      for (let si = 0; si < iface.subnets.length; si++) {
+        const s = iface.subnets[si]
+        const mode = s.dhcpMode || iface.dhcpMode
+        if (mode === 'full' || mode === 'hybrid') {
+          if (s.cidr && !validateCIDR(s.cidr)) {
+            errs.push(`接口 #${i + 1}, 子网 #${si + 1}: CIDR 格式无效（如 192.168.1.0/24）`)
           }
-          // 校验地址池是否属于对应子网
-          if (iface.subnet) {
-            const startIP = parts[0].trim()
-            const endIP = parts[1].trim()
-            if (!ipInCIDR(startIP, iface.subnet)) {
-              errs.push(`接口 #${i + 1}: 地址池 #${pi + 1} 起始地址 ${startIP} 不属于子网 ${iface.subnet}`)
+          for (let pi = 0; pi < s.pools.length; pi++) {
+            const pool = s.pools[pi]
+            if (!pool) continue
+            const parts = pool.split('-')
+            if (parts.length !== 2 || !validateIP(parts[0].trim()) || !validateIP(parts[1].trim())) {
+              errs.push(`接口 #${i + 1}, 子网 #${si + 1}: 地址池 #${pi + 1} 格式无效`)
+              continue
             }
-            if (!ipInCIDR(endIP, iface.subnet)) {
-              errs.push(`接口 #${i + 1}: 地址池 #${pi + 1} 结束地址 ${endIP} 不属于子网 ${iface.subnet}`)
-            }
-          }
-        }
-        // 检测地址池之间是否冲突
-        const validPools = iface.pools.filter(p => p && p.includes('-'))
-        for (let pi = 0; pi < validPools.length; pi++) {
-          for (let pj = pi + 1; pj < validPools.length; pj++) {
-            if (poolsOverlap(validPools[pi], validPools[pj])) {
-              errs.push(`接口 #${i + 1}: 地址池 #${pi + 1} 和 #${pj + 1} 范围冲突，请检查`)
+            if (s.cidr) {
+              const startIP = parts[0].trim()
+              const endIP = parts[1].trim()
+              if (!ipInCIDR(startIP, s.cidr)) {
+                errs.push(`接口 #${i + 1}, 子网 #${si + 1}: 地址池起始 ${startIP} 不属于 ${s.cidr}`)
+              }
+              if (!ipInCIDR(endIP, s.cidr)) {
+                errs.push(`接口 #${i + 1}, 子网 #${si + 1}: 地址池结束 ${endIP} 不属于 ${s.cidr}`)
+              }
             }
           }
-        }
-        if (iface.gateway && !validateIP(iface.gateway)) {
-          errs.push(`接口 #${i + 1}: 网关地址格式无效`)
+          if (s.gateway && !validateIP(s.gateway)) {
+            errs.push(`接口 #${i + 1}, 子网 #${si + 1}: 网关地址格式无效`)
+          }
         }
       }
     }
@@ -294,12 +309,21 @@ export default function Settings() {
           dhcp_mode: iface.dhcpMode,
           bootloader: iface.bootloader,
           chain_to_ipxe: iface.chainToIPXE,
-          subnet: iface.subnet,
-          pools: iface.pools.filter(p => p && p.includes('-')),
-          gateway: iface.gateway,
-          dns_servers: iface.dnsServers,
-          lease_time: parseInt(iface.leaseTime) || 3600,
-          next_server: iface.nextServer,
+          subnets: iface.subnets.map(s => ({
+            cidr: s.cidr,
+            dhcp_mode: s.dhcpMode,
+            pools: s.pools.filter(p => p && p.includes('-')),
+            gateway: s.gateway,
+            dns_servers: s.dnsServers,
+            lease_time: parseInt(s.leaseTime) || 3600,
+            next_server: s.nextServer,
+          })),
+          subnet: iface.subnets[0]?.cidr || '',
+          pools: [],
+          gateway: iface.subnets[0]?.gateway || '',
+          dns_servers: iface.subnets[0]?.dnsServers || '',
+          lease_time: parseInt(iface.subnets[0]?.leaseTime || '3600') || 3600,
+          next_server: iface.subnets[0]?.nextServer || '',
           tftp: iface.tftp,
           http: iface.http,
           dns: iface.dns,
@@ -509,12 +533,9 @@ export default function Settings() {
         {activeTab === 'interfaces' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-[var(--text-secondary)]">配置 PxeGo 在哪些网络接口上提供服务。每个接口可独立启用 DHCP/TFTP/HTTP/DNS。</p>
+              <p className="text-sm text-[var(--text-secondary)]">配置 PxeGo 在哪些网络接口上提供服务。每个接口可包含多个子网，各自独立配置 DHCP 模式。</p>
             </div>
             {config.interfaces.map((iface, i) => {
-              const isProxy = iface.dhcpMode === 'proxy'
-              const isOff = iface.dhcpMode === 'off'
-              const disableFields = isProxy || isOff
               return (
               <div key={i} className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
@@ -533,7 +554,12 @@ export default function Settings() {
                         const sel = availableIfaces.find(x => x.name === e.target.value)
                         const next = [...config.interfaces]
                         const pool = sel?.ipv4?.[0] || ''
-                        next[i] = {...next[i], name: e.target.value, ip: pool, subnet: pool ? pool.replace(/\.\d+$/, '.0/24') : next[i].subnet}
+                        const subnets = [...next[i].subnets]
+                        const cidr = pool ? pool.replace(/\.\d+$/, '.0/24') : ''
+                        if (subnets.length > 0) {
+                          subnets[0] = {...subnets[0], cidr}
+                        }
+                        next[i] = {...next[i], name: e.target.value, ip: pool, subnets}
                         setConfig({...config, interfaces: next})
                       }}
                     >
@@ -551,15 +577,16 @@ export default function Settings() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">DHCP 模式</label>
+                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">接口 DHCP 默认模式</label>
                     <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={iface.dhcpMode} onChange={e => {
                       const next = [...config.interfaces]; next[i] = {...next[i], dhcpMode: e.target.value}; setConfig({...config, interfaces: next})
                     }}>
-                      <option value="full">full（完整 DHCP）</option>
-                      <option value="proxy">proxy（代理 DHCP）</option>
-                      <option value="hybrid">hybrid（混合）</option>
-                      <option value="off">off（关闭）</option>
+                      <option value="hybrid">hybrid（默认 — 子网级别可覆盖）</option>
+                      <option value="full">full</option>
+                      <option value="proxy">proxy</option>
+                      <option value="off">off</option>
                     </select>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">子网未指定 DHCP 模式时使用此默认值</p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">引导加载器</label>
@@ -571,10 +598,147 @@ export default function Settings() {
                       <option value="grub2">GRUB2</option>
                     </select>
                   </div>
-                  {renderField('子网', iface.subnet, v => {
-                    const next = [...config.interfaces]; next[i] = {...next[i], subnet: v}; setConfig({...config, interfaces: next})
-                  }, { placeholder: '192.168.1.0/24', disabled: disableFields })}
                 </div>
+
+                {iface.subnets.map((s, si) => {
+                  const subnetMode = s.dhcpMode || iface.dhcpMode
+                  const isOffSubnet = subnetMode === 'off'
+                  const isProxySubnet = subnetMode === 'proxy'
+                  const disableFields = isOffSubnet || isProxySubnet
+                  return (
+                  <div key={si} className="border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-[var(--text-primary)]">子网 #{si + 1}</span>
+                      {iface.subnets.length > 1 && (
+                        <button
+                          onClick={() => {
+                            const next = [...config.interfaces]
+                            next[i] = {...next[i], subnets: next[i].subnets.filter((_, j) => j !== si)}
+                            setConfig({...config, interfaces: next})
+                          }}
+                          className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                        >移除子网</button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {renderField('子网 CIDR', s.cidr, v => {
+                        const next = [...config.interfaces]
+                        const sn = [...next[i].subnets]
+                        sn[si] = {...sn[si], cidr: v}
+                        next[i] = {...next[i], subnets: sn}
+                        setConfig({...config, interfaces: next})
+                      }, { placeholder: '192.168.1.0/24' })}
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">DHCP 模式</label>
+                        <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={s.dhcpMode} onChange={e => {
+                          const next = [...config.interfaces]
+                          const sn = [...next[i].subnets]
+                          sn[si] = {...sn[si], dhcpMode: e.target.value}
+                          next[i] = {...next[i], subnets: sn}
+                          setConfig({...config, interfaces: next})
+                        }}>
+                          <option value="">继承接口设置（{iface.dhcpMode}）</option>
+                          <option value="full">full（完整 DHCP）</option>
+                          <option value="proxy">proxy（代理 DHCP）</option>
+                          <option value="hybrid">hybrid（混合）</option>
+                          <option value="off">off（关闭）</option>
+                        </select>
+                      </div>
+                    </div>
+                    {disableFields ? (
+                      <p className="text-xs text-[var(--text-muted)] italic">
+                        {isOffSubnet ? 'DHCP 已关闭，无需配置地址池等信息。' : '代理 DHCP 不分配 IP，地址池/网关等无需配置。'}
+                      </p>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <label className="block text-xs font-semibold text-[var(--text-secondary)]">地址池</label>
+                          {s.pools.map((pool, pi) => (
+                            <div key={pi} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={pool}
+                                onChange={e => {
+                                  const next = [...config.interfaces]
+                                  const sn = [...next[i].subnets]
+                                  const pools = [...sn[si].pools]
+                                  pools[pi] = e.target.value
+                                  sn[si] = {...sn[si], pools}
+                                  next[i] = {...next[i], subnets: sn}
+                                  setConfig({...config, interfaces: next})
+                                }}
+                                placeholder="192.168.1.100-192.168.1.200"
+                                className="flex-1 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10 transition-all placeholder-[var(--text-muted)]"
+                              />
+                              <button
+                                onClick={() => {
+                                  const next = [...config.interfaces]
+                                  const sn = [...next[i].subnets]
+                                  sn[si] = {...sn[si], pools: sn[si].pools.filter((_, j) => j !== pi)}
+                                  next[i] = {...next[i], subnets: sn}
+                                  setConfig({...config, interfaces: next})
+                                }}
+                                className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-red-400 transition-colors text-xs font-bold"
+                                title="移除"
+                              >✕</button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const next = [...config.interfaces]
+                              const sn = [...next[i].subnets]
+                              sn[si] = {...sn[si], pools: [...sn[si].pools, '']}
+                              next[i] = {...next[i], subnets: sn}
+                              setConfig({...config, interfaces: next})
+                            }}
+                            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                          >+ 添加地址范围</button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          {renderField('网关', s.gateway, v => {
+                            const next = [...config.interfaces]
+                            const sn = [...next[i].subnets]
+                            sn[si] = {...sn[si], gateway: v}
+                            next[i] = {...next[i], subnets: sn}
+                            setConfig({...config, interfaces: next})
+                          }, { placeholder: '192.168.1.1' })}
+                          {renderField('DNS 服务器', s.dnsServers, v => {
+                            const next = [...config.interfaces]
+                            const sn = [...next[i].subnets]
+                            sn[si] = {...sn[si], dnsServers: v}
+                            next[i] = {...next[i], subnets: sn}
+                            setConfig({...config, interfaces: next})
+                          }, { placeholder: '8.8.8.8' })}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          {renderField('租约时间（秒）', s.leaseTime, v => {
+                            const next = [...config.interfaces]
+                            const sn = [...next[i].subnets]
+                            sn[si] = {...sn[si], leaseTime: v}
+                            next[i] = {...next[i], subnets: sn}
+                            setConfig({...config, interfaces: next})
+                          })}
+                          {renderField('Next Server', s.nextServer, v => {
+                            const next = [...config.interfaces]
+                            const sn = [...next[i].subnets]
+                            sn[si] = {...sn[si], nextServer: v}
+                            next[i] = {...next[i], subnets: sn}
+                            setConfig({...config, interfaces: next})
+                          }, { placeholder: '同 IP 地址时留空' })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  )
+                })}
+                <Button variant="secondary" size="sm" onClick={() => {
+                  const next = [...config.interfaces]
+                  next[i] = {...next[i], subnets: [...next[i].subnets, { cidr: '', dhcpMode: '', pools: [''], gateway: '', dnsServers: '8.8.8.8', leaseTime: '3600', nextServer: '' }]}
+                  setConfig({...config, interfaces: next})
+                }}>
+                  + 添加子网
+                </Button>
+
                 <div className="flex items-center gap-3 pt-2">
                   <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">
                     <input type="checkbox" checked={iface.chainToIPXE} onChange={e => {
@@ -586,70 +750,6 @@ export default function Settings() {
                     <span className="text-xs text-blue-400">iPXE 将接管后续引导流程</span>
                   )}
                 </div>
-                {disableFields && (
-                  <p className="text-xs text-[var(--text-muted)] italic">
-                    {isOff ? 'DHCP 已关闭，无需配置子网、地址池等信息。' : '代理 DHCP 模式不负责 IP 地址分配，子网/地址池/网关等字段不需要配置。'}
-                  </p>
-                )}
-                {!disableFields && (
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)]">地址池（多个范围用 + 添加）</label>
-                  {iface.pools.map((pool, pi) => (
-                    <div key={pi} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={pool}
-                        onChange={e => {
-                          const next = [...config.interfaces]
-                          const np = [...next[i].pools]
-                          np[pi] = e.target.value
-                          next[i] = {...next[i], pools: np}
-                          setConfig({...config, interfaces: next})
-                        }}
-                        placeholder="192.168.1.100-192.168.1.200"
-                        className="flex-1 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10 transition-all placeholder-[var(--text-muted)]"
-                      />
-                      <button
-                        onClick={() => {
-                          const next = [...config.interfaces]
-                          next[i] = {...next[i], pools: next[i].pools.filter((_, j) => j !== pi)}
-                          setConfig({...config, interfaces: next})
-                        }}
-                        className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-red-400 transition-colors text-xs font-bold"
-                        title="移除"
-                      >✕</button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => {
-                      const next = [...config.interfaces]
-                      next[i] = {...next[i], pools: [...next[i].pools, '']}
-                      setConfig({...config, interfaces: next})
-                    }}
-                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                  >+ 添加地址范围</button>
-                </div>
-                )}
-                {!disableFields && (
-                <div className="grid grid-cols-2 gap-4">
-                  {renderField('租约时间（秒）', iface.leaseTime, v => {
-                    const next = [...config.interfaces]; next[i] = {...next[i], leaseTime: v}; setConfig({...config, interfaces: next})
-                  })}
-                  {renderField('网关', iface.gateway, v => {
-                    const next = [...config.interfaces]; next[i] = {...next[i], gateway: v}; setConfig({...config, interfaces: next})
-                  }, { placeholder: '192.168.1.1' })}
-                </div>
-                )}
-                {!disableFields && (
-                <div className="grid grid-cols-2 gap-4">
-                  {renderField('DNS 服务器', iface.dnsServers, v => {
-                    const next = [...config.interfaces]; next[i] = {...next[i], dnsServers: v}; setConfig({...config, interfaces: next})
-                  }, { placeholder: '8.8.8.8' })}
-                  {renderField('Next Server (TFTP 服务器)', iface.nextServer, v => {
-                    const next = [...config.interfaces]; next[i] = {...next[i], nextServer: v}; setConfig({...config, interfaces: next})
-                  }, { placeholder: '同 IP 地址时留空', disabled: disableFields })}
-                </div>
-                )}
                 <div className="flex items-center gap-6 pt-2 border-t border-[var(--bg-border)]">
                   <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
                     <input type="checkbox" checked={iface.tftp} onChange={e => {

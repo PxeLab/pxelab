@@ -20,14 +20,25 @@ All PxeGo iPXE binaries embed the same script (`embedd.ipxe`):
 
 ```bash
 #!ipxe
+chain http://${next-server}:8080/boot/ipxe/script?mac=${net0/mac} && goto done
 dhcp || clear
+chain http://${proxydhcp/next-server}:8080/boot/ipxe/script?mac=${net0/mac} && goto done
 chain http://${next-server}:8080/boot/ipxe/script?mac=${net0/mac} || shell
+:done
 ```
 
 This script:
-1. `dhcp` — Forces iPXE to do its own DHCP (ignores PXE BIOS/UEFI cached data)
-2. `chain http://...` — Fetches the iPXE boot menu from PxeGo HTTP server
-3. `|| shell` — Falls back to iPXE shell on error for debugging
+1. **Try PXE ROM cached next-server** — 直接用 PXE ROM 缓存的 `${next-server}`（在 Proxy DHCP 环境下为 PxeGo IP）直连 HTTP 脚本，成功则跳过
+2. **DHCP fallback** — 第 1 步失败时执行 `dhcp` 获取真实 IP 和网络配置
+3. **Try proxyDHCP next-server** — 使用 `proxydhcp/next-server`（ProxyDHCP 响应的 siaddr，即 PxeGo IP）重试 HTTP
+4. **Fallback to DHCP next-server** — 最后尝试使用 DHCP 分配的 `${next-server}`（Full DHCP 模式可用）
+5. `:done` — 成功跳转标签
+
+**优势**: Proxy DHCP 环境下，第 1 步或第 3 步都能命中 PxeGo，无需硬编码 IP；Full DHCP 下第 4 步同样有效。三层回退覆盖所有网络拓扑。
+
+### PXE_STACK 说明
+
+`PXE_STACK` 在 iPXE 编译时必须启用（见第 3 步配置）。启用后 iPXE 能继承 PXE ROM 缓存的 ProxyDHCP 响应，使得 `${next-server}` 在 `dhcp` 命令后仍能通过 `${proxydhcp/next-server}` 获取到代理服务器的正确 IP。
 
 ## Build Commands
 
@@ -41,24 +52,38 @@ cd ipxe/src
 ### 2) Create embedded script
 
 ```bash
-cat > embedd.ipxe << "EOF"
+cat > embedd.ipxe << "IPXE_EOF"
 #!ipxe
+chain http://${next-server}:8080/boot/ipxe/script?mac=${net0/mac} && goto done
 dhcp || clear
 chain http://${next-server}:8080/boot/ipxe/script?mac=${net0/mac} || shell
-EOF
+:done
+IPXE_EOF
 ```
 
-### 3) Disable PXE_STACK
+### 3) Enable PXE_STACK and HTTPS
 
-Edit `src/config/general.h` and comment out:
+Edit `src/config/general.h`:
+
+- **Enable** `PXE_STACK` — allows iPXE to inherit the proxy DHCP `next-server` from PXE ROM cache, critical for proxy DHCP mode where `${next-server}` must resolve to PxeGo's IP (not the real DHCP server).
+- Comment out `PXE_MENU` and `PXEXT` if desired, though they are generally harmless.
+- Uncomment or add `DOWNLOAD_PROTOCOL_HTTPS` to enable HTTPS download support:
 
 ```c
-// #define PXE_STACK
+// ... keep PXE_STACK enabled:
+#define PXE_STACK		/* PXE stack in iPXE - you want this! */
+
+// ... comment out (optional):
 // #define PXE_MENU
 // #define PXEXT
+
+// ... add or uncomment:
+#define DOWNLOAD_PROTOCOL_HTTPS
 ```
 
-This prevents iPXE from reading PXE BIOS/UEFI cached DHCP data.
+`PXE_STACK` enables iPXE to cache the proxy DHCP response, so `${next-server}` resolves to PxeGo's IP even after iPXE performs its own `dhcp` command. The embedded script also tries `${proxydhcp/next-server}` as a fallback.
+
+This also enables iPXE to fetch kernel/initrd files from `https://github.com/...` URLs used by the netboot catalog.
 
 ### 4) Build all targets
 

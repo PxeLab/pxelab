@@ -4,13 +4,14 @@ var builtinTemplates = map[string]string{
 	"menu": `#!ipxe
 set menu-timeout {{.Menu.Timeout}}
 set menu-default {{.Menu.Default}}
-
 :menu
 menu {{.Menu.Title}}
 {{range $i, $entry := .Menu.Entries}}
 item{{if eq $i $.Menu.Default}} --default{{end}} --key {{$i}} {{$i}} {{$entry.Label}}
 {{end}}
-choose --timeout ${menu-timeout} --default ${menu-default} selected || goto shell
+{{if .Menu.Timeout}}choose --timeout {{.Menu.Timeout}} --default {{.Menu.Default}} selected && goto ${selected} || goto {{.Menu.Default}}
+{{else}}choose selected || goto shell
+{{end}}
 goto ${selected}
 
 :shell

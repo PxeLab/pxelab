@@ -233,12 +233,24 @@ export function getLeases(): Promise<ApiResponse<Lease[]>> {
 }
 
 // ── Settings ──
+export interface SubnetSettings {
+  cidr: string
+  dhcp_mode: string
+  pools: string[]
+  gateway: string
+  dns_servers: string
+  lease_time: number
+  next_server: string
+}
+
 export interface InterfaceSettings {
   name: string
   ip: string
   dhcp_mode: string
   bootloader: string
   chain_to_ipxe: boolean
+  subnets: SubnetSettings[]
+  // backward compat fields (deprecated, use subnets)
   subnet: string
   pools: string[]
   gateway: string

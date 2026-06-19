@@ -192,7 +192,8 @@ func generateIPXEScript(cfg *config.Config, st store.Interface, mac, serverAddr 
 			if err == nil && profile != nil {
 				bootMenu, err := profile.GetMenu()
 				if err == nil && len(bootMenu.Entries) > 0 {
-					pm := &ipxe.MenuData{Title: profile.Name, Timeout: 5000, Default: 0}
+					to := cfg.Netboot.Boot.DefaultMenu.Timeout
+					pm := &ipxe.MenuData{Title: profile.Name, Timeout: to, Default: 0}
 					var entries []ipxe.MenuEntryData
 					for _, e := range bootMenu.Entries {
 						entry := ipxe.MenuEntryData{
@@ -257,9 +258,8 @@ func generateIPXEScript(cfg *config.Config, st store.Interface, mac, serverAddr 
 	// 4. 默认引导菜单
 	dm := cfg.Netboot.Boot.DefaultMenu
 	if len(dm.Entries) == 0 {
-		// 后向兼容：最小菜单
+		// 后向兼容：最小菜单（保留用户设定的超时时间）
 		dm.Title = "PxeGo Boot Menu"
-		dm.Timeout = 0
 		dm.Default = 0
 		dm.Entries = []config.MenuEntry{{Label: "Boot from local disk", Type: "local"}}
 	}
@@ -281,10 +281,10 @@ func generateIPXEScript(cfg *config.Config, st store.Interface, mac, serverAddr 
 	return engine.Render("menu", ipxe.TemplateData{
 		MAC: mac,
 		Menu: &ipxe.MenuData{
-			Title:   dm.Title,
-			Timeout: dm.Timeout,
-			Default: dm.Default,
-			Entries: ipxeEntries,
+			Title:     dm.Title,
+			Timeout:   dm.Timeout,
+			Default:   dm.Default,
+			Entries:   ipxeEntries,
 		},
 		URL: "http://" + serverAddr,
 	})

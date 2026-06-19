@@ -6,7 +6,7 @@ import "github.com/insomniacslk/dhcp/iana"
 func BootFileForArch(arch iana.Arch) string {
 	switch arch {
 	case iana.INTEL_X86PC:
-		return "undionly.kpxe"
+		return "ipxe.pxe"
 	case iana.EFI_IA32:
 		return "ipxe32.efi"
 	case iana.EFI_X86_64, iana.EFI_BC:
@@ -16,6 +16,6 @@ func BootFileForArch(arch iana.Arch) string {
 	case iana.EFI_RISCV64:
 		return "ipxe-riscv64.efi"
 	default:
-		return "undionly.kpxe"
+		return "ipxe.pxe"
 	}
 }

@@ -102,6 +102,27 @@ func (lm *LeaseManager) AllocateWithInfo(cidr, mac, arch, platform string) (net.
 		return nil, fmt.Errorf("子网 %s 未配置", cidr)
 	}
 
+	// 无地址池：用 MAC 派生 IP（proxy 模式 UEFI 适用）
+	if len(pool.Pools) == 0 {
+		ip, err := macDerivedIP(cidr, mac)
+		if err != nil {
+			return nil, fmt.Errorf("MAC 派生 IP 失败: %w", err)
+		}
+		if _, exists := pool.Leases[mac]; !exists {
+			pool.Leases[mac] = &models.Lease{
+				MAC:       mac,
+				IP:        ip.String(),
+				SubnetID:  cidr,
+				ExpiresAt: time.Now().Add(1 * time.Hour),
+				CreatedAt: time.Now(),
+			}
+		}
+		if arch != "" {
+			lm.ipToClient[ip.String()] = ClientInfo{MAC: mac, Arch: arch, Platform: platform}
+		}
+		return ip, nil
+	}
+
 	// 检查是否已有租约
 	if lease, ok := pool.Leases[mac]; ok {
 		if time.Now().Before(lease.ExpiresAt) {
@@ -148,6 +169,48 @@ func (lm *LeaseManager) AllocateWithInfo(cidr, mac, arch, platform string) (net.
 	}
 
 	return nil, fmt.Errorf("子网 %s 无可用 IP", cidr)
+}
+
+// macDerivedIP generates a stable IP from a MAC address within the given CIDR range.
+// Used for proxy-mode UEFI PXE where the client needs a temporary IP but no address pools are configured.
+func macDerivedIP(cidr, macStr string) (net.IP, error) {
+	_, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil, fmt.Errorf("无效的 CIDR %s: %w", cidr, err)
+	}
+
+	hw, err := net.ParseMAC(macStr)
+	if err != nil {
+		return nil, fmt.Errorf("无效的 MAC %s: %w", macStr, err)
+	}
+
+	ones, bits := ipnet.Mask.Size()
+	hostBits := bits - ones
+	if hostBits <= 0 {
+		return nil, fmt.Errorf("子网 %s 无可用主机位", cidr)
+	}
+
+	// Use last 2 MAC octets to generate a deterministic host ID
+	hostID := (int(hw[len(hw)-2]) << 8) + int(hw[len(hw)-1])
+	maxHosts := 1 << uint(hostBits)
+
+	if maxHosts <= 2 {
+		return nil, fmt.Errorf("子网 %s 太小，无法分配 IP", cidr)
+	}
+	// Avoid .0 (network address) and .255 (broadcast)
+	offset := hostID%(maxHosts-2) + 1
+
+	// Apply offset to network base address
+	ip := make(net.IP, len(ipnet.IP))
+	copy(ip, ipnet.IP)
+	carry := offset
+	for i := len(ip) - 1; i >= 0 && carry > 0; i-- {
+		sum := int(ip[i]) + carry
+		ip[i] = byte(sum & 0xFF)
+		carry = sum >> 8
+	}
+
+	return ip, nil
 }
 
 // GetClientByIP 根据 IP 查询客户端架构信息

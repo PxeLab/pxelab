@@ -135,21 +135,32 @@ type CatalogGroupSettings struct {
 	Order   int    `json:"order"`
 }
 
+type SubnetSettings struct {
+	CIDR       string   `json:"cidr"`
+	DHCPMode   string   `json:"dhcp_mode"`
+	Pools      []string `json:"pools"`
+	Gateway    string   `json:"gateway"`
+	DNSServers string   `json:"dns_servers"`
+	LeaseTime  int      `json:"lease_time"`
+	NextServer string   `json:"next_server"`
+}
+
 type InterfaceResponse struct {
-	Name        string   `json:"name"`
-	IP          string   `json:"ip"`
-	DHCPMode    string   `json:"dhcp_mode"`
-	Bootloader  string   `json:"bootloader"`
-	ChainToIPXE bool     `json:"chain_to_ipxe"`
-	Subnet      string   `json:"subnet"`
-	Pools       []string `json:"pools"`
-	Gateway     string   `json:"gateway"`
-	DNSServers  string   `json:"dns_servers"`
-	LeaseTime   int      `json:"lease_time"`
-	NextServer  string   `json:"next_server"`
-	TFTP        bool     `json:"tftp"`
-	HTTP        bool     `json:"http"`
-	DNS         bool     `json:"dns"`
+	Name        string           `json:"name"`
+	IP          string           `json:"ip"`
+	DHCPMode    string           `json:"dhcp_mode"`
+	Bootloader  string           `json:"bootloader"`
+	ChainToIPXE bool             `json:"chain_to_ipxe"`
+	Subnet      string           `json:"subnet"`      // 向后兼容：Subnets[0].CIDR
+	Pools       []string         `json:"pools"`        // 向后兼容：Subnets[0].Pools
+	Gateway     string           `json:"gateway"`      // 向后兼容：Subnets[0].Gateway
+	DNSServers  string           `json:"dns_servers"`  // 向后兼容：Subnets[0].DNSServers
+	LeaseTime   int              `json:"lease_time"`   // 向后兼容：Subnets[0].LeaseTime
+	NextServer  string           `json:"next_server"`  // 向后兼容：Subnets[0].NextServer
+	Subnets     []SubnetSettings `json:"subnets,omitempty"`
+	TFTP        bool             `json:"tftp"`
+	HTTP        bool             `json:"http"`
+	DNS         bool             `json:"dns"`
 }
 
 func generateToken() string {
@@ -245,7 +256,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			IP:         iface.IP,
 			DHCPMode:   iface.DHCP,
 			Bootloader: iface.Bootloader,
-      ChainToIPXE: iface.ChainToIPXE,
+			ChainToIPXE: iface.ChainToIPXE,
 			TFTP:       iface.TFTP,
 			HTTP:       iface.HTTP,
 			DNS:        iface.DNS,
@@ -269,9 +280,28 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			if sn.LeaseTime > 0 {
 				ir.LeaseTime = sn.LeaseTime
 			}
+			// 填充所有子网
+			for _, sn := range iface.Subnets {
+				dhcpMode := sn.DHCP
+				if dhcpMode == "" {
+					dhcpMode = ir.DHCPMode
+				}
+				pools := sn.Pools
+				if len(pools) == 0 && sn.Pool != "" {
+					pools = []string{sn.Pool}
+				}
+				ir.Subnets = append(ir.Subnets, SubnetSettings{
+					CIDR:       sn.CIDR,
+					DHCPMode:   dhcpMode,
+					Pools:      pools,
+					Gateway:    sn.Gateway,
+					DNSServers: sn.DNSServers,
+					LeaseTime:  sn.LeaseTime,
+					NextServer: sn.NextServer,
+				})
+			}
 		}
-
-		if iface.DHCP == "" || iface.DHCP == "off" {
+if iface.DHCP == "" || iface.DHCP == "off" {
 			resp.DHCP.Enabled = false
 		}
 
@@ -337,50 +367,67 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 校验接口配置
-	for i, ir := range req.Interfaces {
-		if ir.DHCPMode == "" || ir.DHCPMode == "off" || ir.DHCPMode == "proxy" {
-			continue
-		}
-		for pi, p := range ir.Pools {
-			p = strings.TrimSpace(p)
-			if p == "" {
+		// 校验接口配置
+		for i, ir := range req.Interfaces {
+			if ir.DHCPMode == "" || ir.DHCPMode == "off" {
 				continue
 			}
-			parts := strings.SplitN(p, "-", 2)
-			if len(parts) != 2 {
-				Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d: 地址池 #%d 格式无效", i+1, pi+1))
-				return
+			// 如果没有子网数组，使用平铺字段向后兼容
+			subnets := ir.Subnets
+			if len(subnets) == 0 && ir.Subnet != "" {
+				subnets = []SubnetSettings{{
+					CIDR: ir.Subnet, DHCPMode: ir.DHCPMode,
+					Pools: ir.Pools, Gateway: ir.Gateway,
+					DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
+					NextServer: ir.NextServer,
+				}}
 			}
-			startIP := strings.TrimSpace(parts[0])
-			endIP := strings.TrimSpace(parts[1])
-			if ir.Subnet != "" {
-				if !ipInCIDR(startIP, ir.Subnet) {
-					Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d: 地址池 #%d 起始地址 %s 不属于子网 %s", i+1, pi+1, startIP, ir.Subnet))
-					return
+			for si, s := range subnets {
+				if s.DHCPMode == "" || s.DHCPMode == "off" || s.DHCPMode == "proxy" {
+					continue
 				}
-				if !ipInCIDR(endIP, ir.Subnet) {
-					Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d: 地址池 #%d 结束地址 %s 不属于子网 %s", i+1, pi+1, endIP, ir.Subnet))
-					return
+				for pi, p := range s.Pools {
+					p = strings.TrimSpace(p)
+					if p == "" {
+						continue
+					}
+					parts := strings.SplitN(p, "-", 2)
+					if len(parts) != 2 {
+						Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 格式无效", i+1, si+1, pi+1))
+						return
+					}
+					startIP := strings.TrimSpace(parts[0])
+					endIP := strings.TrimSpace(parts[1])
+					if s.CIDR != "" {
+						if !ipInCIDR(startIP, s.CIDR) {
+							Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 起始地址 %s 不属于子网 %s", i+1, si+1, pi+1, startIP, s.CIDR))
+							return
+						}
+						if !ipInCIDR(endIP, s.CIDR) {
+							Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 结束地址 %s 不属于子网 %s", i+1, si+1, pi+1, endIP, s.CIDR))
+							return
+						}
+					}
+				}
+				// 检测地址池冲突
+				validPools := make([]string, 0, len(s.Pools))
+				for _, p := range s.Pools {
+					if strings.TrimSpace(p) != "" && strings.Contains(p, "-") {
+						validPools = append(validPools, p)
+					}
+				}
+				for pi := 0; pi < len(validPools); pi++ {
+					for pj := pi + 1; pj < len(validPools); pj++ {
+						if poolsOverlap(validPools[pi], validPools[pj]) {
+							Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 和 #%d 范围冲突", i+1, si+1, pi+1, pj+1))
+							return
+						}
+					}
 				}
 			}
 		}
-		// 检测地址池冲突
-		validPools := make([]string, 0, len(ir.Pools))
-		for _, p := range ir.Pools {
-			if strings.TrimSpace(p) != "" && strings.Contains(p, "-") {
-				validPools = append(validPools, p)
-			}
-		}
-		for pi := 0; pi < len(validPools); pi++ {
-			for pj := pi + 1; pj < len(validPools); pj++ {
-				if poolsOverlap(validPools[pi], validPools[pj]) {
-					Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d: 地址池 #%d 和 #%d 范围冲突", i+1, pi+1, pj+1))
-					return
-				}
-			}
-		}
-	}
+
+
 
 	h.cfg.Log.Level = req.LogLevel
 	h.cfg.Global.ServerName = req.Server.Name
@@ -424,7 +471,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				IP:   ir.IP,
 				DHCP: ir.DHCPMode,
 				Bootloader: ir.Bootloader,
-      ChainToIPXE: ir.ChainToIPXE,
+				ChainToIPXE: ir.ChainToIPXE,
 				TFTP: ir.TFTP,
 				HTTP: ir.HTTP,
 				DNS:  ir.DNS,
@@ -433,9 +480,22 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				iface.DHCP = "full"
 			}
 
-			if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" || ir.NextServer != "" {
+			if len(ir.Subnets) > 0 {
+				for _, s := range ir.Subnets {
+					iface.Subnets = append(iface.Subnets, config.SubnetConfig{
+						CIDR:       s.CIDR,
+						DHCP:       s.DHCPMode,
+						Pools:      s.Pools,
+						Gateway:    s.Gateway,
+						DNSServers: s.DNSServers,
+						LeaseTime:  s.LeaseTime,
+						NextServer: s.NextServer,
+					})
+				}
+			} else if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" || ir.NextServer != "" {
 				iface.Subnets = []config.SubnetConfig{{
 					CIDR:       ir.Subnet,
+					DHCP:       ir.DHCPMode,
 					Pools:      ir.Pools,
 					Gateway:    ir.Gateway,
 					DNSServers: ir.DNSServers,
