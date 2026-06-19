@@ -1,0 +1,250 @@
+# DHCP 模式说明
+
+PxeGo 支持 4 种 DHCP 模式，在接口配置中通过 `dhcp` 字段设置。
+
+## 快速对照
+
+| 模式 | 分配 IP | 提供 PXE 选项 | 非 PXE 客户端 | 适用场景 |
+|------|---------|---------------|---------------|----------|
+| **full** | ✅ | ✅ | ✅ 正常分配 | PxeGo 作为唯一 DHCP 服务器 |
+| **proxy** | ❌（仅 UEFI 例外） | ✅ | ❌ 忽略 | 叠加到现有 DHCP 环境 |
+| **hybrid** | ✅ | ✅（仅 PXE 客户端） | ✅ 仅分配 IP，不含 PXE 选项 | 默认模式，兼顾两方 |
+| **off** | ❌ | ❌ | ❌ 忽略 | 完全关闭 DHCP 功能 |
+
+---
+
+## 各模式详解
+
+### full（完整 DHCP）
+
+PxeGo 作为该网络的**唯一 DHCP 服务器**，对所有客户端（无论是否 PXE 请求）响应。
+
+**行为：**
+
+```
+DHCP Discover ──► PxeGo
+    │
+    ├─ PXE/BIOS 客户端 ──► Offer：IP 地址 + 子网掩码 + 网关 + DNS + 启动文件 + PXE 选项
+    │                      ├─ Option 54 (Server Identifier)
+    │                      ├─ Option 1 (Subnet Mask)
+    │                      ├─ Option 3 (Router)
+    │                      ├─ Option 6 (DNS)
+    │                      ├─ Option 51 (Lease Time)
+    │                      ├─ Option 43 (PXE Discovery Control)
+    │                      └─ Option 175.178 (iPXE 脚本 URL)
+    │
+    ├─ iPXE 客户端 ──► Offer：IP 地址 + 标准选项 + 脚本 URL（启动文件字段设为脚本 URL）
+    │
+    └─ 非 PXE 客户端 ──► Offer：IP 地址 + 标准选项（无 PXE 相关选项）
+```
+
+**特点：**
+- 管理整个 DHCP 生命周期：Discover → Offer → Request → Ack
+- 所有客户端都获得 IP 地址
+- PXE 客户端额外获取 NBP 文件名和引导脚本 URL（Option 175.178）
+- 非 PXE 客户端获得标准 DHCP 响应，正常上网
+
+**适用场景：**
+- 新建网络，PxeGo 作为网络中的唯一 DHCP 服务
+- 实验/测试环境，不需要保留现有 DHCP 基础架构
+- 隔离网络（无上行 DHCP 服务器）
+
+---
+
+### proxy（代理 DHCP）
+
+PxeGo **仅提供 PXE 相关选项**，IP 地址由网络中现有的 DHCP 服务器分配。
+
+**行为：**
+
+```
+DHCP Discover ──► 现有 DHCP + PxeGo
+    │
+    ├─ PXE/BIOS 客户端：
+    │   ├─ 现有 DHCP ──► Offer：IP 地址（标准 DHCP）
+    │   └─ PxeGo ──► Offer：yiaddr=0.0.0.0 + 启动文件 + PXE 选项（无 IP）
+    │                  ├─ Legacy BIOS：yiaddr=0.0.0.0，仅附 PXE 选项
+    │                  └─ UEFI：必须分配临时 IP（UEFI 固件不接受 0.0.0.0）
+    │
+    ├─ iPXE 客户端 ──► Offer：yiaddr=0.0.0.0 + 脚本 URL
+    │
+    └─ 非 PXE 客户端 ──► 忽略，不响应
+```
+
+**两个关键子行为：**
+
+**UEFI 客户端** — UEFI PXE 固件要求 Offer 中 `yiaddr` 不能为 `0.0.0.0`，否则拒绝响应。因此 PxeGo 在 proxy 模式下为 UEFI 客户端**分配临时 IP**（从地址池中取），ACK 时继续确认此 IP。客户端只用这个 IP 完成 NBP 下载，后续进入 iPXE 阶段仍会通过标准 DHCP 获得正式 IP。
+
+**Legacy BIOS 客户端** — `yiaddr=0.0.0.0`，仅附加启动文件和 PXE 选项。BIOS PXE 栈能正确处理 `yiaddr=0.0.0.0` 的 ProxyDHCP Offer。
+
+**特点：**
+- 不干扰现有 DHCP 服务器的地址分配
+- 非 PXE 客户端完全不受影响
+- 仅对 DHCP 请求中携带 PXE 选项的客户端响应
+- UEFI 客户端需要消耗地址池中的 IP（有限占用）
+
+**适用场景：**
+- 公司/学校网络中已有 DHCP 服务器，需要叠加 PXE 服务
+- 不想改动现有网络基础设施
+- 仅需要引导 PXE 客户端，不影响普通设备
+
+---
+
+### hybrid（混合）
+
+PxeGo **对 PXE 客户端以 proxy 模式响应，对其他客户端以 full 模式响应**。这是默认模式。
+
+**行为：**
+
+```
+DHCP Discover ──► PxeGo
+    │
+    ├─ PXE 客户端（检测到 Option 60 "PXEClient" 等）：
+    │   └─ 以 proxy 模式处理：yiaddr=0.0.0.0（或 UEFI 分配 IP）+ PXE 选项
+    │
+    ├─ iPXE 客户端：
+    │   └─ 以 proxy 模式处理：yiaddr=0.0.0.0 + 脚本 URL
+    │
+    └─ 非 PXE 客户端：
+        └─ 以 full 模式处理：分配 IP + 标准 DHCP 选项（无 PXE 选项）
+```
+
+在代码中判定逻辑（`handler.go:147-151`）：
+
+```
+detect PXE client? → proxy 模式
+  └─ 非 PXE? → 检查接口 DHCP 模式
+      ├─ hybrid → full 模式（分配 IP）
+      └─ full → full 模式
+```
+
+**特点：**
+- **一个接口同时承担两种角色**：对 PXE 客户端是 ProxyDHCP，对普通客户端是标准 DHCP
+- 不需要两台 DHCP 服务器，也不需要 DHCP 中继
+- 普通客户端获得完整网络配置（IP、网关、DNS）
+- PXE 客户端获得引导选项但不影响 IP 分配
+
+**适用场景：**
+- 小型网络，PxeGo 承担 DHCP 服务但同时要叠加 PXE
+- 不想架设两台 DHCP 服务器的场景
+- **推荐默认模式**，兼顾各方需求
+
+---
+
+### off（关闭）
+
+PxeGo 在该接口上**完全关闭 DHCP 功能**，不处理任何 DHCP 请求。
+
+**特点：**
+- 接口如同 DHCP 不存在一样
+- 不会发送任何 DHCP 响应
+- 不影响同接口上的 HTTP/TFTP/DNS 等其他服务
+
+**适用场景：**
+- 接口只做 HTTP/TFTP 启动文件服务，DHCP 由其他设备提供
+- 排查 DHCP 冲突时临时关闭
+- 管理接口不需要提供 DHCP
+
+---
+
+## 决策流程
+
+当收到 DHCP 请求时，PxeGo 按以下流程确定模式：
+
+```
+收到 DHCP 请求
+    │
+    ├─ 是否为 PXE/iPXE 客户端？
+    │   ├─ 是 → 检查接口 DHCP 模式
+    │   │       ├─ proxy → proxy 模式处理
+    │   │       ├─ hybrid → proxy 模式处理
+    │   │       ├─ full → full 模式处理
+    │   │       └─ off → 不处理
+    │   │
+    │   └─ 否 → 检查接口 DHCP 模式
+    │           ├─ full → full 模式处理（分配 IP）
+    │           ├─ hybrid → full 模式处理（分配 IP，不附加 PXE 选项）
+    │           ├─ proxy → 不处理（非 PXE 客户端在 proxy 下被忽略）
+    │           └─ off → 不处理
+    │
+    └─ 响应客户端
+```
+
+## 实际部署示例
+
+### 示例 1：有公司 DHCP 服务器，叠加 PXE
+
+```
+    公司 DHCP          PxeGo
+  192.168.1.1      192.168.1.100
+       │                 │
+       │                 │  dhcp: proxy
+       │                 │  bootloader: ipxe
+       │                 │
+       │                 └── PXE 客户端提供引导选项
+       │                     UEFI 客户端占用临时 IP
+       │
+       └── 所有客户端获得 IP
+           非 PXE 客户端不受 PxeGo 影响
+```
+
+### 示例 2：新网络，PxeGo 一机包办
+
+```
+    PxeGo (192.168.1.100)
+       │
+       │  dhcp: full
+       │  bootloader: ipxe
+       │
+       ├── PXE 客户端：分配 IP + 引导选项
+       ├── 普通客户端：分配 IP + 网络配置
+       └── 无其他 DHCP 冲突
+```
+
+### 示例 3：hybrid 默认模式
+
+```
+    PxeGo (192.168.1.100)
+       │
+       │  dhcp: hybrid（默认）
+       │
+       ├── PXE 客户端 → proxy 模式（yiaddr=0.0.0.0 + 引导选项）
+       ├── 普通客户端 → full 模式（分配 IP）
+       └── 相当于"智能双模"
+```
+
+### 示例 4：双接口，管理口 + 业务口
+
+```yaml
+interfaces:
+  - name: eth0       # 管理口
+    ip: 10.0.0.1
+    dhcp: full       # 管理网段自建 DHCP
+    subnets:
+      - cidr: 10.0.0.0/24
+        pool: 10.0.0.100-10.0.0.200
+
+  - name: eth1       # 业务口，叠加 PXE
+    ip: 192.168.1.100
+    dhcp: proxy      # 不干扰公司 DHCP
+    subnets:
+      - cidr: 192.168.1.0/24
+```
+
+### 示例 5：仅提供文件服务
+
+```yaml
+interfaces:
+  - name: eth0
+    ip: 192.168.1.100
+    dhcp: off        # DHCP 由其他设备负责
+    tftp: true       # 仅提供 TFTP
+    http: true       # 仅提供 HTTP
+    bootloader: grub2
+```
+
+## Web 界面配置
+
+PxeGo 界面上对每个接口可以独立设置 DHCP 模式：「设置 → 接口」，每个接口的「DHCP 模式」下拉框。
+
+> **注意：** 同接口下的子网共享该接口的 DHCP 模式。如需要多个不同行为，通过多接口配置实现。
