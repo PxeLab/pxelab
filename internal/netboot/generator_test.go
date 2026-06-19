@@ -28,7 +28,7 @@ func TestNoLabelCollisions(t *testing.T) {
 
 func TestScriptChooseSyntax(t *testing.T) {
 	c := DefaultCatalog()
-	s := GenerateNetbootScript(c, "192.168.1.1:8080")
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
 
 	// Must have separated choose/goto (not chained)
 	if strings.Contains(s, "choose selected && goto") {
@@ -58,7 +58,7 @@ func TestScriptChooseSyntax(t *testing.T) {
 
 func TestScriptContainsAllDistros(t *testing.T) {
 	c := DefaultCatalog()
-	s := GenerateNetbootScript(c, "192.168.1.1:8080")
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
 
 	for _, d := range c.Distros {
 		if !d.Enabled {
@@ -76,7 +76,7 @@ func TestScriptContainsAllDistros(t *testing.T) {
 
 func TestScriptBootEntries(t *testing.T) {
 	c := DefaultCatalog()
-	s := GenerateNetbootScript(c, "192.168.1.1:8080")
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
 
 	count := 0
 	for _, d := range c.Distros {
@@ -101,7 +101,7 @@ func TestScriptBootEntries(t *testing.T) {
 
 func TestScriptNoDuplicateLabels(t *testing.T) {
 	c := DefaultCatalog()
-	s := GenerateNetbootScript(c, "192.168.1.1:8080")
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
 
 	labelCount := make(map[string]int)
 	lines := strings.Split(s, "\n")
@@ -114,5 +114,27 @@ func TestScriptNoDuplicateLabels(t *testing.T) {
 				t.Errorf("Duplicate label in generated script: %s", label)
 			}
 		}
+	}
+}
+
+func TestScriptProxyURLs(t *testing.T) {
+	c := DefaultCatalog()
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
+
+	// All HTTPS remote URLs should be proxied through the HTTP server
+	if strings.Contains(s, "kernel https://") {
+		t.Error("HTTPS URLs should be proxied through HTTP, found raw 'kernel https://'")
+	}
+
+	// Should have proxy URLs for remote boot files
+	proxyCount := strings.Count(s, "/boot/netboot/proxy/https/")
+	if proxyCount == 0 {
+		t.Error("No proxy URLs found in script")
+	}
+	t.Logf("Proxy URL count: %d", proxyCount)
+
+	// Verify a specific proxy URL format
+	if !strings.Contains(s, "kernel http://192.168.1.1:8080/boot/netboot/proxy/https/") {
+		t.Error("Missing expected proxy URL format: 'kernel http://.../boot/netboot/proxy/https/...'")
 	}
 }

@@ -40,7 +40,7 @@ func TestGenerateNetbootScript(t *testing.T) {
 			},
 		},
 	}
-	script := GenerateNetbootScript(cat, "192.168.1.10")
+	script := GenerateNetbootScript(cat, "192.168.1.10", "", "", "[OS] Netboot OS Install Catalog", nil)
 	if !strings.Contains(script, "#!ipxe") {
 		t.Fatal("expected #!ipxe header")
 	}

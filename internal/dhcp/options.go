@@ -77,3 +77,41 @@ func IsIPXEClient(pkt *dhcpv4.DHCPv4) bool {
 	}
 	return pkt.ClassIdentifier() == "iPXE"
 }
+
+// ArchString 将 PXE 架构枚举转为 iPXE 兼容的架构字符串
+func ArchString(arch iana.Arch) string {
+	switch arch {
+	case iana.INTEL_X86PC:
+		return "x86"
+	case iana.EFI_IA32:
+		return "i386"
+	case iana.EFI_X86_64, iana.EFI_BC:
+		return "x86_64"
+	case iana.EFI_ARM64:
+		return "arm64"
+	case iana.EFI_RISCV64:
+		return "riscv64"
+	default:
+		return "x86"
+	}
+}
+
+// PlatformString 根据 PXE 架构返回启动平台类型
+func PlatformString(arch iana.Arch) string {
+	switch arch {
+	case iana.INTEL_X86PC:
+		return "pc" // legacy BIOS
+	default:
+		return "efi"
+	}
+}
+
+// ArchAndPlatform 返回 (arch, platform) 字符串对
+func ArchAndPlatform(pkt *dhcpv4.DHCPv4) (string, string) {
+	arch, ok := DetectClientArch(pkt)
+	if !ok {
+		return "x86", "pc"
+	}
+	return ArchString(arch), PlatformString(arch)
+}
+

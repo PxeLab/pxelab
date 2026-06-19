@@ -11,10 +11,17 @@ import (
 	"github.com/pxego/pxego/internal/store"
 )
 
+type ClientInfo struct {
+	MAC      string
+	Arch     string // x86_64, i386, arm64, armhf
+	Platform string // efi or pc (legacy BIOS)
+}
+
 type LeaseManager struct {
-	mu      sync.RWMutex
-	store   store.LeaseStore
-	subnets map[string]*SubnetPool
+	mu           sync.RWMutex
+	store        store.LeaseStore
+	subnets      map[string]*SubnetPool
+	ipToClient   map[string]ClientInfo // IP → client arch/platform
 }
 
 type SubnetPool struct {
@@ -56,8 +63,9 @@ func bytesCompare(a, b net.IP) int {
 
 func NewLeaseManager(st store.LeaseStore) *LeaseManager {
 	return &LeaseManager{
-		store:   st,
-		subnets: make(map[string]*SubnetPool),
+		store:      st,
+		subnets:    make(map[string]*SubnetPool),
+		ipToClient: make(map[string]ClientInfo),
 	}
 }
 
@@ -65,6 +73,7 @@ func (lm *LeaseManager) ClearSubnets() {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	lm.subnets = make(map[string]*SubnetPool)
+	lm.ipToClient = make(map[string]ClientInfo)
 }
 
 func (lm *LeaseManager) AddSubnet(cidr string, pools []*IPRange, gateway net.IP) {
@@ -78,7 +87,13 @@ func (lm *LeaseManager) AddSubnet(cidr string, pools []*IPRange, gateway net.IP)
 	}
 }
 
+// Allocate 分配 IP 并记录客户端架构信息
 func (lm *LeaseManager) Allocate(cidr, mac string) (net.IP, error) {
+	return lm.AllocateWithInfo(cidr, mac, "", "")
+}
+
+// AllocateWithInfo 分配 IP 并记录客户端架构信息
+func (lm *LeaseManager) AllocateWithInfo(cidr, mac, arch, platform string) (net.IP, error) {
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 
@@ -90,7 +105,11 @@ func (lm *LeaseManager) Allocate(cidr, mac string) (net.IP, error) {
 	// 检查是否已有租约
 	if lease, ok := pool.Leases[mac]; ok {
 		if time.Now().Before(lease.ExpiresAt) {
-			return net.ParseIP(lease.IP), nil
+			ip := net.ParseIP(lease.IP)
+			if ip != nil && arch != "" {
+				lm.ipToClient[lease.IP] = ClientInfo{MAC: mac, Arch: arch, Platform: platform}
+			}
+			return ip, nil
 		}
 	}
 
@@ -100,7 +119,7 @@ func (lm *LeaseManager) Allocate(cidr, mac string) (net.IP, error) {
 		copy(ip, r.Start)
 		for {
 			if bytesCompare(ip, r.End) > 0 {
-				break // 当前池无可用 IP，尝试下一个
+				break
 			}
 			used := false
 			for _, lease := range pool.Leases {
@@ -119,6 +138,9 @@ func (lm *LeaseManager) Allocate(cidr, mac string) (net.IP, error) {
 				}
 				pool.Leases[mac] = lease
 				lm.store.CreateLease(context.Background(), lease)
+				if arch != "" {
+					lm.ipToClient[ip.String()] = ClientInfo{MAC: mac, Arch: arch, Platform: platform}
+				}
 				return ip, nil
 			}
 			incIP(ip)
@@ -126,6 +148,21 @@ func (lm *LeaseManager) Allocate(cidr, mac string) (net.IP, error) {
 	}
 
 	return nil, fmt.Errorf("子网 %s 无可用 IP", cidr)
+}
+
+// GetClientByIP 根据 IP 查询客户端架构信息
+func (lm *LeaseManager) GetClientByIP(ip string) (ClientInfo, bool) {
+	lm.mu.RLock()
+	defer lm.mu.RUnlock()
+	info, ok := lm.ipToClient[ip]
+	return info, ok
+}
+
+// SetClientInfo 记录客户端架构信息（用于 proxy 模式不分配 IP 的场景）
+func (lm *LeaseManager) SetClientInfo(ip, mac, arch, platform string) {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	lm.ipToClient[ip] = ClientInfo{MAC: mac, Arch: arch, Platform: platform}
 }
 
 func incIP(ip net.IP) {

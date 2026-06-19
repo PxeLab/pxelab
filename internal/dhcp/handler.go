@@ -117,7 +117,8 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	}
 
 	mac := pkt.ClientHWAddr.String()
-	isPXE := IsPXEClient(pkt)
+	isIPXE := IsIPXEClient(pkt)
+	isPXE := IsPXEClient(pkt) || isIPXE
 
 	slog.Info("DHCP 请求",
 		"mac", mac,
@@ -140,6 +141,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 
 	// 确定 DHCP 模式
 	dhcpMode := "hybrid"
+
 	for _, iface := range h.filteredInterfaces() {
 		if isPXE && (iface.DHCP == "proxy" || iface.DHCP == "hybrid") {
 			dhcpMode = "proxy"
@@ -148,6 +150,11 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 		}
 	}
 
+	// Proxy interface: skip non-PXE clients
+	if dhcpMode == "proxy" && !isPXE {
+		slog.Debug("Proxy skip non-PXE client", "mac", mac)
+		return
+	}
 	slog.Info("DHCP 模式确定", "mode", dhcpMode, "mac", mac)
 
 	// 查找匹配子网
@@ -340,8 +347,13 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.BootFileName = scriptURL
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-		if mode != "proxy" {
-			ip, err := h.leaseMgr.Allocate(subnetCfg.CIDR, pkt.ClientHWAddr.String())
+		if mode == "proxy" {
+			if serverIP != nil {
+				reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+			}
+		} else {
+			archStr, platformStr := ArchAndPlatform(pkt)
+			ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
 			if err != nil {
 				slog.Warn("IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
 				return nil
@@ -366,9 +378,16 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 			reply.BootFileName = boot.NBPFilename(arch, bootloader)
 		}
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		if serverIP != nil {
+			reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+		}
+		// PXE Discovery Control: disable boot server discovery (use bootfile from offer)
+		reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
+			[]byte{6, 1, 0x0C}))
 
 	case "full", "hybrid":
-		ip, err := h.leaseMgr.Allocate(subnetCfg.CIDR, pkt.ClientHWAddr.String())
+		archStr, platformStr := ArchAndPlatform(pkt)
+		ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
 		if err != nil {
 			slog.Warn("IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
 			return nil
@@ -391,6 +410,21 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		return nil
 	}
 	reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
+
+	// Proxy 模式：只设 PXE 选项，不包含 DHCP 选项（避免与真实 DHCP 冲突）
+	if mode == "proxy" {
+		if serverIP != nil {
+			reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+		}
+		if arch, ok := DetectClientArch(pkt); ok {
+			reply.BootFileName = boot.NBPFilename(arch, bootloader)
+		}
+		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		slog.Info("ProxyDHCP Ack", "mac", pkt.ClientHWAddr.String(), "bootfile", reply.BootFileName)
+		return reply
+	}
+
 	appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
 
 	// 设置 ACK 确认 IP：优先 ciaddr（续租），其次 Option 50（请求的 IP）
@@ -429,4 +463,16 @@ func (h *Handler) bootloaderForSubnet(target *config.SubnetConfig) string {
 		}
 	}
 	return "ipxe"
+}
+
+// GetClientByIP returns the client architecture info for the given IP address.
+func (h *Handler) GetClientByIP(ip string) (arch, platform string, ok bool) {
+	if h.leaseMgr == nil {
+		return "", "", false
+	}
+	info, ok := h.leaseMgr.GetClientByIP(ip)
+	if !ok {
+		return "", "", false
+	}
+	return info.Arch, info.Platform, true
 }

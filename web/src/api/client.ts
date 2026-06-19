@@ -238,6 +238,7 @@ export interface InterfaceSettings {
   ip: string
   dhcp_mode: string
   bootloader: string
+  chain_to_ipxe: boolean
   subnet: string
   pools: string[]
   gateway: string
@@ -249,6 +250,35 @@ export interface InterfaceSettings {
   dns: boolean
 }
 
+export interface BootSettings {
+  default_menu: {
+    title: string
+    timeout: number
+    default: number
+    entries: MenuEntry[]
+  }
+  profile_behavior: {
+    append_local: boolean
+    append_netboot: boolean
+    append_position: 'first' | 'last'
+  }
+  catalog_redirect: {
+    enabled: boolean
+    target_url: string
+    detect_arch: boolean
+    preamble: string
+  }
+  catalog_display: {
+    title: string
+    groups: {
+      name: string
+      title: string
+      enabled: boolean
+      order: number
+    }[]
+  }
+}
+
 export interface SettingsData {
   server: { name: string; app_mode: boolean; token: string }
   dhcp: { enabled: boolean; range: string; gateway: string; subnet: string; lease_time: number; dns_servers: string }
@@ -256,7 +286,7 @@ export interface SettingsData {
   dns: { enabled: boolean; port: number; upstream: string }
   http: { port: number; boot_dir: string }
   ipmi?: { enabled: boolean; timeout: number }
-  netboot: { enabled: boolean }
+  netboot: { enabled: boolean; script_template?: string; boot: BootSettings }
   log_level: string
   data_dir: string
   interfaces: InterfaceSettings[]

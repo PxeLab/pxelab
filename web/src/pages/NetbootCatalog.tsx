@@ -1,9 +1,35 @@
 import { useState, useEffect } from 'react'
-import { Search, HardDrive, Globe, CheckCircle2, XCircle, ChevronRight, ChevronDown, Wrench } from 'lucide-react'
+import { Search, HardDrive, Globe, Monitor, Cpu, Package, Wrench, Server, CheckCircle2, XCircle, ChevronRight, ChevronDown } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { getNetbootCatalog, getNetbootFileStatus, type NetbootDistro } from '../api/client'
 
-type Tab = 'all' | 'linux' | 'bsd' | 'live' | 'tools'
+type Tab = 'all' | string
+
+const GROUP_LABELS: Record<string, string> = {
+  linux: 'Linux',
+  'linux-i386': 'Linux (32-bit)',
+  'linux-arm64': 'Linux ARM64',
+  bsd: 'BSD',
+  live: 'Live CD',
+  'live-arm': 'Live CD ARM64',
+  tools: '工具',
+  unix: 'Unix',
+  dos: 'DOS',
+  windows: 'Windows',
+}
+
+const GROUP_ICONS: Record<string, React.ReactNode> = {
+  linux: <HardDrive size={16} />,
+  'linux-i386': <Cpu size={16} />,
+  'linux-arm64': <Cpu size={16} />,
+  bsd: <Globe size={16} />,
+  live: <Monitor size={16} />,
+  'live-arm': <Monitor size={16} />,
+  tools: <Wrench size={16} />,
+  unix: <Server size={16} />,
+  dos: <Monitor size={16} />,
+  windows: <Monitor size={16} />,
+}
 
 export default function NetbootCatalog() {
   const [distros, setDistros] = useState<NetbootDistro[]>([])
@@ -32,21 +58,16 @@ export default function NetbootCatalog() {
     setLoading(false)
   }
 
+  // Build tabs dynamically from available groups
+  const groups = [...new Set(distros.filter(d => d.enabled).map(d => d.menu_group))].sort()
   const tabs: { key: Tab; label: string; filter: (d: NetbootDistro) => boolean }[] = [
     { key: 'all', label: '全部', filter: () => true },
-    { key: 'linux', label: 'Linux', filter: d => d.menu_group === 'linux' },
-    { key: 'bsd', label: 'BSD', filter: d => d.menu_group === 'bsd' },
-    { key: 'live', label: 'Live CD', filter: d => d.menu_group === 'live' },
-    { key: 'tools', label: '工具', filter: d => d.menu_group === 'tools' },
+    ...groups.map(g => ({
+      key: g,
+      label: GROUP_LABELS[g] || g,
+      filter: (d: NetbootDistro) => d.menu_group === g,
+    })),
   ]
-
-  function groupIcon(group: string) {
-    switch (group) {
-      case 'linux': return <HardDrive size={16} />
-      case 'bsd': return <Globe size={16} />
-      default: return <Wrench size={16} />
-    }
-  }
 
   function filteredDistros() {
     const tab = tabs.find(t => t.key === activeTab)
@@ -59,6 +80,38 @@ export default function NetbootCatalog() {
 
   function toggleExpand(name: string) {
     setExpanded(prev => ({ ...prev, [name]: !prev[name] }))
+  }
+
+  function archBadge(arch: string) {
+    if (!arch) return null
+    const colors: Record<string, string> = {
+      amd64: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      x86_64: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      i386: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+      arm64: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      aarch64: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    }
+    return (
+      <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-medium ${colors[arch] || 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+        {arch}
+      </span>
+    )
+  }
+
+  function installTypeTag(t: string | undefined) {
+    if (!t) return null
+    const colors: Record<string, string> = {
+      legacy: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+      subiquity: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+      live: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+      direct: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+      bsd: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+    }
+    return (
+      <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-medium ${colors[t] || ''}`}>
+        {t}
+      </span>
+    )
   }
 
   return (
@@ -109,7 +162,7 @@ export default function NetbootCatalog() {
               >
                 <div className="flex items-center gap-3">
                   {expanded[distro.name] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  {groupIcon(distro.menu_group)}
+                  {GROUP_ICONS[distro.menu_group] || <Package size={16} />}
                   <span className="font-medium">{distro.name}</span>
                   <span className="text-xs text-[var(--text-muted)]">{distro.versions.length} 个版本</span>
                 </div>
@@ -125,8 +178,8 @@ export default function NetbootCatalog() {
                       <tr className="bg-[var(--bg-secondary)]">
                         <th className="text-left px-4 py-2 font-medium text-[var(--text-muted)]">版本</th>
                         <th className="text-left px-4 py-2 font-medium text-[var(--text-muted)]">架构</th>
-                        <th className="text-left px-4 py-2 font-medium text-[var(--text-muted)]">类型</th>
-                        <th className="text-center px-4 py-2 font-medium text-[var(--text-muted)]">本地文件</th>
+                        <th className="text-left px-4 py-2 font-medium text-[var(--text-muted)]">安装类型</th>
+                        <th className="text-center px-4 py-2 font-medium text-[var(--text-muted)]">本地缓存</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -136,8 +189,8 @@ export default function NetbootCatalog() {
                         return (
                           <tr key={`${distro.name}-${ver.codename}`} className="border-t border-[var(--border-color)]">
                             <td className="px-4 py-2 text-[var(--text-primary)]">{ver.name}</td>
-                            <td className="px-4 py-2 text-[var(--text-muted)]">{ver.arch}</td>
-                            <td className="px-4 py-2 text-[var(--text-muted)]">{ver.install_type || 'legacy'}</td>
+                            <td className="px-4 py-2">{archBadge(ver.arch)}</td>
+                            <td className="px-4 py-2">{installTypeTag(ver.install_type) || <span className="text-xs text-[var(--text-muted)]">—</span>}</td>
                             <td className="px-4 py-2 text-center">
                               {hasLocal
                                 ? <CheckCircle2 size={16} className="text-green-500 inline" />

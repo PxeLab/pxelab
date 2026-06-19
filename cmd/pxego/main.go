@@ -167,7 +167,7 @@ func run(cmd *cobra.Command) error {
 	}
 	netbootMgr := netboot.NewManager(cat)
 
-	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr)
+	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP)
 	pxeApp.Register(httpServer)
 
 	// 检查是否有接口启用了 DNS

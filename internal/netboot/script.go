@@ -3,23 +3,116 @@ package netboot
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
+
+	"github.com/pxego/pxego/internal/config"
 )
 
 var reLabelChars = regexp.MustCompile(`[^a-z0-9_]+`)
 
-// GenerateNetbootScript generates the full multi-level iPXE menu
-func GenerateNetbootScript(c *Catalog, serverAddr string) string {
+// archMap maps iPXE ${arch} values to catalog arch field values
+var archMap = map[string]string{
+	"x86_64": "amd64",
+	"x86":    "i386",
+	"arm64":  "arm64",
+	"armhf":  "armhf",
+}
+
+// GenerateNetbootScript generates the full multi-level iPXE menu.
+// If arch is non-empty, only distros/versions matching that architecture are included.
+// platform may be "efi" or "pc" (not yet used for filtering, reserved for future use).
+// menuTitle overrides the default catalog menu title.
+// groups provides configurable group ordering, titles, and enabled/disabled state.
+func GenerateNetbootScript(c *Catalog, serverAddr, arch, platform, menuTitle string, groups []config.CatalogGroup) string {
+	archFilter := archMap[arch]
+
+	// Build group config lookup maps
+	groupTitles := make(map[string]string)
+	groupEnabled := make(map[string]bool)
+	hasGroups := len(groups) > 0
+	for _, g := range groups {
+		groupTitles[g.Name] = g.Title
+		groupEnabled[g.Name] = g.Enabled
+	}
+
+	versionMatchesArch := func(v *Version) bool {
+		if archFilter == "" {
+			return true
+		}
+		return v.Arch == archFilter
+	}
+
+	distroHasArch := func(d *Distro) bool {
+		if archFilter == "" {
+			return true
+		}
+		for _, v := range d.Versions {
+			if v.Enabled && versionMatchesArch(v) {
+				return true
+			}
+		}
+		return false
+	}
+
 	var b strings.Builder
 	b.WriteString("#!ipxe\n\n")
 	b.WriteString(":netboot_menu\n")
-	b.WriteString("menu [OS] Netboot OS Install Catalog\n\n")
+	if menuTitle == "" {
+		menuTitle = "[OS] Netboot OS Install Catalog"
+	}
+	b.WriteString(fmt.Sprintf("menu %s\n\n", menuTitle))
 	b.WriteString("item local    Boot from local disk\n")
 
-	groups := c.Groups()
-	for _, g := range groups {
-		b.WriteString(fmt.Sprintf("item --gap %s\n", groupTitle(g.Name)))
+	groupsList := c.Groups()
+
+	// Filter and sort groups by config
+	if hasGroups {
+		var filtered []Group
+		for _, g := range groupsList {
+			if enabled, ok := groupEnabled[g.Name]; ok && !enabled {
+				continue
+			}
+			filtered = append(filtered, g)
+		}
+		// Sort filtered groups by configured order
+		sort.SliceStable(filtered, func(i, j int) bool {
+			oi, oki := 0, false
+			oj, okj := 0, false
+			for _, cfg := range groups {
+				if cfg.Name == filtered[i].Name {
+					oi = cfg.Order
+					oki = true
+				}
+				if cfg.Name == filtered[j].Name {
+					oj = cfg.Order
+					okj = true
+				}
+			}
+			if !oki {
+				return false
+			}
+			if !okj {
+				return true
+			}
+			return oi < oj
+		})
+		groupsList = filtered
+	}
+
+	for _, g := range groupsList {
+		var matching []*Distro
 		for _, d := range g.Distros {
+			if distroHasArch(d) {
+				matching = append(matching, d)
+			}
+		}
+		if len(matching) == 0 {
+			continue
+		}
+		title := groupTitleFallback(g.Name, groupTitles)
+		b.WriteString(fmt.Sprintf("item --gap %s\n", title))
+		for _, d := range matching {
 			label := distroLabel(d)
 			b.WriteString(fmt.Sprintf("item %s %s %s\n", label, "   ", d.Name))
 		}
@@ -31,13 +124,16 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 	b.WriteString("goto ${selected}\n\n")
 
 	// Generate per-distro submenus
-	for _, g := range groups {
+	for _, g := range groupsList {
 		for _, d := range g.Distros {
+			if !distroHasArch(d) {
+				continue
+			}
 			label := distroLabel(d)
 			b.WriteString(fmt.Sprintf(":%s\n", label))
 			b.WriteString(fmt.Sprintf("menu %s - Select Version\n", d.Name))
 			for _, v := range d.Versions {
-				if !v.Enabled {
+				if !v.Enabled || !versionMatchesArch(v) {
 					continue
 				}
 				versionLabel := versionLabel(d, v)
@@ -49,7 +145,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr string) string {
 
 			// Generate per-version boot entries
 			for _, v := range d.Versions {
-				if !v.Enabled {
+				if !v.Enabled || !versionMatchesArch(v) {
 					continue
 				}
 				versionLabel := versionLabel(d, v)
@@ -110,8 +206,8 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string) s
 		kernelURL = fmt.Sprintf("http://%s%s/%s", serverAddr, bootPrefix, v.Local.Kernel)
 		initrdURL = fmt.Sprintf("http://%s%s/%s", serverAddr, bootPrefix, v.Local.Initrd)
 	} else if v.Remote != nil {
-		kernelURL = v.Remote.Kernel
-		initrdURL = v.Remote.Initrd
+		kernelURL = proxyRemoteURL(serverAddr, bootPrefix, v.Remote.Kernel)
+		initrdURL = proxyRemoteURL(serverAddr, bootPrefix, v.Remote.Initrd)
 	}
 
 	switch v.BootType {
@@ -163,6 +259,16 @@ func sanitizeLabel(s string) string {
 	return reLabelChars.ReplaceAllString(strings.ToLower(s), "_")
 }
 
+// proxyRemoteURL rewrites HTTPS URLs to go through PxeGo's HTTP proxy,
+// so that iPXE firmware without HTTPS support can fetch them.
+func proxyRemoteURL(serverAddr, bootPrefix, remoteURL string) string {
+	if strings.HasPrefix(remoteURL, "https://") {
+		stripped := strings.TrimPrefix(remoteURL, "https://")
+		return fmt.Sprintf("http://%s%s/proxy/https/%s", serverAddr, bootPrefix, stripped)
+	}
+	return remoteURL
+}
+
 func distroLabel(d *Distro) string {
 	return fmt.Sprintf("distro_%s", sanitizeLabel(d.Name))
 }
@@ -171,7 +277,11 @@ func versionLabel(d *Distro, v *Version) string {
 	return fmt.Sprintf("boot_%s_%s", sanitizeLabel(d.Name), sanitizeLabel(v.Codename))
 }
 
-func groupTitle(name string) string {
+// groupTitleFallback returns the configured title if available, otherwise uses hardcoded defaults.
+func groupTitleFallback(name string, configured map[string]string) string {
+	if t, ok := configured[name]; ok && t != "" {
+		return "== " + t + " =="
+	}
 	titles := map[string]string{
 		"linux":       "== Linux Distributions ==",
 		"linux-i386":  "== Linux Distributions (32-bit) ==",
@@ -187,5 +297,5 @@ func groupTitle(name string) string {
 	if t, ok := titles[name]; ok {
 		return t
 	}
-	return name
+	return "== " + name + " =="
 }
