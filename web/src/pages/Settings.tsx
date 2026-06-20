@@ -71,16 +71,6 @@ function ipInCIDR(ip: string, cidr: string): boolean {
   return (ipInt & maskInt) === (netInt & maskInt)
 }
 
-function poolsOverlap(a: string, b: string): boolean {
-  const partsA = a.split('-').map(s => ipToInt(s.trim()))
-  const partsB = b.split('-').map(s => ipToInt(s.trim()))
-  if (partsA.length < 2 || partsB.length < 2) return false
-  const [aStart, aEnd] = partsA
-  const [bStart, bEnd] = partsB
-  if (isNaN(aStart) || isNaN(aEnd) || isNaN(bStart) || isNaN(bEnd)) return false
-  return aStart <= bEnd && bStart <= aEnd
-}
-
 export default function Settings() {
   const { t } = useTranslation()
   const { success, error: showError } = useToast()
