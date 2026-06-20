@@ -60,33 +60,38 @@ PxeGo **仅提供 PXE 相关选项**，IP 地址由网络中现有的 DHCP 服�
 ```
 DHCP Discover ──► 现有 DHCP + PxeGo
     │
-    ├─ PXE/BIOS 客户端：
+    ├─ PXE 客户端（Legacy + UEFI）：
     │   ├─ 现有 DHCP ──► Offer：IP 地址（标准 DHCP）
-    │   └─ PxeGo ──► Offer：yiaddr=0.0.0.0 + 启动文件 + PXE 选项（无 IP）
-    │                  ├─ Legacy BIOS：yiaddr=0.0.0.0，仅附 PXE 选项
-    │                  └─ UEFI：必须分配临时 IP（UEFI 固件不接受 0.0.0.0）
+    │   └─ PxeGo ──► Offer：yiaddr=0.0.0.0 + 启动文件 + PXE 选项
+    │                  ├─ siaddr = PxeGo IP
+    │                  ├─ Option 54 (Server Identifier)
+    │                  ├─ Option 60 = "PXEClient"（UEFI 识别 ProxyDHCP 的关键）
+    │                  ├─ Option 66 (TFTP Server Name)
+    │                  ├─ Option 67 (Boot File Name)
+    │                  ├─ Option 43 (PXE Discovery Control)
+    │                  └─ Option 175.178 (iPXE 脚本 URL)
     │
-    ├─ iPXE 客户端 ──► Offer：yiaddr=0.0.0.0 + 脚本 URL
+    ├─ iPXE 客户端 ──► Offer：yiaddr=0.0.0.0 + 脚本 URL + 同上 PXE 选项
     │
     └─ 非 PXE 客户端 ──► 忽略，不响应
 ```
 
-**两个关键子行为：**
+**参数说明：**
 
-**UEFI 客户端** — UEFI PXE 固件要求 Offer 中 `yiaddr` 不能为 `0.0.0.0`，否则拒绝响应。因此 PxeGo 在 proxy 模式下为 UEFI 客户端**分配临时 IP**（从地址池中取），ACK 时继续确认此 IP。客户端只用这个 IP 完成 NBP 下载，后续进入 iPXE 阶段仍会通过标准 DHCP 获得正式 IP。
-
-**Legacy BIOS 客户端** — `yiaddr=0.0.0.0`，仅附加启动文件和 PXE 选项。BIOS PXE 栈能正确处理 `yiaddr=0.0.0.0` 的 ProxyDHCP Offer。
+- **yiaddr=0.0.0.0** — 全程保持。iPXE `dhcp_offer()` 以此为关键判据识别 ProxyDHCP
+- **Option 60 = "PXEClient"** — UEFI PXE Base Code 要求在响应中回写此选项才承认 PXE OFFER
+- **siaddr** — 指向 PxeGo 自身（作为 TFTP/HTTP 服务器），iPXE 将其存入 `proxydhcp/next-server`
+- 不发送网关、DNS、租期 — 严格遵循 ProxyDHCP 语义
 
 **特点：**
+- Legacy BIOS 和 UEFI **统一使用 yiaddr=0.0.0.0** — Option 60 修复后 UEFI 不再需要分配临时 IP
 - 不干扰现有 DHCP 服务器的地址分配
 - 非 PXE 客户端完全不受影响
-- 仅对 DHCP 请求中携带 PXE 选项的客户端响应
-- UEFI 客户端需要消耗地址池中的 IP（有限占用）
+- 不消耗地址池
 
 **适用场景：**
-- 公司/学校网络中已有 DHCP 服务器，需要叠加 PXE 服务
+- 已有 DHCP 服务器的网络，需要叠加 PXE 引导服务
 - 不想改动现有网络基础设施
-- 仅需要引导 PXE 客户端，不影响普通设备
 
 ---
 
