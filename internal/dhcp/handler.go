@@ -388,6 +388,19 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 			if serverIP != nil {
 				reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
 			}
+			if nextServer != nil {
+				reply.ServerIPAddr = nextServer
+			}
+			// 分配 MAC 派生 IP，让 iPXE 选择本机 OFFER 从而 next-server=PxeGo
+			ip2, err2 := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), "", "")
+			if err2 == nil {
+				reply.YourIPAddr = ip2
+				appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
+				slog.Info("iPXE 二次 DHCP Offer", "mac", pkt.ClientHWAddr.String(), "ip", ip2, "ns", nextServer)
+			} else {
+				slog.Warn("iPXE 二次 DHCP IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err2)
+				appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
+			}
 		} else {
 			archStr, platformStr := ArchAndPlatform(pkt)
 			ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
