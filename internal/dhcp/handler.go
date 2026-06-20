@@ -54,6 +54,7 @@ func (h *Handler) WithInterfaceFilter(idx int) *Handler {
 		leaseMgr:        h.leaseMgr,
 		eventBus:        h.eventBus,
 		interfaceFilter: idx,
+		bootedMACs:      h.bootedMACs, // 与主 Handler 共享
 	}
 }
 
@@ -67,6 +68,12 @@ func (h *Handler) filteredInterfaces() []config.InterfaceConfig {
 func (h *Handler) InitSubnets() {
 	for _, iface := range h.config.Interfaces {
 		for _, subnet := range iface.Subnets {
+			// 确定 DHCP 模式
+			dhcpMode := subnet.DHCP
+			if dhcpMode == "" {
+				dhcpMode = iface.DHCP
+			}
+
 			var pools []*IPRange
 
 			if len(subnet.Pools) > 0 {
@@ -97,11 +104,23 @@ func (h *Handler) InitSubnets() {
 				pools = append(pools, ipRange)
 			}
 
+			// Proxy 子网：即使无地址池也注册（使用 MAC 派生 IP）
+			if dhcpMode == "proxy" {
+				gateway := net.ParseIP(subnet.Gateway)
+				h.leaseMgr.AddSubnet(subnet.CIDR, pools, gateway)
+				if len(pools) == 0 {
+					slog.Info("代理子网已注册（无地址池，使用 MAC 派生 IP）", "cidr", subnet.CIDR)
+				} else {
+					slog.Info("代理子网已注册", "cidr", subnet.CIDR, "pools", subnet.Pools)
+				}
+				continue
+			}
+
+			// Full/hybrid: 必须有地址池和网关
 			if len(pools) == 0 {
 				slog.Warn("子网无有效地址池，跳过", "cidr", subnet.CIDR)
 				continue
 			}
-
 			gateway := net.ParseIP(subnet.Gateway)
 			if gateway == nil {
 				slog.Warn("网关地址无效，跳过", "cidr", subnet.CIDR, "gateway", subnet.Gateway)
