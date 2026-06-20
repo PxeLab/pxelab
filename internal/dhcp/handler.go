@@ -486,12 +486,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 			return reply
 		}
 		// PXE ROM 首次 ACK：只提供 PXE 选项 + 标记已引导
-		if serverIP != nil {
-			reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
-		}
-		if nextServer != nil {
-			reply.ServerIPAddr = nextServer
-		}
+		appendProxyPXEOptions(reply, serverIP, nextServer)
 		if arch, ok := DetectClientArch(pkt); ok {
 			reply.BootFileName = boot.NBPFilename(arch, bootloader)
 		}
