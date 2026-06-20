@@ -34,10 +34,11 @@ type TemplateData struct {
 }
 
 type MenuData struct {
-	Title   string
-	Entries []MenuEntryData
-	Timeout int
-	Default int
+	Title     string
+	Entries   []MenuEntryData
+	Timeout   int // seconds
+	Default   int
+	TimeoutDS int // deciseconds for choose --timeout
 }
 
 type MenuEntryData struct {

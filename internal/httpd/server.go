@@ -193,7 +193,7 @@ func generateIPXEScript(cfg *config.Config, st store.Interface, mac, serverAddr 
 				bootMenu, err := profile.GetMenu()
 				if err == nil && len(bootMenu.Entries) > 0 {
 					to := cfg.Netboot.Boot.DefaultMenu.Timeout
-					pm := &ipxe.MenuData{Title: profile.Name, Timeout: to, Default: 0}
+					pm := &ipxe.MenuData{Title: profile.Name, Timeout: to, Default: 0, TimeoutDS: to * 10}
 					var entries []ipxe.MenuEntryData
 					for _, e := range bootMenu.Entries {
 						entry := ipxe.MenuEntryData{
@@ -283,6 +283,7 @@ func generateIPXEScript(cfg *config.Config, st store.Interface, mac, serverAddr 
 		Menu: &ipxe.MenuData{
 			Title:     dm.Title,
 			Timeout:   dm.Timeout,
+			TimeoutDS: dm.Timeout * 10,
 			Default:   dm.Default,
 			Entries:   ipxeEntries,
 		},

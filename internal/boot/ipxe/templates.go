@@ -8,7 +8,9 @@ menu {{.Menu.Title}}
 {{range $i, $entry := .Menu.Entries}}
 item{{if eq $i $.Menu.Default}} --default{{end}} --key {{$i}} {{$i}} {{$entry.Label}}
 {{end}}
-choose selected || goto shell
+{{if .Menu.Timeout}}choose --timeout {{.Menu.TimeoutDS}} --default {{.Menu.Default}} selected || goto {{.Menu.Default}}
+{{else}}choose selected || goto shell
+{{end}}
 goto ${selected}
 
 :shell

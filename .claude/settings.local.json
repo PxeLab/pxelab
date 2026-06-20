@@ -170,7 +170,14 @@
       "Bash(sed -i '196d' internal/httpd/server.go)",
       "Bash(ssh root@192.168.31.97 'cat /root/ipxe/src/bin/ipxe.pxe')",
       "Bash(mv boot/ipxe.pxe.tmp boot/ipxe.pxe)",
-      "Bash(cp boot/ipxe.pxe cmd/pxego/bootdist/ipxe.pxe)"
+      "Bash(cp boot/ipxe.pxe cmd/pxego/bootdist/ipxe.pxe)",
+      "Bash(ssh root@192.168.31.97 'cat /root/ipxe/src/bin/undionly.kpxe')",
+      "Bash(ssh root@192.168.31.97 'cat /root/ipxe/src/bin-x86_64-efi/ipxe.efi')",
+      "Bash(ssh root@192.168.31.97 'cat /root/ipxe/src/bin-i386-efi/ipxe.efi')",
+      "Bash(ssh root@192.168.31.97 'cat /root/ipxe/src/bin-arm64-efi/ipxe.efi')",
+      "Bash(cp boot/undionly.kpxe boot/ipxe.pxe boot/ipxe.efi boot/ipxe32.efi boot/ipxe-arm64.efi cmd/pxego/bootdist/)",
+      "Bash(sed -i '/^t\\\\t/,+0d' internal/httpd/server.go)",
+      "Bash(sed -i '285a\\\\\\\\t\\\\t\\\\tTimeoutDS: dm.Timeout * 10,' internal/httpd/server.go)"
     ]
   }
 }
