@@ -1,6 +1,8 @@
 package dhcp
 
 import (
+	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
@@ -39,15 +41,26 @@ func buildSubOption(subOpt byte, data []byte) []byte {
 	return result
 }
 
-// DetectClientArch 从 DHCP 包读取架构类型
+// DetectClientArch 从 DHCP 包读取架构类型（Option 93 → Option 60 兜底）
 func DetectClientArch(pkt *dhcpv4.DHCPv4) (iana.Arch, bool) {
 	if pkt == nil {
 		return 0, false
 	}
-	// 读取 Option 93
 	archs := pkt.ClientArch()
 	if len(archs) > 0 {
 		return archs[0], true
+	}
+	// 兜底：从 Option 60 解析 "PXEClient:Arch:xxxxx:UNDI:..." 中的架构码
+	vci := pkt.ClassIdentifier()
+	if idx := strings.Index(vci, ":Arch:"); idx >= 0 {
+		rest := vci[idx+6:]
+		if end := strings.IndexByte(rest, ':'); end == 5 {
+			var arch uint16
+			if _, err := fmt.Sscanf(rest[:5], "%x", &arch); err == nil {
+				slog.Debug("从 Option 60 兜底解析架构", "vci", vci, "arch", arch)
+				return iana.Arch(arch), true
+			}
+		}
 	}
 	return 0, false
 }
@@ -105,6 +118,16 @@ func PlatformString(arch iana.Arch) string {
 		return "pc" // legacy BIOS
 	default:
 		return "efi"
+	}
+}
+
+// isUEFIArch 判断架构是否为 UEFI
+func isUEFIArch(arch iana.Arch) bool {
+	switch arch {
+	case iana.INTEL_X86PC:
+		return false
+	default:
+		return true
 	}
 }
 
