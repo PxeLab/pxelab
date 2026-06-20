@@ -42,8 +42,15 @@ func (h *Handler) markBooted(mac string) {
 }
 
 func (h *Handler) isBootedMAC(mac string) bool {
-	_, ok := h.bootedMACs[mac]
-	return ok
+	t, ok := h.bootedMACs[mac]
+	if !ok {
+		return false
+	}
+	if time.Since(t) > 30*time.Second {
+		delete(h.bootedMACs, mac)
+		return false
+	}
+	return true
 }
 
 // WithInterfaceFilter 创建一个只处理指定接口的派生 Handler
