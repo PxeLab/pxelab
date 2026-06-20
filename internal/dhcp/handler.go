@@ -300,9 +300,9 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	var reply *dhcpv4.DHCPv4
 	switch mt {
 	case dhcpv4.MessageTypeDiscover:
-		reply = h.handleDiscover(pkt, dhcpMode, serverIP, nextServer, subnetCfg, bootloader)
+		reply = h.handleDiscover(pkt, dhcpMode, serverIP, nextServer, subnetCfg, bootloader, isIPXE)
 	case dhcpv4.MessageTypeRequest:
-		reply = h.handleRequest(pkt, dhcpMode, serverIP, nextServer, subnetCfg, bootloader)
+		reply = h.handleRequest(pkt, dhcpMode, serverIP, nextServer, subnetCfg, bootloader, isIPXE)
 	}
 
 	if reply != nil {
@@ -372,7 +372,7 @@ func iPXEScriptURL(serverIP net.IP, mac string) string {
 	return fmt.Sprintf("http://%s:8080/boot/ipxe/script?mac=%s", serverIP, mac)
 }
 
-func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, bootloader string) *dhcpv4.DHCPv4 {
+func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, bootloader string, isIPXE bool) *dhcpv4.DHCPv4 {
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil
@@ -380,7 +380,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
 
 	// iPXE 第二阶段：返回脚本 URL 而非启动文件
-	if IsIPXEClient(pkt) {
+	if isIPXE {
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.BootFileName = scriptURL
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
@@ -417,19 +417,16 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		if serverIP != nil {
 			reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
 		}
-		// 分配 MAC 派生 IP，使 iPXE 二次 DHCP 一次拿到有效 siaddr
-		archStr, platformStr := ArchAndPlatform(pkt)
-		ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
-		if err == nil {
-			reply.YourIPAddr = ip
-			appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
-			slog.Info("ProxyDHCP Offer (with IP)", "mac", pkt.ClientHWAddr.String(), "ip", ip, "bootfile", reply.BootFileName)
-		} else {
-			slog.Warn("Proxy IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
-			reply.YourIPAddr = net.IP{0, 0, 0, 0}
-		}
+		// yiaddr=0.0.0.0 让 PXE ROM 把此 OFFER 当 proxy 处理，用真实 DHCP 分配 IP
+		reply.YourIPAddr = net.IP{0, 0, 0, 0}
 		reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
 			[]byte{6, 1, 0x0C}))
+		// Subnet Mask — 部分 PXE 客户端需要此选项
+		if subnetCfg.CIDR != "" {
+			if _, ipnet, err := net.ParseCIDR(subnetCfg.CIDR); err == nil {
+				reply.UpdateOption(dhcpv4.OptSubnetMask(ipnet.Mask))
+			}
+		}
 
 	case "full", "hybrid":
 		archStr, platformStr := ArchAndPlatform(pkt)
@@ -450,14 +447,14 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	return reply
 }
 
-func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, bootloader string) *dhcpv4.DHCPv4 {
+func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, bootloader string, isIPXE bool) *dhcpv4.DHCPv4 {
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil
 	}
 	reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
 
-	// Proxy 模式：分配 MAC 派生 IP，标记已引导 MAC
+	// Proxy 模式：PXE ROM 首次请求，只提供 PXE 选项 + 标记已引导
 	if mode == "proxy" {
 		if serverIP != nil {
 			reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
@@ -470,16 +467,8 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		}
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-		archStr, platformStr := ArchAndPlatform(pkt)
-		ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
-		if err == nil {
-			reply.YourIPAddr = ip
-			appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
-			slog.Info("ProxyDHCP ACK (with IP)", "mac", pkt.ClientHWAddr.String(), "yiaddr", ip, "bootfile", reply.BootFileName)
-		} else {
-			slog.Warn("Proxy ACK IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
-		}
 		h.markBooted(pkt.ClientHWAddr.String())
+		slog.Info("ProxyDHCP ACK", "mac", pkt.ClientHWAddr.String(), "bootfile", reply.BootFileName)
 		return reply
 	}
 
@@ -493,7 +482,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 	}
 
 	// 在 ACK 中也设置启动文件/脚本 URL + Option 175.178
-	if IsIPXEClient(pkt) {
+	if isIPXE {
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.BootFileName = scriptURL
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
