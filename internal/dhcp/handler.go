@@ -46,7 +46,7 @@ func (h *Handler) isBootedMAC(mac string) bool {
 	if !ok {
 		return false
 	}
-	if time.Since(t) > 5*time.Second {
+	if time.Since(t) > 60*time.Second {
 		delete(h.bootedMACs, mac)
 		return false
 	}
