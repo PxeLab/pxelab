@@ -7,7 +7,7 @@ PxeGo 支持 4 种 DHCP 模式，在接口配置中通过 `dhcp` 字段设置。
 | 模式 | 分配 IP | 提供 PXE 选项 | 非 PXE 客户端 | 适用场景 |
 |------|---------|---------------|---------------|----------|
 | **full** | ✅ | ✅ | ✅ 正常分配 | PxeGo 作为唯一 DHCP 服务器 |
-| **proxy** | ❌（仅 UEFI 例外） | ✅ | ❌ 忽略 | 叠加到现有 DHCP 环境 |
+| **proxy** | ❌ 全程 yiaddr=0 | ✅ | ❌ 忽略 | 叠加到现有 DHCP 环境 |
 | **hybrid** | ✅ | ✅（仅 PXE 客户端） | ✅ 仅分配 IP，不含 PXE 选项 | 默认模式，兼顾两方 |
 | **off** | ❌ | ❌ | ❌ 忽略 | 完全关闭 DHCP 功能 |
 
@@ -105,7 +105,7 @@ PxeGo **对 PXE 客户端以 proxy 模式响应，对其他客户端以 full 模
 DHCP Discover ──► PxeGo
     │
     ├─ PXE 客户端（检测到 Option 60 "PXEClient" 等）：
-    │   └─ 以 proxy 模式处理：yiaddr=0.0.0.0（或 UEFI 分配 IP）+ PXE 选项
+    │   └─ 以 proxy 模式处理：yiaddr=0.0.0.0 + PXE 选项
     │
     ├─ iPXE 客户端：
     │   └─ 以 proxy 模式处理：yiaddr=0.0.0.0 + 脚本 URL
@@ -187,7 +187,6 @@ PxeGo 在该接口上**完全关闭 DHCP 功能**，不处理任何 DHCP 请求�
        │                 │  bootloader: ipxe
        │                 │
        │                 └── PXE 客户端提供引导选项
-       │                     UEFI 客户端占用临时 IP
        │
        └── 所有客户端获得 IP
            非 PXE 客户端不受 PxeGo 影响
