@@ -322,6 +322,22 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	}
 }
 
+// appendProxyPXEOptions 填充 ProxyDHCP 专属选项（yiaddr=0 全程，无网关/DNS/租期）
+// Option 60 = PXEClient 是关键：iPXE dhcp_offer() 据此 + yiaddr=0 识别为 ProxyDHCP
+func appendProxyPXEOptions(reply *dhcpv4.DHCPv4, serverIP, nextServer net.IP) {
+	if serverIP != nil {
+		reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+	}
+	if nextServer != nil {
+		reply.ServerIPAddr = nextServer
+		reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
+			[]byte(nextServer.String())))
+	}
+	reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
+		[]byte{6, 1, 0x0C}))
+	reply.UpdateOption(dhcpv4.OptClassIdentifier("PXEClient"))
+}
+
 // appendDHCPOptions 填充 DHCP 回复的必备选项
 func appendDHCPOptions(reply *dhcpv4.DHCPv4, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig) {
 	if serverIP != nil {
@@ -386,16 +402,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 		if mode == "proxy" {
 				// yiaddr=0 → iPXE 识别为 ProxyDHCP，存入 proxydhcp scope
-				if serverIP != nil {
-					reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
-				}
-				if nextServer != nil {
-					reply.ServerIPAddr = nextServer
-					reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
-						[]byte(nextServer.String())))
-				}
-				reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
-					[]byte{6, 1, 0x0C}))
+				appendProxyPXEOptions(reply, serverIP, nextServer)
 				} else {
 			archStr, platformStr := ArchAndPlatform(pkt)
 			ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
@@ -471,16 +478,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		if isIPXE {
 			// iPXE 二次 DHCP ACK：yiaddr=0, ProxyDHCP 选项
 				// yiaddr=0 → iPXE 识别为 ProxyDHCP，存入 proxydhcp scope
-				if serverIP != nil {
-					reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
-				}
-				if nextServer != nil {
-					reply.ServerIPAddr = nextServer
-					reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
-						[]byte(nextServer.String())))
-				}
-				reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
-					[]byte{6, 1, 0x0C}))
+				appendProxyPXEOptions(reply, serverIP, nextServer)
 			scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 			reply.BootFileName = scriptURL
 			reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
