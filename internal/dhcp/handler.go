@@ -524,6 +524,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	}
 
+	h.markBooted(pkt.ClientHWAddr.String())
 	slog.Info("DHCP Ack", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
 	return reply
 }
