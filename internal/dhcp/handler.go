@@ -22,7 +22,6 @@ type Handler struct {
 	leaseMgr        *LeaseManager
 	eventBus        *eventbus.Bus
 	interfaceFilter int // -1 = 全部接口, >=0 = 只处理指定接口
-	bootedMACs      map[string]time.Time // 已引导过的 MAC，后续 DHCP 请求强制走 iPXE 路径
 }
 
 func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, leaseMgr *LeaseManager) *Handler {
@@ -32,25 +31,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, lease
 		leaseMgr:        leaseMgr,
 		eventBus:        bus,
 		interfaceFilter: -1,
-		bootedMACs:      make(map[string]time.Time),
 	}
-}
-
-// markBooted 记录此 MAC 已收到引导文件，后续 DHCP 请求视为 iPXE 二次 DHCP
-func (h *Handler) markBooted(mac string) {
-	h.bootedMACs[mac] = time.Now()
-}
-
-func (h *Handler) isBootedMAC(mac string) bool {
-	t, ok := h.bootedMACs[mac]
-	if !ok {
-		return false
-	}
-	if time.Since(t) > 60*time.Second {
-		delete(h.bootedMACs, mac)
-		return false
-	}
-	return true
 }
 
 // WithInterfaceFilter 创建一个只处理指定接口的派生 Handler
@@ -61,7 +42,6 @@ func (h *Handler) WithInterfaceFilter(idx int) *Handler {
 		leaseMgr:        h.leaseMgr,
 		eventBus:        h.eventBus,
 		interfaceFilter: idx,
-		bootedMACs:      h.bootedMACs, // 与主 Handler 共享
 	}
 }
 
@@ -157,12 +137,6 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	mac := pkt.ClientHWAddr.String()
 	isIPXE := IsIPXEClient(pkt)
 	isPXE := IsPXEClient(pkt) || isIPXE
-
-	// 已引导过的 MAC 再次发 DHCP → iPXE 二次请求，强制走 iPXE 路径
-	if !isIPXE && h.isBootedMAC(mac) {
-		isIPXE = true
-		isPXE = true
-	}
 
 	slog.Info("DHCP 请求",
 		"mac", mac,
@@ -499,7 +473,6 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		}
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-		h.markBooted(pkt.ClientHWAddr.String())
 		slog.Info("ProxyDHCP ACK", "mac", pkt.ClientHWAddr.String(), "bootfile", reply.BootFileName)
 		return reply
 	}
@@ -524,7 +497,6 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	}
 
-	h.markBooted(pkt.ClientHWAddr.String())
 	slog.Info("DHCP Ack", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
 	return reply
 }
