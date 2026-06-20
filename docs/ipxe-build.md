@@ -105,21 +105,15 @@ IPXE_EOF
 
 ### 3) 启用 HTTPS
 
-编辑 `src/config/general.h`：
-
-- 按需注释掉 `PXE_MENU` 和 `PXEXT`
-- 取消注释或添加 `DOWNLOAD_PROTOCOL_HTTPS` 启用 HTTPS 下载：
+编辑 `src/config/general.h`，取消注释或添加：
 
 ```c
-// 按需注释（可选）：
-// #define PXE_MENU
-// #define PXEXT
-
-// 取消注释或添加：
 #define DOWNLOAD_PROTOCOL_HTTPS
 ```
 
 `DOWNLOAD_PROTOCOL_HTTPS` 使 iPXE 能从 netboot 目录引用的 `https://github.com/...` 等 HTTPS 地址下载内核和 initrd。
+
+> 其他配置项（`PXE_MENU`、`PXEXT`、`PXE_STACK` 等）无需修改，默认值即可。`PXE_STACK` 不再是必要条件（见上文说明）。
 
 ### 4) 编译全部目标
 
