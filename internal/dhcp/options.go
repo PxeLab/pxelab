@@ -61,10 +61,12 @@ func IsPXEClient(pkt *dhcpv4.DHCPv4) bool {
 	return strings.HasPrefix(pkt.ClassIdentifier(), "PXEClient")
 }
 
-// BuildIPXEScriptOption 构建 iPXE Option 175 子选项 178（引导脚本 URL）
+// BuildIPXEScriptOption 构建 iPXE Option 175 子选项（177=特征标志 + 178=脚本 URL）
 func BuildIPXEScriptOption(url string) dhcpv4.Option {
-	// 子选项格式: [178(1)][len(1)][url(n)]
-	data := make([]byte, 0, 2+len(url))
+	// 子选项 177: 特征标志, 值 0x01 = BootFileName 走 HTTP 而非 TFTP
+	// 子选项 178: 引导脚本 URL
+	data := make([]byte, 0, 6+len(url))
+	data = append(data, 177, 1, 0x01)  // feature flags: HTTP
 	data = append(data, 178, byte(len(url)))
 	data = append(data, []byte(url)...)
 	return dhcpv4.OptGeneric(dhcpv4.GenericOptionCode(175), data)
