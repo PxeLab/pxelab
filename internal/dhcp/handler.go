@@ -385,23 +385,18 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		reply.BootFileName = scriptURL
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 		if mode == "proxy" {
-			if serverIP != nil {
-				reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
-			}
-			if nextServer != nil {
-				reply.ServerIPAddr = nextServer
-			}
-			// 分配 MAC 派生 IP，让 iPXE 选择本机 OFFER 从而 next-server=PxeGo
-			ip2, err2 := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), "", "")
-			if err2 == nil {
-				reply.YourIPAddr = ip2
-				appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
-				slog.Info("iPXE 二次 DHCP Offer", "mac", pkt.ClientHWAddr.String(), "ip", ip2, "ns", nextServer)
-			} else {
-				slog.Warn("iPXE 二次 DHCP IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err2)
-				appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
-			}
-		} else {
+				// yiaddr=0 → iPXE 识别为 ProxyDHCP，存入 proxydhcp scope
+				if serverIP != nil {
+					reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+				}
+				if nextServer != nil {
+					reply.ServerIPAddr = nextServer
+					reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
+						[]byte(nextServer.String())))
+				}
+				reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
+					[]byte{6, 1, 0x0C}))
+				} else {
 			archStr, platformStr := ArchAndPlatform(pkt)
 			ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
 			if err != nil {
@@ -422,6 +417,10 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	case "proxy":
 		if nextServer != nil {
 			reply.ServerIPAddr = nextServer
+			reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
+				[]byte(nextServer.String())))
+			reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
+				[]byte(nextServer.String())))
 		}
 		if arch, ok := DetectClientArch(pkt); ok {
 			reply.BootFileName = boot.NBPFilename(arch, bootloader)
@@ -470,24 +469,22 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 	// Proxy 模式
 	if mode == "proxy" {
 		if isIPXE {
-			// iPXE 二次 DHCP ACK：确认 MAC 派生 IP + 返回脚本 URL
-			if serverIP != nil {
-				reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
-			}
-			if nextServer != nil {
-				reply.ServerIPAddr = nextServer
-			}
+			// iPXE 二次 DHCP ACK：yiaddr=0, ProxyDHCP 选项
+				// yiaddr=0 → iPXE 识别为 ProxyDHCP，存入 proxydhcp scope
+				if serverIP != nil {
+					reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+				}
+				if nextServer != nil {
+					reply.ServerIPAddr = nextServer
+					reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
+						[]byte(nextServer.String())))
+				}
+				reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
+					[]byte{6, 1, 0x0C}))
 			scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 			reply.BootFileName = scriptURL
 			reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-			ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), "", "")
-			if err == nil {
-				reply.YourIPAddr = ip
-				appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
-				slog.Info("iPXE 二次 DHCP Ack", "mac", pkt.ClientHWAddr.String(), "yiaddr", ip, "ns", nextServer)
-			} else {
-				slog.Warn("iPXE 二次 DHCP ACK IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
-			}
+			slog.Info("iPXE ProxyDHCP Ack", "mac", pkt.ClientHWAddr.String(), "ns", nextServer)
 			return reply
 		}
 		// PXE ROM 首次 ACK：只提供 PXE 选项 + 标记已引导
