@@ -2,16 +2,13 @@ package ipxe
 
 var builtinTemplates = map[string]string{
 	"menu": `#!ipxe
-set menu-timeout {{.Menu.Timeout}}
 set menu-default {{.Menu.Default}}
 :menu
 menu {{.Menu.Title}}
 {{range $i, $entry := .Menu.Entries}}
 item{{if eq $i $.Menu.Default}} --default{{end}} --key {{$i}} {{$i}} {{$entry.Label}}
 {{end}}
-{{if .Menu.Timeout}}choose --timeout {{.Menu.Timeout}} --default {{.Menu.Default}} selected && goto ${selected} || goto {{.Menu.Default}}
-{{else}}choose selected || goto shell
-{{end}}
+choose selected || goto shell
 goto ${selected}
 
 :shell
@@ -44,24 +41,24 @@ chain {{$.URL}}/netboot/menu.ipxe
 `,
 
 	"direct": `#!ipxe
-kernel {{.OS.Kernel}} {{.OS.Cmdline}}
-initrd {{.OS.Initrd}}
-boot
+	kernel {{.OS.Kernel}} {{.OS.Cmdline}}
+	initrd {{.OS.Initrd}}
+	boot
 `,
 
 	"local": `#!ipxe
-exit
+	exit
 `,
 
 	"chain": `#!ipxe
-chain {{.URL}}
+	chain {{.URL}}
 `,
 
 	"sanboot": `#!ipxe
-sanboot {{.URL}}
+	sanboot {{.URL}}
 `,
 
 	"netboot": `#!ipxe
-chain {{.URL}}/netboot/menu.ipxe
+	chain {{.URL}}/netboot/menu.ipxe
 `,
 }
