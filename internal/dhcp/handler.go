@@ -467,8 +467,30 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 	}
 	reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
 
-	// Proxy 模式：PXE ROM 首次请求，只提供 PXE 选项 + 标记已引导
+	// Proxy 模式
 	if mode == "proxy" {
+		if isIPXE {
+			// iPXE 二次 DHCP ACK：确认 MAC 派生 IP + 返回脚本 URL
+			if serverIP != nil {
+				reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
+			}
+			if nextServer != nil {
+				reply.ServerIPAddr = nextServer
+			}
+			scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+			reply.BootFileName = scriptURL
+			reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+			ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), "", "")
+			if err == nil {
+				reply.YourIPAddr = ip
+				appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
+				slog.Info("iPXE 二次 DHCP Ack", "mac", pkt.ClientHWAddr.String(), "yiaddr", ip, "ns", nextServer)
+			} else {
+				slog.Warn("iPXE 二次 DHCP ACK IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
+			}
+			return reply
+		}
+		// PXE ROM 首次 ACK：只提供 PXE 选项 + 标记已引导
 		if serverIP != nil {
 			reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
 		}
