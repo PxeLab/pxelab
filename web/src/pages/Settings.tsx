@@ -593,7 +593,8 @@ export default function Settings() {
                     <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={iface.bootloader} onChange={e => {
                       const next = [...config.interfaces]; next[i] = {...next[i], bootloader: e.target.value}; setConfig({...config, interfaces: next})
                     }}>
-                      <option value="ipxe">iPXE（默认）</option>
+                      <option value="ipxe">iPXE（全驱动）</option>
+                      <option value="undionly">iPXE（UNDI）</option>
                       <option value="pxelinux">PXELinux</option>
                       <option value="grub2">GRUB2</option>
                     </select>

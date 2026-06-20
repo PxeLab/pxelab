@@ -10,6 +10,11 @@ func NBPFilename(arch iana.Arch, bootloader string) string {
 		return pxelinuxFile(arch)
 	case "grub2":
 		return grubFile(arch)
+	case "undionly":
+		if arch == iana.INTEL_X86PC {
+			return "undionly.kpxe"
+		}
+		return BootFileForArch(arch)
 	default:
 		return BootFileForArch(arch)
 	}
