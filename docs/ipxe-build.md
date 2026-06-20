@@ -1,22 +1,22 @@
-# iPXE Build Guide
+# iPXE 编译指南
 
-## Overview
+## 概述
 
-PxeGo uses custom-compiled iPXE binaries for two-stage network boot. The embedded script in each binary forces iPXE to do its own DHCP and chain-load the boot menu via HTTP, bypassing PXE BIOS/UEFI cached DHCP data that would otherwise cause a chain-load loop.
+PxeGo 使用自定义编译的 iPXE 二进制文件实现两阶段网络引导。每个二进制文件内嵌同一份 iPXE 脚本，执行 DHCP 后通过 HTTP 加载引导菜单，避免了 PXE BIOS/UEFI 缓存 DHCP 数据导致的链式加载循环。
 
-## Prerequisites
+## 编译环境
 
-- Linux host with:
-  - `git`, `make`, `gcc`, `xz`
-  - Cross-compilers for target architectures:
-    - `gcc-aarch64-linux-gnu` (ARM64 UEFI)
-    - `gcc-x86-64-linux-gnu` (x86 UEFI, usually included)
-    - `gcc-i686-linux-gnu` (IA32 UEFI, optional)
-  - Internet access to clone iPXE source
+- Linux 主机，需安装：
+  - `git`、`make`、`gcc`、`xz`
+  - 各目标架构的交叉编译器：
+    - `gcc-aarch64-linux-gnu`（ARM64 UEFI）
+    - `gcc-x86-64-linux-gnu`（x86 UEFI，通常已内置）
+    - `gcc-i686-linux-gnu`（IA32 UEFI，可选）
+  - 网络访问（克隆 iPXE 源码）
 
-## Embedded Script
+## 内嵌脚本
 
-All PxeGo iPXE binaries embed the same script:
+所有 PxeGo 的 iPXE 二进制文件内嵌同一份脚本：
 
 ```bash
 #!ipxe
@@ -42,119 +42,137 @@ exit
 shell
 ```
 
-This script:
-1. **DHCP first** — 执行 `dhcp` 获取 IP，同时接收 ProxyDHCP OFFER（如果存在）
-2. **issect proxydhcp/next-server** — 检测是否存在 ProxyDHCP 数据（注意：`isset` 参数是 setting 名，不用 `${}` 包裹）
-3. **Proxy 模式** — `proxydhcp/next-server` 存在 → 使用它作为 PxeGo 地址（ProxyDHCP 的 siaddr）
-4. **Full/Server 模式** — 无 proxy 数据 → 使用 `${dhcp-server}`（PxeGo 自身就是 DHCP 服务器）
-5. **TFTP 兜底** — HTTP chain 失败时尝试 TFTP 加载菜单
-6. **DHCP 失败** — 进入 iPXE shell 手动调试
+脚本逻辑：
 
-**优势**: 无需硬编码 IP、不依赖 `${next-server}` 的 scope 优先级、不依赖 PXE_STACK 编译选项。Proxy 和 Full 两种模式共用同一份脚本。
+1. **DHCP 优先** — 执行 `dhcp` 获取 IP，同时接收 ProxyDHCP OFFER（如存在）
+2. **isset proxydhcp/next-server** — 检测 ProxyDHCP 数据是否存在（注意：`isset` 参数是设置名，不要用 `${}` 包裹）
+3. **Proxy 模式** — `proxydhcp/next-server` 存在 → 使用它作为 PxeGo 地址（即 ProxyDHCP 的 siaddr 字段）
+4. **Full/Server 模式** — 无 proxy 数据 → 使用 `${dhcp-server}`（PxeGo 本身就是 DHCP 服务器）
+5. **TFTP 兜底** — HTTP 链式加载失败时尝试 TFTP
+6. **DHCP 失败** — 进入 iPXE shell 以便手动排查
+
+**优势**：无需硬编码 IP、不依赖 `${next-server}` 的 scope 优先级、不依赖 `PXE_STACK` 编译选项。Proxy 和 Full 两种模式共用同一份脚本。
 
 ### PXE_STACK 说明
 
-**已不再需要。** 实测发现 PXE_STACK 在 Legacy BIOS (undionly.kpxe) 下无法正确导入 ProxyDHCP 数据（Pxe ROM 将 proxy 数据存为 Option 43 子选项，PXE_STACK 读不到）。当前方案通过 iPXE `dhcp` 命令原生接收 yiaddr=0 的 ProxyDHCP OFFER 并存入 `proxydhcp` scope，无需 PXE_STACK。
+**已不再需要。** 实测发现 PXE_STACK 在 Legacy BIOS（undionly.kpxe）下无法正确导入 ProxyDHCP 数据 — PXE ROM 将 proxy 数据存为 Option 43 子选项，`PXE_STACK` 读不到。当前方案通过 iPXE 的 `dhcp` 命令原生接收 `yiaddr=0` 的 ProxyDHCP OFFER 并存入 `proxydhcp` scope，无需 `PXE_STACK`。
 
 ### ProxyDHCP 识别条件
 
-iPXE `dhcp_offer()` 将 OFFER 识别为 ProxyDHCP 的两个必要条件：
-1. `yiaddr == 0.0.0.0` — 关键判据，表示"我不分配 IP"
-2. `Option 60 == "PXEClient"` — UEFI PXE Base Code 要求响应中必须包含
+iPXE 的 `dhcp_offer()` 将 OFFER 识别为 ProxyDHCP 的两个必要条件：
 
-PxeGo 的 `appendProxyPXEOptions()` 函数确保两者都满足，同时设置 siaddr、Option 54、Option 66、Option 43。
+1. **`yiaddr == 0.0.0.0`** — 关键判据，表示「不分配 IP」
+2. **Option 60 = `"PXEClient"`** — UEFI PXE Base Code 要求 OFFER 中必须回写此选项
 
-## Build Commands
+PxeGo 的 `appendProxyPXEOptions()` 函数确保两者同时满足，并一并设置 siaddr、Option 54、Option 66、Option 43。
 
-### 1) Clone iPXE source
+## 编译命令
+
+### 1) 克隆 iPXE 源码
 
 ```bash
 git clone --depth 1 https://github.com/ipxe/ipxe.git
 cd ipxe/src
 ```
 
-### 2) Create embedded script
+### 2) 创建内嵌脚本
 
 ```bash
 cat > embedd.ipxe << "IPXE_EOF"
 #!ipxe
-chain http://${next-server}:8080/boot/ipxe/script?mac=${net0/mac} && goto done
-dhcp || clear
-chain http://${next-server}:8080/boot/ipxe/script?mac=${net0/mac} || shell
-:done
+dhcp || goto dhcp_failed
+isset proxydhcp/next-server && goto use_proxy
+
+:use_dhcp
+set next-server ${dhcp-server}
+goto chain
+
+:use_proxy
+set next-server ${proxydhcp/next-server}
+
+:chain
+chain http://${next-server}:8080/boot/ipxe/script?mac=${net0/mac} || goto tftp_fallback
+exit
+
+:tftp_fallback
+chain tftp://${next-server}/boot/menu.ipxe || shell
+exit
+
+:dhcp_failed
+shell
 IPXE_EOF
 ```
 
-### 3) Enable HTTPS
+### 3) 启用 HTTPS
 
-Edit `src/config/general.h`:
+编辑 `src/config/general.h`：
 
-- Comment out `PXE_MENU` and `PXEXT` if desired.
-- Uncomment or add `DOWNLOAD_PROTOCOL_HTTPS` to enable HTTPS download support:
+- 按需注释掉 `PXE_MENU` 和 `PXEXT`
+- 取消注释或添加 `DOWNLOAD_PROTOCOL_HTTPS` 启用 HTTPS 下载：
 
 ```c
-// ... comment out (optional):
+// 按需注释（可选）：
 // #define PXE_MENU
 // #define PXEXT
 
-// ... add or uncomment:
+// 取消注释或添加：
 #define DOWNLOAD_PROTOCOL_HTTPS
 ```
 
-`DOWNLOAD_PROTOCOL_HTTPS` enables iPXE to fetch kernel/initrd files from `https://github.com/...` URLs used by the netboot catalog.
+`DOWNLOAD_PROTOCOL_HTTPS` 使 iPXE 能从 netboot 目录引用的 `https://github.com/...` 等 HTTPS 地址下载内核和 initrd。
 
-### 4) Build all targets
+### 4) 编译全部目标
 
 ```bash
-# BIOS x86 — UNDI (uses PXE ROM network stack, no native drivers)
+# BIOS x86 — UNDI（使用 PXE ROM 网络栈，不含原生网卡驱动）
 make bin/undionly.kpxe EMBED=embedd.ipxe
 
-# BIOS x86 — All drivers (bigger, may have NIC-specific issues)
+# BIOS x86 — 全驱动（体积较大，个别网卡可能有兼容问题）
 make bin/ipxe.pxe EMBED=embedd.ipxe
 
-# UEFI x86-64 — SNP (uses UEFI network stack)
+# UEFI x86-64 — SNP（使用 UEFI 网络栈）
 make bin-x86_64-efi/ipxe.efi EMBED=embedd.ipxe
 
 # UEFI IA32
 make bin-i386-efi/ipxe.efi EMBED=embedd.ipxe
 
-# UEFI ARM64 (requires aarch64 cross-compiler)
+# UEFI ARM64（需要 aarch64 交叉编译器）
 make bin-arm64-efi/ipxe.efi EMBED=embedd.ipxe CROSS=aarch64-linux-gnu-
 ```
 
-## Output Files
+## 输出文件
 
-| Binary | Architecture | PxeGo Filename | Size |
-|--------|-------------|----------------|------|
-| `bin/undionly.kpxe` | BIOS x86 (UNDI) | `undionly.kpxe` | ~71KB |
-| `bin/ipxe.pxe` | BIOS x86 (all drivers) | `ipxe.pxe` | ~392KB |
+| 编译产物 | 架构 | PxeGo 文件名 | 大小 |
+|---------|------|-------------|------|
+| `bin/undionly.kpxe` | BIOS x86（UNDI） | `undionly.kpxe` | ~71KB |
+| `bin/ipxe.pxe` | BIOS x86（全驱动） | `ipxe.pxe` | ~392KB |
 | `bin-x86_64-efi/ipxe.efi` | UEFI x86-64 | `ipxe.efi` | ~1.1MB |
 | `bin-i386-efi/ipxe.efi` | UEFI IA32 | `ipxe32.efi` | ~1.0MB |
 | `bin-arm64-efi/ipxe.efi` | UEFI ARM64 | `ipxe-arm64.efi` | ~1.2MB |
 
-## Integration with PxeGo
+## 集成到 PxeGo
 
-Copy built binaries to two places:
+编译产物需复制到两个位置：
 
 ```bash
-# Runtime boot directory
+# 运行时引导目录
 cp bin/undionly.kpxe /path/to/pxego/boot/
 cp bin-x86_64-efi/ipxe.efi /path/to/pxego/boot/
-# ... etc
+# ... 以此类推
 
-# Embedded bootdist (extracted on first run)
+# 内嵌 bootdist（首次运行时释放）
 cp bin/undionly.kpxe /path/to/pxego/cmd/pxego/bootdist/
 cp bin-x86_64-efi/ipxe.efi /path/to/pxego/cmd/pxego/bootdist/
-# ... etc
+# ... 以此类推
 ```
 
-Then rebuild PxeGo:
+然后重新编译 PxeGo：
 
 ```bash
 cd /path/to/pxego
 go build ./cmd/pxego/
 ```
 
-## Architecture Mapping
+## 架构映射
 
-See `internal/boot/archmap.go` for the architecture-to-filename mapping.
+见 `internal/boot/archmap.go` — 客户端架构类型到引导文件名的映射逻辑。
