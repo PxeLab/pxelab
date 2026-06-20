@@ -403,31 +403,18 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 
 	switch mode {
 	case "proxy":
-		if nextServer != nil {
-			reply.ServerIPAddr = nextServer
-			reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
-				[]byte(nextServer.String())))
-			reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
-				[]byte(nextServer.String())))
+	appendProxyPXEOptions(reply, serverIP, nextServer)
+	reply.YourIPAddr = net.IP{0, 0, 0, 0}
+	if arch, ok := DetectClientArch(pkt); ok {
+		reply.BootFileName = boot.NBPFilename(arch, bootloader)
+	}
+	reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+	// Subnet Mask — 部分 PXE 客户端需要此选项
+	if subnetCfg.CIDR != "" {
+		if _, ipnet, err := net.ParseCIDR(subnetCfg.CIDR); err == nil {
+			reply.UpdateOption(dhcpv4.OptSubnetMask(ipnet.Mask))
 		}
-		if arch, ok := DetectClientArch(pkt); ok {
-			reply.BootFileName = boot.NBPFilename(arch, bootloader)
-		}
-		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-		if serverIP != nil {
-			reply.UpdateOption(dhcpv4.OptServerIdentifier(serverIP))
-		}
-		// yiaddr=0.0.0.0 让 PXE ROM 把此 OFFER 当 proxy 处理，用真实 DHCP 分配 IP
-		reply.YourIPAddr = net.IP{0, 0, 0, 0}
-		reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
-			[]byte{6, 1, 0x0C}))
-		// Subnet Mask — 部分 PXE 客户端需要此选项
-		if subnetCfg.CIDR != "" {
-			if _, ipnet, err := net.ParseCIDR(subnetCfg.CIDR); err == nil {
-				reply.UpdateOption(dhcpv4.OptSubnetMask(ipnet.Mask))
-			}
-		}
-
+	}
 	case "full", "hybrid":
 		archStr, platformStr := ArchAndPlatform(pkt)
 		ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
