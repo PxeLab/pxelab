@@ -34,7 +34,7 @@ type Server struct {
 	clientInfo func(ip string) (arch, platform string, ok bool)
 }
 
-func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager, clientInfo func(ip string) (arch, platform string, ok bool)) *Server {
+func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager, clientInfo func(ip string) (arch, platform string, ok bool), svcController api.ServiceController) *Server {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
@@ -48,7 +48,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader, netbootMgr)
+	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader, netbootMgr, svcController)
 	apiHandler.RegisterRoutes(r)
 
 	// iPXE 引导脚本端点（配置驱动决策树）

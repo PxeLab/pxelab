@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- 服务管理页面（Web UI 表格 + 独立启停/重启 + 批量操作 + 自动刷新）
+- 服务生命周期管理后端（ServiceManager 包，支持运行时启停重启单个服务）
+- 每个服务和接口的 auto_start 配置项（HTTP 默认 true，其余默认 false）
+- 服务管理 API（GET /services, POST /services/{name}/start|stop|restart, POST /services/batch/{action}）
 - iPXE 脚本生成测试套件（标签冲突检测、choose 语法验证、全发行版覆盖验证）
 - Settings 页面引导文件映射表（iPXE/PXELinux/GRUB2 三栏展示架构对应关系）
 - 三 NBP 引导加载器支持：iPXE（默认）、PXELinux、GRUB2
@@ -11,6 +15,8 @@
 - DHCP 响应增加 PXE Option 43（Discovery Control），UEFI PXE 兼容性
 
 ### Fixed
+- 配置校验白名单缺少 "undionly" 引导加载器导致启动失败
+- 状态 API 服务映射改为从 ServiceManager 实时读取，移除静态 Services map
 - iPXE 菜单选择跳转 Bug：`choose selected && goto ${selected}` 中 `${selected}` 在解析期即被展开（值为空），导致 `goto` 落入脚本中第一个子菜单（4MLinux）。改为两行分离模式，确保变量在运行时展开
 - 标签（label）特殊字符过滤：`Pop!_OS`、`Memtest86+` 等名称中的 `!`、`+`、`'` 可能导致 iPXE 解析异常，现统一替换为 `_`
 - API `SettingsData.ipmi` 字段标记为可选（omitempty），兼容无 IPMI 模块的配置
@@ -19,6 +25,8 @@
 - DHCP Offer/ACK 日志缺少 bootfile 和 bootloader 字段
 
 ### Changed
+- 重构服务启动流程：使用 servicemanager 替代原 app.App，仅启动标记 auto-start 的服务
+- 运行时移除 --app-mode 标志，统一使用 --mode app|server
 - Settings 页面移除 IPMI 配置页签
 - 将 Choose/goto 生成的脚本从 `choose selected && goto ${selected} || goto exit` 改为 `choose selected || goto exit` + `goto ${selected}` 两行模式
 - InterfaceConfig 新增 Bootloader 字段（config.yaml + API + 前端的完整链路）

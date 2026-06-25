@@ -44,5 +44,8 @@ func DefaultConfig() *Config {
 		Log: LogConfig{
 			Level: DefaultLogLevel,
 		},
+		ServiceAutoStart: ServiceAutoStartConfig{
+			HTTP: true,
+		},
 	}
 }

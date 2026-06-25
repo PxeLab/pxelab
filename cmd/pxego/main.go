@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/pxego/pxego/internal/app"
 	"github.com/pxego/pxego/internal/boot"
 	"github.com/pxego/pxego/internal/config"
 	"github.com/pxego/pxego/internal/dhcp"
@@ -19,6 +18,7 @@ import (
 	"github.com/pxego/pxego/internal/httpd"
 	"github.com/pxego/pxego/internal/netboot"
 	"github.com/pxego/pxego/internal/logbus"
+	"github.com/pxego/pxego/internal/servicemanager"
 	"github.com/pxego/pxego/internal/store"
 	"github.com/pxego/pxego/internal/tftp"
 	"github.com/spf13/cobra"
@@ -42,16 +42,13 @@ func init() {
 func run(cmd *cobra.Command) error {
 	cfgFile, _ := cmd.Flags().GetString("config")
 
-	if mode, _ := cmd.Flags().GetString("mode"); mode == "app" {
-		cmd.Flags().Set("app-mode", "true")
-	}
-
-	appMode, _ := cmd.Flags().GetBool("app-mode")
-
 	cfg, err := config.LoadConfig(cfgFile)
 	if err != nil {
 		return fmt.Errorf("加载配置失败: %w", err)
 	}
+
+	mode, _ := cmd.Flags().GetString("mode")
+	appMode := mode == "app" || cfg.Global.AppMode
 
 	// 创建事件总线
 	bus := eventbus.New()
@@ -122,7 +119,7 @@ func run(cmd *cobra.Command) error {
 
 	dhcpHandler := dhcp.NewHandler(cfg, st, bus, leaseMgr)
 	dhcpHandler.InitSubnets()
-	pxeApp := app.New()
+	svcMgr := servicemanager.New()
 
 	// DHCP/ProxyDHCP — 每个接口各建一个服务，绑定到对应接口 IP
 	hasDHCP := false
@@ -135,25 +132,25 @@ func run(cmd *cobra.Command) error {
 
 		dhcpAddr := iface.IP + ":67"
 		dhcpServer := dhcp.NewServer(dhcpAddr, ifaceHandler)
-		pxeApp.Register(dhcpServer)
+		svcMgr.Register("dhcp/"+iface.Name, "DHCP ("+iface.Name+")", dhcpServer, iface.AutoStart)
 		slog.Info("DHCP 服务", "addr", dhcpAddr, "interface", iface.Name)
 
 		proxyAddr := iface.IP + ":4011"
 		proxyDHCP := dhcp.NewProxyServer4011(proxyAddr, ifaceHandler)
-		pxeApp.Register(proxyDHCP)
+		svcMgr.Register("proxy/"+iface.Name, "ProxyDHCP ("+iface.Name+")", proxyDHCP, iface.AutoStart)
 		slog.Info("ProxyDHCP 服务", "addr", proxyAddr, "interface", iface.Name)
 	}
 
 	// 无接口配置时回退到 :67 + :4011 监听所有地址
 	if !hasDHCP {
 		dhcpServer := dhcp.NewServer("0.0.0.0:67", dhcpHandler)
-		pxeApp.Register(dhcpServer)
+		svcMgr.Register("dhcp/any", "DHCP", dhcpServer, true)
 		proxyDHCP := dhcp.NewProxyServer4011("0.0.0.0:4011", dhcpHandler)
-		pxeApp.Register(proxyDHCP)
+		svcMgr.Register("proxy/any", "ProxyDHCP", proxyDHCP, true)
 	}
 
 	tftpServer := tftp.NewServer(config.DefaultPortTFTP, bootFS, bus)
-	pxeApp.Register(tftpServer)
+	svcMgr.Register("tftp", "TFTP", tftpServer, cfg.ServiceAutoStart.TFTP)
 
 	// Create netboot manager — extract embedded seed, then load from disk
 	catalogDir := filepath.Join(cfg.Global.DataDir, "netboot", "catalog")
@@ -167,8 +164,8 @@ func run(cmd *cobra.Command) error {
 	}
 	netbootMgr := netboot.NewManager(cat)
 
-	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP)
-	pxeApp.Register(httpServer)
+	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP, svcMgr)
+	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP)
 
 	// 检查是否有接口启用了 DNS
 	hasDNS := false
@@ -179,16 +176,6 @@ func run(cmd *cobra.Command) error {
 		}
 	}
 
-	svc := httpServer.API().Services
-	if len(cfg.Interfaces) > 0 {
-		svc["DHCP"] = "running"
-	}
-	svc["TFTP"] = "running"
-	svc["HTTP"] = "running"
-	if hasDNS {
-		svc["DNS"] = "running"
-	}
-
 	if appMode {
 		slog.Info("自动打开浏览器")
 		openBrowser("http://localhost:8080")
@@ -196,10 +183,10 @@ func run(cmd *cobra.Command) error {
 
 	if hasDNS {
 		dnsServer := dns.NewServer(config.DefaultPortDNS, "8.8.8.8:53", bus)
-		pxeApp.Register(dnsServer)
+		svcMgr.Register("dns", "DNS", dnsServer, cfg.ServiceAutoStart.DNS)
 	}
 
-	return pxeApp.Run(context.Background())
+	return svcMgr.Run(context.Background())
 }
 
 func main() {

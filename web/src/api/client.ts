@@ -400,4 +400,37 @@ export const api = {
   getNetbootGroups,
   getNetbootDistro,
   getNetbootFileStatus,
+  getServices,
+  startService,
+  stopService,
+  restartService,
+  batchService,
+}
+// ── Services ──
+export interface ServiceInfo {
+	name: string
+	display: string
+	status: 'running' | 'stopped' | 'error'
+	auto_start: boolean
+}
+
+
+export function getServices(): Promise<ApiResponse<ServiceInfo[]>> {
+	return request<ServiceInfo[]>('GET', '/services')
+}
+
+export function startService(name: string): Promise<ApiResponse<ServiceInfo>> {
+	return request<ServiceInfo>('POST', `/services/${encodeURIComponent(name)}/start`)
+}
+
+export function stopService(name: string): Promise<ApiResponse<ServiceInfo>> {
+	return request<ServiceInfo>('POST', `/services/${encodeURIComponent(name)}/stop`)
+}
+
+export function restartService(name: string): Promise<ApiResponse<ServiceInfo>> {
+	return request<ServiceInfo>('POST', `/services/${encodeURIComponent(name)}/restart`)
+}
+
+export function batchService(action: string, names: string[]): Promise<ApiResponse<{ success: boolean; result: Record<string, string> }>> {
+	return request('POST', `/services/batch/${action}`, { names })
 }

@@ -7,14 +7,21 @@ import (
 )
 
 type Config struct {
-	ConfigPath string            `yaml:"-" json:"-" mapstructure:"-"` // 配置文件的完整路径，运行时追踪用
-	Global     GlobalConfig      `yaml:"global" mapstructure:"global"`
-	Interfaces []InterfaceConfig `yaml:"interfaces" mapstructure:"interfaces"`
-	Auth       AuthConfig        `yaml:"auth" mapstructure:"auth"`
-	Boot       BootConfig        `yaml:"boot" mapstructure:"boot"`
-	Netboot    NetbootConfig     `yaml:"netboot" mapstructure:"netboot"`
-	Store      StoreConfig       `yaml:"store" mapstructure:"store"`
-	Log        LogConfig         `yaml:"log" mapstructure:"log"`
+	ConfigPath      string                `yaml:"-" json:"-" mapstructure:"-"` // 配置文件的完整路径，运行时追踪用
+	Global          GlobalConfig          `yaml:"global" mapstructure:"global"`
+	Interfaces      []InterfaceConfig     `yaml:"interfaces" mapstructure:"interfaces"`
+	Auth            AuthConfig            `yaml:"auth" mapstructure:"auth"`
+	Boot            BootConfig            `yaml:"boot" mapstructure:"boot"`
+	Netboot         NetbootConfig         `yaml:"netboot" mapstructure:"netboot"`
+	Store           StoreConfig           `yaml:"store" mapstructure:"store"`
+	Log             LogConfig             `yaml:"log" mapstructure:"log"`
+	ServiceAutoStart ServiceAutoStartConfig `yaml:"service_auto_start" mapstructure:"service_auto_start"`
+}
+
+type ServiceAutoStartConfig struct {
+	TFTP bool `yaml:"tftp" mapstructure:"tftp"`
+	HTTP bool `yaml:"http" mapstructure:"http"` // default true
+	DNS  bool `yaml:"dns" mapstructure:"dns"`
 }
 
 type GlobalConfig struct {
@@ -33,6 +40,7 @@ type InterfaceConfig struct {
 	TFTP        bool           `yaml:"tftp" mapstructure:"tftp"`
 	HTTP        bool           `yaml:"http" mapstructure:"http"`
 	DNS         bool           `yaml:"dns" mapstructure:"dns"`
+	AutoStart   bool           `yaml:"auto_start" mapstructure:"auto_start"`      // auto-start DHCP/ProxyDHCP for this interface
 }
 
 type SubnetConfig struct {
@@ -138,7 +146,7 @@ func (c *Config) Validate() error {
 		if iface.DHCP != "" && iface.DHCP != "full" && iface.DHCP != "proxy" && iface.DHCP != "hybrid" && iface.DHCP != "off" {
 			return fmt.Errorf("interface %s: 无效的 DHCP 模式: %s", iface.Name, iface.DHCP)
 		}
-		if iface.Bootloader != "" && iface.Bootloader != "ipxe" && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" {
+		if iface.Bootloader != "" && iface.Bootloader != "ipxe" && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" && iface.Bootloader != "undionly" {
 			return fmt.Errorf("interface %s: 无效的引导加载器: %s", iface.Name, iface.Bootloader)
 		}
 		if iface.ChainToIPXE && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" {

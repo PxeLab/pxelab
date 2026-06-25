@@ -11,12 +11,10 @@ func BindFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String("config", "", "配置文件路径")
 	cmd.PersistentFlags().String("data-dir", DefaultDataDir(), "数据目录")
 	cmd.PersistentFlags().String("log-level", "info", "日志级别")
-	cmd.PersistentFlags().Bool("app-mode", false, "应用模式（自动打开浏览器）")
-	cmd.PersistentFlags().String("mode", "", `运行模式 ("app" 将自动打开浏览器) `)
+	cmd.PersistentFlags().String("mode", "", `运行模式 ("app" 将自动打开浏览器)`)
 
 	viper.BindPFlag("global.data_dir", cmd.PersistentFlags().Lookup("data-dir"))
 	viper.BindPFlag("log.level", cmd.PersistentFlags().Lookup("log-level"))
-	viper.BindPFlag("global.app_mode", cmd.PersistentFlags().Lookup("app-mode"))
 }
 
 func LoadConfig(cfgPath string) (*Config, error) {

@@ -7,7 +7,7 @@ import { LangSwitch } from '../LangSwitch'
 import { StatusDot } from '../ui/StatusDot'
 import {
   LayoutDashboard, Server, FileCode, FolderOpen, Activity, Settings,
-  Menu,
+  Monitor, Menu,
 } from 'lucide-react'
 
 interface NavItem {
@@ -43,6 +43,7 @@ const navSections = [
   {
     label: 'nav.section.system',
     items: [
+      { path: '/services', label: 'nav.services', icon: Monitor },
       { path: '/settings', label: 'nav.settings', icon: Settings },
     ] as NavItem[],
   },

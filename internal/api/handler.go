@@ -1,65 +1,57 @@
 package api
 
 import (
-	"fmt"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/pxego/pxego/internal/boot"
 	"github.com/pxego/pxego/internal/config"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/ipmi"
 	"github.com/pxego/pxego/internal/netboot"
+	"github.com/pxego/pxego/internal/servicemanager"
 	"github.com/pxego/pxego/internal/store"
 )
 
-type Handler struct {
-	Host     *HostHandler
-	Profile  *ProfileHandler
-	Event    *EventHandler
-	File     *FileHandler
-	WOL      *WOLHandler
-	IPMI     *IPMIHandler
-	Lease    *LeaseHandler
-	Settings *SettingsHandler
-	Logs     *LogStreamHandler
-	Netboot  *NetbootHandler
-	Services map[string]string
+// ServiceController 服务生命周期管理接口
+type ServiceController interface {
+	List() []servicemanager.ServiceInfo
+	Get(name string) (servicemanager.ServiceInfo, bool)
+	Start(name string) error
+	Stop(name string) error
+	Restart(name string) error
+	BatchStart(names []string) servicemanager.BatchResult
+	BatchStop(names []string) servicemanager.BatchResult
+	BatchRestart(names []string) servicemanager.BatchResult
 }
 
-func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager) *Handler {
+type Handler struct {
+	Host          *HostHandler
+	Profile       *ProfileHandler
+	Event         *EventHandler
+	File          *FileHandler
+	WOL           *WOLHandler
+	IPMI          *IPMIHandler
+	Lease         *LeaseHandler
+	Settings      *SettingsHandler
+	Logs          *LogStreamHandler
+	Netboot       *NetbootHandler
+	Service       *ServiceHandler
+	svcController ServiceController
+}
+
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController) *Handler {
 	h := &Handler{
-		Host:     &HostHandler{store: st},
-		Profile:  &ProfileHandler{store: st},
-		Event:    NewEventHandler(st, bus),
-		File:     &FileHandler{bootFS: bootFS},
-		WOL:      &WOLHandler{store: st},
-		IPMI:     &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
-		Lease:    &LeaseHandler{store: st},
-		Settings: NewSettingsHandler(cfg, reloader),
-		Logs:     NewLogStreamHandler(bus),
-		Netboot:  NewNetbootHandler(netbootMgr),
-		Services: map[string]string{},
-	}
-	h.Services["Netboot"] = "enabled"
-	for i, iface := range cfg.Interfaces {
-		name := iface.Name
-		if name == "" {
-			name = fmt.Sprintf("接口%d", i+1)
-		}
-		status := "enabled"
-		if iface.DHCP == "off" {
-			status = "disabled"
-		}
-		h.Services["DHCP/"+name] = status
-		if iface.TFTP {
-			h.Services["TFTP/"+name] = "enabled"
-		}
-		if iface.HTTP {
-			h.Services["HTTP/"+name] = "enabled"
-		}
-		if iface.DNS {
-			h.Services["DNS/"+name] = "enabled"
-		}
+		Host:          &HostHandler{store: st},
+		Profile:       &ProfileHandler{store: st},
+		Event:         NewEventHandler(st, bus),
+		File:          &FileHandler{bootFS: bootFS},
+		WOL:           &WOLHandler{store: st},
+		IPMI:          &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
+		Lease:         &LeaseHandler{store: st},
+		Settings:      NewSettingsHandler(cfg, reloader),
+		Logs:          NewLogStreamHandler(bus),
+		Netboot:       NewNetbootHandler(netbootMgr),
+		Service:       NewServiceHandler(svcController),
+		svcController: svcController,
 	}
 	return h
 }
@@ -97,7 +89,13 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		r.Get("/interfaces", h.ListInterfaces)
 
-			r.Get("/netboot/catalog", h.Netboot.GetCatalog)
+		r.Get("/services", h.Service.ListServices)
+		r.Post("/services/{name}/start", h.Service.StartService)
+		r.Post("/services/{name}/stop", h.Service.StopService)
+		r.Post("/services/{name}/restart", h.Service.RestartService)
+		r.Post("/services/batch/{action}", h.Service.BatchOperation)
+
+		r.Get("/netboot/catalog", h.Netboot.GetCatalog)
 			r.Get("/netboot/catalog/{distro}", h.Netboot.GetDistro)
 			r.Get("/netboot/groups", h.Netboot.GetGroups)
 			r.Get("/netboot/check-files", h.Netboot.CheckFiles)
