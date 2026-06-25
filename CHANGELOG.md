@@ -7,6 +7,10 @@
 - 服务生命周期管理后端（ServiceManager 包，支持运行时启停重启单个服务）
 - 每个服务和接口的 auto_start 配置项（HTTP 默认 true，其余默认 false）
 - 服务管理 API（GET /services, POST /services/{name}/start|stop|restart, POST /services/batch/{action}）
+- 自动启动运行时切换（PUT /services/{name}/auto-start，持久化到 config.yaml）
+- 端口/协议显示（如 "67/UDP"、"8080/TCP"），前端服务表格新增端口列
+- 服务错误详情展示（error_msg 字段 + 前端模态框）
+- 保护服务机制（HTTP 标记为 protected，API 拒绝启停操作，前端显示 Core 徽章且禁用勾选）
 - iPXE 脚本生成测试套件（标签冲突检测、choose 语法验证、全发行版覆盖验证）
 - Settings 页面引导文件映射表（iPXE/PXELinux/GRUB2 三栏展示架构对应关系）
 - 三 NBP 引导加载器支持：iPXE（默认）、PXELinux、GRUB2

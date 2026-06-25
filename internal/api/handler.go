@@ -21,6 +21,7 @@ type ServiceController interface {
 	BatchStart(names []string) servicemanager.BatchResult
 	BatchStop(names []string) servicemanager.BatchResult
 	BatchRestart(names []string) servicemanager.BatchResult
+	SetAutoStart(name string, enabled bool) error
 }
 
 type Handler struct {
@@ -50,7 +51,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Settings:      NewSettingsHandler(cfg, reloader),
 		Logs:          NewLogStreamHandler(bus),
 		Netboot:       NewNetbootHandler(netbootMgr),
-		Service:       NewServiceHandler(svcController),
+		Service:       NewServiceHandler(svcController, cfg, func() error { return saveConfig(configPath(cfg), cfg) }),
 		svcController: svcController,
 	}
 	return h
@@ -94,6 +95,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/services/{name}/stop", h.Service.StopService)
 		r.Post("/services/{name}/restart", h.Service.RestartService)
 		r.Post("/services/batch/{action}", h.Service.BatchOperation)
+		r.Put("/services/{name}/auto-start", h.Service.UpdateAutoStart)
 
 		r.Get("/netboot/catalog", h.Netboot.GetCatalog)
 			r.Get("/netboot/catalog/{distro}", h.Netboot.GetDistro)

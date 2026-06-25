@@ -33,6 +33,11 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	v.SetDefault("boot.root_dir", "")
 	v.SetDefault("log.level", "info")
 
+	// service auto-start defaults
+	v.SetDefault("service_auto_start.http", true)
+	v.SetDefault("service_auto_start.tftp", false)
+	v.SetDefault("service_auto_start.dns", false)
+
 	// netboot defaults
 	v.SetDefault("netboot.enabled", true)
 	v.SetDefault("netboot.sync.url", "https://github.com/netbootxyz/netboot.xyz.git")

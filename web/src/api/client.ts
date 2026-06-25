@@ -405,6 +405,7 @@ export const api = {
   stopService,
   restartService,
   batchService,
+  updateAutoStart,
 }
 // ── Services ──
 export interface ServiceInfo {
@@ -412,6 +413,10 @@ export interface ServiceInfo {
 	display: string
 	status: 'running' | 'stopped' | 'error'
 	auto_start: boolean
+	protected: boolean
+	port: number
+	protocol: string
+	error_msg: string
 }
 
 
@@ -433,4 +438,8 @@ export function restartService(name: string): Promise<ApiResponse<ServiceInfo>> 
 
 export function batchService(action: string, names: string[]): Promise<ApiResponse<{ success: boolean; result: Record<string, string> }>> {
 	return request('POST', `/services/batch/${action}`, { names })
+}
+
+export function updateAutoStart(name: string, enabled: boolean): Promise<ApiResponse<ServiceInfo>> {
+	return request<ServiceInfo>('PUT', `/services/${encodeURIComponent(name)}/auto-start`, { enabled })
 }

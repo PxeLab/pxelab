@@ -132,25 +132,25 @@ func run(cmd *cobra.Command) error {
 
 		dhcpAddr := iface.IP + ":67"
 		dhcpServer := dhcp.NewServer(dhcpAddr, ifaceHandler)
-		svcMgr.Register("dhcp/"+iface.Name, "DHCP ("+iface.Name+")", dhcpServer, iface.AutoStart)
+		svcMgr.Register("dhcp/"+iface.Name, "DHCP ("+iface.Name+")", dhcpServer, iface.AutoStart, false, 67, "UDP")
 		slog.Info("DHCP 服务", "addr", dhcpAddr, "interface", iface.Name)
 
 		proxyAddr := iface.IP + ":4011"
 		proxyDHCP := dhcp.NewProxyServer4011(proxyAddr, ifaceHandler)
-		svcMgr.Register("proxy/"+iface.Name, "ProxyDHCP ("+iface.Name+")", proxyDHCP, iface.AutoStart)
+		svcMgr.Register("proxy/"+iface.Name, "ProxyDHCP ("+iface.Name+")", proxyDHCP, iface.AutoStart, false, 4011, "UDP")
 		slog.Info("ProxyDHCP 服务", "addr", proxyAddr, "interface", iface.Name)
 	}
 
 	// 无接口配置时回退到 :67 + :4011 监听所有地址
 	if !hasDHCP {
 		dhcpServer := dhcp.NewServer("0.0.0.0:67", dhcpHandler)
-		svcMgr.Register("dhcp/any", "DHCP", dhcpServer, true)
+		svcMgr.Register("dhcp/any", "DHCP", dhcpServer, true, false, 67, "UDP")
 		proxyDHCP := dhcp.NewProxyServer4011("0.0.0.0:4011", dhcpHandler)
-		svcMgr.Register("proxy/any", "ProxyDHCP", proxyDHCP, true)
+		svcMgr.Register("proxy/any", "ProxyDHCP", proxyDHCP, true, false, 4011, "UDP")
 	}
 
 	tftpServer := tftp.NewServer(config.DefaultPortTFTP, bootFS, bus)
-	svcMgr.Register("tftp", "TFTP", tftpServer, cfg.ServiceAutoStart.TFTP)
+	svcMgr.Register("tftp", "TFTP", tftpServer, cfg.ServiceAutoStart.TFTP, false, 69, "UDP")
 
 	// Create netboot manager — extract embedded seed, then load from disk
 	catalogDir := filepath.Join(cfg.Global.DataDir, "netboot", "catalog")
@@ -165,26 +165,16 @@ func run(cmd *cobra.Command) error {
 	netbootMgr := netboot.NewManager(cat)
 
 	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP, svcMgr)
-	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP)
+	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP, true, 8080, "TCP")
 
-	// 检查是否有接口启用了 DNS
-	hasDNS := false
-	for _, iface := range cfg.Interfaces {
-		if iface.DNS {
-			hasDNS = true
-			break
-		}
-	}
 
 	if appMode {
 		slog.Info("自动打开浏览器")
 		openBrowser("http://localhost:8080")
 	}
 
-	if hasDNS {
 		dnsServer := dns.NewServer(config.DefaultPortDNS, "8.8.8.8:53", bus)
-		svcMgr.Register("dns", "DNS", dnsServer, cfg.ServiceAutoStart.DNS)
-	}
+		svcMgr.Register("dns", "DNS", dnsServer, cfg.ServiceAutoStart.DNS, false, 53, "UDP")
 
 	return svcMgr.Run(context.Background())
 }

@@ -27,6 +27,10 @@ type ServiceInfo struct {
 	Display   string `json:"display"`
 	Status    Status `json:"status"`
 	AutoStart bool   `json:"auto_start"`
+	Protected bool   `json:"protected"`
+	Port      int    `json:"port"`
+	Protocol  string `json:"protocol"`
+	ErrorMsg  string `json:"error_msg"`
 }
 
 type managedService struct {
@@ -34,6 +38,11 @@ type managedService struct {
 	display   string
 	status    Status
 	autoStart bool
+	protected bool
+	port      int
+	protocol  string
+	errorMsg  string
+	stopCh    chan struct{}
 	mu        sync.Mutex
 }
 
@@ -50,7 +59,7 @@ func New() *Manager {
 }
 
 // Register 注册服务。name 是唯一标识，display 是展示名。
-func (m *Manager) Register(name, display string, srv app.Server, autoStart bool) {
+func (m *Manager) Register(name, display string, srv app.Server, autoStart bool, protected bool, port int, protocol string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.services[name] = &managedService{
@@ -58,6 +67,10 @@ func (m *Manager) Register(name, display string, srv app.Server, autoStart bool)
 		display:   display,
 		status:    StatusStopped,
 		autoStart: autoStart,
+		protected: protected,
+		port:      port,
+		protocol:  protocol,
+		stopCh:    make(chan struct{}),
 	}
 	m.order = append(m.order, name)
 }
@@ -78,14 +91,24 @@ func (m *Manager) Start(name string) error {
 	}
 
 	slog.Info("启动服务", "name", name)
-	// Start() 使用独立 context.Background()，因为当前所有服务实现的
-	// Start() 启动监听后立即返回，Stop() 通过关闭 listener/Shutdown 来停止
-	// 不依赖 context 传播取消信号。
-	if err := svc.server.Start(context.Background()); err != nil {
-		svc.status = StatusError
-		return fmt.Errorf("start %s: %w", name, err)
-	}
+	// Start 在 goroutine 中运行，因为所有服务的 Start() 是阻塞的
+	//（进入 serve/read 循环），Stop() 通过关闭 listener / Shutdown 来停止。
+	go func() {
+		if err := svc.server.Start(context.Background()); err != nil {
+			svc.mu.Lock()
+			select {
+			case <-svc.stopCh:
+				// 由 Stop() 触发关闭，非异常退出
+			default:
+				svc.status = StatusError
+			svc.errorMsg = err.Error()
+				slog.Error("服务异常退出", "name", name, "error", err)
+			}
+			svc.mu.Unlock()
+		}
+	}()
 	svc.status = StatusRunning
+		svc.errorMsg = ""
 	return nil
 }
 
@@ -105,10 +128,12 @@ func (m *Manager) Stop(name string) error {
 	}
 
 	slog.Info("停止服务", "name", name)
+	close(svc.stopCh)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := svc.server.Stop(ctx); err != nil {
 		svc.status = StatusError
+			svc.errorMsg = err.Error()
 		return fmt.Errorf("stop %s: %w", name, err)
 	}
 	svc.status = StatusStopped
@@ -162,6 +187,10 @@ func (m *Manager) List() []ServiceInfo {
 			Display:   svc.display,
 			Status:    svc.status,
 			AutoStart: svc.autoStart,
+			Protected: svc.protected,
+			Port:      svc.port,
+			Protocol:  svc.protocol,
+			ErrorMsg:  svc.errorMsg,
 		})
 		svc.mu.Unlock()
 	}
@@ -187,10 +216,28 @@ func (m *Manager) Get(name string) (ServiceInfo, bool) {
 		Display:   svc.display,
 		Status:    svc.status,
 		AutoStart: svc.autoStart,
+			Protected: svc.protected,
+			Port:      svc.port,
+			Protocol:  svc.protocol,
+			ErrorMsg:  svc.errorMsg,
 	}, true
 }
 
 // StopAll 按注册顺序反向停止所有服务。
+// SetAutoStart 
+func (m *Manager) SetAutoStart(name string, enabled bool) error {
+	m.mu.RLock()
+	svc, ok := m.services[name]
+	m.mu.RUnlock()
+	if !ok {
+		return fmt.Errorf("service %q not found", name)
+	}
+	svc.mu.Lock()
+	defer svc.mu.Unlock()
+	svc.autoStart = enabled
+	return nil
+}
+
 func (m *Manager) StopAll() {
 	m.mu.RLock()
 	names := make([]string, len(m.order))
