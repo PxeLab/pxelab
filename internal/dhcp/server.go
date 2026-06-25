@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 )
@@ -46,7 +47,7 @@ func (s *Server) Start(ctx context.Context) error {
 		default:
 			n, peer, err := s.conn.ReadFromUDP(buf)
 			if err != nil {
-				if ctx.Err() != nil {
+				if ctx.Err() != nil || isClosedConn(err) {
 					return nil
 				}
 				slog.Error("DHCP 读取错误", "error", err)
@@ -59,6 +60,13 @@ func (s *Server) Start(ctx context.Context) error {
 			s.handler.Handle(ctx, s.conn, peer, pkt)
 		}
 	}
+}
+
+func isClosedConn(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "use of closed network connection")
 }
 
 func (s *Server) Stop(ctx context.Context) error {

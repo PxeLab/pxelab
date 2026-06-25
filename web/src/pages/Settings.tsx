@@ -5,22 +5,22 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
-import { api, setAuthToken, type SettingsData, type InterfaceInfo, type InterfaceSettings, type MenuEntry } from '../api/client'
+import { api, type SettingsData, type InterfaceInfo, type InterfaceSettings, type MenuEntry } from '../api/client'
 
-type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'http' | 'netboot'
+type Tab = 'general' | 'interfaces' | 'dhcp' | 'tftp' | 'dns' | 'netboot'
 
 interface SubnetConfig {
   cidr: string; dhcpMode: string; pools: string[]; gateway: string; dnsServers: string; leaseTime: string; nextServer: string
 }
 
 interface InterfaceConfig {
-  name: string; ip: string; dhcpMode: string; bootloader: string; chainToIPXE: boolean
+  name: string; ip: string; bootloader: string; chainToIPXE: boolean
   subnets: SubnetConfig[]
   tftp: boolean; http: boolean; dns: boolean
 }
 
 const defaultIface: InterfaceConfig = {
-  name: '', ip: '', dhcpMode: 'hybrid', bootloader: 'ipxe', chainToIPXE: false,
+  name: '', ip: '', bootloader: 'ipxe', chainToIPXE: false,
   subnets: [{ cidr: '', dhcpMode: 'full', pools: [''], gateway: '', dnsServers: '8.8.8.8', leaseTime: '3600', nextServer: '' }],
   tftp: true, http: true, dns: false,
 }
@@ -82,14 +82,13 @@ export default function Settings() {
   const [existingBootFiles, setExistingBootFiles] = useState<string[]>([])
   const [config, setConfig] = useState({
     serverName: '', logLevel: 'info', dataDir: '', mode: 'server',
-    listenAddr: ':8080', authToken: '',
+    listenAddr: '127.0.0.1:8080', authToken: '', tokenSet: false,
     autoOpen: true, persistEvents: true,
     interfaces: [{ ...defaultIface }],
     dhcpEnabled: true, dhcpRange: '', dhcpGateway: '', dhcpSubnet: '',
     dhcpDns: '', dhcpLeaseTime: '3600',
     tftpEnabled: true, tftpPort: '69', tftpRoot: '',
     dnsEnabled: false, dnsPort: '53', dnsUpstream: '8.8.8.8:53',
-    httpPort: '8080', httpBootDir: '',
     netbootEnabled: true,
     netbootScriptTemplate: "",
     boot: {
@@ -122,13 +121,14 @@ export default function Settings() {
       const [res, ifaceRes] = await Promise.all([api.getSettings(), api.getInterfaces()])
       setAvailableIfaces(ifaceRes.data)
       const d = res.data
-      if (d.server.token) setAuthToken(d.server.token)
       setConfig(prev => ({
         ...prev,
         serverName: d.server.name || 'pxego',
         logLevel: d.log_level || prev.logLevel,
         dataDir: d.data_dir || prev.dataDir,
+        listenAddr: d.server.listen_addr || prev.listenAddr,
         authToken: d.server.token || prev.authToken,
+        tokenSet: d.server.token_set ?? false,
         autoOpen: d.server.app_mode ?? prev.autoOpen,
         dhcpEnabled: d.dhcp.enabled ?? prev.dhcpEnabled,
         dhcpRange: d.dhcp.range || prev.dhcpRange,
@@ -142,8 +142,6 @@ export default function Settings() {
         dnsEnabled: d.dns.enabled ?? prev.dnsEnabled,
         dnsPort: String(d.dns.port > 0 ? d.dns.port : 53),
         dnsUpstream: d.dns.upstream || prev.dnsUpstream,
-        httpPort: String(d.http.port > 0 ? d.http.port : 8080),
-        httpBootDir: d.http.boot_dir || prev.httpBootDir,
         netbootEnabled: d.netboot?.enabled ?? prev.netbootEnabled,
                 netbootScriptTemplate: d.netboot?.script_template ?? prev.netbootScriptTemplate,
         boot: d.netboot?.boot ? {
@@ -179,7 +177,7 @@ export default function Settings() {
             if (ir.subnets && ir.subnets.length > 0) {
               subnets = ir.subnets.map(s => ({
                 cidr: s.cidr || '',
-                dhcpMode: s.dhcp_mode || ir.dhcp_mode || 'full',
+                dhcpMode: s.dhcp_mode || 'full',
                 pools: s.pools && s.pools.length > 0 ? s.pools : [''],
                 gateway: s.gateway || '',
                 dnsServers: s.dns_servers || '8.8.8.8',
@@ -189,7 +187,7 @@ export default function Settings() {
             } else {
               subnets = [{
                 cidr: ir.subnet || '',
-                dhcpMode: ir.dhcp_mode || 'full',
+                dhcpMode: 'full',
                 pools: ir.pools && ir.pools.length > 0 ? ir.pools : [''],
                 gateway: ir.gateway || '',
                 dnsServers: ir.dns_servers || '8.8.8.8',
@@ -200,7 +198,7 @@ export default function Settings() {
             return {
               name: ir.name || '',
               ip: ir.ip || '',
-              dhcpMode: ir.dhcp_mode || 'hybrid',
+              dhcpMode: 'full',
               bootloader: ir.bootloader || 'ipxe',
               chainToIPXE: ir.chain_to_ipxe || false,
               subnets,
@@ -234,8 +232,8 @@ export default function Settings() {
       if (!iface.name) continue
       for (let si = 0; si < iface.subnets.length; si++) {
         const s = iface.subnets[si]
-        const mode = s.dhcpMode || iface.dhcpMode
-        if (mode === 'full' || mode === 'hybrid') {
+        const mode = s.dhcpMode || 'full'
+        if (mode === 'full') {
           if (s.cidr && !validateCIDR(s.cidr)) {
             errs.push(`接口 #${i + 1}, 子网 #${si + 1}: CIDR 格式无效（如 192.168.1.0/24）`)
           }
@@ -276,9 +274,7 @@ export default function Settings() {
     if (!validatePort(parseInt(config.dnsPort))) {
       errs.push('DNS 端口号无效（1-65535）')
     }
-    if (!validatePort(parseInt(config.httpPort))) {
-      errs.push('HTTP 端口号无效（1-65535）')
-    }
+
     return errs
   }
 
@@ -296,7 +292,6 @@ export default function Settings() {
         .map(iface => ({
           name: iface.name,
           ip: iface.ip,
-          dhcp_mode: iface.dhcpMode,
           bootloader: iface.bootloader,
           chain_to_ipxe: iface.chainToIPXE,
           subnets: iface.subnets.map(s => ({
@@ -326,6 +321,8 @@ export default function Settings() {
           name: config.serverName,
           app_mode: config.autoOpen,
           token: config.authToken,
+          listen_addr: config.listenAddr,
+          token_set: config.tokenSet,
         },
         dhcp: {
           enabled: config.dhcpEnabled,
@@ -345,10 +342,7 @@ export default function Settings() {
           port: parseInt(config.dnsPort) || 53,
           upstream: config.dnsUpstream,
         },
-        http: {
-          port: parseInt(config.httpPort) || 8080,
-          boot_dir: config.httpBootDir,
-        },
+
         netboot: {
           enabled: config.netbootEnabled,
           script_template: config.netbootScriptTemplate || undefined,
@@ -416,7 +410,6 @@ export default function Settings() {
     { key: 'dhcp', label: t('settings.dhcp') },
     { key: 'tftp', label: t('settings.tftp') },
     { key: 'dns', label: t('settings.dns') },
-    { key: 'http', label: 'HTTP' },
     { key: 'netboot', label: 'Netboot' },
   ]
 
@@ -483,7 +476,37 @@ export default function Settings() {
                 </select>
               </div>
             </div>
-            {renderField(t('settings.listenAddr', '管理接口监听地址'), config.listenAddr, v => setConfig({...config, listenAddr: v}))}
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('settings.listenAddr', '管理接口监听地址')}</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={config.listenAddr}
+                  onChange={e => setConfig({...config, listenAddr: e.target.value})}
+                  placeholder="127.0.0.1:8080"
+                  className="flex-1 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-all placeholder-[var(--text-muted)] focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10 font-mono"
+                />
+                <select
+                  className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none cursor-pointer min-w-[100px]"
+                  value=""
+                  onChange={e => {
+                    const sel = availableIfaces.find(x => x.name === e.target.value)
+                    if (sel?.ipv4?.[0]) {
+                      const port = config.listenAddr.split(':')[1] || '8080'
+                      setConfig({...config, listenAddr: sel.ipv4[0] + ':' + port})
+                    }
+                  }}
+                >
+                  <option value="">选择网卡</option>
+                  {availableIfaces.filter(ai => ai.up && ai.ipv4?.length > 0).map(ai => (
+                    <option key={ai.name} value={ai.name}>
+                      {ai.name} ({ai.ipv4[0]})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs text-[var(--text-muted)] mt-1">修改后需要重启 HTTP 服务才能生效。默认 127.0.0.1:8080（仅本机访问）；设为 0.0.0.0:8080 允许远程访问（需要登录认证）。</p>
+            </div>
 
             {/* API 令牌 */}
             <div>
@@ -491,7 +514,9 @@ export default function Settings() {
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  value={config.authToken}
+                  value={config.authToken.length === 32 && /^[0-9a-f]+$/i.test(config.authToken)
+                    ? config.authToken.slice(0, 4) + '...' + config.authToken.slice(-4)
+                    : config.authToken || '未设置'}
                   readOnly
                   className="flex-1 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] font-mono outline-none select-all"
                 />
@@ -510,7 +535,12 @@ export default function Settings() {
                   <RotateCw size={16} />
                 </button>
               </div>
-              <p className="text-xs text-[var(--text-muted)] mt-1">用于 API 请求的身份验证。修改后需要在 HTTP 请求头中添加 Authorization: Bearer {config.authToken ? `<令牌>` : ''}</p>
+              {config.authToken && !config.authToken.includes('...') && (
+                <div className="mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400">
+                  ⚠ 新令牌已生成！请立即复制并保存。保存配置后令牌将仅显示掩码。
+                </div>
+              )}
+              <p className="text-xs text-[var(--text-muted)] mt-1">用于 API 请求的身份验证。将令牌输入登录页即可获取会话令牌。</p>
             </div>
 
             <div className="flex flex-col gap-3 pt-2">
@@ -567,16 +597,7 @@ export default function Settings() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">接口 DHCP 默认模式</label>
-                    <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={iface.dhcpMode} onChange={e => {
-                      const next = [...config.interfaces]; next[i] = {...next[i], dhcpMode: e.target.value}; setConfig({...config, interfaces: next})
-                    }}>
-                      <option value="hybrid">hybrid（默认 — 子网级别可覆盖）</option>
-                      <option value="full">full</option>
-                      <option value="proxy">proxy</option>
-                      <option value="off">off</option>
-                    </select>
-                    <p className="text-xs text-[var(--text-muted)] mt-1">子网未指定 DHCP 模式时使用此默认值</p>
+
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">引导加载器</label>
@@ -592,7 +613,7 @@ export default function Settings() {
                 </div>
 
                 {iface.subnets.map((s, si) => {
-                  const subnetMode = s.dhcpMode || iface.dhcpMode
+                  const subnetMode = s.dhcpMode || 'full'
                   const isOffSubnet = subnetMode === 'off'
                   const isProxySubnet = subnetMode === 'proxy'
                   const disableFields = isOffSubnet || isProxySubnet
@@ -628,10 +649,8 @@ export default function Settings() {
                           next[i] = {...next[i], subnets: sn}
                           setConfig({...config, interfaces: next})
                         }}>
-                          <option value="">继承接口设置（{iface.dhcpMode}）</option>
                           <option value="full">full（完整 DHCP）</option>
                           <option value="proxy">proxy（代理 DHCP）</option>
-                          <option value="hybrid">hybrid（混合）</option>
                           <option value="off">off（关闭）</option>
                         </select>
                       </div>
@@ -724,7 +743,7 @@ export default function Settings() {
                 })}
                 <Button variant="secondary" size="sm" onClick={() => {
                   const next = [...config.interfaces]
-                  next[i] = {...next[i], subnets: [...next[i].subnets, { cidr: '', dhcpMode: '', pools: [''], gateway: '', dnsServers: '8.8.8.8', leaseTime: '3600', nextServer: '' }]}
+                  next[i] = {...next[i], subnets: [...next[i].subnets, { cidr: '', dhcpMode: 'full', pools: [''], gateway: '', dnsServers: '8.8.8.8', leaseTime: '3600', nextServer: '' }]}
                   setConfig({...config, interfaces: next})
                 }}>
                   + 添加子网
@@ -888,15 +907,6 @@ export default function Settings() {
             <div className="grid grid-cols-2 gap-4">
               {renderField(t('settings.port'), config.dnsPort, v => setConfig({...config, dnsPort: v}))}
               {renderField(t('settings.dnsUpstream', '上游 DNS'), config.dnsUpstream, v => setConfig({...config, dnsUpstream: v}))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'http' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              {renderField(t('settings.port'), config.httpPort, v => setConfig({...config, httpPort: v}))}
-              {renderField(t('settings.httpBootDir', '启动文件目录'), config.httpBootDir, v => setConfig({...config, httpBootDir: v}))}
             </div>
           </div>
         )}

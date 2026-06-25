@@ -4,6 +4,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/pxego/pxego/internal/config"
+	"github.com/pxego/pxego/internal/session"
 )
 
 func TestCORSMiddleware(t *testing.T) {
@@ -37,8 +40,17 @@ func TestCORSMiddleware(t *testing.T) {
 }
 
 func TestAuthMiddleware(t *testing.T) {
-	t.Run("missing token returns 401", func(t *testing.T) {
-		handler := AuthMiddleware("secret123")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Helper to create middleware with localhost config
+	newMiddleware := func(cfg *config.Config, sessions *session.Store) func(http.Handler) http.Handler {
+		return AuthMiddleware(cfg, sessions)
+	}
+
+	t.Run("localhost mode allows all", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.Global.ListenAddr = "127.0.0.1:8080"
+		sessions := session.NewStore(0)
+
+		handler := newMiddleware(cfg, sessions)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
 
@@ -46,21 +58,46 @@ func TestAuthMiddleware(t *testing.T) {
 		r := httptest.NewRequest("GET", "/api/v1/hosts", nil)
 		handler.ServeHTTP(w, r)
 
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200 in localhost mode, got %d", w.Code)
+		}
+	})
+
+	t.Run("remote mode missing token returns 401", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.Global.ListenAddr = "0.0.0.0:8080"
+		sessions := session.NewStore(0)
+
+		handler := newMiddleware(cfg, sessions)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("GET", "/api/v1/hosts", nil)
+		r.RemoteAddr = "192.168.1.100:12345"
+		handler.ServeHTTP(w, r)
+
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("expected 401, got %d", w.Code)
 		}
 	})
 
-	t.Run("valid token passes", func(t *testing.T) {
+	t.Run("valid session token passes", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.Global.ListenAddr = "0.0.0.0:8080"
+		sessions := session.NewStore(0)
+		s := sessions.Create()
+
 		called := false
-		handler := AuthMiddleware("secret123")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler := newMiddleware(cfg, sessions)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			called = true
 			w.WriteHeader(http.StatusOK)
 		}))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("GET", "/api/v1/hosts", nil)
-		r.Header.Set("Authorization", "Bearer secret123")
+		r.RemoteAddr = "192.168.1.100:12345"
+		r.Header.Set("Authorization", "Bearer "+s.Token)
 		handler.ServeHTTP(w, r)
 
 		if w.Code != http.StatusOK {
@@ -71,32 +108,22 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("wrong token returns 401", func(t *testing.T) {
-		handler := AuthMiddleware("secret123")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			t.Error("should not be called")
-		}))
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest("GET", "/api/v1/hosts", nil)
-		r.Header.Set("Authorization", "Bearer wrongtoken")
-		handler.ServeHTTP(w, r)
-
-		if w.Code != http.StatusUnauthorized {
-			t.Errorf("expected 401, got %d", w.Code)
-		}
-	})
-
 	t.Run("public path exempted", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.Global.ListenAddr = "0.0.0.0:8080"
+		sessions := session.NewStore(0)
+
 		called := false
-		handler := AuthMiddleware("secret123")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler := newMiddleware(cfg, sessions)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			called = true
 			w.WriteHeader(http.StatusOK)
 		}))
 
-		paths := []string{"/health", "/api/v1/status", "/boot/ipxe.efi"}
+		paths := []string{"/health", "/api/v1/status", "/boot/ipxe.efi", "/api/v1/auth/login"}
 		for _, p := range paths {
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest("GET", p, nil)
+			r.RemoteAddr = "192.168.1.100:12345"
 			handler.ServeHTTP(w, r)
 
 			if w.Code != http.StatusOK {
@@ -109,22 +136,27 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("empty token skips auth", func(t *testing.T) {
+	t.Run("SPA paths are served without auth", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		cfg.Global.ListenAddr = "0.0.0.0:8080"
+		sessions := session.NewStore(0)
+
 		called := false
-		handler := AuthMiddleware("")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler := newMiddleware(cfg, sessions)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			called = true
 			w.WriteHeader(http.StatusOK)
 		}))
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest("GET", "/api/v1/hosts", nil)
+		r := httptest.NewRequest("GET", "/settings", nil)
+		r.RemoteAddr = "192.168.1.100:12345"
 		handler.ServeHTTP(w, r)
 
 		if w.Code != http.StatusOK {
-			t.Errorf("expected 200, got %d", w.Code)
+			t.Errorf("SPA path: expected 200, got %d", w.Code)
 		}
 		if !called {
-			t.Error("handler should be called when no auth token is set")
+			t.Error("SPA handler should be called even without auth")
 		}
 	})
 }

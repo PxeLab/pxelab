@@ -28,13 +28,13 @@ type GlobalConfig struct {
 	DataDir    string `yaml:"data_dir" mapstructure:"data_dir"`
 	AppMode    bool   `yaml:"app_mode" mapstructure:"app_mode"`
 	ServerName string `yaml:"server_name" mapstructure:"server_name"`
+	ListenAddr string `yaml:"listen_addr" mapstructure:"listen_addr"`
 }
 
 type InterfaceConfig struct {
 	Name        string         `yaml:"name" mapstructure:"name"`
 	IP          string         `yaml:"ip" mapstructure:"ip"`
 	Subnets     []SubnetConfig `yaml:"subnets" mapstructure:"subnets"`
-	DHCP        string         `yaml:"dhcp" mapstructure:"dhcp"`                  // full | proxy | hybrid | off
 	Bootloader  string         `yaml:"bootloader" mapstructure:"bootloader"`       // ipxe | pxelinux | grub2
 	ChainToIPXE bool           `yaml:"chain_to_ipxe" mapstructure:"chain_to_ipxe"` // pxelinux/grub2 → chain-load to iPXE
 	TFTP        bool           `yaml:"tftp" mapstructure:"tftp"`
@@ -55,7 +55,8 @@ type SubnetConfig struct {
 }
 
 type AuthConfig struct {
-	Token string `yaml:"token" mapstructure:"token"`
+	Token     string `yaml:"token" mapstructure:"token"`
+	TokenHash string `yaml:"token_hash" mapstructure:"token_hash"`
 }
 
 type NetbootConfig struct {
@@ -143,8 +144,10 @@ type LogConfig struct {
 
 func (c *Config) Validate() error {
 	for _, iface := range c.Interfaces {
-		if iface.DHCP != "" && iface.DHCP != "full" && iface.DHCP != "proxy" && iface.DHCP != "hybrid" && iface.DHCP != "off" {
-			return fmt.Errorf("interface %s: 无效的 DHCP 模式: %s", iface.Name, iface.DHCP)
+		for _, sn := range iface.Subnets {
+			if sn.DHCP != "" && sn.DHCP != "full" && sn.DHCP != "proxy" && sn.DHCP != "off" {
+				return fmt.Errorf("interface %s subnet %s: 无效的 DHCP 模式: %s", iface.Name, sn.CIDR, sn.DHCP)
+			}
 		}
 		if iface.Bootloader != "" && iface.Bootloader != "ipxe" && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" && iface.Bootloader != "undionly" {
 			return fmt.Errorf("interface %s: 无效的引导加载器: %s", iface.Name, iface.Bootloader)

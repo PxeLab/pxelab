@@ -3,14 +3,17 @@ package api
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/pxego/pxego/internal/config"
 	"gopkg.in/yaml.v3"
@@ -24,6 +27,7 @@ type SubnetReloader interface {
 type SettingsHandler struct {
 	cfg      *config.Config
 	reloader SubnetReloader
+	mu       sync.Mutex
 }
 
 func NewSettingsHandler(cfg *config.Config, reloader SubnetReloader) *SettingsHandler {
@@ -35,7 +39,6 @@ type SettingsResponse struct {
 	DHCP       DHCPSettings        `json:"dhcp"`
 	TFTP       TFTPSettings        `json:"tftp"`
 	DNS        DNSSettings         `json:"dns"`
-	HTTP       HTTPSettings        `json:"http"`
 	IPMI       IPMISettings        `json:"ipmi"`
 	Netboot    NetbootSettings     `json:"netboot"`
 	LogLevel   string              `json:"log_level"`
@@ -44,9 +47,11 @@ type SettingsResponse struct {
 }
 
 type ServerSettings struct {
-	Name    string `json:"name"`
-	AppMode bool   `json:"app_mode"`
-	Token   string `json:"token"`
+	Name       string `json:"name"`
+	AppMode    bool   `json:"app_mode"`
+	Token      string `json:"token"`
+	ListenAddr string `json:"listen_addr"`
+	TokenSet   bool   `json:"token_set"`
 }
 
 type DHCPSettings struct {
@@ -70,10 +75,6 @@ type DNSSettings struct {
 	Upstream string `json:"upstream"`
 }
 
-type HTTPSettings struct {
-	Port    int    `json:"port"`
-	BootDir string `json:"boot_dir"`
-}
 
 type IPMISettings struct {
 	Enabled bool `json:"enabled"`
@@ -165,7 +166,9 @@ type InterfaceResponse struct {
 
 func generateToken() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }
 
@@ -179,24 +182,45 @@ func configPath(cfg *config.Config) string {
 func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	cfg := h.cfg
 
-	if cfg.Auth.Token == "" {
+	h.mu.Lock()
+	if cfg.Auth.Token == "" && cfg.Auth.TokenHash == "" {
 		cfg.Auth.Token = generateToken()
-		saveConfig(configPath(cfg), cfg)
+		hsh := sha256.Sum256([]byte(cfg.Auth.Token))
+		cfg.Auth.TokenHash = hex.EncodeToString(hsh[:])
+		if err := saveConfig(configPath(cfg), cfg); err != nil {
+			slog.Error("保存 token 配置失败", "error", err)
+		}
+		slog.Info("已生成初始 API 令牌（仅首次显示此日志，请妥善保管）", "token", cfg.Auth.Token)
+	}
+	if cfg.Auth.TokenHash == "" && cfg.Auth.Token != "" {
+		hsh := sha256.Sum256([]byte(cfg.Auth.Token))
+		cfg.Auth.TokenHash = hex.EncodeToString(hsh[:])
+		if err := saveConfig(configPath(cfg), cfg); err != nil {
+			slog.Error("保存 token hash 失败", "error", err)
+		}
 	}
 	if cfg.Global.ServerName == "" {
 		cfg.Global.ServerName = "pxego"
 	}
+	if cfg.Global.ListenAddr == "" {
+		cfg.Global.ListenAddr = "127.0.0.1:8080"
+	}
+	h.mu.Unlock()
+
+	tokenSet := cfg.Auth.TokenHash != ""
 
 	resp := SettingsResponse{
 		LogLevel: cfg.Log.Level,
 		DataDir:  cfg.Global.DataDir,
 		Server: ServerSettings{
-			Name:    cfg.Global.ServerName,
-			AppMode: cfg.Global.AppMode,
-			Token:   cfg.Auth.Token,
+			Name:       cfg.Global.ServerName,
+			AppMode:    cfg.Global.AppMode,
+			Token:      cfg.Auth.Token,
+			ListenAddr: cfg.Global.ListenAddr,
+			TokenSet:   tokenSet,
 		},
 		DHCP: DHCPSettings{
-			Enabled:    true,
+			Enabled:    false,
 			Range:      "",
 			Gateway:    "",
 			Subnet:     "",
@@ -212,14 +236,6 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Enabled:  false,
 			Port:     config.DefaultPortDNS,
 			Upstream: "8.8.8.8:53",
-		},
-		HTTP: HTTPSettings{
-			Port:    config.DefaultPortHTTP,
-			BootDir: cfg.Boot.RootDir,
-		},
-		IPMI: IPMISettings{
-			Enabled: false,
-			Timeout: 5,
 		},
 		Netboot: NetbootSettings{
 			Enabled:        cfg.Netboot.Enabled,
@@ -254,7 +270,6 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		ir := InterfaceResponse{
 			Name:       iface.Name,
 			IP:         iface.IP,
-			DHCPMode:   iface.DHCP,
 			Bootloader: iface.Bootloader,
 			ChainToIPXE: iface.ChainToIPXE,
 			TFTP:       iface.TFTP,
@@ -262,6 +277,9 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			DNS:        iface.DNS,
 			LeaseTime:  config.DefaultLeaseTime,
 			DNSServers: "8.8.8.8",
+		}
+		if len(iface.Subnets) > 0 {
+			ir.DHCPMode = iface.Subnets[0].DHCP
 		}
 		if ir.DHCPMode == "" {
 			ir.DHCPMode = "full"
@@ -284,7 +302,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			for _, sn := range iface.Subnets {
 				dhcpMode := sn.DHCP
 				if dhcpMode == "" {
-					dhcpMode = ir.DHCPMode
+					dhcpMode = "full"
 				}
 				pools := sn.Pools
 				if len(pools) == 0 && sn.Pool != "" {
@@ -301,16 +319,13 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 				})
 			}
 		}
-if iface.DHCP == "" || iface.DHCP == "off" {
-			resp.DHCP.Enabled = false
-		}
 
 		resp.Interfaces = append(resp.Interfaces, ir)
 	}
 
 	if len(cfg.Interfaces) > 0 && len(cfg.Interfaces[0].Subnets) > 0 {
 		sn := cfg.Interfaces[0].Subnets[0]
-		resp.DHCP.Enabled = cfg.Interfaces[0].DHCP != "" && cfg.Interfaces[0].DHCP != "off"
+		resp.DHCP.Enabled = cfg.Interfaces[0].Subnets[0].DHCP != "" && cfg.Interfaces[0].Subnets[0].DHCP != "off"
 		if len(sn.Pools) > 0 {
 			resp.DHCP.Range = sn.Pools[0]
 		} else {
@@ -367,73 +382,73 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-		// 校验接口配置
-		for i, ir := range req.Interfaces {
-			if ir.DHCPMode == "" || ir.DHCPMode == "off" {
+	// 校验接口配置
+	for i, ir := range req.Interfaces {
+		// 如果没有子网数组，使用平铺字段向后兼容
+		subnets := ir.Subnets
+		if len(subnets) == 0 && ir.Subnet != "" {
+			subnets = []SubnetSettings{{
+				CIDR: ir.Subnet, DHCPMode: "full",
+				Pools: ir.Pools, Gateway: ir.Gateway,
+				DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
+				NextServer: ir.NextServer,
+			}}
+		}
+		for si, s := range subnets {
+			if s.DHCPMode == "" || s.DHCPMode == "off" || s.DHCPMode == "proxy" {
 				continue
 			}
-			// 如果没有子网数组，使用平铺字段向后兼容
-			subnets := ir.Subnets
-			if len(subnets) == 0 && ir.Subnet != "" {
-				subnets = []SubnetSettings{{
-					CIDR: ir.Subnet, DHCPMode: ir.DHCPMode,
-					Pools: ir.Pools, Gateway: ir.Gateway,
-					DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
-					NextServer: ir.NextServer,
-				}}
-			}
-			for si, s := range subnets {
-				if s.DHCPMode == "" || s.DHCPMode == "off" || s.DHCPMode == "proxy" {
+			for pi, p := range s.Pools {
+				p = strings.TrimSpace(p)
+				if p == "" {
 					continue
 				}
-				for pi, p := range s.Pools {
-					p = strings.TrimSpace(p)
-					if p == "" {
-						continue
-					}
-					parts := strings.SplitN(p, "-", 2)
-					if len(parts) != 2 {
-						Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 格式无效", i+1, si+1, pi+1))
+				parts := strings.SplitN(p, "-", 2)
+				if len(parts) != 2 {
+					Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 格式无效", i+1, si+1, pi+1))
+					return
+				}
+				startIP := strings.TrimSpace(parts[0])
+				endIP := strings.TrimSpace(parts[1])
+				if s.CIDR != "" {
+					if !ipInCIDR(startIP, s.CIDR) {
+						Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 起始地址 %s 不属于子网 %s", i+1, si+1, pi+1, startIP, s.CIDR))
 						return
 					}
-					startIP := strings.TrimSpace(parts[0])
-					endIP := strings.TrimSpace(parts[1])
-					if s.CIDR != "" {
-						if !ipInCIDR(startIP, s.CIDR) {
-							Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 起始地址 %s 不属于子网 %s", i+1, si+1, pi+1, startIP, s.CIDR))
-							return
-						}
-						if !ipInCIDR(endIP, s.CIDR) {
-							Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 结束地址 %s 不属于子网 %s", i+1, si+1, pi+1, endIP, s.CIDR))
-							return
-						}
+					if !ipInCIDR(endIP, s.CIDR) {
+						Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 结束地址 %s 不属于子网 %s", i+1, si+1, pi+1, endIP, s.CIDR))
+						return
 					}
 				}
-				// 检测地址池冲突
-				validPools := make([]string, 0, len(s.Pools))
-				for _, p := range s.Pools {
-					if strings.TrimSpace(p) != "" && strings.Contains(p, "-") {
-						validPools = append(validPools, p)
-					}
+			}
+			// 检测地址池冲突
+			validPools := make([]string, 0, len(s.Pools))
+			for _, p := range s.Pools {
+				if strings.TrimSpace(p) != "" && strings.Contains(p, "-") {
+					validPools = append(validPools, p)
 				}
-				for pi := 0; pi < len(validPools); pi++ {
-					for pj := pi + 1; pj < len(validPools); pj++ {
-						if poolsOverlap(validPools[pi], validPools[pj]) {
-							Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 和 #%d 范围冲突", i+1, si+1, pi+1, pj+1))
-							return
-						}
+			}
+			for pi := 0; pi < len(validPools); pi++ {
+				for pj := pi + 1; pj < len(validPools); pj++ {
+					if poolsOverlap(validPools[pi], validPools[pj]) {
+						Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 和 #%d 范围冲突", i+1, si+1, pi+1, pj+1))
+						return
 					}
 				}
 			}
 		}
-
-
+	}
 
 	h.cfg.Log.Level = req.LogLevel
 	h.cfg.Global.ServerName = req.Server.Name
 	h.cfg.Global.AppMode = req.Server.AppMode
-	if req.Server.Token != "" {
+	if req.Server.ListenAddr != "" {
+		h.cfg.Global.ListenAddr = req.Server.ListenAddr
+	}
+	if req.Server.Token != "" && req.Server.Token != h.cfg.Auth.Token && !strings.Contains(req.Server.Token, "...") {
 		h.cfg.Auth.Token = req.Server.Token
+		hsh := sha256.Sum256([]byte(req.Server.Token))
+		h.cfg.Auth.TokenHash = hex.EncodeToString(hsh[:])
 	}
 
 	h.cfg.Netboot.Enabled = req.Netboot.Enabled
@@ -469,15 +484,11 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			iface := config.InterfaceConfig{
 				Name: ir.Name,
 				IP:   ir.IP,
-				DHCP: ir.DHCPMode,
 				Bootloader: ir.Bootloader,
 				ChainToIPXE: ir.ChainToIPXE,
 				TFTP: ir.TFTP,
 				HTTP: ir.HTTP,
 				DNS:  ir.DNS,
-			}
-			if ir.DHCPMode == "" {
-				iface.DHCP = "full"
 			}
 
 			if len(ir.Subnets) > 0 {
@@ -495,7 +506,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			} else if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" || ir.NextServer != "" {
 				iface.Subnets = []config.SubnetConfig{{
 					CIDR:       ir.Subnet,
-					DHCP:       ir.DHCPMode,
+					DHCP:       "full",
 					Pools:      ir.Pools,
 					Gateway:    ir.Gateway,
 					DNSServers: ir.DNSServers,

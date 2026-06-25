@@ -58,7 +58,7 @@ func (h *Handler) InitSubnets() {
 			// 确定 DHCP 模式
 			dhcpMode := subnet.DHCP
 			if dhcpMode == "" {
-				dhcpMode = iface.DHCP
+				dhcpMode = "full"
 			}
 
 			var pools []*IPRange
@@ -103,7 +103,7 @@ func (h *Handler) InitSubnets() {
 				continue
 			}
 
-			// Full/hybrid: 必须有地址池和网关
+			// Full: 必须有地址池和网关
 			if len(pools) == 0 {
 				slog.Warn("子网无有效地址池，跳过", "cidr", subnet.CIDR)
 				continue
@@ -157,23 +157,6 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 		MAC:     &mac,
 	})
 
-	// 确定 DHCP 模式
-	dhcpMode := "hybrid"
-
-	for _, iface := range h.filteredInterfaces() {
-		if isPXE && (iface.DHCP == "proxy" || iface.DHCP == "hybrid") {
-			dhcpMode = "proxy"
-		} else if iface.DHCP == "full" {
-			dhcpMode = "full"
-		}
-	}
-
-	// Proxy interface: skip non-PXE clients
-	if dhcpMode == "proxy" && !isPXE {
-		slog.Debug("Proxy skip non-PXE client", "mac", mac)
-		return
-	}
-	slog.Info("DHCP 模式确定", "mode", dhcpMode, "mac", mac)
 
 	// 查找匹配子网
 	var subnetCfg *config.SubnetConfig
@@ -277,6 +260,19 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	}
 
 	bootloader := h.bootloaderForSubnet(subnetCfg)
+
+	// 从匹配的子网确定 DHCP 模式
+	dhcpMode := subnetCfg.DHCP
+	if dhcpMode == "" {
+		dhcpMode = "full"
+	}
+
+	// Proxy subnet: skip non-PXE clients
+	if dhcpMode == "proxy" && !isPXE {
+		slog.Debug("Proxy skip non-PXE client", "mac", mac)
+		return
+	}
+	slog.Info("DHCP 模式", "mode", dhcpMode, "mac", mac)
 
 	var reply *dhcpv4.DHCPv4
 	switch mt {
@@ -415,7 +411,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 			reply.UpdateOption(dhcpv4.OptSubnetMask(ipnet.Mask))
 		}
 	}
-	case "full", "hybrid":
+	case "full":
 		archStr, platformStr := ArchAndPlatform(pkt)
 		ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
 		if err != nil {

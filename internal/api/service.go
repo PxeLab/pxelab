@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxego/pxego/internal/config"
@@ -17,6 +18,15 @@ type ServiceHandler struct {
 
 func NewServiceHandler(ctrl ServiceController, cfg *config.Config, saveFn func() error) *ServiceHandler {
 	return &ServiceHandler{ctrl: ctrl, cfg: cfg, saveFn: saveFn}
+}
+
+// serviceNameParam 从 URL 中提取 name 参数并做 URL 解码（支持 %2F 等编码）。
+func serviceNameParam(r *http.Request) string {
+	name := chi.URLParam(r, "name")
+	if decoded, err := url.PathUnescape(name); err == nil {
+		return decoded
+	}
+	return name
 }
 
 // ListServices 返回所有服务状态
@@ -38,7 +48,7 @@ func (h *ServiceHandler) rejectProtected(name string) bool {
 
 // StartService 启动单个服务
 func (h *ServiceHandler) StartService(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	name := serviceNameParam(r)
 	if name == "" {
 		Error(w, http.StatusBadRequest, "missing service name")
 		return
@@ -61,7 +71,7 @@ func (h *ServiceHandler) StartService(w http.ResponseWriter, r *http.Request) {
 
 // StopService 停止单个服务
 func (h *ServiceHandler) StopService(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	name := serviceNameParam(r)
 	if name == "" {
 		Error(w, http.StatusBadRequest, "missing service name")
 		return
@@ -84,7 +94,7 @@ func (h *ServiceHandler) StopService(w http.ResponseWriter, r *http.Request) {
 
 // RestartService 重启单个服务
 func (h *ServiceHandler) RestartService(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	name := serviceNameParam(r)
 	if name == "" {
 		Error(w, http.StatusBadRequest, "missing service name")
 		return
@@ -171,7 +181,7 @@ type autoStartRequest struct {
 
 // UpdateAutoStart 切换服务的自动启动标志
 func (h *ServiceHandler) UpdateAutoStart(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
+	name := serviceNameParam(r)
 	if name == "" {
 		Error(w, http.StatusBadRequest, "missing service name")
 		return

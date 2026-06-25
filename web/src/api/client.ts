@@ -81,38 +81,83 @@ export interface ServiceStatus {
 
 let baseURL = ''
 
-// ── Auth token management ──
+// ── Session token management ──
 
-function loadToken(): string | null {
+function loadSession(): string | null {
   try {
-    return localStorage.getItem('pxego_auth_token')
+    return localStorage.getItem('pxego_session')
   } catch {
     return null
   }
 }
 
-function saveToken(token: string) {
-  authToken = token
+function saveSession(token: string) {
+  sessionToken = token
   try {
-    localStorage.setItem('pxego_auth_token', token)
+    localStorage.setItem('pxego_session', token)
   } catch {}
 }
 
-let authToken: string | null = loadToken()
+let sessionToken: string | null = loadSession()
 
-export function setAuthToken(token: string) {
-  saveToken(token)
+export function setSessionToken(token: string) {
+  saveSession(token)
 }
 
-export function clearAuthToken() {
-  authToken = null
+export function clearSession() {
+  sessionToken = null
   try {
+    localStorage.removeItem('pxego_session')
     localStorage.removeItem('pxego_auth_token')
   } catch {}
 }
 
-export function getAuthToken(): string | null {
-  return authToken || loadToken()
+export function getSessionToken(): string | null {
+  return sessionToken || loadSession()
+}
+
+// ── Login / Logout ──
+
+export async function login(masterToken: string): Promise<string> {
+  const res = await fetch(baseURL + '/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: masterToken }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: '登录失败' }))
+    throw new Error(err.error || '登录失败')
+  }
+  const data = await res.json()
+  saveSession(data.session_token)
+  return data.session_token
+}
+
+export async function logout() {
+  const session = getSessionToken()
+  if (session) {
+    try {
+      await fetch(baseURL + '/api/v1/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + session },
+      })
+    } catch {}
+  }
+  clearSession()
+}
+
+export async function checkSession(): Promise<boolean> {
+  const session = getSessionToken()
+  if (!session) return false
+  try {
+    const res = await fetch(baseURL + '/api/v1/auth/session', {
+      headers: { 'Authorization': 'Bearer ' + session },
+    })
+    const data = await res.json()
+    return data.data?.valid === true
+  } catch {
+    return false
+  }
 }
 
 export function setBaseURL(url: string) {
@@ -137,9 +182,9 @@ function buildQuery(params?: Record<string, unknown>): string {
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<ApiResponse<T>> {
   const headers: Record<string, string> = {}
-  const token = getAuthToken()
-  if (token) {
-    headers['Authorization'] = 'Bearer ' + token
+  const session = getSessionToken()
+  if (session) {
+    headers['Authorization'] = 'Bearer ' + session
   }
   const opts: RequestInit = { method, headers }
   if (body instanceof FormData) {
@@ -149,6 +194,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     opts.body = JSON.stringify(body)
   }
   const res = await fetch(baseURL + '/api/v1' + path, opts)
+  if (res.status === 401) {
+    clearSession()
+    window.location.href = '/login'
+    throw new Error('会话已过期，请重新登录')
+  }
   if (res.status === 204) return { success: true } as ApiResponse<T>
   const json = await res.json()
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`)
@@ -246,7 +296,6 @@ export interface SubnetSettings {
 export interface InterfaceSettings {
   name: string
   ip: string
-  dhcp_mode: string
   bootloader: string
   chain_to_ipxe: boolean
   subnets: SubnetSettings[]
@@ -292,11 +341,10 @@ export interface BootSettings {
 }
 
 export interface SettingsData {
-  server: { name: string; app_mode: boolean; token: string }
+  server: { name: string; app_mode: boolean; token: string; listen_addr: string; token_set: boolean }
   dhcp: { enabled: boolean; range: string; gateway: string; subnet: string; lease_time: number; dns_servers: string }
   tftp: { enabled: boolean; port: number; root: string }
   dns: { enabled: boolean; port: number; upstream: string }
-  http: { port: number; boot_dir: string }
   ipmi?: { enabled: boolean; timeout: number }
   netboot: { enabled: boolean; script_template?: string; boot: BootSettings }
   log_level: string
@@ -374,6 +422,42 @@ export function getNetbootFileStatus(): Promise<ApiResponse<FileStatus[]>> {
   return request('GET', '/netboot/check-files')
 }
 
+// ── Services ──
+export interface ServiceInfo {
+  name: string
+  display: string
+  status: 'running' | 'stopped' | 'error'
+  auto_start: boolean
+  protected: boolean
+  port: number
+  protocol: string
+  error_msg: string
+}
+
+export function getServices(): Promise<ApiResponse<ServiceInfo[]>> {
+  return request<ServiceInfo[]>('GET', '/services')
+}
+
+export function startService(name: string): Promise<ApiResponse<ServiceInfo>> {
+  return request<ServiceInfo>('POST', `/services/${encodeURIComponent(name)}/start`)
+}
+
+export function stopService(name: string): Promise<ApiResponse<ServiceInfo>> {
+  return request<ServiceInfo>('POST', `/services/${encodeURIComponent(name)}/stop`)
+}
+
+export function restartService(name: string): Promise<ApiResponse<ServiceInfo>> {
+  return request<ServiceInfo>('POST', `/services/${encodeURIComponent(name)}/restart`)
+}
+
+export function batchService(action: string, names: string[]): Promise<ApiResponse<{ success: boolean; result: Record<string, string> }>> {
+  return request('POST', `/services/batch/${action}`, { names })
+}
+
+export function updateAutoStart(name: string, enabled: boolean): Promise<ApiResponse<ServiceInfo>> {
+  return request<ServiceInfo>('PUT', `/services/${encodeURIComponent(name)}/auto-start`, { enabled })
+}
+
 // ── Convenience namespace (backward-compat) ──
 export const api = {
   getStatus,
@@ -406,40 +490,4 @@ export const api = {
   restartService,
   batchService,
   updateAutoStart,
-}
-// ── Services ──
-export interface ServiceInfo {
-	name: string
-	display: string
-	status: 'running' | 'stopped' | 'error'
-	auto_start: boolean
-	protected: boolean
-	port: number
-	protocol: string
-	error_msg: string
-}
-
-
-export function getServices(): Promise<ApiResponse<ServiceInfo[]>> {
-	return request<ServiceInfo[]>('GET', '/services')
-}
-
-export function startService(name: string): Promise<ApiResponse<ServiceInfo>> {
-	return request<ServiceInfo>('POST', `/services/${encodeURIComponent(name)}/start`)
-}
-
-export function stopService(name: string): Promise<ApiResponse<ServiceInfo>> {
-	return request<ServiceInfo>('POST', `/services/${encodeURIComponent(name)}/stop`)
-}
-
-export function restartService(name: string): Promise<ApiResponse<ServiceInfo>> {
-	return request<ServiceInfo>('POST', `/services/${encodeURIComponent(name)}/restart`)
-}
-
-export function batchService(action: string, names: string[]): Promise<ApiResponse<{ success: boolean; result: Record<string, string> }>> {
-	return request('POST', `/services/batch/${action}`, { names })
-}
-
-export function updateAutoStart(name: string, enabled: boolean): Promise<ApiResponse<ServiceInfo>> {
-	return request<ServiceInfo>('PUT', `/services/${encodeURIComponent(name)}/auto-start`, { enabled })
 }

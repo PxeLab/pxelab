@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { StatusDot } from '../components/ui/StatusDot'
 import { Card } from '../components/ui/Card'
@@ -14,6 +14,13 @@ const statusLabel = (s: string, t: any) => {
   if (s === 'running') return t('services.statusRunning', '运行中')
   if (s === 'stopped') return t('services.statusStopped', '已停止')
   return t('services.statusError', '错误')
+}
+
+/** 服务分组定义 */
+interface ServiceGroup {
+  type: string
+  services: ServiceInfo[]
+  isPerNIC: boolean
 }
 
 export default function Services() {
@@ -44,6 +51,15 @@ export default function Services() {
     const interval = setInterval(load, 5000)
     return () => clearInterval(interval)
   }, [load])
+
+  /** 按服务类型分组 */
+  const groups = useMemo<ServiceGroup[]>(() => [
+    { type: 'DHCP', services: services.filter(s => s.name.startsWith('dhcp/')), isPerNIC: true },
+    { type: 'ProxyDHCP', services: services.filter(s => s.name.startsWith('proxy/')), isPerNIC: true },
+    { type: 'TFTP', services: services.filter(s => s.name === 'tftp'), isPerNIC: false },
+    { type: 'HTTP', services: services.filter(s => s.name === 'http'), isPerNIC: false },
+    { type: 'DNS', services: services.filter(s => s.name === 'dns'), isPerNIC: false },
+  ], [services])
 
   const toggleSelect = (name: string) => {
     const svc = services.find(s => s.name === name)
@@ -117,6 +133,109 @@ export default function Services() {
 
   const isOperating = (name: string, op: string) => operating.has(name + op)
   const anySelected = selected.size > 0
+
+  /** 渲染单个服务行 */
+  const renderRow = (svc: ServiceInfo, indent?: boolean) => {
+    const sel = selected.has(svc.name)
+    const color = statusColor(svc.status)
+    return (
+      <tr key={svc.name} className={`hover:bg-white/[0.02] transition-colors ${sel ? 'bg-blue-500/5' : ''}`}>
+        <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+          <input
+            type="checkbox"
+            checked={sel}
+            disabled={svc.protected}
+            onChange={() => toggleSelect(svc.name)}
+            className="rounded border-[var(--bg-border)] bg-[var(--bg-input)] disabled:opacity-30"
+          />
+        </td>
+        <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+          <div className="flex items-center gap-2">
+            <span className={`font-medium text-[var(--text-primary)] ${indent ? 'ml-5 text-xs' : 'text-sm'}`}>
+              {indent ? svc.display.replace(/^(DHCP|ProxyDHCP) /, '') : svc.display}
+            </span>
+            {svc.protected && (
+              <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-blue-500/15 text-blue-400">
+                Core
+              </span>
+            )}
+          </div>
+        </td>
+        <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+          <div className="flex items-center gap-1.5">
+            <StatusDot color={color as any} />
+            <span className={`text-xs font-mono ${
+              color === 'green' ? 'text-green-400' :
+              color === 'red' ? 'text-red-400' :
+              'text-yellow-400'
+            }`}>{statusLabel(svc.status, t)}</span>
+            {svc.status === 'error' && svc.error_msg && (
+              <button
+                onClick={() => setErrorDetail(svc.error_msg)}
+                className="ml-1 text-[10px] text-red-400/60 hover:text-red-400 underline"
+                title="查看错误详情"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </td>
+        <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+          <span className="text-xs font-mono text-[var(--text-muted)]">
+            {svc.port}/{svc.protocol}
+          </span>
+        </td>
+        <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+          <span className="text-xs font-mono text-[var(--text-muted)]">{svc.name}</span>
+        </td>
+        <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+          <button
+            onClick={() => toggleAutoStart(svc.name, !svc.auto_start)}
+            disabled={svc.protected}
+            className={`text-xs ${svc.auto_start ? 'text-green-400' : 'text-[var(--text-muted)]'} disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed hover:brightness-125 transition-all`}
+            title={svc.auto_start ? '点击关闭自动启动' : '点击开启自动启动'}
+          >
+            {svc.auto_start ? '☑' : '☐'}
+          </button>
+        </td>
+        <td className="px-4 py-3 border-b border-[var(--bg-border)] text-right">
+          {svc.protected ? (
+            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-blue-500/15 text-blue-400">
+              Core
+            </span>
+          ) : (
+            <div className="flex items-center justify-end gap-1.5">
+              {svc.status !== 'running' && (
+                <button
+                  onClick={() => doOp(svc.name, 'start')}
+                  disabled={isOperating(svc.name, 'start')}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg bg-green-500/15 text-green-400 hover:bg-green-500/25 disabled:opacity-40 transition-colors"
+                >
+                  {isOperating(svc.name, 'start') ? '...' : t('services.start', '启动')}
+                </button>
+              )}
+              {svc.status === 'running' && (
+                <button
+                  onClick={() => doOp(svc.name, 'stop')}
+                  disabled={isOperating(svc.name, 'stop')}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-40 transition-colors"
+                >
+                  {isOperating(svc.name, 'stop') ? '...' : t('services.stop', '停止')}
+                </button>
+              )}
+              <button
+                onClick={() => doOp(svc.name, 'restart')}
+                disabled={isOperating(svc.name, 'restart')}
+                className="px-2.5 py-1 text-xs font-medium rounded-lg bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-40 transition-colors"
+              >
+                {isOperating(svc.name, 'restart') ? '...' : t('services.restart', '重启')}
+              </button>
+            </div>
+          )}
+        </td>
+      </tr>
+    )
+  }
 
   return (
     <div>
@@ -226,104 +345,18 @@ export default function Services() {
                 </tr>
               </thead>
               <tbody>
-                {services.map(svc => {
-                  const sel = selected.has(svc.name)
-                  const color = statusColor(svc.status)
-                  return (
-                    <tr key={svc.name} className={`hover:bg-white/[0.02] transition-colors ${sel ? 'bg-blue-500/5' : ''}`}>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                        <input
-                          type="checkbox"
-                          checked={sel}
-                          disabled={svc.protected}
-                          onChange={() => toggleSelect(svc.name)}
-                          className="rounded border-[var(--bg-border)] bg-[var(--bg-input)] disabled:opacity-30"
-                        />
-                      </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-[var(--text-primary)]">{svc.display}</span>
-                          {svc.protected && (
-                            <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-blue-500/15 text-blue-400">
-                              Core
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                        <div className="flex items-center gap-1.5">
-                          <StatusDot color={color as any} />
-                          <span className={`text-xs font-mono ${
-                            color === 'green' ? 'text-green-400' :
-                            color === 'red' ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>{statusLabel(svc.status, t)}</span>
-                          {svc.status === 'error' && svc.error_msg && (
-                            <button
-                              onClick={() => setErrorDetail(svc.error_msg)}
-                              className="ml-1 text-[10px] text-red-400/60 hover:text-red-400 underline"
-                              title="查看错误详情"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                        <span className="text-xs font-mono text-[var(--text-muted)]">
-                          {svc.port}/{svc.protocol}
+                {groups.map(group => {
+                  if (group.services.length === 0) return null
+                  return [
+                    <tr key={'h-' + group.type}>
+                      <td colSpan={7} className="px-4 py-2 bg-[var(--bg-muted)]/30 border-b border-[var(--bg-border)]">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                          {group.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                        <span className="text-xs font-mono text-[var(--text-muted)]">{svc.name}</span>
-                      </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                        <button
-                          onClick={() => toggleAutoStart(svc.name, !svc.auto_start)}
-                          disabled={svc.protected}
-                          className={`text-xs ${svc.auto_start ? 'text-green-400' : 'text-[var(--text-muted)]'} disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed hover:brightness-125 transition-all`}
-                          title={svc.auto_start ? '点击关闭自动启动' : '点击开启自动启动'}
-                        >
-                          {svc.auto_start ? '☑' : '☐'}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] text-right">
-                        {svc.protected ? (
-                          <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-full bg-blue-500/15 text-blue-400">
-                            Core
-                          </span>
-                        ) : (
-                          <div className="flex items-center justify-end gap-1.5">
-                            {svc.status !== 'running' && (
-                              <button
-                                onClick={() => doOp(svc.name, 'start')}
-                                disabled={isOperating(svc.name, 'start')}
-                                className="px-2.5 py-1 text-xs font-medium rounded-lg bg-green-500/15 text-green-400 hover:bg-green-500/25 disabled:opacity-40 transition-colors"
-                              >
-                                {isOperating(svc.name, 'start') ? '...' : t('services.start', '启动')}
-                              </button>
-                            )}
-                            {svc.status === 'running' && (
-                              <button
-                                onClick={() => doOp(svc.name, 'stop')}
-                                disabled={isOperating(svc.name, 'stop')}
-                                className="px-2.5 py-1 text-xs font-medium rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-40 transition-colors"
-                              >
-                                {isOperating(svc.name, 'stop') ? '...' : t('services.stop', '停止')}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => doOp(svc.name, 'restart')}
-                              disabled={isOperating(svc.name, 'restart')}
-                              className="px-2.5 py-1 text-xs font-medium rounded-lg bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-40 transition-colors"
-                            >
-                              {isOperating(svc.name, 'restart') ? '...' : t('services.restart', '重启')}
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )
+                    </tr>,
+                    ...group.services.map(svc => renderRow(svc, group.isPerNIC))
+                  ]
                 })}
               </tbody>
             </table>

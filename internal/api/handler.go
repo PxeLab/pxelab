@@ -8,6 +8,7 @@ import (
 	"github.com/pxego/pxego/internal/ipmi"
 	"github.com/pxego/pxego/internal/netboot"
 	"github.com/pxego/pxego/internal/servicemanager"
+	"github.com/pxego/pxego/internal/session"
 	"github.com/pxego/pxego/internal/store"
 )
 
@@ -36,10 +37,12 @@ type Handler struct {
 	Logs          *LogStreamHandler
 	Netboot       *NetbootHandler
 	Service       *ServiceHandler
+	Auth          *AuthHandler
 	svcController ServiceController
+	sessions      *session.Store
 }
 
-func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController) *Handler {
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store) *Handler {
 	h := &Handler{
 		Host:          &HostHandler{store: st},
 		Profile:       &ProfileHandler{store: st},
@@ -52,7 +55,9 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Logs:          NewLogStreamHandler(bus),
 		Netboot:       NewNetbootHandler(netbootMgr),
 		Service:       NewServiceHandler(svcController, cfg, func() error { return saveConfig(configPath(cfg), cfg) }),
+		Auth:          NewAuthHandler(cfg, sessions),
 		svcController: svcController,
+		sessions:      sessions,
 	}
 	return h
 }
@@ -60,6 +65,11 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/status", h.Status)
+
+		// Auth routes (public — login, session check)
+		r.Post("/auth/login", h.Auth.Login)
+		r.Post("/auth/logout", h.Auth.Logout)
+		r.Get("/auth/session", h.Auth.Session)
 
 		r.Get("/events", h.Event.List)
 		r.Get("/events/stream", h.Event.Stream)
@@ -98,8 +108,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/services/{name}/auto-start", h.Service.UpdateAutoStart)
 
 		r.Get("/netboot/catalog", h.Netboot.GetCatalog)
-			r.Get("/netboot/catalog/{distro}", h.Netboot.GetDistro)
-			r.Get("/netboot/groups", h.Netboot.GetGroups)
-			r.Get("/netboot/check-files", h.Netboot.CheckFiles)
+		r.Get("/netboot/catalog/{distro}", h.Netboot.GetDistro)
+		r.Get("/netboot/groups", h.Netboot.GetGroups)
+		r.Get("/netboot/check-files", h.Netboot.CheckFiles)
 	})
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/pxego/pxego/internal/netboot"
 	"github.com/pxego/pxego/internal/logbus"
 	"github.com/pxego/pxego/internal/servicemanager"
+	"github.com/pxego/pxego/internal/session"
 	"github.com/pxego/pxego/internal/store"
 	"github.com/pxego/pxego/internal/tftp"
 	"github.com/spf13/cobra"
@@ -121,24 +122,52 @@ func run(cmd *cobra.Command) error {
 	dhcpHandler.InitSubnets()
 	svcMgr := servicemanager.New()
 
-	// DHCP/ProxyDHCP — 每个接口各建一个服务，绑定到对应接口 IP
+	// DHCP/ProxyDHCP — 按子网 DHCP 模式注册对应服务
 	hasDHCP := false
 	for i, iface := range cfg.Interfaces {
-		if iface.DHCP == "off" || iface.IP == "" {
+		if iface.IP == "" {
 			continue
 		}
+
+		// 遍历子网，确定需要启动的 DHCP 服务
+		needsDHCP := false
+		needsProxy := false
+		allOff := len(iface.Subnets) > 0
+		for _, sn := range iface.Subnets {
+			mode := sn.DHCP
+			if mode == "" {
+				mode = "full"
+			}
+			if mode == "off" {
+				continue
+			}
+			allOff = false
+			if mode == "full" {
+				needsDHCP = true
+			} else if mode == "proxy" {
+				needsProxy = true
+			}
+		}
+		if len(iface.Subnets) == 0 || allOff {
+			continue
+		}
+
 		hasDHCP = true
 		ifaceHandler := dhcpHandler.WithInterfaceFilter(i)
 
-		dhcpAddr := iface.IP + ":67"
-		dhcpServer := dhcp.NewServer(dhcpAddr, ifaceHandler)
-		svcMgr.Register("dhcp/"+iface.Name, "DHCP ("+iface.Name+")", dhcpServer, iface.AutoStart, false, 67, "UDP")
-		slog.Info("DHCP 服务", "addr", dhcpAddr, "interface", iface.Name)
+		if needsDHCP {
+			dhcpAddr := iface.IP + ":67"
+			dhcpServer := dhcp.NewServer(dhcpAddr, ifaceHandler)
+			svcMgr.Register("dhcp/"+iface.Name, "DHCP ("+iface.Name+")", dhcpServer, iface.AutoStart, false, 67, "UDP")
+			slog.Info("DHCP 服务", "addr", dhcpAddr, "interface", iface.Name)
+		}
 
-		proxyAddr := iface.IP + ":4011"
-		proxyDHCP := dhcp.NewProxyServer4011(proxyAddr, ifaceHandler)
-		svcMgr.Register("proxy/"+iface.Name, "ProxyDHCP ("+iface.Name+")", proxyDHCP, iface.AutoStart, false, 4011, "UDP")
-		slog.Info("ProxyDHCP 服务", "addr", proxyAddr, "interface", iface.Name)
+		if needsProxy {
+			proxyAddr := iface.IP + ":4011"
+			proxyDHCP := dhcp.NewProxyServer4011(proxyAddr, ifaceHandler)
+			svcMgr.Register("proxy/"+iface.Name, "ProxyDHCP ("+iface.Name+")", proxyDHCP, iface.AutoStart, false, 4011, "UDP")
+			slog.Info("ProxyDHCP 服务", "addr", proxyAddr, "interface", iface.Name)
+		}
 	}
 
 	// 无接口配置时回退到 :67 + :4011 监听所有地址
@@ -164,7 +193,8 @@ func run(cmd *cobra.Command) error {
 	}
 	netbootMgr := netboot.NewManager(cat)
 
-	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP, svcMgr)
+	sessions := session.NewStore(0)
+	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP, svcMgr, sessions)
 	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP, true, 8080, "TCP")
 
 

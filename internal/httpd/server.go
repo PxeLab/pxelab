@@ -20,6 +20,7 @@ import (
 	"github.com/pxego/pxego/internal/config"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/netboot"
+	"github.com/pxego/pxego/internal/session"
 	"github.com/pxego/pxego/internal/store"
 )
 
@@ -32,23 +33,22 @@ type Server struct {
 	api        *api.Handler
 	netbootMgr *netboot.Manager
 	clientInfo func(ip string) (arch, platform string, ok bool)
+	sessions   *session.Store
 }
 
-func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager, clientInfo func(ip string) (arch, platform string, ok bool), svcController api.ServiceController) *Server {
+func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager, clientInfo func(ip string) (arch, platform string, ok bool), svcController api.ServiceController, sessions *session.Store) *Server {
 	r := chi.NewRouter()
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
 	r.Use(CORSMiddleware)
-	if cfg.Auth.Token != "" {
-		r.Use(AuthMiddleware(cfg.Auth.Token))
-	}
+	r.Use(AuthMiddleware(cfg, sessions))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader, netbootMgr, svcController)
+		apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader, netbootMgr, svcController, sessions)
 	apiHandler.RegisterRoutes(r)
 
 	// iPXE 引导脚本端点（配置驱动决策树）
@@ -66,7 +66,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 			w.Write([]byte(script))
 		})
 
-		// 启动文件 HTTP 服务 — 带 chain_to_ipxe 配置文件拦截// 启动文件 HTTP 服务 — 带 chain_to_ipxe 配置文件拦截
+		// 启动文件 HTTP 服务 — 带 chain_to_ipxe 配置文件拦截
 	if bootFS != nil {
 		ci := clientInfo // capture for closure
 		cfgLocal := cfg  // capture for closure
@@ -150,7 +150,9 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 				w.Header().Set("Content-Length", strconv.FormatInt(resp.ContentLength, 10))
 			}
 			w.WriteHeader(resp.StatusCode)
-			io.Copy(w, resp.Body)
+			if _, err := io.Copy(w, resp.Body); err != nil {
+				slog.Error("netboot proxy copy error", "error", err)
+			}
 		})
 	}
 
@@ -167,6 +169,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		api:        apiHandler,
 		netbootMgr: netbootMgr,
 		clientInfo: clientInfo,
+		sessions:   sessions,
 	}
 }
 
@@ -345,7 +348,10 @@ func chainToIPXEFallback(cfg *config.Config, filePath string) bool {
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	addr := fmt.Sprintf(":%d", 8080)
+	addr := s.cfg.Global.ListenAddr
+	if addr == "" {
+		addr = "127.0.0.1:8080"
+	}
 	s.srv = &http.Server{
 		Addr:    addr,
 		Handler: s.router,

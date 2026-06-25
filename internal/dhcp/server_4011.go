@@ -46,7 +46,7 @@ func (s *ProxyServer4011) Start(ctx context.Context) error {
 		default:
 			n, peer, err := s.conn.ReadFromUDP(buf)
 			if err != nil {
-				if ctx.Err() != nil {
+				if ctx.Err() != nil || isClosedConn(err) {
 					return nil
 				}
 				slog.Error("ProxyDHCP 读取错误", "error", err)

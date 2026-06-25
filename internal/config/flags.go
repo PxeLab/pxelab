@@ -29,6 +29,7 @@ func LoadConfig(cfgPath string) (*Config, error) {
 		v.SetConfigFile(cfgPath)
 	}
 
+	v.SetDefault("global.listen_addr", "127.0.0.1:8080")
 	v.SetDefault("store.dsn", "")
 	v.SetDefault("boot.root_dir", "")
 	v.SetDefault("log.level", "info")

@@ -29,11 +29,13 @@ func TestDefaultDataDir(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	t.Run("valid DHCP modes", func(t *testing.T) {
-		modes := []string{"full", "proxy", "hybrid", "off", ""}
+		modes := []string{"full", "proxy", "off", ""}
 		for _, mode := range modes {
 			cfg := &Config{
 				Interfaces: []InterfaceConfig{
-					{Name: "eth0", DHCP: mode},
+					{Name: "eth0", Subnets: []SubnetConfig{
+						{CIDR: "192.168.1.0/24", DHCP: mode},
+					}},
 				},
 			}
 			if err := cfg.Validate(); err != nil {
@@ -45,7 +47,9 @@ func TestValidate(t *testing.T) {
 	t.Run("invalid DHCP mode", func(t *testing.T) {
 		cfg := &Config{
 			Interfaces: []InterfaceConfig{
-				{Name: "eth0", DHCP: "invalid"},
+				{Name: "eth0", Subnets: []SubnetConfig{
+					{CIDR: "192.168.1.0/24", DHCP: "invalid"},
+				}},
 			},
 		}
 		if err := cfg.Validate(); err == nil {
