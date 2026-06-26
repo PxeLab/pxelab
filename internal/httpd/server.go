@@ -350,7 +350,7 @@ func chainToIPXEFallback(cfg *config.Config, filePath string) bool {
 func (s *Server) Start(ctx context.Context) error {
 	addr := s.cfg.Global.ListenAddr
 	if addr == "" {
-		addr = "127.0.0.1:8080"
+		addr = ":8080"
 	}
 	s.srv = &http.Server{
 		Addr:    addr,

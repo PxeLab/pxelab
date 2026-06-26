@@ -203,7 +203,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		cfg.Global.ServerName = "pxego"
 	}
 	if cfg.Global.ListenAddr == "" {
-		cfg.Global.ListenAddr = "127.0.0.1:8080"
+		cfg.Global.ListenAddr = ":8080"
 	}
 	h.mu.Unlock()
 
