@@ -67,23 +67,35 @@ function formatTime(iso: string): string {
   }
 }
 
-function createPanel(id: number): PanelConfig {
-  return { id, service: '', level: '', logs: [], paused: false }
+function createPanel(id: number, defaultService = ''): PanelConfig {
+  return { id, service: defaultService, level: '', logs: [], paused: false }
 }
+
+// 多面板布局时各面板默认选中的服务（面板 0 起依次分配）
+const LAYOUT_SERVICES = ['DHCP', 'TFTP', 'HTTP', 'DNS', 'IPMI']
 
 export default function Logs() {
   const [layout, setLayout] = useState<LayoutMode>(1)
   const [panels, setPanels] = useState<PanelConfig[]>([createPanel(0)])
   const [allPaused, setAllPaused] = useState(false)
+  const [sseKey, setSseKey] = useState(0) // 递增后重连 SSE
   const eventSourceRef = useRef<EventSource | null>(null)
   const bottomRefs = useRef<(HTMLDivElement | null)[]>([])
   const autoScrollRef = useRef<(boolean)[]>([])
 
   autoScrollRef.current = panels.map((_, i) => autoScrollRef.current[i] ?? true)
 
-  // 连接 SSE
+  // 连接 SSE（带过滤参数）
   useEffect(() => {
-    const es = new EventSource(getBaseURL() + '/api/v1/logs/stream')
+    const params = new URLSearchParams()
+    const svc = panels[0]?.service
+    const lvl = panels[0]?.level
+    if (svc) params.set('service', svc)
+    if (lvl) params.set('level', lvl)
+    const qs = params.toString()
+    const url = getBaseURL() + '/api/v1/logs/stream' + (qs ? '?' + qs : '')
+
+    const es = new EventSource(url)
     eventSourceRef.current = es
 
     es.onmessage = (e) => {
@@ -103,12 +115,8 @@ export default function Logs() {
       } catch { /* ignore parse errors */ }
     }
 
-    es.onerror = () => {
-      // 自动重连（EventSource 内置）
-    }
-
     return () => { es.close() }
-  }, [allPaused])
+  }, [allPaused, sseKey])
 
   // 自动滚动
   useEffect(() => {
@@ -124,10 +132,15 @@ export default function Logs() {
     setLayout(mode)
     setPanels(prev => {
       const count = mode
-      while (prev.length < count) prev.push(createPanel(prev.length))
+      while (prev.length < count) {
+        const i = prev.length
+        const svc = mode > 1 ? LAYOUT_SERVICES[i] ?? '' : ''
+        prev.push(createPanel(i, svc))
+      }
       return prev.slice(0, count)
     })
     bottomRefs.current = bottomRefs.current.slice(0, mode)
+    setSseKey(k => k + 1) // 面板 0 服务可能变化，重连 SSE
   }, [])
 
   const clearPanel = useCallback((id: number) => {
@@ -139,10 +152,18 @@ export default function Logs() {
   }, [])
 
   const updatePanel = useCallback((id: number, upd: Partial<PanelConfig>) => {
+    // 切换过滤条件时清空该面板的日志
+    if ('service' in upd || 'level' in upd) {
+      upd.logs = []
+    }
+    // 第一个面板过滤变化时重连 SSE（让服务端历史过滤生效）
+    if (id === 0 && ('service' in upd || 'level' in upd)) {
+      setSseKey(k => k + 1)
+    }
     setPanels(prev => prev.map(p => p.id === id ? { ...p, ...upd } : p))
   }, [])
 
-  const gridCols = layout === 1 ? 'grid-cols-1' : layout === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2'
+  const gridClasses = layout === 1 ? 'grid-cols-1' : layout === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'
 
   return (
     <div>
@@ -186,11 +207,11 @@ export default function Logs() {
       </div>
 
       {/* Log Panels */}
-      <div className={`grid ${gridCols} gap-4`}>
+      <div className={`grid ${gridClasses} gap-4 h-[calc(100vh-12rem)]`}>
         {panels.map((panel, idx) => (
-          <div key={panel.id} className={`flex flex-col ${layout === 4 ? 'max-h-[calc(50vh-2rem)]' : 'max-h-[calc(100vh-12rem)]'}`}>
+          <div key={panel.id} className="flex flex-col min-h-0">
             {/* Panel Header */}
-            <div className="flex items-center justify-between px-3 py-2 rounded-t-xl border border-[var(--bg-border)] border-b-0 bg-[var(--bg-card)]">
+            <div className="flex items-center justify-between px-3 py-2 rounded-t-xl border border-[var(--bg-border)] border-b-0 bg-[var(--bg-card)] shrink-0">
               <div className="flex items-center gap-2">
                 {/* Service filter */}
                 <select
@@ -241,8 +262,8 @@ export default function Logs() {
               }}
             >
               {panel.logs.length === 0 ? (
-                <div className="flex items-center justify-center h-24 text-[var(--text-muted)] italic text-xs">
-                  等待日志...
+                <div className="flex items-center justify-center h-full min-h-[100px] text-[var(--text-muted)] italic text-xs">
+                  暂无日志，服务产生日志时实时显示
                 </div>
               ) : (
                 panel.logs.map((entry, li) => (

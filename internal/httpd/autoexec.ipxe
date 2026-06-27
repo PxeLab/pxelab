@@ -1,0 +1,43 @@
+#!ipxe
+chain http://{{.Server}}/boot/ipxe/menu?mac=${net0/mac} || goto fs_failsafe
+
+:fs_failsafe
+menu PxeGo Failsafe Menu
+item --gap System Operations
+item fs_localboot    Boot from local drive
+item fs_netconfig    Manual network configuration
+item fs_retry        Retry boot
+item fs_debug        iPXE Debug Shell
+item fs_reboot       Reboot System
+choose fs_choice || exit
+goto ${fs_choice}
+
+:fs_localboot
+exit
+
+:fs_netconfig
+echo
+echo Network Configuration:
+echo Available interfaces...
+ifstat
+imgfree
+echo -n Set network interface number [0 for net0, defaults to 0]: && read fs_net
+isset ${fs_net} || set fs_net 0
+echo -n IP: && read net${fs_net}/ip
+echo -n Subnet mask: && read net${fs_net}/netmask
+echo -n Gateway: && read net${fs_net}/gateway
+echo -n DNS: && read dns
+ifopen net${fs_net}
+echo Attempting chainload...
+goto fs_retry
+
+:fs_retry
+chain http://{{.Server}}/boot/ipxe/menu?mac=${net0/mac} || goto fs_failsafe
+
+:fs_debug
+echo Type "exit" to return to menu
+shell
+goto fs_failsafe
+
+:fs_reboot
+reboot

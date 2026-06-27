@@ -33,12 +33,12 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	q := r.Question[0]
-	slog.Debug("DNS 查询", "name", q.Name, "type", q.Qtype)
+	slog.Debug("DNS 查询", "service", "DNS", "name", q.Name, "type", q.Qtype)
 
 	if h.upstream != "" {
 		resp, _, err := h.client.Exchange(r, h.upstream)
 		if err != nil {
-			slog.Error("DNS 转发失败", "error", err)
+			slog.Error("DNS 转发失败", "service", "DNS", "error", err)
 			m.Rcode = dns.RcodeServerFailure
 		} else {
 			m = resp

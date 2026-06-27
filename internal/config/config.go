@@ -65,6 +65,7 @@ type NetbootConfig struct {
 	FallbackOnline bool              `yaml:"fallback_online" mapstructure:"fallback_online"`
 	MenuTitle      string            `yaml:"menu_title" mapstructure:"menu_title"`
 	ScriptTemplate string            `yaml:"script_template" mapstructure:"script_template"`
+	FailsafePrompt bool              `yaml:"failsafe_prompt" mapstructure:"failsafe_prompt"`
 	Boot           BootConfig        `yaml:"boot" mapstructure:"boot"`
 	Sync           NetbootSyncConfig `yaml:"sync" mapstructure:"sync"`
 	Paths          NetbootPathConfig `yaml:"paths" mapstructure:"paths"`
@@ -85,16 +86,16 @@ type NetbootPathConfig struct {
 type BootConfig struct {
 	RootDir         string                `yaml:"root_dir" mapstructure:"root_dir"`
 	DefaultMenu     DefaultMenuConfig     `yaml:"default_menu" mapstructure:"default_menu"`
-	ProfileBehavior ProfileBehaviorConfig `yaml:"profile_behavior" mapstructure:"profile_behavior"`
 	CatalogRedirect CatalogRedirectConfig `yaml:"catalog_redirect" mapstructure:"catalog_redirect"`
 	CatalogDisplay  CatalogDisplayConfig  `yaml:"catalog_display" mapstructure:"catalog_display"`
 }
 
 type DefaultMenuConfig struct {
-	Title   string      `yaml:"title" mapstructure:"title"`
-	Timeout int         `yaml:"timeout" mapstructure:"timeout"`
-	Default int         `yaml:"default" mapstructure:"default"`
-	Entries []MenuEntry `yaml:"entries" mapstructure:"entries"`
+	Title           string      `yaml:"title" mapstructure:"title"`
+	Timeout         int         `yaml:"timeout" mapstructure:"timeout"`
+	Default         int         `yaml:"default" mapstructure:"default"`
+	ListAllProfiles bool        `yaml:"list_all_profiles" mapstructure:"list_all_profiles"`
+	Entries         []MenuEntry `yaml:"entries" mapstructure:"entries"`
 }
 
 type MenuEntry struct {
@@ -105,12 +106,6 @@ type MenuEntry struct {
 	Cmdline *string `yaml:"cmdline,omitempty" mapstructure:"cmdline,omitempty"`
 	URL     *string `yaml:"url,omitempty" mapstructure:"url,omitempty"`
 	WIM     *string `yaml:"wim,omitempty" mapstructure:"wim,omitempty"`
-}
-
-type ProfileBehaviorConfig struct {
-	AppendLocal    bool   `yaml:"append_local" mapstructure:"append_local"`
-	AppendNetboot  bool   `yaml:"append_netboot" mapstructure:"append_netboot"`
-	AppendPosition string `yaml:"append_position" mapstructure:"append_position"`
 }
 
 type CatalogRedirectConfig struct {

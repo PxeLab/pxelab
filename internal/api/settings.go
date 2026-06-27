@@ -89,16 +89,16 @@ type NetbootSettings struct {
 
 type BootSettings struct {
 	DefaultMenu     DefaultMenuSettings     `json:"default_menu"`
-	ProfileBehavior ProfileBehaviorSettings `json:"profile_behavior"`
 	CatalogRedirect CatalogRedirectSettings `json:"catalog_redirect"`
 	CatalogDisplay  CatalogDisplaySettings  `json:"catalog_display"`
 }
 
 type DefaultMenuSettings struct {
-	Title   string              `json:"title"`
-	Timeout int                 `json:"timeout"`
-	Default int                 `json:"default"`
-	Entries []MenuEntrySettings `json:"entries"`
+	Title           string              `json:"title"`
+	Timeout         int                 `json:"timeout"`
+	Default         int                 `json:"default"`
+	ListAllProfiles bool                `json:"list_all_profiles"`
+	Entries         []MenuEntrySettings `json:"entries"`
 }
 
 type MenuEntrySettings struct {
@@ -111,11 +111,6 @@ type MenuEntrySettings struct {
 	WIM     *string `json:"wim,omitempty"`
 }
 
-type ProfileBehaviorSettings struct {
-	AppendLocal    bool   `json:"append_local"`
-	AppendNetboot  bool   `json:"append_netboot"`
-	AppendPosition string `json:"append_position"`
-}
 
 type CatalogRedirectSettings struct {
 	Enabled    bool   `json:"enabled"`
@@ -245,12 +240,8 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 					Title:   cfg.Netboot.Boot.DefaultMenu.Title,
 					Timeout: cfg.Netboot.Boot.DefaultMenu.Timeout,
 					Default: cfg.Netboot.Boot.DefaultMenu.Default,
+					ListAllProfiles: cfg.Netboot.Boot.DefaultMenu.ListAllProfiles,
 					Entries: convertMenuEntriesToAPI(cfg.Netboot.Boot.DefaultMenu.Entries),
-				},
-				ProfileBehavior: ProfileBehaviorSettings{
-					AppendLocal:    cfg.Netboot.Boot.ProfileBehavior.AppendLocal,
-					AppendNetboot:  cfg.Netboot.Boot.ProfileBehavior.AppendNetboot,
-					AppendPosition: cfg.Netboot.Boot.ProfileBehavior.AppendPosition,
 				},
 				CatalogRedirect: CatalogRedirectSettings{
 					Enabled:    cfg.Netboot.Boot.CatalogRedirect.Enabled,
@@ -459,12 +450,8 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			Title:   req.Netboot.Boot.DefaultMenu.Title,
 			Timeout: req.Netboot.Boot.DefaultMenu.Timeout,
 			Default: req.Netboot.Boot.DefaultMenu.Default,
+			ListAllProfiles: req.Netboot.Boot.DefaultMenu.ListAllProfiles,
 			Entries: convertMenuEntriesFromAPI(req.Netboot.Boot.DefaultMenu.Entries),
-		},
-		ProfileBehavior: config.ProfileBehaviorConfig{
-			AppendLocal:    req.Netboot.Boot.ProfileBehavior.AppendLocal,
-			AppendNetboot:  req.Netboot.Boot.ProfileBehavior.AppendNetboot,
-			AppendPosition: req.Netboot.Boot.ProfileBehavior.AppendPosition,
 		},
 		CatalogRedirect: config.CatalogRedirectConfig{
 			Enabled:    req.Netboot.Boot.CatalogRedirect.Enabled,

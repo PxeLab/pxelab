@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { StatusDot } from '../components/ui/StatusDot'
 import { Card } from '../components/ui/Card'
+import { Toggle } from '../components/ui/Toggle'
 import { api, type ServiceInfo } from '../api/client'
 
 const statusColor = (s: string) => {
@@ -189,14 +190,11 @@ export default function Services() {
           <span className="text-xs font-mono text-[var(--text-muted)]">{svc.name}</span>
         </td>
         <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-          <button
-            onClick={() => toggleAutoStart(svc.name, !svc.auto_start)}
+          <Toggle
+            checked={svc.auto_start}
+            onChange={v => toggleAutoStart(svc.name, v)}
             disabled={svc.protected}
-            className={`text-xs ${svc.auto_start ? 'text-green-400' : 'text-[var(--text-muted)]'} disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed hover:brightness-125 transition-all`}
-            title={svc.auto_start ? '点击关闭自动启动' : '点击开启自动启动'}
-          >
-            {svc.auto_start ? '☑' : '☐'}
-          </button>
+          />
         </td>
         <td className="px-4 py-3 border-b border-[var(--bg-border)] text-right">
           {svc.protected ? (

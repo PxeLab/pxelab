@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/pxego/pxego/internal/eventbus"
@@ -62,10 +63,10 @@ func (r *eventRing) List(filter store.EventFilter) ([]models.Event, int64) {
 	// 过滤
 	filtered := make([]models.Event, 0, len(all))
 	for _, e := range all {
-		if filter.Type != "" && string(e.Type) != filter.Type {
+		if filter.Type != "" && !strings.EqualFold(string(e.Type), filter.Type) {
 			continue
 		}
-		if filter.Level != "" && string(e.Level) != filter.Level {
+		if filter.Level != "" && !strings.EqualFold(string(e.Level), filter.Level) {
 			continue
 		}
 		filtered = append(filtered, e)

@@ -19,6 +19,8 @@ var publicAPIPaths = []string{
 	"/api/v1/events/stream",
 	"/api/v1/logs/stream",
 	"/api/v1/auth/",
+		"/api/v1/netboot/task/by-mac/",
+		"/api/v1/netboot/answer/",
 }
 
 func CORSMiddleware(next http.Handler) http.Handler {

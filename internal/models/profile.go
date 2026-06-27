@@ -12,7 +12,7 @@ type Profile struct {
 	Description string    `json:"description"`
 	MenuJSON    string    `json:"-" gorm:"column:menu"`
 	IsDefault   bool      `json:"is_default" gorm:"index"`
-	Arch        *uint16   `json:"arch,omitempty"`
+	Arch        string    `json:"arch,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -37,21 +37,52 @@ func (p *Profile) SetMenu(menu *BootMenu) error {
 	return nil
 }
 
+// MarshalJSON converts MenuJSON (DB string) to menu (JSON object) for API output.
+func (p *Profile) MarshalJSON() ([]byte, error) {
+	type Alias Profile
+	menu, _ := p.GetMenu()
+	return json.Marshal(&struct {
+		Menu BootMenu `json:"menu"`
+		Alias
+	}{
+		Menu:  *menu,
+		Alias: Alias(*p),
+	})
+}
+
+// UnmarshalJSON converts menu (JSON object) to MenuJSON (DB string) from API input.
+func (p *Profile) UnmarshalJSON(data []byte) error {
+	type Alias Profile
+	aux := &struct {
+		Menu *BootMenu `json:"menu"`
+		*Alias
+	}{
+		Alias: (*Alias)(p),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	if aux.Menu != nil {
+		return p.SetMenu(aux.Menu)
+	}
+	return nil
+}
+
 type BootMenu struct {
 	Entries []MenuEntry `json:"entries"`
 }
 
 type MenuEntry struct {
-	Label   string  `json:"label"`
-	Type    string  `json:"type"` // local | direct | chain | sanboot | wds
-	Kernel  *string `json:"kernel,omitempty"`
-	Initrd  *string `json:"initrd,omitempty"`
-	Cmdline *string `json:"cmdline,omitempty"`
-	URL     *string `json:"url,omitempty"`
-	WIM     *string `json:"wim,omitempty"`
+	Label     string  `json:"label"`
+	Type      string  `json:"type"` // local | direct | chain | sanboot | wds
+	Kernel    *string `json:"kernel,omitempty"`
+	Initrd    *string `json:"initrd,omitempty"`
+	Cmdline   *string `json:"cmdline,omitempty"`
+	URL       *string `json:"url,omitempty"`
+	WIM       *string `json:"wim,omitempty"`
+	IsDefault bool    `json:"is_default,omitempty"`
 }
 
-// Scan 和 Value 实现 sql.Scanner 和 driver.Valuer 以便 GORM 存储
 func (bm *BootMenu) Scan(value any) error {
 	if value == nil {
 		return nil

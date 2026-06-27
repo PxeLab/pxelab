@@ -16,10 +16,9 @@ export default function Profiles() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Profile | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', arch: 'x86_64', is_default: false, entries: [] as MenuEntry[] })
+  const [form, setForm] = useState({ name: '', description: '', arch: 'x86_64', is_default: false, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '' } })
   const [showOSPicker, setShowOSPicker] = useState(false)
   const [osCatalog, setOSCatalog] = useState<NetbootDistro[]>([])
-  const [pickerEntryIndex, setPickerEntryIndex] = useState(0)
 
   useEffect(() => { loadProfiles() }, [])
   useEffect(() => {
@@ -37,30 +36,32 @@ export default function Profiles() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ name: '', description: '', arch: 'x86_64', is_default: false, entries: [] as MenuEntry[] })
+    setForm({ name: '', description: '', arch: 'x86_64', is_default: false, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '' } })
     setShowModal(true)
   }
 
   function openEdit(p: Profile) {
     setEditing(p)
+    const e = p.menu?.entries?.[0] || { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '' }
     setForm({
       name: p.name,
       description: p.description || '',
       arch: p.arch || 'x86_64',
       is_default: p.is_default,
-      entries: p.menu?.entries?.length > 0 ? p.menu.entries : [],
+      entry: { ...e, kernel: e.kernel || '', initrd: e.initrd || '', cmdline: e.cmdline || '', url: e.url || '', wim: e.wim || '' },
     })
     setShowModal(true)
   }
 
   async function handleSave() {
     try {
+      const label = form.name || '未命名'
       const data = {
         name: form.name,
         description: form.description,
         arch: form.arch,
         is_default: form.is_default,
-        menu: { entries: form.entries.filter(e => e.label) },
+        menu: { entries: [{ ...form.entry, label }] },
       }
       if (editing) {
         await api.updateProfile(editing.id, data)
@@ -80,12 +81,8 @@ export default function Profiles() {
     catch (err: any) { error(err.message) }
   }
 
-  function updateEntry(i: number, field: keyof MenuEntry, value: string) {
-    setForm(prev => {
-      const entries = [...prev.entries]
-      entries[i] = { ...entries[i], [field]: value }
-      return { ...prev, entries }
-    })
+  function updateEntry(field: string, value: string) {
+    setForm(prev => ({ ...prev, entry: { ...prev.entry, [field]: value } }))
   }
 
   const defaultProfile = profiles.find(p => p.is_default)
@@ -179,75 +176,62 @@ export default function Profiles() {
           </label>
 
           <div className="border-t border-[var(--bg-border)] pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">{t('profiles.menuEntries')}</span>
-              <Button size="sm" onClick={() => setForm(prev => ({ ...prev, entries: [...prev.entries, { label: '', type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '' }] }))}>
-                + {t('profiles.addEntry')}
-              </Button>
-            </div>
-            {form.entries.map((entry, i) => (
-              <div key={i} className="bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg p-4 mb-3">
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.entryLabel')}</label>
-                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.label} onChange={e => updateEntry(i, 'label', e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.entryType')}</label>
-                    <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={entry.type} onChange={e => updateEntry(i, 'type', e.target.value as any)}>
-                      <option value="direct">direct</option>
-                      <option value="local">local</option>
-                      <option value="chain">chain</option>
-                      <option value="sanboot">sanboot</option>
-                      <option value="wds">wds</option>
-                    </select>
-                  </div>
+            <span className="text-sm font-semibold text-[var(--text-primary)] mb-3 block">引导项</span>
+            <div className="bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg p-4">
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.entryType')}</label>
+                  <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={form.entry.type} onChange={e => updateEntry('type', e.target.value)}>
+                    <option value="direct">direct（内核+initrd）</option>
+                    <option value="local">local（本地硬盘）</option>
+                    <option value="chain">chain（链式加载）</option>
+                    <option value="sanboot">sanboot（SAN 启动）</option>
+                    <option value="wds">wds（WIM 文件）</option>
+                  </select>
                 </div>
-                {entry.type === 'direct' && (
-                  <>
-                    <div className="grid grid-cols-2 gap-3 mb-2">
-                      <div>
-                        <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.kernel')}</label>
-                        <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.kernel || ''} onChange={e => updateEntry(i, 'kernel', e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.initrd')}</label>
-                        <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.initrd || ''} onChange={e => updateEntry(i, 'initrd', e.target.value)} />
-                      </div>
+              </div>
+              {form.entry.type === 'direct' && (
+                <>
+                  <div className="grid grid-cols-2 gap-3 mb-2">
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.kernel')}</label>
+                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.kernel || ''} onChange={e => updateEntry('kernel', e.target.value)} />
                     </div>
                     <div>
-                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
-                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.cmdline || ''} onChange={e => updateEntry(i, 'cmdline', e.target.value)} />
+                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.initrd')}</label>
+                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.initrd || ''} onChange={e => updateEntry('initrd', e.target.value)} />
                     </div>
-                    <div className="mt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => { setPickerEntryIndex(i); setShowOSPicker(true) }}
-                        className="text-xs text-blue-500 hover:text-blue-400"
-                      >
-                        从 OS 目录选择
-                      </button>
-                    </div>
-                  </>
-                )}
-                {entry.type === 'chain' && (
-                  <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.url')}</label>
-                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.url || ''} onChange={e => updateEntry(i, 'url', e.target.value)} />
                   </div>
-                )}
-                {entry.type === 'wds' && (
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wim')}</label>
-                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={entry.wim || ''} onChange={e => updateEntry(i, 'wim', e.target.value)} />
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
+                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} />
                   </div>
-                )}
-              </div>
-            ))}
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowOSPicker(true)}
+                      className="text-xs text-blue-500 hover:text-blue-400"
+                    >
+                      从 OS 目录选择
+                    </button>
+                  </div>
+                </>
+              )}
+              {form.entry.type === 'chain' && (
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.url')}</label>
+                  <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} />
+                </div>
+              )}
+              {form.entry.type === 'wds' && (
+                <div>
+                  <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wim')}</label>
+                  <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-
-        {showOSPicker && (
+        </div>{showOSPicker && (
           <Modal open={showOSPicker} onClose={() => setShowOSPicker(false)} title="选择操作系统" width="500px">
             <div className="max-h-80 overflow-y-auto space-y-1">
               {osCatalog.filter(d => d.enabled).map(distro => (
@@ -261,10 +245,10 @@ export default function Profiles() {
                       className="w-full text-left px-4 py-1.5 text-sm hover:bg-[var(--bg-hover)] rounded transition-colors"
                       onClick={() => {
                         if (ver.remote) {
-                          updateEntry(pickerEntryIndex, 'kernel', ver.remote.kernel)
-                          updateEntry(pickerEntryIndex, 'initrd', ver.remote.initrd)
+                          updateEntry('kernel', ver.remote.kernel)
+                          updateEntry('initrd', ver.remote.initrd)
                         }
-                        updateEntry(pickerEntryIndex, 'cmdline', ver.cmdline || '')
+                        updateEntry('cmdline', ver.cmdline || '')
                         setShowOSPicker(false)
                       }}
                     >

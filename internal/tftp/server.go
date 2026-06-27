@@ -53,14 +53,14 @@ func (s *Server) Start(ctx context.Context) error {
 
 	s.tftpSrv = tftp.NewServer(s.readHandler, nil)
 
-	slog.Info("TFTP 服务启动", "addr", addr)
+	slog.Info("TFTP 服务启动", "service", "TFTP", "addr", addr)
 
 	go func() {
 		if err := s.tftpSrv.Serve(conn); err != nil {
 			select {
 			case <-s.ctx.Done():
 			default:
-				slog.Error("TFTP Serve 异常退出", "error", err)
+				slog.Error("TFTP Serve 异常退出", "service", "TFTP", "error", err)
 			}
 		}
 	}()
@@ -69,7 +69,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	slog.Info("TFTP 服务关闭")
+	slog.Info("TFTP 服务关闭", "service", "TFTP")
 	s.cancel()
 	if s.conn != nil {
 		s.conn.Close()
@@ -78,7 +78,7 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) readHandler(filename string, rf io.ReaderFrom) error {
-	slog.Info("TFTP 请求", "file", filename)
+	slog.Info("TFTP 请求", "service", "TFTP", "file", filename)
 
 	s.eventBus.Publish("event", models.Event{
 		Type:    models.EventTFTP,
@@ -88,17 +88,17 @@ func (s *Server) readHandler(filename string, rf io.ReaderFrom) error {
 
 	data, err := s.bootFS.Read(filename)
 	if err != nil {
-		slog.Warn("TFTP 文件未找到", "file", filename)
+		slog.Warn("TFTP 文件未找到", "service", "TFTP", "file", filename)
 		return fmt.Errorf("file not found: %s", filename)
 	}
 
-	slog.Info("TFTP 开始发送", "file", filename, "size", len(data))
+	slog.Info("TFTP 开始发送", "service", "TFTP", "file", filename, "size", len(data))
 
 	if _, err := rf.ReadFrom(bytes.NewReader(data)); err != nil {
-		slog.Warn("TFTP 传输失败", "file", filename, "error", err)
+		slog.Warn("TFTP 传输失败", "service", "TFTP", "file", filename, "error", err)
 		return err
 	}
 
-	slog.Info("TFTP 传输完成", "file", filename, "size", len(data))
+	slog.Info("TFTP 传输完成", "service", "TFTP", "file", filename, "size", len(data))
 	return nil
 }

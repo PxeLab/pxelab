@@ -67,6 +67,7 @@ type Version struct {
 	Cmdline     string      `yaml:"cmdline,omitempty" json:"cmdline,omitempty"`
 	BootType    BootType    `yaml:"type,omitempty" json:"type,omitempty"`
 	InstallType InstallType `yaml:"install_type,omitempty" json:"install_type,omitempty"`
+	AnswerParam string      `yaml:"answer_param,omitempty" json:"answer_param,omitempty"`
 }
 
 // Catalog holds all distro definitions

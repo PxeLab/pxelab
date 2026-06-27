@@ -36,7 +36,7 @@ func (s *ProxyServer4011) Start(ctx context.Context) error {
 		return fmt.Errorf("监听 :4011 失败: %w", err)
 	}
 
-	slog.Info("ProxyDHCP 服务启动", "addr", s.addr)
+	slog.Info("ProxyDHCP 服务启动", "service", "DHCP", "addr", s.addr)
 
 	buf := make([]byte, 1500)
 	for {
@@ -49,7 +49,7 @@ func (s *ProxyServer4011) Start(ctx context.Context) error {
 				if ctx.Err() != nil || isClosedConn(err) {
 					return nil
 				}
-				slog.Error("ProxyDHCP 读取错误", "error", err)
+				slog.Error("ProxyDHCP 读取错误", "service", "DHCP", "error", err)
 				continue
 			}
 			pkt, err := dhcpv4.FromBytes(buf[:n])
@@ -62,7 +62,7 @@ func (s *ProxyServer4011) Start(ctx context.Context) error {
 }
 
 func (s *ProxyServer4011) Stop(ctx context.Context) error {
-	slog.Info("ProxyDHCP 服务关闭")
+	slog.Info("ProxyDHCP 服务关闭", "service", "DHCP")
 	if s.conn != nil {
 		return s.conn.Close()
 	}

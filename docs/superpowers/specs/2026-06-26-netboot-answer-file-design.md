@@ -162,25 +162,60 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, t
 
 ### Windows 类（特殊处理）
 
-Windows 通过 wimboot 加载，autounattend.xml 需要作为 initrd 注入：
+Windows 通过 wimboot 引导。wimboot 作为 kernel，所有 Windows PE 文件作为命名 initrd 传入，wimboot 将它们组装成 Windows PE 可识别的虚拟 RAM 盘。
+
+**基础引导脚本（参考 [ipxe.org/howto/winpe](https://ipxe.org/howto/winpe)）：**
 
 ```ipxe
 kernel http://server/boot/wimboot
-initrd -n bootmgr          http://server/path/bootmgr          bootmgr
-initrd -n bootmgr.efi      http://server/path/bootmgr.efi      bootmgr.efi
-initrd -n bcd              http://server/path/boot/bcd          bcd
-initrd -n boot.sdi         http://server/path/boot/boot.sdi     boot.sdi
-initrd -n boot.wim         http://server/path/sources/boot.wim  boot.wim
-initrd -n autounattend.xml http://server/api/v1/netboot/answer/<task_id> autounattend.xml
+initrd http://server/winpe/bootmgr         bootmgr
+initrd http://server/winpe/bootmgr.efi     bootmgr.efi
+initrd http://server/winpe/bcd             bcd
+initrd http://server/winpe/boot.sdi        boot.sdi
+initrd http://server/winpe/boot.wim        boot.wim
 boot
 ```
 
-在 Version overlay 中标识：
-```json
-{
-  "answer_param_wimboot": true
-}
+**有应答时注入 autounattend.xml：**
+
+```ipxe
+kernel http://server/boot/wimboot
+initrd http://server/winpe/bootmgr            bootmgr
+initrd http://server/winpe/bootmgr.efi        bootmgr.efi
+initrd http://server/winpe/bcd                bcd
+initrd http://server/winpe/boot.sdi           boot.sdi
+initrd http://server/winpe/boot.wim           boot.wim
+initrd http://server/api/v1/netboot/answer/<task_id> autounattend.xml
+boot
 ```
+
+wimboot 将 `autounattend.xml` 放置在虚拟 RAM 盘根目录，Windows Setup 在启动时自动检测并执行自动安装。
+
+**备选方案：winpeshl.ini + install.bat（自定义 WinPE）**
+
+对于使用自定义 WinPE 镜像（非 Windows Setup 原生 boot.wim）的场景，可通过注入 `winpeshl.ini` + `install.bat` 实现自动化：
+
+```ipxe
+kernel http://server/boot/wimboot
+initrd http://server/winpe/bootmgr            bootmgr
+initrd http://server/winpe/bootmgr.efi        bootmgr.efi
+initrd http://server/winpe/bcd                bcd
+initrd http://server/winpe/boot.sdi           boot.sdi
+initrd http://server/winpe/boot.wim           boot.wim
+initrd http://server/api/v1/netboot/answer/<task_id> install.bat
+initrd http://server/winpe/winpeshl.ini       winpeshl.ini
+boot
+```
+
+`winpeshl.ini` 内容固定（不通过模板渲染）：
+```ini
+[LaunchApps]
+"install.bat"
+```
+
+`install.bat` 通过应答模板渲染，其中可引用 `{{.AnswerURL}}` 等变量来自动获取额外的配置或凭据。
+
+**注意：** 需在 Version overlay 中标识 `"answer_param_wimboot": true` 以触发 wimboot 特殊处理分支；对于使用 winpeshl 方案的 overlay 额外标识 `"wimboot_winpeshl": true`
 
 ## API 端点
 

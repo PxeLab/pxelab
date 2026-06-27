@@ -40,7 +40,7 @@ func TestGenerateNetbootScript(t *testing.T) {
 			},
 		},
 	}
-	script := GenerateNetbootScript(cat, "192.168.1.10", "", "", "[OS] Netboot OS Install Catalog", nil)
+	script := GenerateNetbootScript(cat, "192.168.1.10", "", "", "[OS] Netboot OS Install Catalog", nil, nil)
 	if !strings.Contains(script, "#!ipxe") {
 		t.Fatal("expected #!ipxe header")
 	}
@@ -80,7 +80,7 @@ func TestGenerateDistroScript(t *testing.T) {
 			},
 		},
 	}
-	script := GenerateDistroScript(d, "192.168.1.10", "/boot/netboot")
+	script := GenerateDistroScript(d, "192.168.1.10", "/boot/netboot", nil)
 	if !strings.Contains(script, "noble") {
 		t.Fatal("expected noble version entry")
 	}
@@ -106,7 +106,7 @@ func TestGenerateBootLineLocalPreferred(t *testing.T) {
 			Initrd: "http://example.com/initrd.gz",
 		},
 	}
-	line := GenerateBootLine(v, "192.168.1.10", "/boot/netboot", "")
+	line := GenerateBootLine(v, "192.168.1.10", "/boot/netboot", "", nil)
 	if !strings.Contains(line, "192.168.1.10/boot/netboot/ubuntu/24.04/vmlinuz") {
 		t.Fatalf("expected local kernel path, got: %s", line)
 	}
@@ -122,7 +122,7 @@ func TestGenerateBootLineRemoteFallback(t *testing.T) {
 			Initrd: "http://example.com/initrd.gz",
 		},
 	}
-	line := GenerateBootLine(v, "192.168.1.10", "/boot/netboot", "")
+	line := GenerateBootLine(v, "192.168.1.10", "/boot/netboot", "", nil)
 	if !strings.Contains(line, "http://example.com/linux") {
 		t.Fatalf("expected remote kernel URL, got: %s", line)
 	}

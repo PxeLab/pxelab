@@ -1,7 +1,7 @@
 import { type FC, type ReactNode } from 'react'
 
 interface Props {
-  title?: string
+  title?: ReactNode
   children: ReactNode
   className?: string
   hover?: boolean

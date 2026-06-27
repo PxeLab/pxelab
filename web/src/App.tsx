@@ -16,6 +16,7 @@ const Logs = lazy(() => import('./pages/Logs'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Services = lazy(() => import('./pages/Services'))
 const NetbootCatalog = lazy(() => import('./pages/NetbootCatalog'))
+const AnswerTemplates = lazy(() => import('./pages/AnswerTemplates'))
 
 function LoadingFallback() {
   return (
@@ -70,6 +71,7 @@ function AppContent() {
           <Route path="/profiles" element={<Profiles />} />
           <Route path="/files" element={<Files />} />
           <Route path="/netboot-catalog" element={<NetbootCatalog />} />
+          <Route path="/netboot/answer-templates" element={<AnswerTemplates />} />
           <Route path="/events" element={<Events />} />
           <Route path="/logs" element={<Logs />} />
           <Route path="/services" element={<Services />} />

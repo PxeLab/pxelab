@@ -27,6 +27,7 @@ func DefaultConfig() *Config {
 			Enabled:        true,
 			DefaultBoot:    "menu",
 			FallbackOnline: true,
+			FailsafePrompt: true,
 			MenuTitle:      "[OS] Netboot OS Install Catalog",
 			Sync: NetbootSyncConfig{
 				Auto: false,

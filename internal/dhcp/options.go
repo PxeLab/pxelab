@@ -57,7 +57,7 @@ func DetectClientArch(pkt *dhcpv4.DHCPv4) (iana.Arch, bool) {
 		if end := strings.IndexByte(rest, ':'); end == 5 {
 			var arch uint16
 			if _, err := fmt.Sscanf(rest[:5], "%x", &arch); err == nil {
-				slog.Debug("从 Option 60 兜底解析架构", "vci", vci, "arch", arch)
+				slog.Debug("从 Option 60 兜底解析架构", "service", "DHCP", "vci", vci, "arch", arch)
 				return iana.Arch(arch), true
 			}
 		}

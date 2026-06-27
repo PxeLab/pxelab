@@ -92,8 +92,7 @@ export default function Settings() {
     netbootEnabled: true,
     netbootScriptTemplate: "",
     boot: {
-      default_menu: { title: 'PxeGo Boot Menu', timeout: 10, default: 0, entries: [] as MenuEntry[] },
-      profile_behavior: { append_local: true, append_netboot: true, append_position: 'last' as 'last' | 'first' },
+      default_menu: { title: 'PxeGo Boot Menu', timeout: 10, default: 0, list_all_profiles: false, entries: [] as MenuEntry[] },
       catalog_redirect: { enabled: true, target_url: 'http://{{.URL}}/netboot/menu.ipxe?arch=${arch}&platform=${platform}', detect_arch: true, preamble: '' },
       catalog_display: {
         title: '[OS] Netboot OS Install Catalog',
@@ -149,12 +148,8 @@ export default function Settings() {
             title: d.netboot.boot.default_menu?.title || prev.boot.default_menu.title,
             timeout: d.netboot.boot.default_menu?.timeout ?? prev.boot.default_menu.timeout,
             default: d.netboot.boot.default_menu?.default ?? prev.boot.default_menu.default,
+            list_all_profiles: d.netboot.boot.default_menu?.list_all_profiles ?? false,
             entries: d.netboot.boot.default_menu?.entries || [],
-          },
-          profile_behavior: {
-            append_local: d.netboot.boot.profile_behavior?.append_local ?? true,
-            append_netboot: d.netboot.boot.profile_behavior?.append_netboot ?? true,
-            append_position: d.netboot.boot.profile_behavior?.append_position || 'last',
           },
           catalog_redirect: {
             enabled: d.netboot.boot.catalog_redirect?.enabled ?? true,
@@ -351,9 +346,9 @@ export default function Settings() {
               title: config.boot.default_menu.title,
               timeout: config.boot.default_menu.timeout,
               default: config.boot.default_menu.default,
+              list_all_profiles: config.boot.default_menu.list_all_profiles,
               entries: config.boot.default_menu.entries.filter(e => e.label),
             },
-            profile_behavior: config.boot.profile_behavior,
             catalog_redirect: config.boot.catalog_redirect,
             catalog_display: {
               title: config.boot.catalog_display.title,
@@ -936,14 +931,10 @@ export default function Settings() {
             {/* ── 默认引导菜单 ── */}
             <div className="pt-4 border-t border-[var(--bg-border)]">
               <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">默认引导菜单</h3>
-              <p className="text-xs text-[var(--text-muted)] mb-3">无关联 Profile 且 Netboot 未开启时，客户端看到此菜单。</p>
+              <p className="text-xs text-[var(--text-muted)] mb-3">
+                引导项在「<a href="/profiles" className="text-blue-400 hover:text-blue-300">引导配置</a>」中管理。每个引导配置对应一个菜单项，标记为默认的 Profile 排首位。
+              </p>
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">菜单标题</label>
-                  <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
-                    value={config.boot.default_menu.title}
-                    onChange={e => { setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, title: e.target.value}}}) }} />
-                </div>
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">超时时间（秒）</label>
                   <input type="number" className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
@@ -951,109 +942,15 @@ export default function Settings() {
                     onChange={e => { setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, timeout: parseInt(e.target.value) || 0}}}) }} />
                 </div>
               </div>
-              {/* 条目编辑器 */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-[var(--text-secondary)]">菜单条目</label>
-                {config.boot.default_menu.entries.map((entry: MenuEntry, i: number) => (
-                  <div key={i} className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg p-3">
-                    <div className="grid grid-cols-2 gap-3 mb-2">
-                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500"
-                        value={entry.label} placeholder="标签"
-                        onChange={e => {
-                          const entries = [...config.boot.default_menu.entries]
-                          entries[i] = {...entries[i], label: e.target.value}
-                          setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, entries}}})
-                        }} />
-                      <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none"
-                        value={entry.type}
-                        onChange={e => {
-                          const entries = [...config.boot.default_menu.entries]
-                          entries[i] = {...entries[i], type: e.target.value as any}
-                          setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, entries}}})
-                        }}>
-                        <option value="local">local</option>
-                        <option value="direct">direct</option>
-                        <option value="chain">chain</option>
-                        <option value="sanboot">sanboot</option>
-                        <option value="wds">wds</option>
-                      </select>
-                    </div>
-                    {entry.type === 'direct' && (
-                      <div className="space-y-2">
-                        <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500"
-                          value={entry.kernel || ''} placeholder="kernel 路径"
-                          onChange={e => {
-                            const entries = [...config.boot.default_menu.entries]
-                            entries[i] = {...entries[i], kernel: e.target.value}
-                            setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, entries}}})
-                          }} />
-                        <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500"
-                          value={entry.initrd || ''} placeholder="initrd 路径"
-                          onChange={e => {
-                            const entries = [...config.boot.default_menu.entries]
-                            entries[i] = {...entries[i], initrd: e.target.value}
-                            setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, entries}}})
-                          }} />
-                        <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500"
-                          value={entry.cmdline || ''} placeholder="cmdline 参数"
-                          onChange={e => {
-                            const entries = [...config.boot.default_menu.entries]
-                            entries[i] = {...entries[i], cmdline: e.target.value}
-                            setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, entries}}})
-                          }} />
-                      </div>
-                    )}
-                    {entry.type === 'chain' && (
-                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500"
-                        value={entry.url || ''} placeholder="chain URL"
-                        onChange={e => {
-                          const entries = [...config.boot.default_menu.entries]
-                          entries[i] = {...entries[i], url: e.target.value}
-                          setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, entries}}})
-                        }} />
-                    )}
-                    {entry.type === 'wds' && (
-                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500"
-                        value={entry.wim || ''} placeholder="WIM 路径"
-                        onChange={e => {
-                          const entries = [...config.boot.default_menu.entries]
-                          entries[i] = {...entries[i], wim: e.target.value}
-                          setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, entries}}})
-                        }} />
-                    )}
-                    <button className="mt-2 text-xs text-red-400 hover:text-red-300"
-                      onClick={() => { setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, entries: config.boot.default_menu.entries.filter((_: any, j: number) => j !== i)}}}) }}>删除</button>
-                  </div>
-                ))}
-                <button className="text-xs text-blue-400 hover:text-blue-300"
-                  onClick={() => { setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, entries: [...config.boot.default_menu.entries, {label: '', type: 'local'}]}}}) }}>+ 添加条目</button>
-              </div>
+              <Toggle checked={config.boot.default_menu.list_all_profiles}
+                onChange={v => { setConfig({...config, boot: {...config.boot, default_menu: {...config.boot.default_menu, list_all_profiles: v}}}) }}
+                label="列出所有引导配置作为菜单项" />
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                关闭时只显示默认引导配置的项，开启时列出所有引导配置，默认配置排第一。
+              </p>
             </div>
 
-            {/* ── Profile 菜单行为 ── */}
-            <div className="pt-4 border-t border-[var(--bg-border)]">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Profile 菜单行为</h3>
-              <p className="text-xs text-[var(--text-muted)] mb-3">控制有 Profile 的主机在 iPXE 菜单中自动添加的条目。</p>
-              <div className="flex flex-col gap-3">
-                <Toggle checked={config.boot.profile_behavior.append_local}
-                  onChange={v => { setConfig({...config, boot: {...config.boot, profile_behavior: {...config.boot.profile_behavior, append_local: v}}}) }}
-                  label="追加「从本地硬盘启动」" />
-                <Toggle checked={config.boot.profile_behavior.append_netboot}
-                  onChange={v => { setConfig({...config, boot: {...config.boot, profile_behavior: {...config.boot.profile_behavior, append_netboot: v}}}) }}
-                  label="追加「OS 安装目录」" />
-                <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">追加位置</label>
-                  <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none appearance-none"
-                    value={config.boot.profile_behavior.append_position}
-                    onChange={e => { setConfig({...config, boot: {...config.boot, profile_behavior: {...config.boot.profile_behavior, append_position: e.target.value as any}}}) }}>
-                    <option value="last">菜单末尾</option>
-                    <option value="first">菜单开头</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* ── 安装目录跳转 ── */}
+                        {/* ── 安装目录跳转 ── */}
             <div className="pt-4 border-t border-[var(--bg-border)]">
               <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">安装目录跳转</h3>
               <p className="text-xs text-[var(--text-muted)] mb-3">无 Profile 且 Netboot 开启时跳转到系统安装目录的脚本行为。</p>

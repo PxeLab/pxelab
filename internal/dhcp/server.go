@@ -37,7 +37,7 @@ func (s *Server) Start(ctx context.Context) error {
 		return fmt.Errorf("监听 %s 失败: %w", s.addr, err)
 	}
 
-	slog.Info("DHCP 服务启动", "addr", s.addr)
+	slog.Info("DHCP 服务启动", "service", "DHCP", "addr", s.addr)
 
 	buf := make([]byte, 1500)
 	for {
@@ -50,7 +50,7 @@ func (s *Server) Start(ctx context.Context) error {
 				if ctx.Err() != nil || isClosedConn(err) {
 					return nil
 				}
-				slog.Error("DHCP 读取错误", "error", err)
+				slog.Error("DHCP 读取错误", "service", "DHCP", "error", err)
 				continue
 			}
 			pkt, err := dhcpv4.FromBytes(buf[:n])
@@ -70,7 +70,7 @@ func isClosedConn(err error) bool {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	slog.Info("DHCP 服务关闭")
+	slog.Info("DHCP 服务关闭", "service", "DHCP")
 	if s.conn != nil {
 		return s.conn.Close()
 	}

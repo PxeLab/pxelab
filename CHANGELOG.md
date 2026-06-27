@@ -3,6 +3,18 @@
 ## [Unreleased]
 
 ### Added
+- 首次启动自动创建默认引导配置（Boot from local disk），无需人工干预
+- Settings → Netboot 新增「列出所有引导配置作为菜单项」开关，支持两种默认菜单模式
+- 后端 Seed() 方法，存储层统一初始化入口
+
+### Changed
+- 统一引导菜单管理：移除动态追加（AppendLocal/AppendNetboot），所有引导项通过 Profile 管理
+- 每个 Profile 改为单引导项，简化创建/编辑界面（移除多条目列表，直接选择引导类型和参数）
+- 默认菜单支持两种模式：仅显示默认 Profile 的引导项，或列出所有 Profile
+
+### Removed
+- 移除 ProfileBehavior 配置（append_local / append_netboot / append_position），不再需要
+
 - 服务管理页面（Web UI 表格 + 独立启停/重启 + 批量操作 + 自动刷新）
 - 服务生命周期管理后端（ServiceManager 包，支持运行时启停重启单个服务）
 - 每个服务和接口的 auto_start 配置项（HTTP 默认 true，其余默认 false）

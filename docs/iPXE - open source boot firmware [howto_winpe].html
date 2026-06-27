@@ -1,0 +1,432 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!-- saved from url=(0028)https://ipxe.org/howto/winpe -->
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr" data-immersive-translate-page-theme="light"><plasmo-csui id="codebox-csui"><template shadowrootmode="open"><div id="plasmo-shadow-container" style="z-index: 2147483647; position: relative;"><div id="plasmo-overlay-0" class="plasmo-csui-container" style="display: flex; position: absolute; top: 0px; left: 0px;"></div></div></template></plasmo-csui><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <title>
+        iPXE - open source boot firmware        [howto:winpe]
+    </title>
+
+    <meta name="generator" content="DokuWiki">
+<meta name="robots" content="index,follow">
+<meta name="keywords" content="howto,winpe">
+<link rel="search" type="application/opensearchdescription+xml" href="https://ipxe.org/lib/exe/opensearch.php" title="iPXE - open source boot firmware">
+<link rel="start" href="https://ipxe.org/">
+<link rel="contents" href="https://ipxe.org/howto/winpe?do=index" title="Sitemap">
+<link rel="manifest" href="https://ipxe.org/lib/exe/manifest.php">
+<link rel="alternate" type="application/rss+xml" title="Recent Changes" href="https://ipxe.org/feed.php">
+<link rel="alternate" type="application/rss+xml" title="Current namespace" href="https://ipxe.org/feed.php?mode=list&amp;ns=howto">
+<link rel="alternate" type="text/html" title="Plain HTML" href="https://ipxe.org/_export/xhtml/howto/winpe">
+<link rel="alternate" type="text/plain" title="Wiki Markup" href="https://ipxe.org/_export/raw/howto/winpe">
+<link rel="canonical" href="https://ipxe.org/howto/winpe">
+<link rel="stylesheet" type="text/css" href="./iPXE - open source boot firmware [howto_winpe]_files/css.php">
+<!--[if gte IE 9]><!-->
+<script type="text/javascript">/*<![CDATA[*/var NS='howto';var JSINFO = {"id":"howto:winpe","namespace":"howto","ACT":"show","useHeadingNavigation":0,"useHeadingContent":0};
+/*!]]>*/</script>
+<script type="text/javascript" charset="utf-8" src="./iPXE - open source boot firmware [howto_winpe]_files/jquery.php"></script>
+<script type="text/javascript" charset="utf-8" src="./iPXE - open source boot firmware [howto_winpe]_files/js.php"></script><style id="iris-css">.iris-picker{display:block;position:relative}.iris-picker,.iris-picker *{-moz-box-sizing:content-box;-webkit-box-sizing:content-box;box-sizing:content-box}input+.iris-picker{margin-top:4px}.iris-error{background-color:#ffafaf}.iris-border{border-radius:3px;border:1px solid #aaa;width:200px;background-color:#fff}.iris-picker-inner{position:absolute;top:0;right:0;left:0;bottom:0}.iris-border .iris-picker-inner{top:10px;right:10px;left:10px;bottom:10px}.iris-picker .iris-square-inner{position:absolute;left:0;right:0;top:0;bottom:0}.iris-picker .iris-square,.iris-picker .iris-slider,.iris-picker .iris-square-inner,.iris-picker .iris-palette{border-radius:3px;box-shadow:inset 0 0 5px rgba(0,0,0,.4);height:100%;width:12.5%;float:left;margin-right:5%}.iris-picker .iris-square{width:76%;margin-right:10%;position:relative}.iris-picker .iris-square-inner{width:auto;margin:0}.iris-ie-9 .iris-square,.iris-ie-9 .iris-slider,.iris-ie-9 .iris-square-inner,.iris-ie-9 .iris-palette{box-shadow:none;border-radius:0}.iris-ie-9 .iris-square,.iris-ie-9 .iris-slider,.iris-ie-9 .iris-palette{outline:1px solid rgba(0,0,0,.1)}.iris-ie-lt9 .iris-square,.iris-ie-lt9 .iris-slider,.iris-ie-lt9 .iris-square-inner,.iris-ie-lt9 .iris-palette{outline:1px solid #aaa}.iris-ie-lt9 .iris-square .ui-slider-handle{outline:1px solid #aaa;background-color:#fff;-ms-filter:"alpha(Opacity=30)"}.iris-ie-lt9 .iris-square .iris-square-handle{background:0;border:3px solid #fff;-ms-filter:"alpha(Opacity=50)"}.iris-picker .iris-strip{margin-right:0;position:relative}.iris-picker .iris-strip .ui-slider-handle{position:absolute;background:0;margin:0;right:-3px;left:-3px;border:4px solid #aaa;border-width:4px 3px;width:auto;height:6px;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.2);opacity:.9;z-index:5;cursor:ns-resize}.iris-strip .ui-slider-handle:before{content:" ";position:absolute;left:-2px;right:-2px;top:-3px;bottom:-3px;border:2px solid #fff;border-radius:3px}.iris-picker .iris-slider-offset{position:absolute;top:11px;left:0;right:0;bottom:-3px;width:auto;height:auto;background:transparent;border:0;border-radius:0}.iris-picker .iris-square-handle{background:transparent;border:5px solid #aaa;border-radius:50%;border-color:rgba(128,128,128,.5);box-shadow:none;width:12px;height:12px;position:absolute;left:-10px;top:-10px;cursor:move;opacity:1;z-index:10}.iris-picker .ui-state-focus .iris-square-handle{opacity:.8}.iris-picker .iris-square-handle:hover{border-color:#999}.iris-picker .iris-square-value:focus .iris-square-handle{box-shadow:0 0 2px rgba(0,0,0,.75);opacity:.8}.iris-picker .iris-square-handle:hover::after{border-color:#fff}.iris-picker .iris-square-handle::after{position:absolute;bottom:-4px;right:-4px;left:-4px;top:-4px;border:3px solid #f9f9f9;border-color:rgba(255,255,255,.8);border-radius:50%;content:" "}.iris-picker .iris-square-value{width:8px;height:8px;position:absolute}.iris-ie-lt9 .iris-square-value,.iris-mozilla .iris-square-value{width:1px;height:1px}.iris-palette-container{position:absolute;bottom:0;left:0;margin:0;padding:0}.iris-border .iris-palette-container{left:10px;bottom:10px}.iris-picker .iris-palette{margin:0;cursor:pointer}.iris-square-handle,.ui-slider-handle{border:0;outline:0}</style>
+<!--<![endif]-->
+    <link rel="shortcut icon" href="https://ipxe.org/lib/tpl/doogiestpl/images/favicon.ico">
+<link rel="apple-touch-icon" href="https://ipxe.org/lib/tpl/doogiestpl/images/apple-touch-icon.png">
+    <style data-id="codebox-css">.codebox-current { outline: 2px solid #42b88350 !important; }</style></head>
+
+<body youdao="bind">
+<div class="dokuwiki ">
+
+    <!-- login state -->
+    <div class="user">
+            </div>
+
+    <!--  breadcrumbs -->
+    
+    
+    <div class="clearer"></div>
+
+    
+    <div class="stylehead">
+        <div class="header">
+            <div class="logo">
+                <a href="https://ipxe.org/start" name="dokuwiki__top" id="dokuwiki__top" accesskey="h" title="[ALT+H]">iPXE - open source boot firmware</a>            </div>
+            <div class="tools">
+                <div class="pagename">
+                    <!-- mcb30 - removed backlinks and replaced with logo -->
+                    <a href="https://ipxe.org/start" name="dokuwiki__logo" id="dokuwiki__logo"><img src="./iPXE - open source boot firmware [howto_winpe]_files/ipxe-small.png" width="159" height="105" alt="iPXE logo"></a>                </div>
+            </div>
+
+                            <div class="clearer"></div>
+                <div class="tabnav" id="tab__nav">
+                    <ul>
+<li class="level1"><div class="li"> <span class="curid"><a href="https://ipxe.org/start" class="wikilink1" title="start">Home</a></span></div>
+</li>
+<li class="level1"><div class="li"> <a href="https://ipxe.org/download" class="wikilink1" title="download">Download</a></div>
+</li>
+<li class="level1"><div class="li"> <a href="https://ipxe.org/pics" class="wikilink1" title="pics">Screenshots</a></div>
+</li>
+<li class="level1"><div class="li"> <a href="https://ipxe.org/docs" class="wikilink1" title="docs">Documentation</a></div>
+</li>
+<li class="level1"><div class="li"> <a href="https://ipxe.org/faq" class="wikilink1" title="faq">FAQ</a></div>
+</li>
+<li class="level1"><div class="li"> <a href="https://ipxe.org/contact" class="wikilink1" title="contact">Contact</a></div>
+</li>
+</ul>
+                </div>
+            
+            <div class="clearer"></div>
+                    </div>
+    </div>
+    
+    
+    <div class="page">
+        <!-- ......... wikipage start ......... -->
+        <!-- TOC START -->
+<div id="dw__toc" class="dw__toc">
+<h3 class="toggle open" style="cursor: pointer;"><strong><span>−</span></strong>Table of Contents</h3>
+<div style="" aria-expanded="true">
+
+<ul class="toc">
+<li class="level1"><div class="li"><a href="https://ipxe.org/howto/winpe#setting_up_windows_pe">Setting up Windows PE</a></div>
+<ul class="toc">
+<li class="level2"><div class="li"><a href="https://ipxe.org/howto/winpe#windows_assessment_and_deployment_toolkit_adk">Windows Assessment and Deployment Toolkit (ADK)</a></div></li>
+<li class="level2"><div class="li"><a href="https://ipxe.org/howto/winpe#windows_automated_installation_kit_aik">Windows Automated Installation Kit (AIK)</a></div></li>
+</ul>
+</li>
+<li class="level1"><div class="li"><a href="https://ipxe.org/howto/winpe#booting_windows_pe">Booting Windows PE</a></div></li>
+<li class="level1"><div class="li"><a href="https://ipxe.org/howto/winpe#installing_windows">Installing Windows</a></div></li>
+<li class="level1"><div class="li"><a href="https://ipxe.org/howto/winpe#advanced_topics">Advanced topics</a></div>
+<ul class="toc">
+<li class="level2"><div class="li"><a href="https://ipxe.org/howto/winpe#adding_a_startup_batch_file">Adding a startup batch file</a></div></li>
+<li class="level2"><div class="li"><a href="https://ipxe.org/howto/winpe#adding_a_network_card_driver">Adding a network card driver</a></div></li>
+<li class="level2"><div class="li"><a href="https://ipxe.org/howto/winpe#installing_to_an_iscsi_target">Installing to an iSCSI target</a></div></li>
+</ul></li>
+</ul>
+</div>
+</div>
+<!-- TOC END -->
+
+<h1 id="network-booting_windows_pe">Network-booting Windows PE</h1>
+<div class="level1">
+
+<p>
+<a href="https://en.wikipedia.org/wiki/Windows_Preinstallation_Environment" class="urlextern" title="https://en.wikipedia.org/wiki/Windows_Preinstallation_Environment">Windows PE (WinPE)</a> is the Windows Preinstallation Environment, used for installation and repair of Windows computers.
+</p>
+
+<p>
+Using iPXE and <code><a href="https://ipxe.org/wimboot" class="wikilink1" title="wimboot">wimboot</a></code>, you can boot into Windows PE via <abbr title="Hyper Text Transfer Protocol">HTTP</abbr>.  You can then connect to a standard Windows file server to install a full version of Windows to the local hard disk (or to an iSCSI target).
+</p>
+
+<p>
+Booting Windows PE via <abbr title="Hyper Text Transfer Protocol">HTTP</abbr> is much faster than using traditional TFTP-based methods such as Windows Deployment Services (WDS).  On a Gigabit Ethernet network, it should take less than two seconds to download a typical 200MB Windows PE image.
+</p>
+
+<p>
+<a href="https://ipxe.org/_detail/clipart/smile.png?id=howto%3Awinpe" class="media" title="clipart:smile.png"><img src="./iPXE - open source boot firmware [howto_winpe]_files/smile.png" class="mediacenter" title="A smile" alt="A smile" width="100" height="100"></a>
+</p>
+
+</div>
+
+<h2 id="setting_up_windows_pe">Setting up Windows PE</h2>
+<div class="level2">
+
+<p>
+Windows PE is available as part of the <a href="https://ipxe.org/howto/winpe#windows_assessment_and_deployment_toolkit_adk" title="howto:winpe ↵" class="wikilink1">Windows Assessment and Deployment Toolkit (ADK)</a> for current versions of Windows, or as part of the <a href="https://ipxe.org/howto/winpe#windows_automated_installation_kit_aik" title="howto:winpe ↵" class="wikilink1">Windows Automated Installation Kit (AIK)</a> for earlier versions of Windows.
+</p>
+
+</div>
+
+<h3 id="windows_assessment_and_deployment_toolkit_adk">Windows Assessment and Deployment Toolkit (ADK)</h3>
+<div class="level3">
+
+<p>
+<a href="https://ipxe.org/_detail/clipart/books.png?id=howto%3Awinpe" class="media" title="clipart:books.png"><img src="./iPXE - open source boot firmware [howto_winpe]_files/books.png" class="mediaright" title="Some books" alt="Some books" width="180" height="180"></a>
+</p>
+
+<p>
+The <a href="https://www.microsoft.com/download/details.aspx?id=30652" class="urlextern" title="https://www.microsoft.com/download/details.aspx?id=30652">Windows Assessment and Deployment Toolkit (ADK)</a> is compatible with Windows Server 2012, Windows 8, Windows 7, Windows Server 2008, and Vista.
+</p>
+
+<p>
+<a href="https://www.microsoft.com/download/details.aspx?id=30652" class="urlextern" title="https://www.microsoft.com/download/details.aspx?id=30652">Download</a> and install the ADK onto a working Windows system (the “technician computer”).
+</p>
+
+<p>
+From the <strong>Start</strong> menu, choose <strong>All Programs</strong> → <strong>Windows Kits</strong> → <strong>Windows ADK</strong> → <strong>Deployment and Imaging Tools Environment</strong>.  This should open a command prompt window.  Create 32-bit and 64-bit versions of Windows PE:
+</p>
+<pre class="code">  mkdir C:\temp\winpe
+  copype x86 C:\temp\winpe\x86
+  copype amd64 C:\temp\winpe\amd64</pre>
+
+<p>
+Copy the contents of <code>C:\temp\winpe</code> to a directory on your web server (e.g. <code>/var/www/winpe</code> for Apache, or <code>C:\inetpub\wwwroot\winpe</code> for <abbr title="Internet Information Services">IIS</abbr>).
+</p>
+
+<p>
+Download the <a href="https://github.com/ipxe/wimboot/releases/latest/download/wimboot" class="urlextern" title="https://github.com/ipxe/wimboot/releases/latest/download/wimboot">latest version of wimboot</a> and save it to the same directory on your web server.
+</p>
+
+<p>
+Create a text file <code>boot.ipxe</code> in the same directory on your web server, containing:
+</p>
+<pre class="code">  #!ipxe
+  
+  cpuid --ext 29 &amp;&amp; set arch amd64 || set arch x86
+  kernel wimboot
+  initrd ${arch}/media/sources/boot.wim  boot.wim
+  boot</pre>
+
+</div>
+
+<h3 id="windows_automated_installation_kit_aik">Windows Automated Installation Kit (AIK)</h3>
+<div class="level3">
+
+<p>
+<a href="https://ipxe.org/_detail/clipart/books2.png?id=howto%3Awinpe" class="media" title="clipart:books2.png"><img src="./iPXE - open source boot firmware [howto_winpe]_files/books2.png" class="mediaright" title="Some older books" alt="Some older books" width="180" height="180"></a>
+</p>
+
+<p>
+The <a href="https://www.microsoft.com/download/details.aspx?id=5753" class="urlextern" title="https://www.microsoft.com/download/details.aspx?id=5753">Windows Automated Installation Kit (AIK)</a> is compatible with Windows 7, Windows Server 2008, Vista, and Windows Server 2003.
+</p>
+
+<p>
+<a href="https://www.microsoft.com/download/details.aspx?id=5753" class="urlextern" title="https://www.microsoft.com/download/details.aspx?id=5753">Download</a> and install the AIK onto a working Windows system (the “technician computer”).
+</p>
+
+<p>
+From the <strong>Start</strong> menu, choose <strong>All Programs</strong> → <strong>Microsoft Windows AIK</strong> → <strong>Deployment Tools Command Prompt</strong>.  This should open a command prompt window.  Create 32-bit and 64-bit versions of Windows PE:
+</p>
+<pre class="code">  mkdir C:\temp\winpe
+  copype x86 C:\temp\winpe\x86
+  copype amd64 C:\temp\winpe\amd64</pre>
+
+<p>
+Copy the contents of <code>C:\temp\winpe</code> to a directory on your web server (e.g. <code>/var/www/winpe</code> for Apache, or <code>C:\inetpub\wwwroot\winpe</code> for <abbr title="Internet Information Services">IIS</abbr>).
+</p>
+
+<p>
+Download the <a href="https://github.com/ipxe/wimboot/releases/latest/download/wimboot" class="urlextern" title="https://github.com/ipxe/wimboot/releases/latest/download/wimboot">latest version of wimboot</a> and save it to the same directory on your web server.
+</p>
+
+<p>
+Create a text file <code>boot.ipxe</code> in the same directory on your web server, containing:
+</p>
+<pre class="code">  #!ipxe
+  
+  cpuid --ext 29 &amp;&amp; set arch amd64 || set arch x86
+  kernel wimboot
+  initrd ${arch}/ISO/boot/bcd          BCD
+  initrd ${arch}/ISO/boot/boot.sdi     boot.sdi
+  initrd -n boot.wim ${arch}/winpe.wim boot.wim
+  boot</pre>
+
+</div>
+
+<h2 id="booting_windows_pe">Booting Windows PE</h2>
+<div class="level2">
+
+<p>
+Boot using <a href="https://ipxe.org/start" class="wikilink1" title="start">iPXE</a> from the <abbr title="Uniform Resource Identifier">URI</abbr> of your <code>boot.ipxe</code> script, e.g. <code>http://my.web.server/winpe/boot.ipxe</code>.  You should see iPXE download and boot Windows PE via <abbr title="Hyper Text Transfer Protocol">HTTP</abbr>:
+</p>
+
+<p>
+<a href="https://ipxe.org/_detail/screenshots/wadk.png?id=howto%3Awinpe" class="media" title="screenshots:wadk.png"><img src="./iPXE - open source boot firmware [howto_winpe]_files/wadk.png" class="mediacenter" title="Windows PE booting" alt="Windows PE booting" width="600" height="334"></a>
+</p>
+
+<p>
+<a href="https://ipxe.org/_detail/screenshots/winpe.png?id=howto%3Awinpe" class="media" title="screenshots:winpe.png"><img src="./iPXE - open source boot firmware [howto_winpe]_files/winpe.png" class="mediacenter" title="Windows PE booted" alt="Windows PE booted" width="600" height="450"></a>
+</p>
+
+</div>
+
+<h2 id="installing_windows">Installing Windows</h2>
+<div class="level2">
+
+<p>
+You can now connect to a Windows (or <a href="https://www.samba.org/" class="urlextern" title="https://www.samba.org">Samba</a>) file server to run the Windows installer.  For example, if you have copied the contents of your Windows installation DVD-ROM to <code>\\myserver\installers\win8</code>, then you can start the installer using:
+</p>
+<pre class="code">  net use \\myserver\installers
+  \\myserver\installers\win8\setup.exe</pre>
+
+<p>
+<a href="https://ipxe.org/_detail/screenshots/winpe_installer.png?id=howto%3Awinpe" class="media" title="screenshots:winpe_installer.png"><img src="./iPXE - open source boot firmware [howto_winpe]_files/winpe_installer.png" class="mediacenter" title="Windows PE running Windows 8 installer" alt="Windows PE running Windows 8 installer" width="600" height="450"></a>
+</p>
+
+</div>
+
+<h2 id="advanced_topics">Advanced topics</h2>
+<div class="level2">
+
+</div>
+
+<h3 id="adding_a_startup_batch_file">Adding a startup batch file</h3>
+<div class="level3">
+
+<p>
+<a href="https://ipxe.org/_detail/clipart/lightbulb.png?id=howto%3Awinpe" class="media" title="clipart:lightbulb.png"><img src="./iPXE - open source boot firmware [howto_winpe]_files/lightbulb.png" class="mediaright" title="A light bulb" alt="A light bulb" width="180" height="200"></a>
+</p>
+
+<p>
+You can customise your Windows PE image so that it automatically connects to a file server and runs the Windows installer.
+</p>
+
+<p>
+Create a text file <code>install.bat</code> containing the commands needed to connect to your file server and start the installer:
+</p>
+<pre class="code">  wpeinit
+  net use \\myserver\installers
+  \\myserver\installers\win8\setup.exe</pre>
+
+<p>
+Create a text file <code>winpeshl.ini</code> instructing Windows PE to run your <code>install.bat</code> file:
+</p>
+<pre class="code">  [LaunchApps]
+  "install.bat"</pre>
+
+<p>
+Copy <code>install.bat</code> and <code>winpeshl.ini</code> to your web server and edit your <code>boot.ipxe</code> script to load these files:
+</p>
+<pre class="code">  #!ipxe
+  
+  cpuid --ext 29 &amp;&amp; set arch amd64 || set arch x86
+  kernel wimboot
+  initrd install.bat                                install.bat
+  initrd winpeshl.ini                               winpeshl.ini
+  initrd ${arch}/media/Boot/BCD                     BCD
+  initrd ${arch}/media/Boot/boot.sdi                boot.sdi
+  initrd ${arch}/media/sources/boot.wim             boot.wim
+  boot</pre>
+
+<p>
+When you boot into Windows PE, it should now automatically connect to your file server and run the Windows installer.
+</p>
+
+<p>
+<a href="https://ipxe.org/_detail/clipart/nic.jpeg?id=howto%3Awinpe" class="media" title="clipart:nic.jpeg"><img src="./iPXE - open source boot firmware [howto_winpe]_files/nic.jpeg" class="mediaright" title="A network card" alt="A network card" width="158" height="148"></a>
+</p>
+
+</div>
+
+<h3 id="adding_a_network_card_driver">Adding a network card driver</h3>
+<div class="level3">
+
+<p>
+You can customise your Windows PE image to include drivers for your network card, if your card is not already supported by Windows PE.  You will need the <code>ImageX</code> and <code>DISM</code> tools, which are part of the <a href="https://ipxe.org/howto/winpe#windows_assessment_and_deployment_toolkit_adk" title="howto:winpe ↵" class="wikilink1">Windows ADK</a> (or <a href="https://ipxe.org/howto/winpe#windows_automated_installation_kit_aik" title="howto:winpe ↵" class="wikilink1">AIK</a>).  A Linux version of <code>imagex</code> is also available as part of the <code><a href="https://wimlib.net/" class="urlextern" title="https://wimlib.net/">wimlib</a></code> package.
+</p>
+
+<p>
+Download the drivers for your network card, and extract the driver to <code>C:\temp\winpe\drivers</code>.  If you are using the ADK then you will need to download a driver compatible with Windows 8; if you are using the AIK then you will need a driver compatible with Windows 7.
+</p>
+
+<p>
+Use <code>ImageX</code> and <code>DISM</code> to add this driver to your Windows PE image:
+</p>
+<pre class="code">  imagex /mountrw C:\temp\winpe\amd64\media\sources\boot.wim 1 C:\temp\winpe\amd64\mount
+  dism /image:C:\temp\winpe\amd64\mount /add-driver /driver:c:\temp\winpe\drivers /recurse
+  imagex /unmount /commit C:\temp\winpe\amd64\mount</pre>
+
+</div>
+
+<h3 id="installing_to_an_iscsi_target">Installing to an iSCSI target</h3>
+<div class="level3">
+
+<p>
+You can use your Windows PE image to install Windows to an iSCSI target.  Create a text file <code>install.ipxe</code> containing:
+</p>
+<pre class="code">  #!ipxe
+  
+  prompt -k 0x197e -t 2000 Press F12 to install Windows... || exit
+  chain boot.ipxe</pre>
+
+<p>
+and copy it to the directory on your web server containing your <code>boot.ipxe</code> script.
+</p>
+
+<p>
+Configure your <abbr title="Dynamic Host Configuration Protocol">DHCP</abbr> server to provide the <abbr title="Uniform Resource Identifier">URI</abbr> of your <code>install.ipxe</code> script as the boot <a href="https://ipxe.org/cfg/filename" class="wikilink2" title="cfg:filename" rel="nofollow">filename</a>, and the <a href="https://ipxe.org/sanuri" class="wikilink1" title="sanuri">SAN URI</a> of your iSCSI target as the <a href="https://ipxe.org/cfg/root-path" class="wikilink2" title="cfg:root-path" rel="nofollow">root-path</a>.  If your iSCSI target uses access control lists (ACLs), then you may also need to provide the correct <a href="https://ipxe.org/cfg/initiator-iqn" class="wikilink1" title="cfg:initiator-iqn">initiator-iqn</a>.
+</p>
+
+<p>
+You should see the diskless computer connect to the iSCSI target and then prompt you to ”Press F12 to install Windows”:
+</p>
+
+<p>
+<a href="https://ipxe.org/_detail/screenshots/winpe_iscsi_prompt.png?id=howto%3Awinpe" class="media" title="screenshots:winpe_iscsi_prompt.png"><img src="./iPXE - open source boot firmware [howto_winpe]_files/winpe_iscsi_prompt.png" class="mediacenter" title="WinPE installation prompt" alt="WinPE installation prompt" width="600" height="334"></a>
+</p>
+
+<p>
+Press F12 to begin the installation process.  If you have already added a <a href="https://ipxe.org/howto/winpe#adding_a_startup_batch_file" title="howto:winpe ↵" class="wikilink1">startup batch file</a> as described above, then the Windows installer will start automatically.  If not, then connect to your file server and run the Windows installer manually.
+</p>
+
+<p>
+Proceed to install Windows as usual. When you reach the ”Where do you want to install Windows?” screen, you should see the iSCSI disk appear as a possible install location: 
+</p>
+
+<p>
+<a href="https://ipxe.org/_detail/screenshots/winpe_iscsi_install.png?id=howto%3Awinpe" class="media" title="screenshots:winpe_iscsi_install.png"><img src="./iPXE - open source boot firmware [howto_winpe]_files/winpe_iscsi_install.png" class="mediacenter" title="WinPE iSCSI installation disk" alt="WinPE iSCSI installation disk" width="600" height="450"></a>
+</p>
+
+</div>
+
+        <!-- ......... wikipage stop  ......... -->
+    </div>
+
+    <div class="clearer"></div>
+
+    
+
+    <!-- footer -->
+    <div class="stylefoot">
+
+        
+        <div class="bar" id="bar__bottom">
+            <!-- page metadata -->
+            <div class="meta">
+                <div class="doc">
+                    <bdi>howto/winpe.txt</bdi> · Last modified: 2022/08/23 21:27 by <bdi>mcb30</bdi>                </div>
+            </div>
+
+                            <!-- page actions -->
+                <div class="bar-left" id="bar__bottomleft">
+                    <form class="button btn_login" method="get" action="https://ipxe.org/howto/winpe"><div class="no"><input type="hidden" name="do" value="login"><input type="hidden" name="sectok" value=""><button type="submit" title="Log In">Log In</button></div></form>                </div>
+
+                <!-- search form -->
+                <div class="bar-right" id="bar__bottomright">
+                    <div class="searchbox">
+                        <form action="https://ipxe.org/start" method="get" role="search" class="search doku_form" id="dw__search" accept-charset="utf-8"><input type="hidden" name="do" value="search"><input type="hidden" name="id" value="howto:winpe"><div class="no"><input name="q" type="text" class="edit" title="[F]" accesskey="f" placeholder="Search" autocomplete="on" id="qsearch__in" value=""><button value="1" type="submit" title="Search">Search</button><div id="qsearch__out" class="ajax_qsearch JSpopup" style="display: none;"></div></div></form>                    </div>
+                </div>
+
+                <div class="clearer"></div>
+            
+        </div>
+
+    </div>
+
+</div>
+
+
+<div class="footerinc">
+
+    <a href="https://ipxe.org/feed.php" title="Recent changes RSS feed"><img src="./iPXE - open source boot firmware [howto_winpe]_files/button-rss.png" width="80" height="15" alt="Recent changes RSS feed"></a>
+
+    <a href="http://creativecommons.org/licenses/by-sa/4.0/" rel="license"><img src="./iPXE - open source boot firmware [howto_winpe]_files/cc-by-sa.png" alt="CC Attribution-Share Alike 4.0 International"></a>
+    <a href="https://dokuwiki.org/" title="Driven by DokuWiki"><img src="./iPXE - open source boot firmware [howto_winpe]_files/button-dw.png" width="80" height="15" alt="Driven by DokuWiki"></a>
+
+    
+</div>
+
+<!-- mcb30 - added CC attribution footer -->
+<div class="dokuwiki">
+  <div class="meta">
+    <div class="doc">
+      All uses of this content must include an attribution to the iPXE
+      project and the URL https://ipxe.org
+    </div>
+    <div class="doc">
+      References to "iPXE" may not be altered or removed.
+    </div>
+  </div>
+</div>
+
+<div class="no">
+    <img src="./iPXE - open source boot firmware [howto_winpe]_files/indexer.php" width="2" height="1" alt=""></div>
+
+
+
+<div id="synofoto-browser-extension-loaded"></div></body><div id="immersive-translate-popup" style="all: initial"><template shadowrootmode="open"><div id="mount" style="display: block;"><div class="imt-fb-container right imt-notranslate " data-theme="light" style="z-index: 2147483637; pointer-events: none; right: 0px; top: 278px; display: flex;"><div class="btn-animate" style="transform: translateX(60px); opacity: 1;"><div class="imt-fb-btn imt-fb-more-button imt-fb-side"><div class=" btn-animate" style="position: relative; pointer-events: all; display: inline-block;"><div><svg class="imt-fb-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9.65332 13.3477C10.4097 13.4245 11 14.0632 11 14.8398V18.8398L10.9922 18.9932C10.9205 19.6992 10.3593 20.2604 9.65332 20.332L9.5 20.3398H5.5C4.72334 20.3398 4.08461 19.7496 4.00781 18.9932L4 18.8398V14.8398C4 14.0114 4.67157 13.3398 5.5 13.3398H9.5L9.65332 13.3477ZM18.6533 13.3477C19.4097 13.4245 20 14.0632 20 14.8398V18.8398L19.9922 18.9932C19.9205 19.6992 19.3593 20.2604 18.6533 20.332L18.5 20.3398H14.5C13.7233 20.3398 13.0846 19.7496 13.0078 18.9932L13 18.8398V14.8398C13 14.0114 13.6716 13.3398 14.5 13.3398H18.5L18.6533 13.3477ZM5.5 14.3398C5.22386 14.3398 5 14.5637 5 14.8398V18.8398C5 19.116 5.22386 19.3398 5.5 19.3398H9.5C9.77614 19.3398 10 19.116 10 18.8398V14.8398C10 14.5637 9.77614 14.3398 9.5 14.3398H5.5ZM14.5 14.3398C14.2239 14.3398 14 14.5637 14 14.8398V18.8398C14 19.116 14.2239 19.3398 14.5 19.3398H18.5C18.7761 19.3398 19 19.116 19 18.8398V14.8398C19 14.5637 18.7761 14.3398 18.5 14.3398H14.5ZM9.65332 4.34766C10.4097 4.42445 11 5.06318 11 5.83984V9.83984L10.9922 9.99316C10.9205 10.6992 10.3593 11.2604 9.65332 11.332L9.5 11.3398H5.5C4.72334 11.3398 4.08461 10.7496 4.00781 9.99316L4 9.83984V5.83984C4 5.01142 4.67157 4.33984 5.5 4.33984H9.5L9.65332 4.34766ZM16.1484 3.18848C16.2521 2.83834 16.7479 2.83834 16.8516 3.18848L17.3281 4.79785C17.5079 5.40507 17.9648 5.89104 18.5596 6.1084L20.0576 6.65625C20.3786 6.77361 20.3785 7.22732 20.0576 7.34473L18.5596 7.89258C17.9648 8.10991 17.5079 8.59598 17.3281 9.20312L16.8516 10.8125C16.7479 11.1626 16.2521 11.1626 16.1484 10.8125L15.6719 9.20312C15.4921 8.59598 15.0352 8.10991 14.4404 7.89258L12.9424 7.34473C12.6215 7.22732 12.6214 6.77361 12.9424 6.65625L14.4404 6.1084C15.0352 5.89104 15.4921 5.40507 15.6719 4.79785L16.1484 3.18848ZM5.5 5.33984C5.22386 5.33984 5 5.5637 5 5.83984V9.83984C5 10.116 5.22386 10.3398 5.5 10.3398H9.5C9.77614 10.3398 10 10.116 10 9.83984V5.83984C10 5.5637 9.77614 5.33984 9.5 5.33984H5.5Z" fill="#ED6D8F"></path></svg><svg class="imt-fb-pin-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="#B1B1B166"></circle><g transform="translate(2, 2)"><mask id="mask0_39789_2446" maskUnits="userSpaceOnUse" x="0" y="0" width="10" height="10" style="mask-type: alpha;"><rect width="10" height="10" fill="#D9D9D9"></rect></mask><g mask="url(#mask0_39789_2446)"><path d="M4.99984 6.7487C5.48595 6.7487 5.89914 6.57856 6.23942 6.23828C6.5797 5.898 6.74984 5.48481 6.74984 4.9987C6.74984 4.51259 6.5797 4.09939 6.23942 3.75911C5.89914 3.41884 5.48595 3.2487 4.99984 3.2487C4.51373 3.2487 4.10053 3.41884 3.76025 3.75911C3.41998 4.09939 3.24984 4.51259 3.24984 4.9987C3.24984 5.48481 3.41998 5.898 3.76025 6.23828C4.10053 6.57856 4.51373 6.7487 4.99984 6.7487ZM5.00171 5.77995C4.78518 5.77995 4.60053 5.70418 4.44775 5.55266C4.29498 5.40106 4.21859 5.21703 4.21859 5.00057C4.21859 4.78405 4.29435 4.59939 4.44588 4.44661C4.59748 4.29384 4.7815 4.21745 4.99796 4.21745C5.21449 4.21745 5.39914 4.29321 5.55192 4.44474C5.7047 4.59634 5.78109 4.78036 5.78109 4.99682C5.78109 5.21335 5.70532 5.398 5.5538 5.55078C5.4022 5.70356 5.21817 5.77995 5.00171 5.77995ZM4.99984 8.32161C4.05539 8.32161 3.18387 8.07335 2.38525 7.57682C1.58664 7.0803 0.958171 6.41536 0.499837 5.58203C0.444282 5.49175 0.406087 5.39707 0.385254 5.29797C0.364421 5.19887 0.354004 5.09991 0.354004 5.00109C0.354004 4.90227 0.364421 4.80252 0.385254 4.70182C0.406087 4.60113 0.444282 4.50564 0.499837 4.41536C0.958171 3.58203 1.58664 2.9171 2.38525 2.42057C3.18387 1.92405 4.05539 1.67578 4.99984 1.67578C5.94428 1.67578 6.81581 1.92405 7.61442 2.42057C8.41303 2.9171 9.0415 3.58203 9.49984 4.41536C9.55539 4.50564 9.59359 4.60033 9.61442 4.69943C9.63525 4.79852 9.64567 4.89748 9.64567 4.9963C9.64567 5.09512 9.63525 5.19488 9.61442 5.29557C9.59359 5.39627 9.55539 5.49175 9.49984 5.58203C9.0415 6.41536 8.41303 7.0803 7.61442 7.57682C6.81581 8.07335 5.94428 8.32161 4.99984 8.32161ZM5.00077 7.2487C5.77098 7.2487 6.48248 7.04557 7.13525 6.63932C7.78803 6.23307 8.2915 5.6862 8.64567 4.9987C8.2915 4.3112 7.78772 3.76432 7.13432 3.35807C6.48091 2.95182 5.76911 2.7487 4.9989 2.7487C4.22869 2.7487 3.5172 2.95182 2.86442 3.35807C2.21164 3.76432 1.70817 4.3112 1.354 4.9987C1.70817 5.6862 2.21196 6.23307 2.86536 6.63932C3.51876 7.04557 4.23057 7.2487 5.00077 7.2487Z" fill="white"></path></g></g></svg></div></div></div></div><div hidden="" class="imt-no-events " id="manga-button" style="position: relative; opacity: 0.5;"><div class="imt-manga-button btn-animate" style="transform: translateX(2px);"><div style="position: relative;"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" style="vertical-align: middle;"><path d="M14.8853 4.92364C14.8853 4.92364 16.3905 10.4362 22.6668 4C22.6668 4 20.3381 10.8907 25.3364 10.0843C25.3364 10.0843 22.0563 15.6994 29 18.0599C29 18.0599 22.9934 19.306 21.1617 28C21.1617 28 17.7679 24.54 14.8853 27.3549C14.8853 27.3549 13.3233 23.5724 7.33097 26.27C7.33097 26.27 10.1141 20.6549 4.83179 21.0507C4.83179 21.0507 7.16057 18.8955 3 15.9047C3 15.9047 7.50137 16.1833 6.33697 11.7117C6.33697 11.7117 10.0005 12.3421 8.66576 6.82957C8.65156 6.81491 12.4855 9.80574 14.8853 4.92364Z" fill="#ED6D8F"></path><path d="M20.8599 13.7022C20.885 13.1361 20.9543 12.5713 20.9959 12.0052C21.0337 11.568 20.8107 11.2794 20.3876 11.18C20.0759 11.1013 19.7508 11.0867 19.433 11.137C19.1951 11.1945 18.9542 11.2396 18.7113 11.2721C18.2403 11.3028 17.9973 11.5275 17.9796 11.988C17.977 12.0833 17.9596 12.1777 17.928 12.268C17.3034 13.9102 16.6774 15.5499 16.0503 17.1873C16.0301 17.2401 16.0062 17.2904 15.9671 17.3776C15.7291 16.8975 15.4281 16.4898 15.2745 15.9986C14.8073 14.5152 14.3186 13.033 13.8312 11.5594C13.6826 11.1112 13.3489 10.9344 12.8754 11.0216C12.7889 11.0365 12.7008 11.0398 12.6134 11.0314C12.2241 10.9938 11.8311 11.0404 11.4623 11.1677C11.0946 11.2991 10.9498 11.557 11.0152 11.9254C11.0428 12.0371 11.0643 12.1503 11.0795 12.2643C11.1223 13.1902 11.1777 14.1087 11.2054 15.0321C11.257 16.7992 11.2117 18.5651 11.0858 20.3284C11.0644 20.6354 11.0304 20.9424 11.0228 21.2494C11.0115 21.6092 11.1613 21.7811 11.5266 21.8143C11.9976 21.8573 12.4711 21.8708 12.9421 21.9088C13.0309 21.9201 13.121 21.9003 13.1962 21.8528C13.2714 21.8053 13.3268 21.7334 13.3527 21.6497C13.3996 21.5394 13.4252 21.4216 13.4282 21.3022C13.4295 20.8258 13.4207 20.3493 13.4081 19.8741C13.393 19.3264 13.3917 18.7763 13.3438 18.231C13.2857 17.5839 13.266 16.934 13.2847 16.2847C13.2847 16.2466 13.291 16.2073 13.2985 16.1312C13.3338 16.2024 13.3514 16.2356 13.3665 16.2712C13.9017 17.5228 14.3617 18.8037 14.7443 20.1074C14.7928 20.2421 14.7928 20.3889 14.7443 20.5237C14.6322 20.8196 14.7141 21.037 14.9659 21.1377C15.4445 21.3268 15.9331 21.4926 16.4155 21.6731C16.4865 21.7033 16.566 21.7091 16.6408 21.6895C16.7157 21.6698 16.7815 21.6259 16.8273 21.565C16.9085 21.4643 16.9743 21.3526 17.0225 21.2335C17.0537 21.1374 17.0798 21.0399 17.1006 20.9412C17.3185 20.2425 17.5653 19.5499 17.7517 18.8438C17.9785 17.9723 18.2624 17.1158 18.6018 16.2798C18.6201 16.2439 18.6411 16.2094 18.6647 16.1766C18.6761 16.2319 18.6761 16.254 18.6761 16.2761C18.6345 17.59 18.5955 18.8978 18.5501 20.2056C18.5363 20.5949 18.491 20.9829 18.4809 21.3722C18.4721 21.705 18.6207 21.8708 18.9557 21.9002C19.4355 21.9432 19.9191 21.9592 20.4002 21.9973C20.4888 22.0079 20.5784 21.9875 20.653 21.9399C20.7277 21.8922 20.7827 21.8203 20.8082 21.7369C20.8531 21.6305 20.8766 21.5167 20.8775 21.4017C20.88 20.7668 20.8674 20.132 20.8674 19.4971C20.8662 19.2846 20.8687 19.0722 20.8523 18.8622C20.8158 18.3968 20.7264 17.9314 20.7339 17.4685C20.7515 16.2122 20.8044 14.9572 20.8599 13.7022Z" fill="white"></path></svg></div></div></div><div style="display: flex; align-items: center; flex-direction: row; gap: 8px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" style="display: block; opacity: 0;"><g clip-path="url(#clip0_38845_9816)"><path d="M7 14C5.14348 14 3.36301 13.2625 2.05025 11.9497C0.737498 10.637 0 8.85652 0 7C0 5.14348 0.737498 3.36301 2.05025 2.05025C3.36301 0.737498 5.14348 0 7 0C8.85652 0 10.637 0.737498 11.9497 2.05025C13.2625 3.36301 14 5.14348 14 7C14 8.85652 13.2625 10.637 11.9497 11.9497C10.637 13.2625 8.85652 14 7 14Z" fill="#B1B1B1" fill-opacity="0.4"></path><path d="M6.11754 7.00052L4.18254 5.06452C4.06786 4.94725 4.00406 4.78948 4.00498 4.62546C4.00589 4.46144 4.07145 4.3044 4.18744 4.18841C4.30342 4.07243 4.46046 4.00687 4.62448 4.00595C4.7885 4.00503 4.94627 4.06884 5.06354 4.18352L6.99954 6.11852L8.93554 4.18352C8.99315 4.1246 9.06188 4.07771 9.13774 4.04554C9.2136 4.01337 9.29508 3.99656 9.37748 3.9961C9.45988 3.99564 9.54155 4.01153 9.61777 4.04285C9.69398 4.07417 9.76323 4.1203 9.82149 4.17857C9.87976 4.23683 9.92589 4.30608 9.95721 4.38229C9.98853 4.45851 10.0044 4.54018 10.004 4.62258C10.0035 4.70497 9.98669 4.78646 9.95452 4.86232C9.92235 4.93818 9.87545 5.00691 9.81654 5.06452L7.88154 7.00052L9.81654 8.93652C9.93122 9.05379 9.99502 9.21155 9.99411 9.37557C9.99319 9.5396 9.92763 9.69664 9.81164 9.81262C9.69566 9.9286 9.53862 9.99417 9.3746 9.99508C9.21058 9.996 9.05281 9.9322 8.93554 9.81752L6.99954 7.88252L5.06354 9.81752C5.00593 9.87643 4.93721 9.92333 4.86135 9.9555C4.78549 9.98767 4.704 10.0045 4.6216 10.0049C4.5392 10.0054 4.45753 9.9895 4.38131 9.95818C4.3051 9.92686 4.23585 9.88073 4.17759 9.82247C4.11932 9.7642 4.0732 9.69496 4.04188 9.61874C4.01056 9.54253 3.99467 9.46086 3.99513 9.37846C3.99559 9.29606 4.01239 9.21457 4.04456 9.13871C4.07673 9.06285 4.12363 8.99413 4.18254 8.93652L6.11754 7.00052Z" fill="white"></path></g><defs><clippath id="clip0_38845_9816"><rect width="14" height="14" fill="white"></rect></clippath></defs></svg><div style="position: relative;"><div class="imt-fb-btn right btn-animate  " dir="ltr" style="opacity: 0.5;"><div class=" " style="position: relative; pointer-events: all; display: inline-block;"><div><div class="imt-fb-btn-content"><svg class="imt-fb-logo-img imt-fb-logo-img-big-bg" width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 14C0 6.26801 6.26801 0 14 0C21.732 0 28 6.26801 28 14C28 21.732 21.732 28 14 28C6.26801 28 0 21.732 0 14Z" fill="#ED6D8F"></path><path d="M7.30921 15.6381C7.53044 15.6381 7.70979 15.8175 7.70979 16.0387V19.0088C7.70979 19.934 8.45993 20.684 9.38526 20.684H11.7557C11.9769 20.684 12.1562 20.8634 12.1562 21.0846V22.152C12.1562 22.3732 11.9769 22.5526 11.7557 22.5526H9.38526C7.42782 22.5526 5.84099 20.966 5.84099 19.0088V16.0387C5.84099 15.8175 6.02034 15.6381 6.24157 15.6381H7.30921ZM18.9876 12.6944C19.1515 12.6944 19.2989 12.7943 19.3597 12.9466L22.9711 22.0036C23.076 22.2667 22.8822 22.5526 22.599 22.5526H21.4672C21.3016 22.5526 21.153 22.4506 21.0934 22.2961L20.2724 20.1673C20.2128 20.0128 20.0643 19.9108 19.8986 19.9108H16.7508C16.5852 19.9108 16.4366 20.0128 16.377 20.1673L15.556 22.2961C15.4964 22.4506 15.3478 22.5526 15.1822 22.5526H14.0504C13.7672 22.5526 13.5734 22.2667 13.6783 22.0036L17.2897 12.9466C17.3505 12.7943 17.4979 12.6944 17.6618 12.6944H18.9876ZM18.5116 15.6017C18.4456 15.4308 18.2038 15.4308 18.1378 15.6017L17.3016 17.7699C17.251 17.9011 17.3478 18.0423 17.4885 18.0423H19.1609C19.3016 18.0423 19.3984 17.9012 19.3478 17.7699L18.5116 15.6017ZM9.69589 5.30028C9.79943 4.8999 10.368 4.89991 10.4715 5.30028L11.1086 7.76368C11.3244 8.59845 11.9396 9.27221 12.7513 9.56299L14.9019 10.3334C15.2559 10.4602 15.2559 10.9608 14.9019 11.0876L12.7513 11.8581C11.9396 12.1489 11.3244 12.8226 11.1086 13.6574L10.4715 16.1208C10.368 16.5212 9.79943 16.5212 9.69589 16.1208L9.05884 13.6574C8.84297 12.8226 8.22786 12.1489 7.41615 11.8581L5.26548 11.0876C4.91151 10.9608 4.91151 10.4602 5.26548 10.3334L7.41615 9.56299C8.22786 9.27221 8.84297 8.59844 9.05884 7.76368L9.69589 5.30028ZM18.0064 6.20485C19.9639 6.20485 21.5507 7.79145 21.5507 9.74861V11.281C21.5507 11.5022 21.3713 11.6816 21.1501 11.6816H20.0825C19.8612 11.6816 19.6819 11.5022 19.6819 11.281V9.74861C19.6819 8.82341 18.9318 8.07338 18.0064 8.07338H14.4343C14.2131 8.07338 14.0337 7.89403 14.0337 7.6728V6.60543C14.0337 6.3842 14.2131 6.20486 14.4343 6.20485H18.0064Z" fill="white"></path></svg></div></div></div></div><div title="关闭悬浮球" class="imt-fb-close-button" style="opacity: 0; pointer-events: none;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none"><g clip-path="url(#clip0_38845_9816)"><path d="M7 14C5.14348 14 3.36301 13.2625 2.05025 11.9497C0.737498 10.637 0 8.85652 0 7C0 5.14348 0.737498 3.36301 2.05025 2.05025C3.36301 0.737498 5.14348 0 7 0C8.85652 0 10.637 0.737498 11.9497 2.05025C13.2625 3.36301 14 5.14348 14 7C14 8.85652 13.2625 10.637 11.9497 11.9497C10.637 13.2625 8.85652 14 7 14Z" fill="#B1B1B1" fill-opacity="0.4"></path><path d="M6.11754 7.00052L4.18254 5.06452C4.06786 4.94725 4.00406 4.78948 4.00498 4.62546C4.00589 4.46144 4.07145 4.3044 4.18744 4.18841C4.30342 4.07243 4.46046 4.00687 4.62448 4.00595C4.7885 4.00503 4.94627 4.06884 5.06354 4.18352L6.99954 6.11852L8.93554 4.18352C8.99315 4.1246 9.06188 4.07771 9.13774 4.04554C9.2136 4.01337 9.29508 3.99656 9.37748 3.9961C9.45988 3.99564 9.54155 4.01153 9.61777 4.04285C9.69398 4.07417 9.76323 4.1203 9.82149 4.17857C9.87976 4.23683 9.92589 4.30608 9.95721 4.38229C9.98853 4.45851 10.0044 4.54018 10.004 4.62258C10.0035 4.70497 9.98669 4.78646 9.95452 4.86232C9.92235 4.93818 9.87545 5.00691 9.81654 5.06452L7.88154 7.00052L9.81654 8.93652C9.93122 9.05379 9.99502 9.21155 9.99411 9.37557C9.99319 9.5396 9.92763 9.69664 9.81164 9.81262C9.69566 9.9286 9.53862 9.99417 9.3746 9.99508C9.21058 9.996 9.05281 9.9322 8.93554 9.81752L6.99954 7.88252L5.06354 9.81752C5.00593 9.87643 4.93721 9.92333 4.86135 9.9555C4.78549 9.98767 4.704 10.0045 4.6216 10.0049C4.5392 10.0054 4.45753 9.9895 4.38131 9.95818C4.3051 9.92686 4.23585 9.88073 4.17759 9.82247C4.11932 9.7642 4.0732 9.69496 4.04188 9.61874C4.01056 9.54253 3.99467 9.46086 3.99513 9.37846C3.99559 9.29606 4.01239 9.21457 4.04456 9.13871C4.07673 9.06285 4.12363 8.99413 4.18254 8.93652L6.11754 7.00052Z" fill="white"></path></g><defs><clippath id="clip0_38845_9816"><rect width="14" height="14" fill="white"></rect></clippath></defs></svg></div></div><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" style="display: none; opacity: 0;"><g clip-path="url(#clip0_38845_9816)"><path d="M7 14C5.14348 14 3.36301 13.2625 2.05025 11.9497C0.737498 10.637 0 8.85652 0 7C0 5.14348 0.737498 3.36301 2.05025 2.05025C3.36301 0.737498 5.14348 0 7 0C8.85652 0 10.637 0.737498 11.9497 2.05025C13.2625 3.36301 14 5.14348 14 7C14 8.85652 13.2625 10.637 11.9497 11.9497C10.637 13.2625 8.85652 14 7 14Z" fill="#B1B1B1" fill-opacity="0.4"></path><path d="M6.11754 7.00052L4.18254 5.06452C4.06786 4.94725 4.00406 4.78948 4.00498 4.62546C4.00589 4.46144 4.07145 4.3044 4.18744 4.18841C4.30342 4.07243 4.46046 4.00687 4.62448 4.00595C4.7885 4.00503 4.94627 4.06884 5.06354 4.18352L6.99954 6.11852L8.93554 4.18352C8.99315 4.1246 9.06188 4.07771 9.13774 4.04554C9.2136 4.01337 9.29508 3.99656 9.37748 3.9961C9.45988 3.99564 9.54155 4.01153 9.61777 4.04285C9.69398 4.07417 9.76323 4.1203 9.82149 4.17857C9.87976 4.23683 9.92589 4.30608 9.95721 4.38229C9.98853 4.45851 10.0044 4.54018 10.004 4.62258C10.0035 4.70497 9.98669 4.78646 9.95452 4.86232C9.92235 4.93818 9.87545 5.00691 9.81654 5.06452L7.88154 7.00052L9.81654 8.93652C9.93122 9.05379 9.99502 9.21155 9.99411 9.37557C9.99319 9.5396 9.92763 9.69664 9.81164 9.81262C9.69566 9.9286 9.53862 9.99417 9.3746 9.99508C9.21058 9.996 9.05281 9.9322 8.93554 9.81752L6.99954 7.88252L5.06354 9.81752C5.00593 9.87643 4.93721 9.92333 4.86135 9.9555C4.78549 9.98767 4.704 10.0045 4.6216 10.0049C4.5392 10.0054 4.45753 9.9895 4.38131 9.95818C4.3051 9.92686 4.23585 9.88073 4.17759 9.82247C4.11932 9.7642 4.0732 9.69496 4.04188 9.61874C4.01056 9.54253 3.99467 9.46086 3.99513 9.37846C3.99559 9.29606 4.01239 9.21457 4.04456 9.13871C4.07673 9.06285 4.12363 8.99413 4.18254 8.93652L6.11754 7.00052Z" fill="white"></path></g><defs><clippath id="clip0_38845_9816"><rect width="14" height="14" fill="white"></rect></clippath></defs></svg></div><div class="btn-animate" style="margin-top: 10px; transform: translateX(60px);"><div class=" btn-animate" style="position: relative; pointer-events: all; display: inline-block;"><div><div class="imt-fb-round-button"><svg class="imt-fb-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" style="width: 24px; height: 24px;"><path d="M17 8.66797H11.375" stroke="#ED6D8F" stroke-linecap="round" stroke-linejoin="round"></path><path d="M12.625 15.332L7 15.332" stroke="#ED6D8F" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15.125 17C16.1605 17 17 16.1605 17 15.125C17 14.0895 16.1605 13.25 15.125 13.25C14.0895 13.25 13.25 14.0895 13.25 15.125C13.25 16.1605 14.0895 17 15.125 17Z" stroke="#ED6D8F" stroke-linecap="round" stroke-linejoin="round"></path><path d="M8.875 10.75C9.91053 10.75 10.75 9.91053 10.75 8.875C10.75 7.83947 9.91053 7 8.875 7C7.83947 7 7 7.83947 7 8.875C7 9.91053 7.83947 10.75 8.875 10.75Z" stroke="#ED6D8F" stroke-linecap="round" stroke-linejoin="round"></path><rect x="3" y="4" width="18" height="16" rx="1.66667" stroke="#ED6D8F"></rect></svg></div></div></div></div><div class="btn-animate" style="margin-top: 10px; transform: translateX(60px);"><div class=" btn-animate" style="position: relative; pointer-events: all; display: inline-block;"><div><div class="imt-fb-round-button"><svg class="imt-fb-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none"><mask id="mask0_43829_2633" maskUnits="userSpaceOnUse" x="0" y="0" width="20" height="20" style="mask-type: alpha;"><rect width="20" height="20" fill="#D9D9D9"></rect></mask><g mask="url(#mask0_43829_2633)"><path d="M9.99546 12.2609C10.1639 12.2609 10.305 12.2055 10.4188 12.0946C10.5327 11.9838 10.5896 11.8441 10.5896 11.6755C10.5896 11.507 10.5342 11.3659 10.4234 11.2521C10.3124 11.1384 10.1727 11.0815 10.0042 11.0815C9.83574 11.0815 9.69463 11.1369 9.58088 11.2478C9.46699 11.3586 9.41005 11.4982 9.41005 11.6667C9.41005 11.8353 9.46546 11.9765 9.5763 12.0903C9.68727 12.204 9.82699 12.2609 9.99546 12.2609ZM9.99546 10.1936C10.148 10.1936 10.2771 10.1418 10.3828 10.0382C10.4886 9.93443 10.5415 9.80568 10.5415 9.65193V5.20318C10.5415 5.04943 10.49 4.92075 10.3871 4.81713C10.2844 4.71338 10.1567 4.66151 10.0042 4.66151C9.85171 4.66151 9.72261 4.71338 9.61692 4.81713C9.51109 4.92075 9.45817 5.04943 9.45817 5.20318V9.65193C9.45817 9.80568 9.50963 9.93443 9.61255 10.0382C9.71532 10.1418 9.84296 10.1936 9.99546 10.1936ZM5.03192 14.5846L3.55359 16.063C3.34262 16.2739 3.10032 16.3221 2.82671 16.2076C2.55324 16.093 2.4165 15.8864 2.4165 15.5878V3.75776C2.4165 3.38262 2.54602 3.06554 2.80505 2.80651C3.06407 2.54748 3.38116 2.41797 3.7563 2.41797H16.2434C16.6185 2.41797 16.9356 2.54748 17.1946 2.80651C17.4537 3.06554 17.5832 3.38262 17.5832 3.75776V13.2448C17.5832 13.62 17.4537 13.9371 17.1946 14.1961C16.9356 14.4551 16.6185 14.5846 16.2434 14.5846H5.03192ZM4.58317 13.5013H16.2434C16.3075 13.5013 16.3663 13.4746 16.4196 13.4211C16.4731 13.3678 16.4998 13.309 16.4998 13.2448V3.75776C16.4998 3.69359 16.4731 3.63484 16.4196 3.58151C16.3663 3.52804 16.3075 3.5013 16.2434 3.5013H3.7563C3.69213 3.5013 3.63338 3.52804 3.58005 3.58151C3.52657 3.63484 3.49984 3.69359 3.49984 3.75776V14.5928L4.58317 13.5013Z" fill="#ED6D8F"></path></g></svg></div></div></div></div><div hidden="" id="immersive-translate-popup-overlay" class="immersive-translate-popup-overlay"><div class="immersive-translate-popup-wrapper" style="position: fixed; top: 278px; right: 65px;"></div></div></div></div></template></div></html>

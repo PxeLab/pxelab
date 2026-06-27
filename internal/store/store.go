@@ -11,8 +11,12 @@ type Interface interface {
 	ProfileStore
 	EventStore
 	LeaseStore
+	NetbootOverlayStore
+	AnswerTemplateStore
+	InstallTaskStore
 	Close() error
 	Migrate() error
+	Seed() error
 }
 
 type HostStore interface {
@@ -54,4 +58,36 @@ type LeaseStore interface {
 	CreateLease(ctx context.Context, lease *models.Lease) error
 	DeleteLease(ctx context.Context, mac string) error
 	PruneLeases(ctx context.Context) error
+}
+
+type NetbootOverlayStore interface {
+	ListNetbootOverlays(ctx context.Context) ([]models.NetbootOverlay, error)
+	GetNetbootOverlay(ctx context.Context, distroName string) (*models.NetbootOverlay, error)
+	UpsertNetbootOverlay(ctx context.Context, o *models.NetbootOverlay) error
+	DeleteNetbootOverlay(ctx context.Context, distroName string) error
+}
+
+type AnswerTemplateStore interface {
+	ListAnswerTemplates(ctx context.Context) ([]models.AnswerTemplate, error)
+	GetAnswerTemplate(ctx context.Context, id uint) (*models.AnswerTemplate, error)
+	CreateAnswerTemplate(ctx context.Context, t *models.AnswerTemplate) error
+	UpdateAnswerTemplate(ctx context.Context, t *models.AnswerTemplate) error
+	DeleteAnswerTemplate(ctx context.Context, id uint) error
+	AnswerTemplateVersionStore
+}
+
+type AnswerTemplateVersionStore interface {
+	ListAnswerTemplateVersions(ctx context.Context, templateID uint) ([]models.AnswerTemplateVersion, error)
+	GetAnswerTemplateVersion(ctx context.Context, templateID uint, version int) (*models.AnswerTemplateVersion, error)
+	CreateAnswerTemplateVersion(ctx context.Context, v *models.AnswerTemplateVersion) error
+	DeleteAnswerTemplateVersions(ctx context.Context, templateID uint) error
+}
+
+type InstallTaskStore interface {
+	ListInstallTasks(ctx context.Context) ([]models.InstallTask, error)
+	GetInstallTask(ctx context.Context, id string) (*models.InstallTask, error)
+	CreateInstallTask(ctx context.Context, t *models.InstallTask) error
+	UpdateInstallTask(ctx context.Context, t *models.InstallTask) error
+	DeleteInstallTask(ctx context.Context, id string) error
+	GetInstallTaskByHostMAC(ctx context.Context, mac string) (*models.InstallTask, error)
 }

@@ -24,7 +24,7 @@ var archMap = map[string]string{
 // platform may be "efi" or "pc" (not yet used for filtering, reserved for future use).
 // menuTitle overrides the default catalog menu title.
 // groups provides configurable group ordering, titles, and enabled/disabled state.
-func GenerateNetbootScript(c *Catalog, serverAddr, arch, platform, menuTitle string, groups []config.CatalogGroup) string {
+func GenerateNetbootScript(c *Catalog, serverAddr, arch, platform, menuTitle string, groups []config.CatalogGroup, task *BootTaskInfo) string {
 	archFilter := archMap[arch]
 
 	// Build group config lookup maps
@@ -150,7 +150,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr, arch, platform, menuTitle str
 				}
 				versionLabel := versionLabel(d, v)
 				b.WriteString(fmt.Sprintf(":%s\n", versionLabel))
-				b.WriteString(GenerateBootLine(v, serverAddr, "/boot/netboot", d.KernelParams))
+				b.WriteString(GenerateBootLine(v, serverAddr, "/boot/netboot", d.KernelParams, task))
 				b.WriteString("\n")
 			}
 
@@ -169,7 +169,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr, arch, platform, menuTitle str
 }
 
 // GenerateDistroScript generates a menu for a single distro
-func GenerateDistroScript(d *Distro, serverAddr, bootPrefix string) string {
+func GenerateDistroScript(d *Distro, serverAddr, bootPrefix string, task *BootTaskInfo) string {
 	var b strings.Builder
 	b.WriteString("#!ipxe\n\n")
 	b.WriteString(fmt.Sprintf("menu %s\n\n", d.Name))
@@ -188,7 +188,7 @@ func GenerateDistroScript(d *Distro, serverAddr, bootPrefix string) string {
 		}
 		versionLabel := versionLabel(d, v)
 		b.WriteString(fmt.Sprintf(":%s\n", versionLabel))
-		b.WriteString(GenerateBootLine(v, serverAddr, bootPrefix, d.KernelParams))
+		b.WriteString(GenerateBootLine(v, serverAddr, bootPrefix, d.KernelParams, task))
 		b.WriteString("\n")
 	}
 
@@ -198,8 +198,9 @@ func GenerateDistroScript(d *Distro, serverAddr, bootPrefix string) string {
 }
 
 // GenerateBootLine generates the kernel+initrd boot line for a version.
-// Supports multiple boot types: kernel (default), memdisk, sanboot, memtest.
-func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string) string {
+// Supports multiple boot types: kernel (default), memdisk, sanboot, memtest, wimboot.
+// If task is non-nil, answer parameters are injected into the cmdline.
+func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, task *BootTaskInfo) string {
 	var kernelURL, initrdURL string
 
 	if v.Local != nil {
@@ -215,20 +216,19 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string) s
 		if kernelURL == "" {
 			return "# No boot file configured\n"
 		}
-		return fmt.Sprintf("kernel %s\nboot\n", kernelURL)
+		return  fmt.Sprintf("kernel %s\nboot\n", kernelURL)
 
 	case BootWimboot:
 		if kernelURL == "" || initrdURL == "" {
 			return "# Windows PE requires wimboot URL (kernel) and Windows base URL (initrd)\n"
 		}
-		return fmt.Sprintf("kernel %s\ninitrd -n bootmgr %s/bootmgr bootmgr\ninitrd -n bootmgr.efi %s/bootmgr.efi bootmgr.efi\ninitrd -n bcd %s/boot/bcd bcd\ninitrd -n boot.sdi %s/boot/boot.sdi boot.sdi\ninitrd -n boot.wim %s/sources/boot.wim boot.wim\nboot\n",
-			kernelURL, initrdURL, initrdURL, initrdURL, initrdURL, initrdURL)
+		return  generateWimbootLine(kernelURL, initrdURL, task)
 
 	case BootMemdisk:
 		if initrdURL == "" {
 			return "# No boot file configured\n"
 		}
-		return fmt.Sprintf("kernel memdisk\ninitrd %s\nboot\n", initrdURL)
+		return  fmt.Sprintf("kernel memdisk\ninitrd %s\nboot\n", initrdURL)
 
 	case BootSanboot:
 		url := initrdURL
@@ -238,21 +238,69 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string) s
 		if url == "" {
 			return "# No boot file configured\n"
 		}
-		return fmt.Sprintf("sanboot %s\n", url)
+		return  fmt.Sprintf("sanboot %s\n", url)
 
 	default: // BootKernel — standard kernel+initrd+boot
 		if kernelURL == "" && initrdURL == "" {
 			return "# No boot files configured\n"
 		}
-		params := v.Cmdline
-		if kernelParams != "" && params == "" {
-			params = kernelParams
-		}
+		params := buildCmdline(v.Cmdline, kernelParams, task)
 		if params != "" {
-			return fmt.Sprintf("kernel %s %s\ninitrd %s\nboot\n", kernelURL, params, initrdURL)
+			return  fmt.Sprintf("kernel %s %s\ninitrd %s\nboot\n", kernelURL, params, initrdURL)
 		}
-		return fmt.Sprintf("kernel %s\ninitrd %s\nboot\n", kernelURL, initrdURL)
+		return  fmt.Sprintf("kernel %s\ninitrd %s\nboot\n", kernelURL, initrdURL)
 	}
+}
+
+// generateWimbootLine generates a wimboot-based Windows boot line.
+// If task is present with answer info, it injects the answer file as an initrd entry.
+func generateWimbootLine(kernelURL, initrdURL string, task *BootTaskInfo) string {
+	if task != nil && task.AnswerURL != "" {
+		switch task.AnswerType {
+		case "winpeshl":
+			// winpeshl.ini + install.bat approach
+			return fmt.Sprintf("kernel %s\ninitrd %s/bootmgr bootmgr\ninitrd %s/bootmgr.efi bootmgr.efi\ninitrd %s/boot/bcd bcd\ninitrd %s/boot/boot.sdi boot.sdi\ninitrd %s/sources/boot.wim boot.wim\ninitrd %s install.bat\ninitrd %s/winpeshl.ini winpeshl.ini\nboot\n",
+				kernelURL, initrdURL, initrdURL, initrdURL, initrdURL, initrdURL, task.AnswerURL, task.AnswerURL)
+		default:
+			// autounattend.xml injection
+			return fmt.Sprintf("kernel %s\ninitrd -n bootmgr %s/bootmgr bootmgr\ninitrd -n bootmgr.efi %s/bootmgr.efi bootmgr.efi\ninitrd -n bcd %s/boot/bcd bcd\ninitrd -n boot.sdi %s/boot/boot.sdi boot.sdi\ninitrd -n boot.wim %s/sources/boot.wim boot.wim\ninitrd %s autounattend.xml\nboot\n",
+				kernelURL, initrdURL, initrdURL, initrdURL, initrdURL, initrdURL, task.AnswerURL)
+		}
+	}
+	// Standard wimboot — no answer file
+	return fmt.Sprintf("kernel %s\ninitrd -n bootmgr %s/bootmgr bootmgr\ninitrd -n bootmgr.efi %s/bootmgr.efi bootmgr.efi\ninitrd -n bcd %s/boot/bcd bcd\ninitrd -n boot.sdi %s/boot/boot.sdi boot.sdi\ninitrd -n boot.wim %s/sources/boot.wim boot.wim\nboot\n",
+		kernelURL, initrdURL, initrdURL, initrdURL, initrdURL, initrdURL)
+}
+
+// buildCmdline assembles the final kernel command line, including answer parameter injection.
+func buildCmdline(versionCmdline, distroKernelParams string, task *BootTaskInfo) string {
+	params := versionCmdline
+	if distroKernelParams != "" && params == "" {
+		params = distroKernelParams
+	}
+
+	if task != nil {
+		if task.ExtraCmdline != "" {
+			if params != "" {
+				params = params + " " + task.ExtraCmdline
+			} else {
+				params = task.ExtraCmdline
+			}
+		}
+		answerParam := task.AnswerParam
+		if answerParam != "" {
+			injected := InjectAnswerParam(answerParam, task.AnswerURL)
+			if injected != "" {
+				if params != "" {
+					params = params + " " + injected
+				} else {
+					params = injected
+				}
+			}
+		}
+	}
+
+	return params
 }
 
 func sanitizeLabel(s string) string {

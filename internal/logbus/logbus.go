@@ -45,8 +45,11 @@ func NewBusHandler(next slog.Handler, bus *eventbus.Bus, logDir string) *BusHand
 	return h
 }
 
-func (h *BusHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return h.next.Enabled(ctx, level)
+// Enabled always returns true to receive all levels.
+// The next handler's Enabled() is checked in Handle() to skip output it would drop,
+// while the eventbus still receives everything for the SSE log stream.
+func (h *BusHandler) Enabled(_ context.Context, _ slog.Level) bool {
+	return true
 }
 
 func (h *BusHandler) Handle(ctx context.Context, r slog.Record) error {
@@ -71,15 +74,19 @@ func (h *BusHandler) Handle(ctx context.Context, r slog.Record) error {
 		return true
 	})
 
-	// 写入按服务分离的日志文件
+	// 写入按服务分离的日志文件（所有级别都写）
 	if h.logDir != "" && entry.Service != "" {
 		h.writeServiceLog(entry)
 	}
 
-	// 异步发布到 eventbus（供 SSE 实时日志使用）
+	// 异步发布到 eventbus（供 SSE 实时日志使用，所有级别都发布）
 	go h.bus.Publish("log", entry)
 
-	return h.next.Handle(ctx, r)
+	// 仅当下一级 handler 接受此级别时才输出到控制台/文件
+	if h.next.Enabled(ctx, r.Level) {
+		return h.next.Handle(ctx, r)
+	}
+	return nil
 }
 
 func (h *BusHandler) writeServiceLog(entry LogEntry) {

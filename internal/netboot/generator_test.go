@@ -28,7 +28,7 @@ func TestNoLabelCollisions(t *testing.T) {
 
 func TestScriptChooseSyntax(t *testing.T) {
 	c := DefaultCatalog()
-	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil, nil)
 
 	// Must have separated choose/goto (not chained)
 	if strings.Contains(s, "choose selected && goto") {
@@ -58,7 +58,7 @@ func TestScriptChooseSyntax(t *testing.T) {
 
 func TestScriptContainsAllDistros(t *testing.T) {
 	c := DefaultCatalog()
-	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil, nil)
 
 	for _, d := range c.Distros {
 		if !d.Enabled {
@@ -76,7 +76,7 @@ func TestScriptContainsAllDistros(t *testing.T) {
 
 func TestScriptBootEntries(t *testing.T) {
 	c := DefaultCatalog()
-	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil, nil)
 
 	count := 0
 	for _, d := range c.Distros {
@@ -101,7 +101,7 @@ func TestScriptBootEntries(t *testing.T) {
 
 func TestScriptNoDuplicateLabels(t *testing.T) {
 	c := DefaultCatalog()
-	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil, nil)
 
 	labelCount := make(map[string]int)
 	lines := strings.Split(s, "\n")
@@ -119,7 +119,7 @@ func TestScriptNoDuplicateLabels(t *testing.T) {
 
 func TestScriptProxyURLs(t *testing.T) {
 	c := DefaultCatalog()
-	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil)
+	s := GenerateNetbootScript(c, "192.168.1.1:8080", "", "", "[OS] Netboot OS Install Catalog", nil, nil)
 
 	// All HTTPS remote URLs should be proxied through the HTTP server
 	if strings.Contains(s, "kernel https://") {

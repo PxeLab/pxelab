@@ -36,16 +36,16 @@ func (s *Server) Start(ctx context.Context) error {
 		Handler: mux,
 	}
 
-	slog.Info("DNS 服务启动", "addr", s.dnsSrv.Addr)
+	slog.Info("DNS 服务启动", "service", "DNS", "addr", s.dnsSrv.Addr)
 	go func() {
 		if err := s.dnsSrv.ListenAndServe(); err != nil {
-			slog.Error("DNS 服务异常退出", "error", err)
+			slog.Error("DNS 服务异常退出", "service", "DNS", "error", err)
 		}
 	}()
 	return nil
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	slog.Info("DNS 服务关闭")
+	slog.Info("DNS 服务关闭", "service", "DNS")
 	return s.dnsSrv.Shutdown()
 }

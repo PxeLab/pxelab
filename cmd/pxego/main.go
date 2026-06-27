@@ -110,6 +110,9 @@ func run(cmd *cobra.Command) error {
 	if err := st.Migrate(); err != nil {
 		return fmt.Errorf("数据库迁移失败: %w", err)
 	}
+	if err := st.Seed(); err != nil {
+		return fmt.Errorf("初始化默认数据失败: %w", err)
+	}
 	defer st.Close()
 
 	bootFS := boot.NewBootFileServer(cfg.Boot.RootDir)

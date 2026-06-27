@@ -316,12 +316,8 @@ export interface BootSettings {
     title: string
     timeout: number
     default: number
+    list_all_profiles: boolean
     entries: MenuEntry[]
-  }
-  profile_behavior: {
-    append_local: boolean
-    append_netboot: boolean
-    append_position: 'first' | 'last'
   }
   catalog_redirect: {
     enabled: boolean
@@ -422,6 +418,135 @@ export function getNetbootFileStatus(): Promise<ApiResponse<FileStatus[]>> {
   return request('GET', '/netboot/check-files')
 }
 
+// ── Netboot Overlays ──
+export interface VersionOverride {
+  codename: string
+  arch: string
+  enabled?: boolean
+  remote_kernel?: string
+  remote_initrd?: string
+  cmdline?: string
+  answer_param?: string
+  answer_type?: string
+}
+
+export interface NetbootOverlay {
+  id?: number
+  distro_name: string
+  enabled: boolean
+  mirror?: string
+  local_base?: string
+  kernel_params?: string
+  version_overrides?: VersionOverride[]
+  created_at?: string
+  updated_at?: string
+}
+
+export function getNetbootOverlays(): Promise<ApiResponse<{ overlays: NetbootOverlay[] }>> {
+  return request('GET', '/netboot/overlays')
+}
+
+export function getNetbootOverlay(distro: string): Promise<ApiResponse<NetbootOverlay>> {
+  return request('GET', `/netboot/overlays/${encodeURIComponent(distro)}`)
+}
+
+export function upsertNetbootOverlay(distro: string, overlay: NetbootOverlay): Promise<ApiResponse<NetbootOverlay>> {
+  return request('PUT', `/netboot/overlays/${encodeURIComponent(distro)}`, overlay)
+}
+
+export function deleteNetbootOverlay(distro: string): Promise<ApiResponse<unknown>> {
+  return request('DELETE', `/netboot/overlays/${encodeURIComponent(distro)}`)
+}
+
+// ── Answer Templates ──
+export interface AnswerTemplate {
+  id?: number
+  name: string
+  description?: string
+  type: string // kickstart | preseed | subiquity | autoyast | autounattend
+  content: string
+  current_version?: number
+  variables?: string[]
+  created_at?: string
+  updated_at?: string
+}
+
+export interface AnswerTemplateVersion {
+  id: number
+  template_id: number
+  version: number
+  content: string
+  description?: string
+  created_at: string
+}
+
+export function getAnswerTemplates(): Promise<ApiResponse<{ templates: AnswerTemplate[] }>> {
+  return request('GET', '/netboot/answer-templates')
+}
+
+export function createAnswerTemplate(t: AnswerTemplate): Promise<ApiResponse<AnswerTemplate>> {
+  return request('POST', '/netboot/answer-templates', t)
+}
+
+export function getAnswerTemplate(id: number): Promise<ApiResponse<AnswerTemplate>> {
+  return request('GET', `/netboot/answer-templates/${id}`)
+}
+
+export function updateAnswerTemplate(id: number, t: AnswerTemplate): Promise<ApiResponse<AnswerTemplate>> {
+  return request('PUT', `/netboot/answer-templates/${id}`, t)
+}
+
+export function deleteAnswerTemplate(id: number): Promise<ApiResponse<unknown>> {
+  return request('DELETE', `/netboot/answer-templates/${id}`)
+}
+
+export function getAnswerTemplateVersions(id: number): Promise<ApiResponse<{ versions: AnswerTemplateVersion[] }>> {
+  return request('GET', `/netboot/answer-templates/${id}/versions`)
+}
+
+export function getAnswerTemplateVersion(id: number, version: number): Promise<ApiResponse<AnswerTemplateVersion>> {
+  return request('GET', `/netboot/answer-templates/${id}/versions/${version}`)
+}
+
+export function rollbackAnswerTemplate(id: number, version: number): Promise<ApiResponse<AnswerTemplate>> {
+  return request('POST', `/netboot/answer-templates/${id}/rollback/${version}`)
+}
+
+// ── Install Tasks ──
+export interface InstallTask {
+  id?: string
+  host_id: string
+  distro_name: string
+  version_codename: string
+  arch?: string
+  answer_template_id?: number | null
+  extra_cmdline?: string
+  status?: string
+  error_msg?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export function getInstallTasks(): Promise<ApiResponse<{ tasks: InstallTask[] }>> {
+  return request('GET', '/netboot/tasks')
+}
+
+export function createInstallTask(task: InstallTask): Promise<ApiResponse<InstallTask>> {
+  return request('POST', '/netboot/tasks', task)
+}
+
+export function getInstallTask(id: string): Promise<ApiResponse<InstallTask>> {
+  return request('GET', `/netboot/tasks/${encodeURIComponent(id)}`)
+}
+
+export function updateInstallTask(id: string, task: InstallTask): Promise<ApiResponse<InstallTask>> {
+  return request('PUT', `/netboot/tasks/${encodeURIComponent(id)}`, task)
+}
+
+export function deleteInstallTask(id: string): Promise<ApiResponse<unknown>> {
+  return request('DELETE', `/netboot/tasks/${encodeURIComponent(id)}`)
+}
+
 // ── Services ──
 export interface ServiceInfo {
   name: string
@@ -484,6 +609,23 @@ export const api = {
   getNetbootGroups,
   getNetbootDistro,
   getNetbootFileStatus,
+  getNetbootOverlays,
+  getNetbootOverlay,
+  upsertNetbootOverlay,
+  deleteNetbootOverlay,
+  getAnswerTemplates,
+  createAnswerTemplate,
+  getAnswerTemplate,
+  updateAnswerTemplate,
+  deleteAnswerTemplate,
+  getAnswerTemplateVersions,
+  getAnswerTemplateVersion,
+  rollbackAnswerTemplate,
+  getInstallTasks,
+  createInstallTask,
+  getInstallTask,
+  updateInstallTask,
+  deleteInstallTask,
   getServices,
   startService,
   stopService,

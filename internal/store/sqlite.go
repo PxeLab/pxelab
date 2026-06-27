@@ -44,7 +44,35 @@ func (s *sqliteStore) Migrate() error {
 		&models.Profile{},
 		&models.Event{},
 		&models.Lease{},
+		&models.NetbootOverlay{},
+		&models.AnswerTemplate{},
+		&models.AnswerTemplateVersion{},
+		&models.InstallTask{},
 	)
+}
+
+func (s *sqliteStore) Seed() error {
+	var count int64
+	if err := s.db.Model(&models.Profile{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil // 已有数据，不覆盖
+	}
+	profile := &models.Profile{
+		Name:        "默认引导配置",
+		Description: "系统自动创建的默认引导配置，首条为本地硬盘启动",
+		IsDefault:   true,
+		Arch:        "x86_64",
+	}
+	localEntry := models.MenuEntry{
+		Label: "Boot from local disk",
+		Type:  "local",
+	}
+	if err := profile.SetMenu(&models.BootMenu{Entries: []models.MenuEntry{localEntry}}); err != nil {
+		return err
+	}
+	return s.db.Create(profile).Error
 }
 
 func (s *sqliteStore) Close() error {
@@ -191,4 +219,137 @@ func (s *sqliteStore) DeleteLease(ctx context.Context, mac string) error {
 
 func (s *sqliteStore) PruneLeases(ctx context.Context) error {
 	return s.db.WithContext(ctx).Where("expires_at < ?", time.Now()).Delete(&models.Lease{}).Error
+}
+
+// ── Netboot Overlays ──
+
+func (s *sqliteStore) ListNetbootOverlays(ctx context.Context) ([]models.NetbootOverlay, error) {
+	var overlays []models.NetbootOverlay
+	if err := s.db.WithContext(ctx).Order("distro_name ASC").Find(&overlays).Error; err != nil {
+		return nil, err
+	}
+	return overlays, nil
+}
+
+func (s *sqliteStore) GetNetbootOverlay(ctx context.Context, distroName string) (*models.NetbootOverlay, error) {
+	var overlay models.NetbootOverlay
+	if err := s.db.WithContext(ctx).First(&overlay, "distro_name = ?", distroName).Error; err != nil {
+		return nil, err
+	}
+	return &overlay, nil
+}
+
+func (s *sqliteStore) UpsertNetbootOverlay(ctx context.Context, o *models.NetbootOverlay) error {
+	var existing models.NetbootOverlay
+	result := s.db.WithContext(ctx).First(&existing, "distro_name = ?", o.DistroName)
+	if result.Error != nil {
+		return s.db.WithContext(ctx).Create(o).Error
+	}
+	o.ID = existing.ID
+	o.CreatedAt = existing.CreatedAt
+	return s.db.WithContext(ctx).Save(o).Error
+}
+
+func (s *sqliteStore) DeleteNetbootOverlay(ctx context.Context, distroName string) error {
+	return s.db.WithContext(ctx).Delete(&models.NetbootOverlay{}, "distro_name = ?", distroName).Error
+}
+
+// ── Answer Templates ──
+
+func (s *sqliteStore) ListAnswerTemplates(ctx context.Context) ([]models.AnswerTemplate, error) {
+	var templates []models.AnswerTemplate
+	if err := s.db.WithContext(ctx).Order("created_at DESC").Find(&templates).Error; err != nil {
+		return nil, err
+	}
+	return templates, nil
+}
+
+func (s *sqliteStore) GetAnswerTemplate(ctx context.Context, id uint) (*models.AnswerTemplate, error) {
+	var t models.AnswerTemplate
+	if err := s.db.WithContext(ctx).First(&t, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func (s *sqliteStore) CreateAnswerTemplate(ctx context.Context, t *models.AnswerTemplate) error {
+	return s.db.WithContext(ctx).Create(t).Error
+}
+
+func (s *sqliteStore) UpdateAnswerTemplate(ctx context.Context, t *models.AnswerTemplate) error {
+	return s.db.WithContext(ctx).Save(t).Error
+}
+
+func (s *sqliteStore) DeleteAnswerTemplate(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.AnswerTemplate{}, "id = ?", id).Error
+}
+
+// ── Answer Template Versions ──
+
+func (s *sqliteStore) ListAnswerTemplateVersions(ctx context.Context, templateID uint) ([]models.AnswerTemplateVersion, error) {
+	var versions []models.AnswerTemplateVersion
+	if err := s.db.WithContext(ctx).Where("template_id = ?", templateID).Order("version DESC").Find(&versions).Error; err != nil {
+		return nil, err
+	}
+	return versions, nil
+}
+
+func (s *sqliteStore) GetAnswerTemplateVersion(ctx context.Context, templateID uint, version int) (*models.AnswerTemplateVersion, error) {
+	var v models.AnswerTemplateVersion
+	if err := s.db.WithContext(ctx).Where("template_id = ? AND version = ?", templateID, version).First(&v).Error; err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (s *sqliteStore) CreateAnswerTemplateVersion(ctx context.Context, v *models.AnswerTemplateVersion) error {
+	return s.db.WithContext(ctx).Create(v).Error
+}
+
+func (s *sqliteStore) DeleteAnswerTemplateVersions(ctx context.Context, templateID uint) error {
+	return s.db.WithContext(ctx).Delete(&models.AnswerTemplateVersion{}, "template_id = ?", templateID).Error
+}
+
+// ── Install Tasks ──
+
+func (s *sqliteStore) ListInstallTasks(ctx context.Context) ([]models.InstallTask, error) {
+	var tasks []models.InstallTask
+	if err := s.db.WithContext(ctx).Order("created_at DESC").Find(&tasks).Error; err != nil {
+		return nil, err
+	}
+	return tasks, nil
+}
+
+func (s *sqliteStore) GetInstallTask(ctx context.Context, id string) (*models.InstallTask, error) {
+	var task models.InstallTask
+	if err := s.db.WithContext(ctx).First(&task, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &task, nil
+}
+
+func (s *sqliteStore) CreateInstallTask(ctx context.Context, task *models.InstallTask) error {
+	return s.db.WithContext(ctx).Create(task).Error
+}
+
+func (s *sqliteStore) UpdateInstallTask(ctx context.Context, task *models.InstallTask) error {
+	return s.db.WithContext(ctx).Save(task).Error
+}
+
+func (s *sqliteStore) DeleteInstallTask(ctx context.Context, id string) error {
+	return s.db.WithContext(ctx).Delete(&models.InstallTask{}, "id = ?", id).Error
+}
+
+func (s *sqliteStore) GetInstallTaskByHostMAC(ctx context.Context, mac string) (*models.InstallTask, error) {
+	// Join install_tasks → hosts to find task by MAC
+	var task models.InstallTask
+	err := s.db.WithContext(ctx).
+		Joins("JOIN hosts ON hosts.id = install_tasks.host_id").
+		Where("hosts.mac = ?", mac).
+		Where("install_tasks.status IN ?", []string{"pending", "installing"}).
+		First(&task).Error
+	if err != nil {
+		return nil, err
+	}
+	return &task, nil
 }

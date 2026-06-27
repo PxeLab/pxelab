@@ -41,6 +41,7 @@ func LoadConfig(cfgPath string) (*Config, error) {
 
 	// netboot defaults
 	v.SetDefault("netboot.enabled", true)
+	v.SetDefault("netboot.failsafe_prompt", true)
 	v.SetDefault("netboot.sync.url", "https://github.com/netbootxyz/netboot.xyz.git")
 	v.SetDefault("netboot.sync.repo", "contrib/netboot.xyz")
 	v.SetDefault("netboot.paths.catalog", "netboot/catalog")

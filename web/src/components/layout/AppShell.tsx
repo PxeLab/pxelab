@@ -31,6 +31,7 @@ const navSections = [
       { path: '/profiles', label: 'nav.profiles', icon: FileCode },
       { path: '/files', label: 'nav.files', icon: FolderOpen },
       { path: '/netboot-catalog', label: 'nav.netboot', icon: Server },
+      { path: '/netboot/answer-templates', label: '应答模板', icon: FileCode },
     ] as NavItem[],
   },
   {
