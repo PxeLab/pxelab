@@ -277,7 +277,18 @@ export default function Logs() {
                         {entry.service}
                       </span>
                     )}
-                    <span className="text-[var(--text-primary)] break-all flex-1">{entry.message}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[var(--text-primary)] break-all">{entry.message}</span>
+                      {(entry.mac || entry.ip || (entry.attrs && Object.keys(entry.attrs).length > 0)) && (
+                        <div className="text-[11px] text-[var(--text-muted)] leading-snug mt-0.5 flex flex-wrap gap-x-2 gap-y-0">
+                          {entry.mac && <span className="font-mono">mac={entry.mac}</span>}
+                          {entry.ip && <span className="font-mono">ip={entry.ip}</span>}
+                          {entry.attrs && Object.entries(entry.attrs).map(([k, v]) => (
+                            <span key={k} className="font-mono">{k}={typeof v === 'string' ? v : JSON.stringify(v)}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))
               )}

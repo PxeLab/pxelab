@@ -40,7 +40,7 @@ type Server struct {
 
 func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager, clientInfo func(ip string) (arch, platform string, ok bool), svcController api.ServiceController, sessions *session.Store) *Server {
 	r := chi.NewRouter()
-	r.Use(chimw.Logger)
+	r.Use(slogMiddleware)
 	r.Use(chimw.Recoverer)
 	r.Use(CORSMiddleware)
 	r.Use(AuthMiddleware(cfg, sessions))

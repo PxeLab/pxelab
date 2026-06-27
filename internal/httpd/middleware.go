@@ -4,13 +4,66 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/pxego/pxego/internal/config"
 	"github.com/pxego/pxego/internal/session"
 )
+
+// responseWriter wraps http.ResponseWriter to capture status code and size.
+type responseWriter struct {
+	http.ResponseWriter
+	status int
+	size   int
+}
+
+func (w *responseWriter) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *responseWriter) Write(b []byte) (int, error) {
+	n, err := w.ResponseWriter.Write(b)
+	w.size += n
+	return n, err
+}
+
+func (w *responseWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// slogMiddleware logs HTTP requests through slog with service=HTTP.
+func slogMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		wr := &responseWriter{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(wr, r)
+
+		attrs := []any{
+			"service", "HTTP",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"status", wr.status,
+			"size", wr.size,
+			"duration", time.Since(start).String(),
+		}
+		// Include client IP and MAC when present in query
+		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			attrs = append(attrs, "remote", host)
+		}
+		if mac := r.URL.Query().Get("mac"); mac != "" {
+			attrs = append(attrs, "mac", mac)
+		}
+
+		slog.Info("HTTP 请求", attrs...)
+	})
+}
 
 // publicAPIPaths 定义无需认证的 API 路径前缀。
 // 与 api/handler.go 中的路由注册保持同步。
