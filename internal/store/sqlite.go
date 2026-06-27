@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"time"
@@ -56,23 +57,58 @@ func (s *sqliteStore) Seed() error {
 	if err := s.db.Model(&models.Profile{}).Count(&count).Error; err != nil {
 		return err
 	}
-	if count > 0 {
-		return nil // 已有数据，不覆盖
+	if count == 0 {
+		profile := &models.Profile{
+			Name:        "默认引导配置",
+			Description: "系统自动创建的默认引导配置，首条为本地硬盘启动",
+			IsDefault:   true,
+			Arch:        "x86_64",
+		}
+		localEntry := models.MenuEntry{
+			Label: "Boot from local disk",
+			Type:  "local",
+		}
+		if err := profile.SetMenu(&models.BootMenu{Entries: []models.MenuEntry{localEntry}}); err != nil {
+			return err
+		}
+		if err := s.db.Create(profile).Error; err != nil {
+			return err
+		}
 	}
-	profile := &models.Profile{
-		Name:        "默认引导配置",
-		Description: "系统自动创建的默认引导配置，首条为本地硬盘启动",
-		IsDefault:   true,
-		Arch:        "x86_64",
-	}
-	localEntry := models.MenuEntry{
-		Label: "Boot from local disk",
-		Type:  "local",
-	}
-	if err := profile.SetMenu(&models.BootMenu{Entries: []models.MenuEntry{localEntry}}); err != nil {
+
+	// 迁移旧版多条目 Profile → 单条目
+	return s.migrateMultiEntryProfiles()
+}
+
+func (s *sqliteStore) migrateMultiEntryProfiles() error {
+	var profiles []models.Profile
+	if err := s.db.Find(&profiles).Error; err != nil {
 		return err
 	}
-	return s.db.Create(profile).Error
+	for i := range profiles {
+		p := &profiles[i]
+		menu, err := p.GetMenu()
+		if err != nil || len(menu.Entries) <= 1 {
+			continue
+		}
+		// 保留第一个非 local 的条目；全是 local 则保留第一个
+		keep := menu.Entries[0]
+		for _, e := range menu.Entries {
+			if e.Type != "local" {
+				keep = e
+				break
+			}
+		}
+		menu.Entries = []models.MenuEntry{keep}
+		data, err := json.Marshal(menu)
+		if err != nil {
+			return err
+		}
+		if err := s.db.Model(&models.Profile{}).Where("id = ?", p.ID).Update("menu", string(data)).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *sqliteStore) Close() error {

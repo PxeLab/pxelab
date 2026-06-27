@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -47,21 +48,51 @@ func NewMemory() Interface {
 func (s *memoryStore) Migrate() error { return nil }
 
 func (s *memoryStore) Seed() error {
-	if len(s.profiles) > 0 {
-		return nil
+	if len(s.profiles) == 0 {
+		profile := &models.Profile{
+			Name:        "默认引导配置",
+			Description: "系统自动创建的默认引导配置，首条为本地硬盘启动",
+			IsDefault:   true,
+			Arch:        "x86_64",
+		}
+		localEntry := models.MenuEntry{
+			Label: "Boot from local disk",
+			Type:  "local",
+		}
+		profile.SetMenu(&models.BootMenu{Entries: []models.MenuEntry{localEntry}})
+		if err := s.CreateProfile(context.Background(), profile); err != nil {
+			return err
+		}
 	}
-	profile := &models.Profile{
-		Name:        "默认引导配置",
-		Description: "系统自动创建的默认引导配置，首条为本地硬盘启动",
-		IsDefault:   true,
-		Arch:        "x86_64",
+
+	// 迁移旧版多条目 Profile → 单条目
+	return s.migrateMultiEntryProfiles()
+}
+
+func (s *memoryStore) migrateMultiEntryProfiles() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, p := range s.profiles {
+		menu, err := p.GetMenu()
+		if err != nil || len(menu.Entries) <= 1 {
+			continue
+		}
+		// 保留第一个非 local 的条目；全是 local 则保留第一个
+		keep := menu.Entries[0]
+		for _, e := range menu.Entries {
+			if e.Type != "local" {
+				keep = e
+				break
+			}
+		}
+		menu.Entries = []models.MenuEntry{keep}
+		data, err := json.Marshal(menu)
+		if err != nil {
+			return err
+		}
+		p.MenuJSON = string(data)
 	}
-	localEntry := models.MenuEntry{
-		Label: "Boot from local disk",
-		Type:  "local",
-	}
-	profile.SetMenu(&models.BootMenu{Entries: []models.MenuEntry{localEntry}})
-	return s.CreateProfile(context.Background(), profile)
+	return nil
 }
 
 func (s *memoryStore) Close() error { return nil }

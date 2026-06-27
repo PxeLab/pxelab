@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight, Info } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { Button } from '../components/ui/Button'
@@ -16,8 +16,11 @@ export default function Profiles() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Profile | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', arch: 'x86_64', is_default: false, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '' } })
+  const [form, setForm] = useState({ name: '', description: '', arch: '', is_default: false, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '' } })
   const [showOSPicker, setShowOSPicker] = useState(false)
+  const [showVars, setShowVars] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [nameError, setNameError] = useState(false)
   const [osCatalog, setOSCatalog] = useState<NetbootDistro[]>([])
 
   useEffect(() => { loadProfiles() }, [])
@@ -36,7 +39,7 @@ export default function Profiles() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ name: '', description: '', arch: 'x86_64', is_default: false, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '' } })
+    setForm({ name: '', description: '', arch: '', is_default: false, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '' } })
     setShowModal(true)
   }
 
@@ -46,7 +49,7 @@ export default function Profiles() {
     setForm({
       name: p.name,
       description: p.description || '',
-      arch: p.arch || 'x86_64',
+      arch: p.arch || '',
       is_default: p.is_default,
       entry: { ...e, kernel: e.kernel || '', initrd: e.initrd || '', cmdline: e.cmdline || '', url: e.url || '', wim: e.wim || '' },
     })
@@ -54,6 +57,12 @@ export default function Profiles() {
   }
 
   async function handleSave() {
+    if (!form.name.trim()) {
+      setNameError(true)
+      return
+    }
+    setNameError(false)
+    setSaving(true)
     try {
       const label = form.name || '未命名'
       const data = {
@@ -73,6 +82,7 @@ export default function Profiles() {
       setShowModal(false)
       loadProfiles()
     } catch (err: any) { error(err.message) }
+    finally { setSaving(false) }
   }
 
   async function handleDelete(id: string) {
@@ -144,69 +154,74 @@ export default function Profiles() {
         width="600px"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={handleSave}>{t('common.save')}</Button>
+            <Button variant="secondary" onClick={() => { setNameError(false); setShowModal(false) }} disabled={saving}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? '保存中...' : t('common.save')}</Button>
           </>
         }
       >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.name')}</label>
-              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.arch')}</label>
-              <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={form.arch} onChange={e => setForm({...form, arch: e.target.value})}>
-                <option>x86_64</option>
-                <option>arm64</option>
-                <option>i386</option>
-              </select>
-            </div>
-          </div>
+        <div className="space-y-5">
+          {/* 基本信息 */}
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.description')}</label>
-            <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">基本信息</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.name')}</label>
+                <input className={`w-full bg-[var(--bg-input)] border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors ${nameError ? 'border-red-500 focus:border-red-500' : 'border-[var(--bg-border)] focus:border-blue-500'}`} value={form.name} onChange={e => { setNameError(false); setForm({...form, name: e.target.value}) }} placeholder="例: BootOS" />
+                {nameError && <p className="text-xs text-red-400 mt-1">请输入配置名称</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.arch')} <span className="text-[var(--text-muted)] font-normal">（如使用变量可留空）</span></label>
+                <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={form.arch} onChange={e => setForm({...form, arch: e.target.value})}>
+                  <option value="">自动</option>
+                  <option>x86_64</option>
+                  <option>arm64</option>
+                  <option>i386</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-3">
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.description')}</label>
+              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+            </div>
+            <label className="flex items-center gap-2.5 cursor-pointer mt-3">
+              <button type="button" onClick={() => setForm({...form, is_default: !form.is_default})} className={`relative w-10 h-5.5 rounded-full transition-colors ${form.is_default ? 'bg-blue-500' : 'bg-[var(--bg-border)]'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform ${form.is_default ? 'translate-x-4.5' : ''}`} />
+              </button>
+              <span className="text-sm text-[var(--text-secondary)]">{t('profiles.isDefault')}</span>
+            </label>
           </div>
-          <label className="flex items-center gap-2.5 cursor-pointer">
-            <button type="button" onClick={() => setForm({...form, is_default: !form.is_default})} className={`relative w-10 h-5.5 rounded-full transition-colors ${form.is_default ? 'bg-blue-500' : 'bg-[var(--bg-border)]'}`}>
-              <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform ${form.is_default ? 'translate-x-4.5' : ''}`} />
-            </button>
-            <span className="text-sm text-[var(--text-secondary)]">{t('profiles.isDefault')}</span>
-          </label>
 
-          <div className="border-t border-[var(--bg-border)] pt-4">
-            <span className="text-sm font-semibold text-[var(--text-primary)] mb-3 block">引导项</span>
-            <div className="bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg p-4">
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.entryType')}</label>
-                  <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={form.entry.type} onChange={e => updateEntry('type', e.target.value)}>
-                    <option value="direct">direct（内核+initrd）</option>
-                    <option value="local">local（本地硬盘）</option>
-                    <option value="chain">chain（链式加载）</option>
-                    <option value="sanboot">sanboot（SAN 启动）</option>
-                    <option value="wds">wds（WIM 文件）</option>
-                  </select>
-                </div>
+          {/* 引导项 */}
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">引导项</h3>
+            <div className="bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
+              <div>
+                <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.entryType')}</label>
+                <select className="w-56 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={form.entry.type} onChange={e => updateEntry('type', e.target.value)}>
+                  <option value="direct">direct — 内核+initrd 引导</option>
+                  <option value="chain">chain — 链式加载另一个 NBP</option>
+                  <option value="local">local — 本地硬盘启动</option>
+                  <option value="sanboot">sanboot — SAN 存储启动</option>
+                  <option value="wds">wds — WIM 文件启动</option>
+                </select>
               </div>
               {form.entry.type === 'direct' && (
                 <>
-                  <div className="grid grid-cols-2 gap-3 mb-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.kernel')}</label>
-                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.kernel || ''} onChange={e => updateEntry('kernel', e.target.value)} />
+                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.kernel || ''} onChange={e => updateEntry('kernel', e.target.value)} placeholder="vmlinuz 或 bootos/${arch}/vmlinuz" />
                     </div>
                     <div>
                       <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.initrd')}</label>
-                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.initrd || ''} onChange={e => updateEntry('initrd', e.target.value)} />
+                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.initrd || ''} onChange={e => updateEntry('initrd', e.target.value)} placeholder="initrd.img 或 bootos/${arch}/initrd" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
-                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} />
+                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} placeholder="例: console=tty0 quiet" />
                   </div>
-                  <div className="mt-2 flex justify-end">
+                  <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={() => setShowOSPicker(true)}
@@ -220,16 +235,50 @@ export default function Profiles() {
               {form.entry.type === 'chain' && (
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.url')}</label>
-                  <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} />
+                  <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder="http://server/ipxe.efi 或 ${next-server}/bootmgr.efi" />
                 </div>
               )}
               {form.entry.type === 'wds' && (
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wim')}</label>
-                  <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} />
+                  <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} />
                 </div>
               )}
             </div>
+          </div>
+
+          {/* iPXE 变量参考 */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowVars(!showVars)}
+              className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+            >
+              <Info size={12} />
+              {showVars ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              iPXE 变量参考 — 路径和参数中可使用以下变量，运行时自动替换
+            </button>
+            {showVars && (
+              <div className="mt-2 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-xs leading-relaxed">
+                <div className="grid grid-cols-[1fr_2px_1.8fr] gap-x-3 gap-y-1.5 text-[var(--text-secondary)]">
+                  <span className="font-mono text-[var(--text-primary)]">${'{arch}'}</span><span></span><span>CPU 架构 — x86_64 / x86 / arm64</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{buildarch}'}</span><span></span><span>iPXE 编译目标架构</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{platform}'}</span><span></span><span>平台类型 — efi / pc (BIOS)</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/mac}'}</span><span></span><span>客户端 MAC 地址</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/ip}'}</span><span></span><span>客户端 IP 地址（DHCP 分配）</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/gateway}'}</span><span></span><span>网关地址</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/dns}'}</span><span></span><span>DNS 服务器</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/next-server}'}</span><span></span><span>DHCP next-server（TFTP 地址）</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{uuid}'}</span><span></span><span>主机 SMBIOS UUID</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{serial}'}</span><span></span><span>主机序列号</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{manufacturer}'}</span><span></span><span>硬件厂商</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{product}'}</span><span></span><span>硬件型号</span>
+                </div>
+                <div className="mt-2 pt-2 border-t border-[var(--bg-border)] text-[var(--text-muted)]">
+                  路径中的变量由客户端 iPXE 在运行时替换，示例：<span className="font-mono text-[var(--text-primary)]">bootos/${'{arch}'}/vmlinuz</span> 会根据客户端架构自动加载对应文件
+                </div>
+              </div>
+            )}
           </div>
         </div>{showOSPicker && (
           <Modal open={showOSPicker} onClose={() => setShowOSPicker(false)} title="选择操作系统" width="500px">
