@@ -28,12 +28,14 @@ type memoryStore struct {
 	dnsRecords      map[uint]*models.DNSRecord
 	blacklist       map[string]*models.BlacklistEntry
 	whitelist       map[string]*models.WhitelistEntry
+	blIdx           uint
+	wlIdx           uint
 	hostIdx         int
-	profIdx     int
-	tmplIdx     uint
-	tmplVerIdx  uint
-	dnsRecIdx   uint
-	tmplVerMu   sync.RWMutex
+	profIdx         int
+	tmplIdx         uint
+	tmplVerIdx      uint
+	dnsRecIdx       uint
+	tmplVerMu       sync.RWMutex
 }
 
 func NewMemory() Interface {
@@ -47,8 +49,8 @@ func NewMemory() Interface {
 		tmplVersions:    make([]models.AnswerTemplateVersion, 0),
 		installTasks:    make(map[string]*models.InstallTask),
 		dnsRecords:      make(map[uint]*models.DNSRecord),
-			blacklist:       make(map[string]*models.BlacklistEntry),
-			whitelist:       make(map[string]*models.WhitelistEntry),
+		blacklist:       make(map[string]*models.BlacklistEntry),
+		whitelist:       make(map[string]*models.WhitelistEntry),
 	}
 }
 
@@ -173,9 +175,11 @@ func (s *memoryStore) CreateHost(_ context.Context, host *models.Host) error {
 func (s *memoryStore) UpdateHost(_ context.Context, host *models.Host) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.hosts[host.ID]; !ok {
+	existing, ok := s.hosts[host.ID]
+	if !ok {
 		return ErrNotFound
 	}
+	host.CreatedAt = existing.CreatedAt
 	host.UpdatedAt = time.Now()
 	s.hosts[host.ID] = host
 	return nil
@@ -246,7 +250,8 @@ func (s *memoryStore) CreateProfile(_ context.Context, profile *models.Profile) 
 func (s *memoryStore) UpdateProfile(_ context.Context, profile *models.Profile) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.profiles[profile.ID]; !ok {
+	existing, ok := s.profiles[profile.ID]
+	if !ok {
 		return ErrNotFound
 	}
 	if profile.IsDefault {
@@ -256,6 +261,7 @@ func (s *memoryStore) UpdateProfile(_ context.Context, profile *models.Profile) 
 			}
 		}
 	}
+	profile.CreatedAt = existing.CreatedAt
 	profile.UpdatedAt = time.Now()
 	s.profiles[profile.ID] = profile
 	return nil
@@ -675,12 +681,19 @@ func (s *memoryStore) ListBlacklist(_ context.Context) ([]models.BlacklistEntry,
 	for _, e := range s.blacklist {
 		list = append(list, *e)
 	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].CreatedAt.After(list[j].CreatedAt)
+	})
 	return list, nil
 }
 
 func (s *memoryStore) CreateBlacklist(_ context.Context, entry *models.BlacklistEntry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.blIdx++
+	entry.ID = s.blIdx
+	entry.CreatedAt = time.Now()
+	entry.UpdatedAt = time.Now()
 	s.blacklist[entry.MAC] = entry
 	return nil
 }
@@ -713,12 +726,19 @@ func (s *memoryStore) ListWhitelist(_ context.Context) ([]models.WhitelistEntry,
 	for _, e := range s.whitelist {
 		list = append(list, *e)
 	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].CreatedAt.After(list[j].CreatedAt)
+	})
 	return list, nil
 }
 
 func (s *memoryStore) CreateWhitelist(_ context.Context, entry *models.WhitelistEntry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.wlIdx++
+	entry.ID = s.wlIdx
+	entry.CreatedAt = time.Now()
+	entry.UpdatedAt = time.Now()
 	key := entry.MAC + "|" + entry.SubnetCIDR
 	s.whitelist[key] = entry
 	return nil

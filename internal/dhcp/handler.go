@@ -249,8 +249,10 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	// 1. 全局黑名单
 	blacklisted, err := h.store.IsBlacklisted(ctx, mac)
 	if err != nil {
-		slog.Error("黑名单查询失败", "mac", mac, "error", err)
-	} else if blacklisted {
+		slog.Error("黑名单查询失败，已拒绝", "mac", mac, "error", err)
+		return
+	}
+	if blacklisted {
 		slog.Info("黑名单 MAC 已拒绝", "mac", mac, "cidr", subnetCfg.CIDR)
 		h.eventBus.Publish("event", models.Event{
 			Type:    models.EventDHCP,
@@ -265,8 +267,10 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	if h.config.Global.WhitelistEnabled {
 		whitelisted, err := h.store.IsWhitelisted(ctx, mac, subnetCfg.CIDR)
 		if err != nil {
-			slog.Error("白名单查询失败", "mac", mac, "error", err)
-		} else if !whitelisted {
+			slog.Error("白名单查询失败，已拒绝", "mac", mac, "error", err)
+			return
+		}
+		if !whitelisted {
 			slog.Info("全局白名单未命中，已拒绝", "mac", mac, "cidr", subnetCfg.CIDR)
 			h.eventBus.Publish("event", models.Event{
 				Type:    models.EventDHCP,
@@ -282,8 +286,10 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	if subnetCfg.WhitelistEnabled {
 		whitelisted, err := h.store.IsWhitelisted(ctx, mac, subnetCfg.CIDR)
 		if err != nil {
-			slog.Error("白名单查询失败", "mac", mac, "error", err)
-		} else if !whitelisted {
+			slog.Error("白名单查询失败，已拒绝", "mac", mac, "error", err)
+			return
+		}
+		if !whitelisted {
 			slog.Info("子网白名单未命中，已拒绝", "mac", mac, "cidr", subnetCfg.CIDR)
 			h.eventBus.Publish("event", models.Event{
 				Type:    models.EventDHCP,
