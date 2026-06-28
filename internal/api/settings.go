@@ -41,6 +41,7 @@ type SettingsResponse struct {
 	DNS        DNSSettings         `json:"dns"`
 	IPMI       IPMISettings        `json:"ipmi"`
 	Netboot    NetbootSettings     `json:"netboot"`
+	WhitelistEnabled bool          `json:"whitelist_enabled"`
 	LogLevel   string              `json:"log_level"`
 	DataDir    string              `json:"data_dir"`
 	Interfaces []InterfaceResponse `json:"interfaces"`
@@ -70,9 +71,10 @@ type TFTPSettings struct {
 }
 
 type DNSSettings struct {
-	Enabled  bool   `json:"enabled"`
-	Port     int    `json:"port"`
-	Upstream string `json:"upstream"`
+	Enabled     bool   `json:"enabled"`
+	Port        int    `json:"port"`
+	Upstream    string `json:"upstream"`
+	LocalDomain string `json:"local_domain"`
 }
 
 
@@ -205,8 +207,9 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	tokenSet := cfg.Auth.TokenHash != ""
 
 	resp := SettingsResponse{
-		LogLevel: cfg.Log.Level,
-		DataDir:  cfg.Global.DataDir,
+		LogLevel:         cfg.Log.Level,
+		DataDir:          cfg.Global.DataDir,
+		WhitelistEnabled: cfg.Global.WhitelistEnabled,
 		Server: ServerSettings{
 			Name:       cfg.Global.ServerName,
 			AppMode:    cfg.Global.AppMode,
@@ -228,9 +231,10 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Root:    cfg.Boot.RootDir,
 		},
 		DNS: DNSSettings{
-			Enabled:  false,
-			Port:     config.DefaultPortDNS,
-			Upstream: "8.8.8.8:53",
+			Enabled:     cfg.DNS.Enabled,
+			Port:        cfg.DNS.Port,
+			Upstream:    cfg.DNS.Upstream,
+			LocalDomain: cfg.DNS.LocalDomain,
 		},
 		Netboot: NetbootSettings{
 			Enabled:        cfg.Netboot.Enabled,
@@ -433,9 +437,16 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	h.cfg.Log.Level = req.LogLevel
 	h.cfg.Global.ServerName = req.Server.Name
 	h.cfg.Global.AppMode = req.Server.AppMode
+	h.cfg.Global.WhitelistEnabled = req.WhitelistEnabled
 	if req.Server.ListenAddr != "" {
 		h.cfg.Global.ListenAddr = req.Server.ListenAddr
 	}
+	h.cfg.DNS.Enabled = req.DNS.Enabled
+	if req.DNS.Port > 0 {
+		h.cfg.DNS.Port = req.DNS.Port
+	}
+	h.cfg.DNS.Upstream = req.DNS.Upstream
+	h.cfg.DNS.LocalDomain = req.DNS.LocalDomain
 	if req.Server.Token != "" && req.Server.Token != h.cfg.Auth.Token && !strings.Contains(req.Server.Token, "...") {
 		h.cfg.Auth.Token = req.Server.Token
 		hsh := sha256.Sum256([]byte(req.Server.Token))
