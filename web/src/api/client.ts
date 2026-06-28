@@ -65,6 +65,17 @@ export interface FileInfo {
   modtime: string
 }
 
+export interface DNSRecord {
+  id?: number
+  name: string
+  type: string
+  value: string
+  ttl: number
+  enabled: boolean
+  created_at?: string
+  updated_at?: string
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data: T
@@ -340,7 +351,7 @@ export interface SettingsData {
   server: { name: string; app_mode: boolean; token: string; listen_addr: string; token_set: boolean }
   dhcp: { enabled: boolean; range: string; gateway: string; subnet: string; lease_time: number; dns_servers: string }
   tftp: { enabled: boolean; port: number; root: string }
-  dns: { enabled: boolean; port: number; upstream: string }
+  dns: { enabled: boolean; port: number; upstream: string; local_domain?: string }
   ipmi?: { enabled: boolean; timeout: number }
   netboot: { enabled: boolean; script_template?: string; boot: BootSettings }
   log_level: string
@@ -547,6 +558,69 @@ export function deleteInstallTask(id: string): Promise<ApiResponse<unknown>> {
   return request('DELETE', `/netboot/tasks/${encodeURIComponent(id)}`)
 }
 
+export function getDNSRecords(): Promise<ApiResponse<{ records: DNSRecord[] }>> {
+  return request('GET', '/dns/records')
+}
+
+export function createDNSRecord(r: DNSRecord): Promise<ApiResponse<DNSRecord>> {
+  return request('POST', '/dns/records', r)
+}
+
+export function getDNSRecord(id: number): Promise<ApiResponse<DNSRecord>> {
+  return request('GET', `/dns/records/${id}`)
+}
+
+export function updateDNSRecord(id: number, r: DNSRecord): Promise<ApiResponse<DNSRecord>> {
+  return request('PUT', `/dns/records/${id}`, r)
+}
+
+export function deleteDNSRecord(id: number): Promise<ApiResponse<unknown>> {
+  return request('DELETE', `/dns/records/${id}`)
+}
+
+// ── Access Control: Blacklist / Whitelist ──
+export interface BlacklistEntry {
+  id: number
+  mac: string
+  reason: string
+  source: string
+  created_at: string
+  updated_at: string
+}
+
+export interface WhitelistEntry {
+  id: number
+  mac: string
+  subnet_cidr: string
+  reason: string
+  source: string
+  created_at: string
+  updated_at: string
+}
+
+export function getBlacklist(): Promise<ApiResponse<BlacklistEntry[]>> {
+  return request<BlacklistEntry[]>('GET', '/access/blacklist')
+}
+
+export function createBlacklistEntry(data: { mac: string; reason?: string }): Promise<ApiResponse<BlacklistEntry>> {
+  return request<BlacklistEntry>('POST', '/access/blacklist', data)
+}
+
+export function deleteBlacklistEntry(id: number): Promise<ApiResponse<unknown>> {
+  return request<unknown>('DELETE', `/access/blacklist/${id}`)
+}
+
+export function getWhitelist(): Promise<ApiResponse<WhitelistEntry[]>> {
+  return request<WhitelistEntry[]>('GET', '/access/whitelist')
+}
+
+export function createWhitelistEntry(data: { mac: string; subnet_cidr: string; reason?: string }): Promise<ApiResponse<WhitelistEntry>> {
+  return request<WhitelistEntry>('POST', '/access/whitelist', data)
+}
+
+export function deleteWhitelistEntry(id: number): Promise<ApiResponse<unknown>> {
+  return request<unknown>('DELETE', `/access/whitelist/${id}`)
+}
 // ── Services ──
 export interface ServiceInfo {
   name: string
@@ -624,6 +698,11 @@ export const api = {
   getInstallTasks,
   createInstallTask,
   getInstallTask,
+  getDNSRecords,
+  getDNSRecord,
+  createDNSRecord,
+  updateDNSRecord,
+  deleteDNSRecord,
   updateInstallTask,
   deleteInstallTask,
   getServices,
@@ -632,4 +711,10 @@ export const api = {
   restartService,
   batchService,
   updateAutoStart,
+  getBlacklist,
+  createBlacklistEntry,
+  deleteBlacklistEntry,
+  getWhitelist,
+  createWhitelistEntry,
+  deleteWhitelistEntry,
 }
