@@ -83,12 +83,12 @@ export default function Settings() {
   const [config, setConfig] = useState({
     serverName: '', logLevel: 'info', dataDir: '', mode: 'server',
     listenAddr: '127.0.0.1:8080', authToken: '', tokenSet: false,
-    autoOpen: true, persistEvents: true,
+    autoOpen: true, persistEvents: true, whitelistEnabled: false,
     interfaces: [{ ...defaultIface }],
     dhcpEnabled: true, dhcpRange: '', dhcpGateway: '', dhcpSubnet: '',
     dhcpDns: '', dhcpLeaseTime: '3600',
     tftpEnabled: true, tftpPort: '69', tftpRoot: '',
-    dnsEnabled: false, dnsPort: '53', dnsUpstream: '8.8.8.8:53',
+    dnsEnabled: false, dnsPort: '53', dnsUpstream: '8.8.8.8:53', dnsLocalDomain: 'pxego.local',
     netbootEnabled: true,
     netbootScriptTemplate: "",
     boot: {
@@ -128,6 +128,7 @@ export default function Settings() {
         listenAddr: d.server.listen_addr || prev.listenAddr,
         authToken: d.server.token || prev.authToken,
         tokenSet: d.server.token_set ?? false,
+        whitelistEnabled: d.whitelist_enabled ?? false,
         autoOpen: d.server.app_mode ?? prev.autoOpen,
         dhcpEnabled: d.dhcp.enabled ?? prev.dhcpEnabled,
         dhcpRange: d.dhcp.range || prev.dhcpRange,
@@ -141,6 +142,7 @@ export default function Settings() {
         dnsEnabled: d.dns.enabled ?? prev.dnsEnabled,
         dnsPort: String(d.dns.port > 0 ? d.dns.port : 53),
         dnsUpstream: d.dns.upstream || prev.dnsUpstream,
+        dnsLocalDomain: d.dns.local_domain || prev.dnsLocalDomain,
         netbootEnabled: d.netboot?.enabled ?? prev.netbootEnabled,
                 netbootScriptTemplate: d.netboot?.script_template ?? prev.netbootScriptTemplate,
         boot: d.netboot?.boot ? {
@@ -269,6 +271,9 @@ export default function Settings() {
     if (!validatePort(parseInt(config.dnsPort))) {
       errs.push('DNS 端口号无效（1-65535）')
     }
+    if (!config.dnsLocalDomain.trim()) {
+      errs.push('DNS 本地域名不能为空')
+    }
 
     return errs
   }
@@ -310,6 +315,7 @@ export default function Settings() {
         }))
 
       const data: SettingsData = {
+        whitelist_enabled: config.whitelistEnabled,
         log_level: config.logLevel,
         data_dir: config.dataDir,
         server: {
@@ -336,6 +342,7 @@ export default function Settings() {
           enabled: config.dnsEnabled,
           port: parseInt(config.dnsPort) || 53,
           upstream: config.dnsUpstream,
+          local_domain: config.dnsLocalDomain,
         },
 
         netboot: {
@@ -541,6 +548,7 @@ export default function Settings() {
             <div className="flex flex-col gap-3 pt-2">
               <Toggle checked={config.autoOpen} onChange={v => setConfig({...config, autoOpen: v})} label={t('settings.autoOpen', '启动时自动打开浏览器（app 模式）')} />
               <Toggle checked={config.persistEvents} onChange={v => setConfig({...config, persistEvents: v})} label={t('settings.persistEvents', '启用事件日志持久化')} />
+              <Toggle checked={config.whitelistEnabled} onChange={v => setConfig({...config, whitelistEnabled: v})} label="启用全局白名单" />
             </div>
           </div>
         )}
@@ -901,8 +909,13 @@ export default function Settings() {
             <Toggle checked={config.dnsEnabled} onChange={v => setConfig({...config, dnsEnabled: v})} label={t('settings.enabled') + ' DNS'} />
             <div className="grid grid-cols-2 gap-4">
               {renderField(t('settings.port'), config.dnsPort, v => setConfig({...config, dnsPort: v}))}
-              {renderField(t('settings.dnsUpstream', '上游 DNS'), config.dnsUpstream, v => setConfig({...config, dnsUpstream: v}))}
+              {renderField(t('settings.dnsUpstream', '上游 DNS'), config.dnsUpstream, v => setConfig({...config, dnsUpstream: v}), { placeholder: '8.8.8.8:53 1.1.1.1:53' })}
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              {renderField('本地域名', config.dnsLocalDomain, v => setConfig({...config, dnsLocalDomain: v}))}
+            </div>
+            <p className="text-xs text-[var(--text-muted)]">支持格式：<code className="text-[10px] bg-[var(--bg-card)] px-1 py-0.5 rounded font-mono">8.8.8.8:53</code> 或 <code className="text-[10px] bg-[var(--bg-card)] px-1 py-0.5 rounded font-mono">8.8.8.8:53 1.1.1.1:53</code>（空格或逗号分隔多个地址，按顺序重试）。</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">DNS 记录管理中的主机名将以此域名后缀进行本地解析。例如主机名 <code className="text-[10px] bg-[var(--bg-card)] px-1 py-0.5 rounded font-mono">pxe-server</code> 对应 <code className="text-[10px] bg-[var(--bg-card)] px-1 py-0.5 rounded font-mono">pxe-server.{config.dnsLocalDomain || 'pxego.local'}</code>。</p>
           </div>
         )}
 

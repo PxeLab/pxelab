@@ -354,6 +354,7 @@ export interface SettingsData {
   dns: { enabled: boolean; port: number; upstream: string; local_domain?: string }
   ipmi?: { enabled: boolean; timeout: number }
   netboot: { enabled: boolean; script_template?: string; boot: BootSettings }
+  whitelist_enabled: boolean
   log_level: string
   data_dir: string
   interfaces: InterfaceSettings[]

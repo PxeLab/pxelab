@@ -7,7 +7,7 @@ import { LangSwitch } from '../LangSwitch'
 import { StatusDot } from '../ui/StatusDot'
 import {
   LayoutDashboard, Server, FileCode, FolderOpen, Activity, Settings,
-  Monitor, Menu,
+  Monitor, Globe, ShieldCheck, Menu,
 } from 'lucide-react'
 
 interface NavItem {
@@ -32,6 +32,8 @@ const navSections = [
       { path: '/files', label: 'nav.files', icon: FolderOpen },
       { path: '/netboot-catalog', label: 'nav.netboot', icon: Server },
       { path: '/netboot/answer-templates', label: '应答模板', icon: FileCode },
+      { path: '/dns/records', label: 'DNS 记录', icon: Globe },
+      { path: '/netboot/access-control', label: '访问控制', icon: ShieldCheck },
     ] as NavItem[],
   },
   {
