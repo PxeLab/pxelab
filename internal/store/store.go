@@ -14,6 +14,9 @@ type Interface interface {
 	NetbootOverlayStore
 	AnswerTemplateStore
 	InstallTaskStore
+	DNSRecordStore
+	BlacklistStore
+	WhitelistStore
 	Close() error
 	Migrate() error
 	Seed() error
@@ -90,4 +93,27 @@ type InstallTaskStore interface {
 	UpdateInstallTask(ctx context.Context, t *models.InstallTask) error
 	DeleteInstallTask(ctx context.Context, id string) error
 	GetInstallTaskByHostMAC(ctx context.Context, mac string) (*models.InstallTask, error)
+}
+
+type DNSRecordStore interface {
+	ListDNSRecords(ctx context.Context) ([]models.DNSRecord, error)
+	GetDNSRecord(ctx context.Context, id uint) (*models.DNSRecord, error)
+	CreateDNSRecord(ctx context.Context, r *models.DNSRecord) error
+	UpdateDNSRecord(ctx context.Context, r *models.DNSRecord) error
+	DeleteDNSRecord(ctx context.Context, id uint) error
+	FindDNSRecords(ctx context.Context, name string, recordType string) ([]models.DNSRecord, error)
+}
+
+type BlacklistStore interface {
+	ListBlacklist(ctx context.Context) ([]models.BlacklistEntry, error)
+	CreateBlacklist(ctx context.Context, entry *models.BlacklistEntry) error
+	DeleteBlacklist(ctx context.Context, id uint) error
+	IsBlacklisted(ctx context.Context, mac string) (bool, error)
+}
+
+type WhitelistStore interface {
+	ListWhitelist(ctx context.Context) ([]models.WhitelistEntry, error)
+	CreateWhitelist(ctx context.Context, entry *models.WhitelistEntry) error
+	DeleteWhitelist(ctx context.Context, id uint) error
+	IsWhitelisted(ctx context.Context, mac, subnetCIDR string) (bool, error)
 }
