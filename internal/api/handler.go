@@ -43,6 +43,8 @@ type Handler struct {
 	InstallTask    *InstallTaskHandler
 	Service        *ServiceHandler
 	Auth           *AuthHandler
+	Access         *AccessHandler
+	DNSRecord      *DNSRecordHandler
 	svcController  ServiceController
 	sessions       *session.Store
 }
@@ -64,6 +66,8 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		InstallTask:    &InstallTaskHandler{store: st, netbootMgr: netbootMgr},
 		Service:        NewServiceHandler(svcController, cfg, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:           NewAuthHandler(cfg, sessions),
+		Access:         NewAccessHandler(st),
+		DNSRecord:      &DNSRecordHandler{store: st},
 		svcController:  svcController,
 		sessions:       sessions,
 	}
@@ -142,6 +146,21 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/netboot/tasks/{id}", h.InstallTask.Get)
 		r.Put("/netboot/tasks/{id}", h.InstallTask.Update)
 		r.Delete("/netboot/tasks/{id}", h.InstallTask.Delete)
+
+		// Access control
+		r.Get("/access/blacklist", h.Access.ListBlacklist)
+		r.Post("/access/blacklist", h.Access.CreateBlacklist)
+		r.Delete("/access/blacklist/{id}", h.Access.DeleteBlacklist)
+		r.Get("/access/whitelist", h.Access.ListWhitelist)
+		r.Post("/access/whitelist", h.Access.CreateWhitelist)
+		r.Delete("/access/whitelist/{id}", h.Access.DeleteWhitelist)
+
+		// DNS records
+		r.Get("/dns/records", h.DNSRecord.List)
+		r.Post("/dns/records", h.DNSRecord.Create)
+		r.Get("/dns/records/{id}", h.DNSRecord.Get)
+		r.Put("/dns/records/{id}", h.DNSRecord.Update)
+		r.Delete("/dns/records/{id}", h.DNSRecord.Delete)
 
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)
