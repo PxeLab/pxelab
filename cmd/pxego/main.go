@@ -16,6 +16,7 @@ import (
 	"github.com/pxego/pxego/internal/dns"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/httpd"
+	"github.com/pxego/pxego/internal/models"
 	"github.com/pxego/pxego/internal/netboot"
 	"github.com/pxego/pxego/internal/logbus"
 	"github.com/pxego/pxego/internal/servicemanager"
@@ -113,6 +114,46 @@ func run(cmd *cobra.Command) error {
 	if err := st.Seed(); err != nil {
 		return fmt.Errorf("初始化默认数据失败: %w", err)
 	}
+
+	// 导入黑白名单种子（幂等——MAC 已存在则跳过）
+	for _, entry := range cfg.BlacklistSeeds {
+		exists, err := st.IsBlacklisted(context.Background(), entry.MAC)
+		if err != nil {
+			slog.Warn("查询黑名单种子失败", "mac", entry.MAC, "error", err)
+			continue
+		}
+		if !exists {
+			if err := st.CreateBlacklist(context.Background(), &models.BlacklistEntry{
+				MAC:    entry.MAC,
+				Reason: entry.Reason,
+				Source: "seed",
+			}); err != nil {
+				slog.Warn("导入黑名单种子失败", "mac", entry.MAC, "error", err)
+			} else {
+				slog.Info("已导入黑名单种子", "mac", entry.MAC)
+			}
+		}
+	}
+	for _, entry := range cfg.WhitelistSeeds {
+		exists, err := st.IsWhitelisted(context.Background(), entry.MAC, entry.Subnet)
+		if err != nil {
+			slog.Warn("查询白名单种子失败", "mac", entry.MAC, "error", err)
+			continue
+		}
+		if !exists {
+			if err := st.CreateWhitelist(context.Background(), &models.WhitelistEntry{
+				MAC:        entry.MAC,
+				SubnetCIDR: entry.Subnet,
+				Reason:     entry.Reason,
+				Source:     "seed",
+			}); err != nil {
+				slog.Warn("导入白名单种子失败", "mac", entry.MAC, "error", err)
+			} else {
+				slog.Info("已导入白名单种子", "mac", entry.MAC, "subnet", entry.Subnet)
+			}
+		}
+	}
+
 	defer st.Close()
 
 	bootFS := boot.NewBootFileServer(cfg.Boot.RootDir)
@@ -206,8 +247,8 @@ func run(cmd *cobra.Command) error {
 		openBrowser("http://localhost:8080")
 	}
 
-		dnsServer := dns.NewServer(config.DefaultPortDNS, "8.8.8.8:53", bus)
-		svcMgr.Register("dns", "DNS", dnsServer, cfg.ServiceAutoStart.DNS, false, 53, "UDP")
+	dnsServer := dns.NewServer(&cfg.DNS, st, bus)
+	svcMgr.Register("dns", "DNS", dnsServer, cfg.ServiceAutoStart.DNS, false, cfg.DNS.Port, "UDP")
 
 	return svcMgr.Run(context.Background())
 }
