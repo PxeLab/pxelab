@@ -49,6 +49,9 @@ func (s *sqliteStore) Migrate() error {
 		&models.AnswerTemplate{},
 		&models.AnswerTemplateVersion{},
 		&models.InstallTask{},
+			&models.DNSRecord{},
+		&models.BlacklistEntry{},
+		&models.WhitelistEntry{},
 	)
 }
 
@@ -388,4 +391,44 @@ func (s *sqliteStore) GetInstallTaskByHostMAC(ctx context.Context, mac string) (
 		return nil, err
 	}
 	return &task, nil
+}
+
+// ── DNS Records ──
+
+func (s *sqliteStore) ListDNSRecords(ctx context.Context) ([]models.DNSRecord, error) {
+	var records []models.DNSRecord
+	if err := s.db.WithContext(ctx).Order("created_at DESC").Find(&records).Error; err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (s *sqliteStore) GetDNSRecord(ctx context.Context, id uint) (*models.DNSRecord, error) {
+	var r models.DNSRecord
+	if err := s.db.WithContext(ctx).First(&r, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+func (s *sqliteStore) CreateDNSRecord(ctx context.Context, r *models.DNSRecord) error {
+	return s.db.WithContext(ctx).Create(r).Error
+}
+
+func (s *sqliteStore) UpdateDNSRecord(ctx context.Context, r *models.DNSRecord) error {
+	return s.db.WithContext(ctx).Save(r).Error
+}
+
+func (s *sqliteStore) DeleteDNSRecord(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.DNSRecord{}, "id = ?", id).Error
+}
+
+func (s *sqliteStore) FindDNSRecords(ctx context.Context, name string, recordType string) ([]models.DNSRecord, error) {
+	var records []models.DNSRecord
+	if err := s.db.WithContext(ctx).
+		Where("name = ? AND type = ? AND enabled = ?", name, recordType, true).
+		Find(&records).Error; err != nil {
+		return nil, err
+	}
+	return records, nil
 }

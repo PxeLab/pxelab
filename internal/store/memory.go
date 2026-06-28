@@ -25,11 +25,15 @@ type memoryStore struct {
 	answerTemplates map[uint]*models.AnswerTemplate
 	tmplVersions    []models.AnswerTemplateVersion
 	installTasks    map[string]*models.InstallTask
-	hostIdx    int
-	profIdx    int
-	tmplIdx    uint
-	tmplVerIdx uint
-	tmplVerMu  sync.RWMutex
+	dnsRecords      map[uint]*models.DNSRecord
+	blacklist       map[string]*models.BlacklistEntry
+	whitelist       map[string]*models.WhitelistEntry
+	hostIdx         int
+	profIdx     int
+	tmplIdx     uint
+	tmplVerIdx  uint
+	dnsRecIdx   uint
+	tmplVerMu   sync.RWMutex
 }
 
 func NewMemory() Interface {
@@ -42,6 +46,9 @@ func NewMemory() Interface {
 		answerTemplates: make(map[uint]*models.AnswerTemplate),
 		tmplVersions:    make([]models.AnswerTemplateVersion, 0),
 		installTasks:    make(map[string]*models.InstallTask),
+		dnsRecords:      make(map[uint]*models.DNSRecord),
+			blacklist:       make(map[string]*models.BlacklistEntry),
+			whitelist:       make(map[string]*models.WhitelistEntry),
 	}
 }
 
@@ -586,4 +593,153 @@ func (s *memoryStore) GetInstallTaskByHostMAC(_ context.Context, mac string) (*m
 		}
 	}
 	return nil, ErrNotFound
+}
+
+// ── DNS Records ──
+
+func (s *memoryStore) ListDNSRecords(_ context.Context) ([]models.DNSRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []models.DNSRecord
+	for _, r := range s.dnsRecords {
+		list = append(list, *r)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].CreatedAt.After(list[j].CreatedAt)
+	})
+	return list, nil
+}
+
+func (s *memoryStore) GetDNSRecord(_ context.Context, id uint) (*models.DNSRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	r, ok := s.dnsRecords[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return r, nil
+}
+
+func (s *memoryStore) CreateDNSRecord(_ context.Context, r *models.DNSRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dnsRecIdx++
+	r.ID = s.dnsRecIdx
+	r.CreatedAt = time.Now()
+	r.UpdatedAt = time.Now()
+	s.dnsRecords[r.ID] = r
+	return nil
+}
+
+func (s *memoryStore) UpdateDNSRecord(_ context.Context, r *models.DNSRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	existing, ok := s.dnsRecords[r.ID]
+	if !ok {
+		return ErrNotFound
+	}
+	r.CreatedAt = existing.CreatedAt
+	r.UpdatedAt = time.Now()
+	s.dnsRecords[r.ID] = r
+	return nil
+}
+
+func (s *memoryStore) DeleteDNSRecord(_ context.Context, id uint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.dnsRecords[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.dnsRecords, id)
+	return nil
+}
+
+func (s *memoryStore) FindDNSRecords(_ context.Context, name string, recordType string) ([]models.DNSRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var result []models.DNSRecord
+	for _, r := range s.dnsRecords {
+		if r.Name == name && r.Type == recordType && r.Enabled {
+			result = append(result, *r)
+		}
+	}
+	return result, nil
+}
+
+// ── Blacklist ──
+
+func (s *memoryStore) ListBlacklist(_ context.Context) ([]models.BlacklistEntry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []models.BlacklistEntry
+	for _, e := range s.blacklist {
+		list = append(list, *e)
+	}
+	return list, nil
+}
+
+func (s *memoryStore) CreateBlacklist(_ context.Context, entry *models.BlacklistEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.blacklist[entry.MAC] = entry
+	return nil
+}
+
+func (s *memoryStore) DeleteBlacklist(_ context.Context, id uint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for mac, e := range s.blacklist {
+		if e.ID == id {
+			delete(s.blacklist, mac)
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+func (s *memoryStore) IsBlacklisted(_ context.Context, mac string) (bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.blacklist[mac]
+	return ok, nil
+}
+
+// ── Whitelist ──
+
+func (s *memoryStore) ListWhitelist(_ context.Context) ([]models.WhitelistEntry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []models.WhitelistEntry
+	for _, e := range s.whitelist {
+		list = append(list, *e)
+	}
+	return list, nil
+}
+
+func (s *memoryStore) CreateWhitelist(_ context.Context, entry *models.WhitelistEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := entry.MAC + "|" + entry.SubnetCIDR
+	s.whitelist[key] = entry
+	return nil
+}
+
+func (s *memoryStore) DeleteWhitelist(_ context.Context, id uint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for key, e := range s.whitelist {
+		if e.ID == id {
+			delete(s.whitelist, key)
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+func (s *memoryStore) IsWhitelisted(_ context.Context, mac, subnetCIDR string) (bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	key := mac + "|" + subnetCIDR
+	_, ok := s.whitelist[key]
+	return ok, nil
 }
