@@ -7,15 +7,18 @@ import (
 )
 
 type Config struct {
-	ConfigPath      string                `yaml:"-" json:"-" mapstructure:"-"` // 配置文件的完整路径，运行时追踪用
-	Global          GlobalConfig          `yaml:"global" mapstructure:"global"`
-	Interfaces      []InterfaceConfig     `yaml:"interfaces" mapstructure:"interfaces"`
-	Auth            AuthConfig            `yaml:"auth" mapstructure:"auth"`
-	Boot            BootConfig            `yaml:"boot" mapstructure:"boot"`
-	Netboot         NetbootConfig         `yaml:"netboot" mapstructure:"netboot"`
-	Store           StoreConfig           `yaml:"store" mapstructure:"store"`
-	Log             LogConfig             `yaml:"log" mapstructure:"log"`
-	ServiceAutoStart ServiceAutoStartConfig `yaml:"service_auto_start" mapstructure:"service_auto_start"`
+	ConfigPath       string                  `yaml:"-" json:"-" mapstructure:"-"` // 配置文件的完整路径，运行时追踪用
+	Global           GlobalConfig            `yaml:"global" mapstructure:"global"`
+	Interfaces       []InterfaceConfig       `yaml:"interfaces" mapstructure:"interfaces"`
+	Auth             AuthConfig              `yaml:"auth" mapstructure:"auth"`
+	DNS              DNSConfig               `yaml:"dns" mapstructure:"dns"`
+	Boot             BootConfig              `yaml:"boot" mapstructure:"boot"`
+	Netboot          NetbootConfig           `yaml:"netboot" mapstructure:"netboot"`
+	Store            StoreConfig             `yaml:"store" mapstructure:"store"`
+	Log              LogConfig               `yaml:"log" mapstructure:"log"`
+	ServiceAutoStart ServiceAutoStartConfig  `yaml:"service_auto_start" mapstructure:"service_auto_start"`
+	BlacklistSeeds   []MACEntry              `yaml:"blacklist,omitempty" mapstructure:"blacklist,omitempty"`
+	WhitelistSeeds   []WhitelistSeedEntry    `yaml:"whitelist,omitempty" mapstructure:"whitelist,omitempty"`
 }
 
 type ServiceAutoStartConfig struct {
@@ -25,10 +28,11 @@ type ServiceAutoStartConfig struct {
 }
 
 type GlobalConfig struct {
-	DataDir    string `yaml:"data_dir" mapstructure:"data_dir"`
-	AppMode    bool   `yaml:"app_mode" mapstructure:"app_mode"`
-	ServerName string `yaml:"server_name" mapstructure:"server_name"`
-	ListenAddr string `yaml:"listen_addr" mapstructure:"listen_addr"`
+	DataDir          string `yaml:"data_dir" mapstructure:"data_dir"`
+	AppMode          bool   `yaml:"app_mode" mapstructure:"app_mode"`
+	ServerName       string `yaml:"server_name" mapstructure:"server_name"`
+	ListenAddr       string `yaml:"listen_addr" mapstructure:"listen_addr"`
+	WhitelistEnabled bool   `yaml:"whitelist_enabled" mapstructure:"whitelist_enabled"`
 }
 
 type InterfaceConfig struct {
@@ -44,19 +48,27 @@ type InterfaceConfig struct {
 }
 
 type SubnetConfig struct {
-	CIDR       string   `yaml:"cidr" mapstructure:"cidr"`
-	DHCP       string   `yaml:"dhcp" mapstructure:"dhcp"`
-	Pool       string   `yaml:"pool" mapstructure:"pool"`                // 兼容旧格式单地址池
-	Pools      []string `yaml:"pools" mapstructure:"pools"`              // 多地址池 ["start1-end1", "start2-end2"]
-	Gateway    string   `yaml:"gateway" mapstructure:"gateway"`
-	DNSServers string   `yaml:"dns_servers" mapstructure:"dns_servers"`
-	NextServer string   `yaml:"next_server" mapstructure:"next_server"`
-	LeaseTime  int      `yaml:"lease_time" mapstructure:"lease_time"`
+	CIDR             string   `yaml:"cidr" mapstructure:"cidr"`
+	DHCP             string   `yaml:"dhcp" mapstructure:"dhcp"`
+	Pool             string   `yaml:"pool" mapstructure:"pool"`                // 兼容旧格式单地址池
+	Pools            []string `yaml:"pools" mapstructure:"pools"`              // 多地址池 ["start1-end1", "start2-end2"]
+	Gateway          string   `yaml:"gateway" mapstructure:"gateway"`
+	DNSServers       string   `yaml:"dns_servers" mapstructure:"dns_servers"`
+	NextServer       string   `yaml:"next_server" mapstructure:"next_server"`
+	LeaseTime        int      `yaml:"lease_time" mapstructure:"lease_time"`
+	WhitelistEnabled bool     `yaml:"whitelist_enabled" mapstructure:"whitelist_enabled"`
 }
 
 type AuthConfig struct {
 	Token     string `yaml:"token" mapstructure:"token"`
 	TokenHash string `yaml:"token_hash" mapstructure:"token_hash"`
+}
+
+type DNSConfig struct {
+	Enabled     bool   `yaml:"enabled" mapstructure:"enabled"`
+	Port        int    `yaml:"port" mapstructure:"port"`
+	Upstream    string `yaml:"upstream" mapstructure:"upstream"`
+	LocalDomain string `yaml:"local_domain" mapstructure:"local_domain"`
 }
 
 type NetbootConfig struct {
@@ -160,4 +172,17 @@ func DefaultDataDir() string {
 		return ".pxego"
 	}
 	return filepath.Join(home, ".pxego")
+}
+
+// MACEntry represents a MAC address with optional reason, used for seed entries in config.
+type MACEntry struct {
+	MAC    string `yaml:"mac" mapstructure:"mac"`
+	Reason string `yaml:"reason,omitempty" mapstructure:"reason,omitempty"`
+}
+
+// WhitelistSeedEntry is a seed entry for whitelists (includes subnet).
+type WhitelistSeedEntry struct {
+	MAC    string `yaml:"mac" mapstructure:"mac"`
+	Reason string `yaml:"reason,omitempty" mapstructure:"reason,omitempty"`
+	Subnet string `yaml:"subnet" mapstructure:"subnet"`
 }
