@@ -40,6 +40,11 @@ func NewSQLite(dsn string) (Interface, error) {
 }
 
 func (s *sqliteStore) Migrate() error {
+	// ── backward-compat schema migrations for existing databases ──
+	s.migrateAddColumn("whitelist_entries", "subnet_cidr", "varchar(43) NOT NULL DEFAULT ''")
+	s.migrateAddColumn("whitelist_entries", "source", "varchar(32) DEFAULT 'db'")
+	s.migrateAddColumn("unauthorized_devices", "subnet_cidr", "varchar(43) NOT NULL DEFAULT ''")
+
 	return s.db.AutoMigrate(
 		&models.Host{},
 		&models.Profile{},
@@ -49,10 +54,22 @@ func (s *sqliteStore) Migrate() error {
 		&models.AnswerTemplate{},
 		&models.AnswerTemplateVersion{},
 		&models.InstallTask{},
-			&models.DNSRecord{},
+		&models.DNSRecord{},
 		&models.BlacklistEntry{},
 		&models.WhitelistEntry{},
+		&models.UnauthorizedDevice{},
+		&models.BMCConfig{},
 	)
+}
+
+// migrateAddColumn adds a column if it doesn't already exist, avoiding
+// the noisy "duplicate column name" SQLite error on re-runs.
+func (s *sqliteStore) migrateAddColumn(table, column, typ string) {
+	var count int64
+	s.db.Raw("SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?", table, column).Scan(&count)
+	if count == 0 {
+		s.db.Exec("ALTER TABLE " + table + " ADD COLUMN " + column + " " + typ)
+	}
 }
 
 func (s *sqliteStore) Seed() error {
@@ -423,12 +440,42 @@ func (s *sqliteStore) DeleteDNSRecord(ctx context.Context, id uint) error {
 	return s.db.WithContext(ctx).Delete(&models.DNSRecord{}, "id = ?", id).Error
 }
 
-func (s *sqliteStore) FindDNSRecords(ctx context.Context, name string, recordType string) ([]models.DNSRecord, error) {
+func (s *sqliteStore) FindDNSRecords(ctx context.Context, name string, recordType string, subnet string) ([]models.DNSRecord, error) {
 	var records []models.DNSRecord
 	if err := s.db.WithContext(ctx).
-		Where("name = ? AND type = ? AND enabled = ?", name, recordType, true).
+		Where("name = ? AND type = ? AND enabled = ? AND (subnet = '' OR subnet = ?)", name, recordType, true, subnet).
 		Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil
+}
+
+// ── BMC Config ──
+
+func (s *sqliteStore) ListBMCConfigs(ctx context.Context) ([]models.BMCConfig, error) {
+	var configs []models.BMCConfig
+	if err := s.db.WithContext(ctx).Find(&configs).Error; err != nil {
+		return nil, err
+	}
+	return configs, nil
+}
+
+func (s *sqliteStore) GetBMCConfig(ctx context.Context, id int64) (*models.BMCConfig, error) {
+	var cfg models.BMCConfig
+	if err := s.db.WithContext(ctx).First(&cfg, id).Error; err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func (s *sqliteStore) CreateBMCConfig(ctx context.Context, cfg *models.BMCConfig) error {
+	return s.db.WithContext(ctx).Create(cfg).Error
+}
+
+func (s *sqliteStore) UpdateBMCConfig(ctx context.Context, cfg *models.BMCConfig) error {
+	return s.db.WithContext(ctx).Save(cfg).Error
+}
+
+func (s *sqliteStore) DeleteBMCConfig(ctx context.Context, id int64) error {
+	return s.db.WithContext(ctx).Delete(&models.BMCConfig{}, id).Error
 }

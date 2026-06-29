@@ -17,6 +17,8 @@ type Interface interface {
 	DNSRecordStore
 	BlacklistStore
 	WhitelistStore
+	UnauthorizedDeviceStore
+	BMCConfigStore
 	Close() error
 	Migrate() error
 	Seed() error
@@ -101,7 +103,7 @@ type DNSRecordStore interface {
 	CreateDNSRecord(ctx context.Context, r *models.DNSRecord) error
 	UpdateDNSRecord(ctx context.Context, r *models.DNSRecord) error
 	DeleteDNSRecord(ctx context.Context, id uint) error
-	FindDNSRecords(ctx context.Context, name string, recordType string) ([]models.DNSRecord, error)
+	FindDNSRecords(ctx context.Context, name string, recordType string, subnet string) ([]models.DNSRecord, error)
 }
 
 type BlacklistStore interface {
@@ -116,4 +118,20 @@ type WhitelistStore interface {
 	CreateWhitelist(ctx context.Context, entry *models.WhitelistEntry) error
 	DeleteWhitelist(ctx context.Context, id uint) error
 	IsWhitelisted(ctx context.Context, mac, subnetCIDR string) (bool, error)
+}
+
+type UnauthorizedDeviceStore interface {
+	ListUnauthorizedDevices(ctx context.Context) ([]models.UnauthorizedDevice, error)
+	UpsertUnauthorizedDevice(ctx context.Context, mac, subnetCIDR, reason string) error
+	DeleteUnauthorizedDevice(ctx context.Context, id uint) error
+	DeleteUnauthorizedDeviceByMAC(ctx context.Context, mac, subnetCIDR string) error
+	DeleteAllUnauthorizedDevices(ctx context.Context) error
+}
+
+type BMCConfigStore interface {
+	ListBMCConfigs(ctx context.Context) ([]models.BMCConfig, error)
+	GetBMCConfig(ctx context.Context, id int64) (*models.BMCConfig, error)
+	CreateBMCConfig(ctx context.Context, cfg *models.BMCConfig) error
+	UpdateBMCConfig(ctx context.Context, cfg *models.BMCConfig) error
+	DeleteBMCConfig(ctx context.Context, id int64) error
 }

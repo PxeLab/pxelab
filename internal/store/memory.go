@@ -28,8 +28,12 @@ type memoryStore struct {
 	dnsRecords      map[uint]*models.DNSRecord
 	blacklist       map[string]*models.BlacklistEntry
 	whitelist       map[string]*models.WhitelistEntry
+	unauthDevices   map[string]*models.UnauthorizedDevice
+	bmcConfigs      map[int64]*models.BMCConfig
 	blIdx           uint
 	wlIdx           uint
+	uaIdx           uint
+	bmcIdx          int64
 	hostIdx         int
 	profIdx         int
 	tmplIdx         uint
@@ -51,6 +55,8 @@ func NewMemory() Interface {
 		dnsRecords:      make(map[uint]*models.DNSRecord),
 		blacklist:       make(map[string]*models.BlacklistEntry),
 		whitelist:       make(map[string]*models.WhitelistEntry),
+		unauthDevices:   make(map[string]*models.UnauthorizedDevice),
+		bmcConfigs:      make(map[int64]*models.BMCConfig),
 	}
 }
 
@@ -660,13 +666,15 @@ func (s *memoryStore) DeleteDNSRecord(_ context.Context, id uint) error {
 	return nil
 }
 
-func (s *memoryStore) FindDNSRecords(_ context.Context, name string, recordType string) ([]models.DNSRecord, error) {
+func (s *memoryStore) FindDNSRecords(_ context.Context, name string, recordType string, subnet string) ([]models.DNSRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	var result []models.DNSRecord
 	for _, r := range s.dnsRecords {
 		if r.Name == name && r.Type == recordType && r.Enabled {
-			result = append(result, *r)
+			if subnet == "" || r.Subnet == "" || r.Subnet == subnet {
+				result = append(result, *r)
+			}
 		}
 	}
 	return result, nil
@@ -760,6 +768,136 @@ func (s *memoryStore) IsWhitelisted(_ context.Context, mac, subnetCIDR string) (
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	key := mac + "|" + subnetCIDR
-	_, ok := s.whitelist[key]
+	allKey := mac + "|"
+	if _, ok := s.whitelist[key]; ok {
+		return true, nil
+	}
+	_, ok := s.whitelist[allKey]
 	return ok, nil
+}
+
+// ── Unauthorized Devices ──
+
+func (s *memoryStore) ListUnauthorizedDevices(_ context.Context) ([]models.UnauthorizedDevice, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []models.UnauthorizedDevice
+	for _, d := range s.unauthDevices {
+		list = append(list, *d)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].LastSeen.After(list[j].LastSeen)
+	})
+	return list, nil
+}
+
+func (s *memoryStore) UpsertUnauthorizedDevice(_ context.Context, mac, subnetCIDR, reason string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := mac + "|" + subnetCIDR
+	existing, ok := s.unauthDevices[key]
+	if ok {
+		existing.Count++
+		existing.LastSeen = time.Now()
+		existing.Reason = reason
+		return nil
+	}
+	s.uaIdx++
+	s.unauthDevices[key] = &models.UnauthorizedDevice{
+		ID:         s.uaIdx,
+		MAC:        mac,
+		SubnetCIDR: subnetCIDR,
+		Reason:     reason,
+		Count:      1,
+		LastSeen:   time.Now(),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	return nil
+}
+
+func (s *memoryStore) DeleteUnauthorizedDevice(_ context.Context, id uint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for key, d := range s.unauthDevices {
+		if d.ID == id {
+			delete(s.unauthDevices, key)
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+func (s *memoryStore) DeleteUnauthorizedDeviceByMAC(_ context.Context, mac, subnetCIDR string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := mac + "|" + subnetCIDR
+	if _, ok := s.unauthDevices[key]; ok {
+		delete(s.unauthDevices, key)
+		return nil
+	}
+	return ErrNotFound
+}
+
+func (s *memoryStore) DeleteAllUnauthorizedDevices(_ context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.unauthDevices = make(map[string]*models.UnauthorizedDevice)
+	return nil
+}
+
+// ── BMC Config ──
+
+func (s *memoryStore) ListBMCConfigs(_ context.Context) ([]models.BMCConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []models.BMCConfig
+	for _, cfg := range s.bmcConfigs {
+		list = append(list, *cfg)
+	}
+	return list, nil
+}
+
+func (s *memoryStore) GetBMCConfig(_ context.Context, id int64) (*models.BMCConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	cfg, ok := s.bmcConfigs[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return cfg, nil
+}
+
+func (s *memoryStore) CreateBMCConfig(_ context.Context, cfg *models.BMCConfig) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.bmcIdx++
+	cfg.ID = s.bmcIdx
+	cfg.CreatedAt = time.Now()
+	cfg.UpdatedAt = time.Now()
+	s.bmcConfigs[cfg.ID] = cfg
+	return nil
+}
+
+func (s *memoryStore) UpdateBMCConfig(_ context.Context, cfg *models.BMCConfig) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	existing, ok := s.bmcConfigs[cfg.ID]
+	if !ok {
+		return ErrNotFound
+	}
+	cfg.CreatedAt = existing.CreatedAt
+	cfg.UpdatedAt = time.Now()
+	s.bmcConfigs[cfg.ID] = cfg
+	return nil
+}
+
+func (s *memoryStore) DeleteBMCConfig(_ context.Context, id int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.bmcConfigs[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.bmcConfigs, id)
+	return nil
 }
