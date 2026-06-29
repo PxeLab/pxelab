@@ -45,6 +45,7 @@ type Handler struct {
 	Auth           *AuthHandler
 	Access         *AccessHandler
 	DNSRecord      *DNSRecordHandler
+	BMC            *BMCHandler
 	svcController  ServiceController
 	sessions       *session.Store
 }
@@ -68,6 +69,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Auth:           NewAuthHandler(cfg, sessions),
 		Access:         NewAccessHandler(st),
 		DNSRecord:      &DNSRecordHandler{store: st, localDomain: cfg.DNS.LocalDomain},
+		BMC:            NewBMCHandler(st),
 		svcController:  svcController,
 		sessions:       sessions,
 	}
@@ -111,6 +113,20 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/leases/batch-delete", h.Lease.BatchDelete)
 		r.Post("/leases/prune", h.Lease.Prune)
 
+		// Settings sub-endpoints (individual service configs)
+		r.Get("/settings/general", h.Settings.GetGeneral)
+		r.Put("/settings/general", h.Settings.UpdateGeneral)
+		r.Get("/settings/interfaces", h.Settings.GetInterfaces)
+		r.Put("/settings/interfaces", h.Settings.UpdateInterfaces)
+		r.Get("/settings/tftp", h.Settings.GetTFTP)
+		r.Put("/settings/tftp", h.Settings.UpdateTFTP)
+		r.Get("/settings/dhcp", h.Settings.GetDHCP)
+		r.Put("/settings/dhcp", h.Settings.UpdateDHCP)
+		r.Get("/settings/dns", h.Settings.GetDNS)
+		r.Put("/settings/dns", h.Settings.UpdateDNS)
+		r.Get("/settings/netboot", h.Settings.GetNetboot)
+		r.Put("/settings/netboot", h.Settings.UpdateNetboot)
+		// Keep monolithic endpoint for backward compat
 		r.Get("/settings", h.Settings.Get)
 		r.Put("/settings", h.Settings.Update)
 
@@ -160,7 +176,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Delete("/access/whitelist/{id}", h.Access.DeleteWhitelist)
 		r.Get("/access/unauthorized", h.Access.ListUnauthorizedDevices)
 		r.Post("/access/unauthorized/add-to-whitelist", h.Access.AddToWhitelistFromUnauthorized)
-			r.Post("/access/unauthorized/add-to-blacklist", h.Access.AddToBlacklistFromUnauthorized)
+		r.Post("/access/unauthorized/add-to-blacklist", h.Access.AddToBlacklistFromUnauthorized)
 		r.Delete("/access/unauthorized/{id}", h.Access.DeleteUnauthorizedDevice)
 
 		// DNS records
@@ -169,6 +185,29 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/dns/records/{id}", h.DNSRecord.Get)
 		r.Put("/dns/records/{id}", h.DNSRecord.Update)
 		r.Delete("/dns/records/{id}", h.DNSRecord.Delete)
+
+		// BMC configs — import must be registered before {id}
+		r.Get("/bmc/configs", h.BMC.List)
+		r.Post("/bmc/configs", h.BMC.Create)
+		r.Post("/bmc/configs/import", h.BMC.ImportCSV)
+		r.Get("/bmc/configs/{id}", h.BMC.Get)
+		r.Put("/bmc/configs/{id}", h.BMC.Update)
+		r.Delete("/bmc/configs/{id}", h.BMC.Delete)
+
+		// BMC batch operations (before {id}-based routes)
+		r.Post("/bmc/batch/power-on", h.BMC.BatchPowerOn)
+		r.Post("/bmc/batch/power-off", h.BMC.BatchPowerOff)
+		r.Post("/bmc/batch/restart", h.BMC.BatchRestart)
+		r.Post("/bmc/batch/status", h.BMC.BatchStatus)
+
+		// BMC probe & power actions
+		r.Post("/bmc/probe", h.BMC.Probe)
+		r.Post("/bmc/{id}/refresh", h.BMC.Refresh)
+		r.Post("/bmc/{id}/power-on", h.BMC.PowerOn)
+		r.Post("/bmc/{id}/power-off", h.BMC.PowerOff)
+		r.Post("/bmc/{id}/restart", h.BMC.PowerRestart)
+		r.Get("/bmc/{id}/status", h.BMC.PowerStatus)
+		r.Post("/bmc/{id}/boot-device", h.BMC.SetBootDevice)
 
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)
