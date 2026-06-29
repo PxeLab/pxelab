@@ -13,13 +13,18 @@ const Profiles = lazy(() => import('./pages/Profiles'))
 const Files = lazy(() => import('./pages/Files'))
 const Events = lazy(() => import('./pages/Events'))
 const Logs = lazy(() => import('./pages/Logs'))
-const Settings = lazy(() => import('./pages/Settings'))
+const SettingsLayout = lazy(() => import('./pages/SettingsLayout'))
+const SettingsGeneral = lazy(() => import('./pages/SettingsGeneral'))
+const SettingsDHCP = lazy(() => import('./pages/SettingsDHCP'))
+const SettingsTFTP = lazy(() => import('./pages/SettingsTFTP'))
+const SettingsDNS = lazy(() => import('./pages/SettingsDNS'))
+const SettingsNetboot = lazy(() => import('./pages/SettingsNetboot'))
 const Services = lazy(() => import('./pages/Services'))
 const NetbootCatalog = lazy(() => import('./pages/NetbootCatalog'))
 const AnswerTemplates = lazy(() => import('./pages/AnswerTemplates'))
-const DNSRecords = lazy(() => import('./pages/DNSRecords'))
-const Leases = lazy(() => import('./pages/Leases'))
 const AccessControl = lazy(() => import('./pages/AccessControl'))
+const InstallTasks = lazy(() => import('./pages/InstallTasks'))
+const BmcView = lazy(() => import('./pages/BmcView'))
 
 function LoadingFallback() {
   return (
@@ -75,13 +80,19 @@ function AppContent() {
           <Route path="/files" element={<Files />} />
           <Route path="/netboot-catalog" element={<NetbootCatalog />} />
           <Route path="/answer-templates" element={<AnswerTemplates />} />
-          <Route path="/dns/records" element={<DNSRecords />} />
-          <Route path="/leases" element={<Leases />} />
           <Route path="/access-control" element={<AccessControl />} />
+          <Route path="/install-tasks" element={<InstallTasks />} />
+          <Route path="/bmc" element={<BmcView />} />
           <Route path="/events" element={<Events />} />
           <Route path="/logs" element={<Logs />} />
           <Route path="/services" element={<Services />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings" element={<SettingsLayout />}>
+            <Route index element={<SettingsGeneral />} />
+            <Route path="dhcp" element={<SettingsDHCP />} />
+            <Route path="tftp" element={<SettingsTFTP />} />
+            <Route path="dns" element={<SettingsDNS />} />
+            <Route path="netboot" element={<SettingsNetboot />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

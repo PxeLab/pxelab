@@ -8,7 +8,18 @@
       "overview": "Overview",
       "manage": "Management",
       "monitor": "Monitoring",
-      "system": "System"
+      "system": "System",
+      "settings": "Settings"
+    },
+    "settings": {
+      "general": "General",
+      "interfaces": "DHCP Settings",
+      "serviceSettings": "Service Settings",
+      "bootMenu": "Boot Customization",
+      "tftp": "TFTP Settings",
+      "dhcp": "DHCP Settings",
+      "dns": "DNS Settings",
+      "netboot": "Netboot Settings"
     },
     "dashboard": "Dashboard",
     "hosts": "Hosts",
@@ -16,11 +27,12 @@
     "files": "Files",
     "events": "Event Log",
     "logs": "Live Logs",
-    "settings": "Settings",
     "services": "Services",
     "about": "About",
     "netboot": "OS Catalog",
-    "leases": "DHCP Leases"
+    "leases": "DHCP Leases",
+    "installTasks": "Install Tasks",
+    "bmc": "OOB Control"
   },
   "dashboard": {
     "title": "Dashboard",

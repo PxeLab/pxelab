@@ -8,7 +8,18 @@
       "overview": "概览",
       "manage": "管理",
       "monitor": "监控",
-      "system": "系统"
+      "system": "系统",
+      "settings": "设置"
+    },
+    "settings": {
+      "general": "通用设置",
+      "interfaces": "DHCP 设置",
+      "serviceSettings": "服务设置",
+      "bootMenu": "引导定制",
+      "tftp": "TFTP 设置",
+      "dhcp": "DHCP 设置",
+      "dns": "DNS 设置",
+      "netboot": "Netboot 设置"
     },
     "dashboard": "仪表板",
     "hosts": "主机管理",
@@ -16,11 +27,12 @@
     "files": "文件管理",
     "events": "事件日志",
     "logs": "实时日志",
-    "settings": "设置",
     "services": "服务管理",
     "about": "关于",
     "netboot": "OS 安装目录",
-    "leases": "DHCP 租约"
+    "leases": "DHCP 租约",
+    "installTasks": "安装任务",
+    "bmc": "带外管理"
   },
   "dashboard": {
     "title": "仪表板",
