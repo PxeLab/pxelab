@@ -57,7 +57,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		File:           &FileHandler{bootFS: bootFS},
 		WOL:            &WOLHandler{store: st},
 		IPMI:           &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
-		Lease:          &LeaseHandler{store: st},
+		Lease:          &LeaseHandler{store: st, config: cfg},
 		Settings:       NewSettingsHandler(cfg, reloader),
 		Logs:           NewLogStreamHandler(bus, logDir(cfg)),
 		Netboot:        NewNetbootHandler(netbootMgr),
@@ -67,7 +67,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Service:        NewServiceHandler(svcController, cfg, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:           NewAuthHandler(cfg, sessions),
 		Access:         NewAccessHandler(st),
-		DNSRecord:      &DNSRecordHandler{store: st},
+		DNSRecord:      &DNSRecordHandler{store: st, localDomain: cfg.DNS.LocalDomain},
 		svcController:  svcController,
 		sessions:       sessions,
 	}
@@ -106,6 +106,10 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Delete("/files", h.File.Delete)
 
 		r.Get("/leases", h.Lease.List)
+		r.Get("/leases/stats", h.Lease.Stats)
+		r.Delete("/leases/{mac}", h.Lease.Delete)
+		r.Post("/leases/batch-delete", h.Lease.BatchDelete)
+		r.Post("/leases/prune", h.Lease.Prune)
 
 		r.Get("/settings", h.Settings.Get)
 		r.Put("/settings", h.Settings.Update)
@@ -154,6 +158,10 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/access/whitelist", h.Access.ListWhitelist)
 		r.Post("/access/whitelist", h.Access.CreateWhitelist)
 		r.Delete("/access/whitelist/{id}", h.Access.DeleteWhitelist)
+		r.Get("/access/unauthorized", h.Access.ListUnauthorizedDevices)
+		r.Post("/access/unauthorized/add-to-whitelist", h.Access.AddToWhitelistFromUnauthorized)
+			r.Post("/access/unauthorized/add-to-blacklist", h.Access.AddToBlacklistFromUnauthorized)
+		r.Delete("/access/unauthorized/{id}", h.Access.DeleteUnauthorizedDevice)
 
 		// DNS records
 		r.Get("/dns/records", h.DNSRecord.List)

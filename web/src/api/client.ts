@@ -293,6 +293,32 @@ export function getLeases(): Promise<ApiResponse<Lease[]>> {
   return request<Lease[]>('GET', '/leases')
 }
 
+export interface LeaseStats {
+  subnet_id: string
+  dhcp_mode: string
+  pool_size: number
+  allocated: number
+  available: number
+  usage_pct: number
+  active_only: number
+}
+
+export function getLeaseStats(): Promise<ApiResponse<LeaseStats[]>> {
+  return request<LeaseStats[]>('GET', '/leases/stats')
+}
+
+export function deleteLease(mac: string): Promise<ApiResponse<{ message: string }>> {
+  return request('DELETE', `/leases/${encodeURIComponent(mac)}`)
+}
+
+export function batchDeleteLeases(macs: string[]): Promise<ApiResponse<{ message: string; success_count: number; failed_count: number; failed_macs?: string[] }>> {
+  return request('POST', '/leases/batch-delete', { macs })
+}
+
+export function pruneLeases(): Promise<ApiResponse<{ message: string }>> {
+  return request('POST', '/leases/prune')
+}
+
 // ── Settings ──
 export interface SubnetSettings {
   cidr: string
@@ -351,7 +377,7 @@ export interface SettingsData {
   server: { name: string; app_mode: boolean; token: string; listen_addr: string; token_set: boolean }
   dhcp: { enabled: boolean; range: string; gateway: string; subnet: string; lease_time: number; dns_servers: string }
   tftp: { enabled: boolean; port: number; root: string }
-  dns: { enabled: boolean; port: number; upstream: string; local_domain?: string }
+  dns: { enabled: boolean; port: number; upstream: string; local_domain?: string; default_record?: boolean }
   ipmi?: { enabled: boolean; timeout: number }
   netboot: { enabled: boolean; script_template?: string; boot: BootSettings }
   whitelist_enabled: boolean
@@ -559,7 +585,7 @@ export function deleteInstallTask(id: string): Promise<ApiResponse<unknown>> {
   return request('DELETE', `/netboot/tasks/${encodeURIComponent(id)}`)
 }
 
-export function getDNSRecords(): Promise<ApiResponse<{ records: DNSRecord[] }>> {
+export function getDNSRecords(): Promise<ApiResponse<{ records: DNSRecord[]; local_domain?: string }>> {
   return request('GET', '/dns/records')
 }
 
@@ -615,13 +641,42 @@ export function getWhitelist(): Promise<ApiResponse<WhitelistEntry[]>> {
   return request<WhitelistEntry[]>('GET', '/access/whitelist')
 }
 
-export function createWhitelistEntry(data: { mac: string; subnet_cidr: string; reason?: string }): Promise<ApiResponse<WhitelistEntry>> {
+export function createWhitelistEntry(data: { mac: string; subnet_cidr?: string; reason?: string }): Promise<ApiResponse<WhitelistEntry>> {
   return request<WhitelistEntry>('POST', '/access/whitelist', data)
 }
 
 export function deleteWhitelistEntry(id: number): Promise<ApiResponse<unknown>> {
   return request<unknown>('DELETE', `/access/whitelist/${id}`)
 }
+
+// ── Unauthorized Devices ──
+export interface UnauthorizedDevice {
+  id: number
+  mac: string
+  subnet_cidr: string
+  reason: string
+  count: number
+  last_seen: string
+  created_at: string
+  updated_at: string
+}
+
+export function getUnauthorizedDevices(): Promise<ApiResponse<UnauthorizedDevice[]>> {
+  return request<UnauthorizedDevice[]>('GET', '/access/unauthorized')
+}
+
+export function addUnauthorizedToWhitelist(mac: string, subnet_cidr: string): Promise<ApiResponse<WhitelistEntry>> {
+  return request<WhitelistEntry>('POST', '/access/unauthorized/add-to-whitelist', { mac, subnet_cidr })
+}
+
+export function addUnauthorizedToBlacklist(mac: string, subnet_cidr: string): Promise<ApiResponse<BlacklistEntry>> {
+  return request<BlacklistEntry>('POST', '/access/unauthorized/add-to-blacklist', { mac, subnet_cidr })
+}
+
+export function deleteUnauthorizedDevice(id: number): Promise<ApiResponse<unknown>> {
+  return request<unknown>('DELETE', `/access/unauthorized/${id}`)
+}
+
 // ── Services ──
 export interface ServiceInfo {
   name: string
@@ -677,6 +732,10 @@ export const api = {
   uploadFile,
   deleteFile,
   getLeases,
+  getLeaseStats,
+  deleteLease,
+  batchDeleteLeases,
+  pruneLeases,
   getSettings,
   updateSettings,
   getInterfaces,
@@ -718,4 +777,8 @@ export const api = {
   getWhitelist,
   createWhitelistEntry,
   deleteWhitelistEntry,
+  getUnauthorizedDevices,
+  addUnauthorizedToWhitelist,
+  addUnauthorizedToBlacklist,
+  deleteUnauthorizedDevice,
 }

@@ -18,6 +18,7 @@ const Services = lazy(() => import('./pages/Services'))
 const NetbootCatalog = lazy(() => import('./pages/NetbootCatalog'))
 const AnswerTemplates = lazy(() => import('./pages/AnswerTemplates'))
 const DNSRecords = lazy(() => import('./pages/DNSRecords'))
+const Leases = lazy(() => import('./pages/Leases'))
 const AccessControl = lazy(() => import('./pages/AccessControl'))
 
 function LoadingFallback() {
@@ -73,9 +74,10 @@ function AppContent() {
           <Route path="/profiles" element={<Profiles />} />
           <Route path="/files" element={<Files />} />
           <Route path="/netboot-catalog" element={<NetbootCatalog />} />
-          <Route path="/netboot/answer-templates" element={<AnswerTemplates />} />
+          <Route path="/answer-templates" element={<AnswerTemplates />} />
           <Route path="/dns/records" element={<DNSRecords />} />
-          <Route path="/netboot/access-control" element={<AccessControl />} />
+          <Route path="/leases" element={<Leases />} />
+          <Route path="/access-control" element={<AccessControl />} />
           <Route path="/events" element={<Events />} />
           <Route path="/logs" element={<Logs />} />
           <Route path="/services" element={<Services />} />
