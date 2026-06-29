@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Monitor, Loader2, Search, ExternalLink } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -26,10 +26,16 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
   const isEdit = !!editConfig
 
   const [host, setHost] = useState(editConfig?.host || '')
+  const [protocol, setProtocol] = useState(editConfig?.protocol || 'ipmi')
   const [port, setPort] = useState(editConfig?.port || 623)
+
+  // Auto-set port when protocol changes (user can still override)
+  useEffect(() => {
+    if (editConfig) return // don't override port in edit mode
+    setPort(protocol === 'redfish' ? 443 : 623)
+  }, [protocol, editConfig])
   const [username, setUsername] = useState(editConfig?.username || '')
   const [password, setPassword] = useState('')
-  const [protocol, setProtocol] = useState(editConfig?.protocol || 'ipmi')
 
   const [probeResult, setProbeResult] = useState<BMCProbeResult | null>(editConfig ? {
     name: editConfig.name || '',
@@ -120,14 +126,28 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
       }
     >
       <div className="space-y-4">
-        <div className="grid grid-cols-[1fr_100px] gap-3">
+        {/* ── BMC 地址 ── */}
+        <div>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">BMC 地址 *</label>
+          <input
+            type="text" value={host} onChange={e => setHost(e.target.value)}
+            placeholder="10.0.0.1"
+            className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
+          />
+        </div>
+
+        {/* ── 协议 + 端口 ── */}
+        <div className="grid grid-cols-[1fr_120px] gap-3">
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">BMC 地址 *</label>
-            <input
-              type="text" value={host} onChange={e => setHost(e.target.value)}
-              placeholder="10.0.0.1"
-              className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
-            />
+            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">协议</label>
+            <select
+              value={protocol} onChange={e => setProtocol(e.target.value)}
+              className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
+            >
+              {PROTOCOL_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">端口</label>
@@ -136,18 +156,6 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
               className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
             />
           </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">协议</label>
-          <select
-            value={protocol} onChange={e => setProtocol(e.target.value)}
-            className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
-          >
-            {PROTOCOL_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
