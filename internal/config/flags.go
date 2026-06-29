@@ -39,6 +39,11 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	v.SetDefault("service_auto_start.tftp", false)
 	v.SetDefault("service_auto_start.dns", false)
 
+	// dns defaults
+	v.SetDefault("dns.port", DefaultPortDNS)
+	v.SetDefault("dns.upstream", "")
+	v.SetDefault("dns.local_domain", "pxego.local")
+
 	// netboot defaults
 	v.SetDefault("netboot.enabled", true)
 	v.SetDefault("netboot.failsafe_prompt", true)

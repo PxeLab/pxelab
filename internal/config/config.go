@@ -40,10 +40,8 @@ type InterfaceConfig struct {
 	IP          string         `yaml:"ip" mapstructure:"ip"`
 	Subnets     []SubnetConfig `yaml:"subnets" mapstructure:"subnets"`
 	Bootloader  string         `yaml:"bootloader" mapstructure:"bootloader"`       // ipxe | pxelinux | grub2
-	ChainToIPXE bool           `yaml:"chain_to_ipxe" mapstructure:"chain_to_ipxe"` // pxelinux/grub2 → chain-load to iPXE
 	TFTP        bool           `yaml:"tftp" mapstructure:"tftp"`
 	HTTP        bool           `yaml:"http" mapstructure:"http"`
-	DNS         bool           `yaml:"dns" mapstructure:"dns"`
 	AutoStart   bool           `yaml:"auto_start" mapstructure:"auto_start"`      // auto-start DHCP/ProxyDHCP for this interface
 }
 
@@ -57,6 +55,7 @@ type SubnetConfig struct {
 	NextServer       string   `yaml:"next_server" mapstructure:"next_server"`
 	LeaseTime        int      `yaml:"lease_time" mapstructure:"lease_time"`
 	WhitelistEnabled bool     `yaml:"whitelist_enabled" mapstructure:"whitelist_enabled"`
+	ChainToIPXE      bool     `yaml:"chain_to_ipxe" mapstructure:"chain_to_ipxe"` // 子网级别：pxelinux/grub2 → chain-load to iPXE
 }
 
 type AuthConfig struct {
@@ -65,10 +64,13 @@ type AuthConfig struct {
 }
 
 type DNSConfig struct {
-	Enabled     bool   `yaml:"enabled" mapstructure:"enabled"`
-	Port        int    `yaml:"port" mapstructure:"port"`
-	Upstream    string `yaml:"upstream" mapstructure:"upstream"`
-	LocalDomain string `yaml:"local_domain" mapstructure:"local_domain"`
+	Enabled       bool   `yaml:"enabled" mapstructure:"enabled"`
+	Port          int    `yaml:"port" mapstructure:"port"`
+	Upstream      string `yaml:"upstream" mapstructure:"upstream"`
+	LocalDomain   string `yaml:"local_domain" mapstructure:"local_domain"`
+	DefaultRecord bool   `yaml:"default_record" mapstructure:"default_record"`
+	// DefaultRecordIP 由保存设置时自动填充第一个接口 IP，前端不直接编辑
+	DefaultRecordIP string `yaml:"default_record_ip" mapstructure:"default_record_ip"`
 }
 
 type NetbootConfig struct {
@@ -100,6 +102,8 @@ type BootConfig struct {
 	DefaultMenu     DefaultMenuConfig     `yaml:"default_menu" mapstructure:"default_menu"`
 	CatalogRedirect CatalogRedirectConfig `yaml:"catalog_redirect" mapstructure:"catalog_redirect"`
 	CatalogDisplay  CatalogDisplayConfig  `yaml:"catalog_display" mapstructure:"catalog_display"`
+	PXEConfigFile   string                `yaml:"pxe_config_file" mapstructure:"pxe_config_file"`
+	GRUBConfigFile  string                `yaml:"grub_config_file" mapstructure:"grub_config_file"`
 }
 
 type DefaultMenuConfig struct {
@@ -155,12 +159,12 @@ func (c *Config) Validate() error {
 			if sn.DHCP != "" && sn.DHCP != "full" && sn.DHCP != "proxy" && sn.DHCP != "off" {
 				return fmt.Errorf("interface %s subnet %s: 无效的 DHCP 模式: %s", iface.Name, sn.CIDR, sn.DHCP)
 			}
+				if sn.ChainToIPXE && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" {
+					return fmt.Errorf("interface %s subnet %s: chain_to_ipxe 仅支持 pxelinux 或 grub2", iface.Name, sn.CIDR)
+				}
 		}
 		if iface.Bootloader != "" && iface.Bootloader != "ipxe" && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" && iface.Bootloader != "undionly" {
 			return fmt.Errorf("interface %s: 无效的引导加载器: %s", iface.Name, iface.Bootloader)
-		}
-		if iface.ChainToIPXE && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" {
-			return fmt.Errorf("interface %s: chain_to_ipxe 仅支持 pxelinux 或 grub2", iface.Name)
 		}
 	}
 	return nil

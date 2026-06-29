@@ -15,6 +15,7 @@ type BMCConfig struct {
 	MAC       string    `json:"mac" gorm:"default:''"`
 	Name      string    `json:"name" gorm:"default:''"`
 	BootMode  string    `json:"boot_mode" gorm:"default:auto"` // auto | uefi | legacy
+	NextBootDevice string `json:"next_boot_device" gorm:"default:''"` // pxe | disk | cdrom | bios
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

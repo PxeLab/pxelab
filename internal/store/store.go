@@ -19,6 +19,7 @@ type Interface interface {
 	WhitelistStore
 	UnauthorizedDeviceStore
 	BMCConfigStore
+	DHCPReservationStore
 	Close() error
 	Migrate() error
 	Seed() error
@@ -134,4 +135,14 @@ type BMCConfigStore interface {
 	CreateBMCConfig(ctx context.Context, cfg *models.BMCConfig) error
 	UpdateBMCConfig(ctx context.Context, cfg *models.BMCConfig) error
 	DeleteBMCConfig(ctx context.Context, id int64) error
+}
+
+type DHCPReservationStore interface {
+	ListDHCPReservations(ctx context.Context, subnetCIDR string) ([]models.DHCPReservation, error)
+	GetDHCPReservation(ctx context.Context, id uint) (*models.DHCPReservation, error)
+	GetDHCPReservationByMAC(ctx context.Context, subnetCIDR, mac string) (*models.DHCPReservation, error)
+	GetDHCPReservationByIP(ctx context.Context, subnetCIDR, ip string) (*models.DHCPReservation, error)
+	CreateDHCPReservation(ctx context.Context, r *models.DHCPReservation) error
+	UpdateDHCPReservation(ctx context.Context, r *models.DHCPReservation) error
+	DeleteDHCPReservation(ctx context.Context, id uint) error
 }

@@ -70,6 +70,18 @@ export default function Files() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">文件</h1>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={loadFiles}>
+            <RefreshCw size={14} /> {t('common.refresh', '刷新')}
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={14} /> {t('files.upload')}
+          </Button>
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
+        </div>
+      </div>
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -79,15 +91,6 @@ export default function Files() {
               value={search} onChange={e => setSearch(e.target.value)}
             />
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={loadFiles}>
-            <RefreshCw size={14} /> {t('common.refresh', '刷新')}
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
-            <Upload size={14} /> {t('files.upload')}
-          </Button>
-          <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
         </div>
       </div>
 

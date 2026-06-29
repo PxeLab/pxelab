@@ -8,9 +8,10 @@ interface Props {
   children: ReactNode
   footer?: ReactNode
   width?: string
+  disableBackdropClose?: boolean
 }
 
-export const Modal: FC<Props> = ({ open, onClose, title, children, footer, width = '480px' }) => {
+export const Modal: FC<Props> = ({ open, onClose, title, children, footer, width = '480px', disableBackdropClose }) => {
   const handleKey = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose()
   }, [onClose])
@@ -25,7 +26,7 @@ export const Modal: FC<Props> = ({ open, onClose, title, children, footer, width
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => { if (!disableBackdropClose && e.target === e.currentTarget) onClose() }}
     >
       <div
         className="bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] max-h-[80vh] overflow-y-auto"

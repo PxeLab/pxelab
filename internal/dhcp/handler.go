@@ -117,6 +117,23 @@ func (h *Handler) InitSubnets() {
 			slog.Info("子网已注册", "cidr", subnet.CIDR, "pools", subnet.Pools)
 		}
 	}
+
+	// 加载 DHCP 预留
+	h.loadReservations()
+}
+
+func (h *Handler) loadReservations() {
+	reservations, err := h.store.ListDHCPReservations(context.Background(), "")
+	if err != nil {
+		slog.Error("加载 DHCP 预留失败", "error", err)
+		return
+	}
+	for _, r := range reservations {
+		h.leaseMgr.AddReservation(r.SubnetCIDR, r.MAC, r.IP)
+	}
+	if len(reservations) > 0 {
+		slog.Info("DHCP 预留已加载", "count", len(reservations))
+	}
 }
 
 func (h *Handler) ReloadSubnets() {

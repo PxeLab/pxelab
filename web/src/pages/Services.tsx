@@ -241,7 +241,6 @@ export default function Services() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-base font-bold text-[var(--text-primary)]">{t('services.title', '服务管理')}</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">{t('services.subtitle', '查看和管理所有服务')}</p>
         </div>
         <div className="flex items-center gap-2">
           <button

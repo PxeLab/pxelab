@@ -78,27 +78,32 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 func (s *Server) readHandler(filename string, rf io.ReaderFrom) error {
-	slog.Info("TFTP 请求", "service", "TFTP", "file", filename)
+	clientAddr := ""
+	if ra, ok := rf.(interface{ RemoteAddr() net.UDPAddr }); ok {
+		addr := ra.RemoteAddr()
+		clientAddr = fmt.Sprintf("%s:%d", addr.IP, addr.Port)
+	}
+	slog.Info("TFTP 请求", "service", "TFTP", "file", filename, "client", clientAddr)
 
 	s.eventBus.Publish("event", models.Event{
 		Type:    models.EventTFTP,
 		Level:   models.EventInfo,
-		Message: fmt.Sprintf("TFTP 请求: %s", filename),
+		Message: fmt.Sprintf("TFTP 请求: %s from %s", filename, clientAddr),
 	})
 
 	data, err := s.bootFS.Read(filename)
 	if err != nil {
-		slog.Warn("TFTP 文件未找到", "service", "TFTP", "file", filename)
+		slog.Warn("TFTP 文件未找到", "service", "TFTP", "file", filename, "client", clientAddr)
 		return fmt.Errorf("file not found: %s", filename)
 	}
 
-	slog.Info("TFTP 开始发送", "service", "TFTP", "file", filename, "size", len(data))
+	slog.Info("TFTP 开始发送", "service", "TFTP", "file", filename, "client", clientAddr, "size", len(data))
 
 	if _, err := rf.ReadFrom(bytes.NewReader(data)); err != nil {
-		slog.Warn("TFTP 传输失败", "service", "TFTP", "file", filename, "error", err)
+		slog.Warn("TFTP 传输失败", "service", "TFTP", "file", filename, "client", clientAddr, "error", err)
 		return err
 	}
 
-	slog.Info("TFTP 传输完成", "service", "TFTP", "file", filename, "size", len(data))
+	slog.Info("TFTP 传输完成", "service", "TFTP", "file", filename, "client", clientAddr, "size", len(data))
 	return nil
 }

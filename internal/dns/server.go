@@ -6,7 +6,9 @@ import (
 	"log/slog"
 
 	"github.com/miekg/dns"
+	"github.com/pxego/pxego/internal/config"
 	"github.com/pxego/pxego/internal/eventbus"
+	"github.com/pxego/pxego/internal/store"
 )
 
 type Server struct {
@@ -16,11 +18,11 @@ type Server struct {
 	dnsSrv  *dns.Server
 }
 
-func NewServer(port int, upstream string, bus *eventbus.Bus) *Server {
+func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Server {
 	return &Server{
 		name:    "DNS",
-		port:    port,
-		handler: NewHandler(upstream, bus),
+		port:    cfg.DNS.Port,
+		handler: NewHandler(cfg, st, bus),
 	}
 }
 

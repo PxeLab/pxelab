@@ -99,18 +99,21 @@ export default function Events() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">事件</h1>
+        <div className="flex gap-2">
+          <Button variant={paused ? 'primary' : 'secondary'} size="sm" onClick={togglePause}>
+            {paused ? <Play size={14} /> : <Pause size={14} />}
+            {paused ? t('events.resume', '继续') : t('events.pause', '暂停')}
+          </Button>
+        </div>
+      </div>
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold ${!paused ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
             <StatusDot color={!paused ? 'green' : 'yellow'} pulse={!paused} />
             {!paused ? t('events.live', '实时') : t('events.paused', '已暂停')}
           </span>
           <span className="text-xs text-[var(--text-muted)]">{t('common.total', '共')} {total}+ {t('common.items', '条')}</span>
-        </div>
-        <div className="flex gap-2">
-          <Button variant={paused ? 'primary' : 'secondary'} size="sm" onClick={togglePause}>
-            {paused ? <Play size={14} /> : <Pause size={14} />}
-            {paused ? t('events.resume', '继续') : t('events.pause', '暂停')}
-          </Button>
         </div>
       </div>
 

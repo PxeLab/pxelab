@@ -116,7 +116,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 			}
 
 			// chain_to_ipxe：拦截 PXELinux/GRUB2 配置文件，返回 chainload 配置
-			if ci != nil && (filePath == "pxelinux.cfg/default" || filePath == "grub.cfg") {
+			if ci != nil && (filePath == cfgLocal.Boot.PXEConfigFile || filePath == cfgLocal.Boot.GRUBConfigFile) {
 				clientIP := r.RemoteAddr
 				if host, _, err := net.SplitHostPort(clientIP); err == nil {
 					clientIP = host
@@ -126,9 +126,9 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 					arch, platform = "x86", "pc"
 				}
 
-				if chainToIPXEFallback(cfgLocal, filePath) {
+				if chainToIPXEFallback(cfgLocal, filePath, clientIP) {
 					var config string
-					if filePath == "grub.cfg" {
+					if filePath == cfgLocal.Boot.GRUBConfigFile {
 						config = boot.GRUB2ChainloadConfig(r.Host)
 					} else {
 						config = boot.PXELinuxChainloadConfig(r.Host, arch, platform)
@@ -421,24 +421,42 @@ func ptrStr(s *string) string {
 	return *s
 }
 
-// chainToIPXEFallback 检查是否应该为该客户端返回 chain-load 配置
-func chainToIPXEFallback(cfg *config.Config, filePath string) bool {
+// chainToIPXEFallback 根据客户端所在子网决定是否返回 chain-load 配置
+func chainToIPXEFallback(cfg *config.Config, filePath, clientIP string) bool {
 	for _, iface := range cfg.Interfaces {
-		if !iface.ChainToIPXE {
-			continue
-		}
-		switch filePath {
-		case "grub.cfg":
-			if iface.Bootloader == "grub2" {
-				return true
+		for _, sn := range iface.Subnets {
+			if !sn.ChainToIPXE {
+				continue
 			}
-		case "pxelinux.cfg/default":
-			if iface.Bootloader == "pxelinux" {
-				return true
+			if !ipInCIDR(clientIP, sn.CIDR) {
+				continue
+			}
+			switch filePath {
+			case "grub2/grub.cfg":
+				if iface.Bootloader == "grub2" {
+					return true
+				}
+			case "pxelinux.cfg/default":
+				if iface.Bootloader == "pxelinux" {
+					return true
+				}
 			}
 		}
 	}
 	return false
+}
+
+// ipInCIDR checks whether an IP string falls within a CIDR notation.
+func ipInCIDR(ipStr, cidr string) bool {
+	_, cidrNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return false
+	}
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+	return cidrNet.Contains(ip)
 }
 
 // appendFailsafeEntry appends a "Failsafe Recovery Menu" entry at the end of the entries list.
@@ -497,6 +515,166 @@ func generateFailsafeScript(serverAddr, mac string) string {
 	b.WriteString("reboot\n")
 	return b.String()
 }
+
+// extractPXEMac extracts MAC address from a PXELinux or GRUB2 MAC-based config file path.
+// Returns "" if the path is not a MAC-specific config.
+// PXELinux format: pxelinux.cfg/01-aa-bb-cc-dd-ee-ff
+// GRUB2 format:   grub2/grub.cfg-01-aa-bb-cc-dd-ee-ff (derived from GRUBConfigFile path)
+func extractPXEMac(filePath string, cfg *config.Config) string {
+	var prefix string
+	if strings.HasPrefix(filePath, cfg.Boot.PXEConfigFile) {
+		// PXELinux MAC file: same dir as default, e.g. "pxelinux.cfg/01-aa-bb-cc-dd-ee-ff"
+		idx := strings.LastIndex(cfg.Boot.PXEConfigFile, "/")
+		if idx < 0 {
+			prefix = "01-"
+		} else {
+			prefix = cfg.Boot.PXEConfigFile[:idx+1] + "01-"
+		}
+	} else if strings.Contains(filePath, cfg.Boot.GRUBConfigFile+"-") {
+		// GRUB2 MAC file: e.g. "grub2/grub.cfg-01-aa-bb-cc-dd-ee-ff"
+		idx := strings.Index(filePath, cfg.Boot.GRUBConfigFile+"-")
+		if idx >= 0 {
+			prefix = cfg.Boot.GRUBConfigFile + "-01-"
+		}
+	}
+	if prefix == "" {
+		return ""
+	}
+	if !strings.HasPrefix(filePath, prefix) {
+		return ""
+	}
+	macPart := strings.TrimPrefix(filePath, prefix)
+	// Validate: 17 chars (xx-xx-xx-xx-xx-xx) with hex digits
+	if len(macPart) != 17 {
+		return ""
+	}
+	parts := strings.SplitN(macPart, "-", 7)
+	if len(parts) != 6 {
+		return ""
+	}
+	for _, p := range parts {
+		if len(p) != 2 {
+			return ""
+		}
+		for _, c2 := range p {
+			if !((c2 >= '0' && c2 <= '9') || (c2 >= 'a' && c2 <= 'f') || (c2 >= 'A' && c2 <= 'F')) {
+				return ""
+			}
+		}
+	}
+	// Rejoin with colons for store lookup
+	return strings.Join(parts, ":")
+}
+
+// generateInstallPXEConfig generates a PXELinux or GRUB2 config for an active install task.
+// Returns the config text or empty string if generation is not possible/supported.
+func generateInstallPXEConfig(cfg *config.Config, mgr *netboot.Manager, st store.Interface, task *models.InstallTask, serverAddr, filePath string) (string, error) {
+	isGRUB := strings.Contains(filePath, cfg.Boot.GRUBConfigFile)
+
+	// Get distro info from catalog
+	distro := mgr.GetDistro(task.DistroName)
+	if distro == nil {
+		return "", fmt.Errorf("distro %s not found in catalog", task.DistroName)
+	}
+
+	// Find matching version
+	var version *netboot.Version
+	foundArch := task.Arch
+	if foundArch == "" {
+		foundArch = "amd64"
+	}
+	for _, v := range distro.Versions {
+		if v.Codename == task.VersionCodename && (v.Arch == foundArch || v.Arch == "") {
+			version = v
+			break
+		}
+	}
+	if version == nil {
+		return "", fmt.Errorf("version %s/%s not found for distro %s", task.VersionCodename, foundArch, task.DistroName)
+	}
+
+	// Build kernel/initrd URLs
+	overlay, _ := st.GetNetbootOverlay(context.Background(), task.DistroName)
+	localBase := overlay.LocalBase
+	if localBase == "" {
+		localBase = distro.LocalBase
+	}
+	bootPrefix := "/boot"
+
+	var kernelURL, initrdURL string
+	if version.Local != nil {
+		basePath := localBase
+		if basePath == "" {
+			basePath = task.DistroName
+		}
+		kernelURL = fmt.Sprintf("http://%s%s/%s/%s", serverAddr, bootPrefix, basePath, version.Local.Kernel)
+		initrdURL = fmt.Sprintf("http://%s%s/%s/%s", serverAddr, bootPrefix, basePath, version.Local.Initrd)
+	} else if version.Remote != nil {
+		// For remote files, use direct URLs (PXELinux/GRUB2 can fetch HTTP)
+		kernelURL = version.Remote.Kernel
+		initrdURL = version.Remote.Initrd
+		// If it's HTTPS, try proxy
+		if strings.HasPrefix(kernelURL, "https://") {
+			kernelURL = fmt.Sprintf("http://%s%s/proxy/https/%s", serverAddr, bootPrefix, strings.TrimPrefix(kernelURL, "https://"))
+		}
+		if initrdURL != "" && strings.HasPrefix(initrdURL, "https://") {
+			initrdURL = fmt.Sprintf("http://%s%s/proxy/https/%s", serverAddr, bootPrefix, strings.TrimPrefix(initrdURL, "https://"))
+		}
+	} else {
+		return "", fmt.Errorf("no boot files for version %s", task.VersionCodename)
+	}
+
+	if kernelURL == "" {
+		return "", fmt.Errorf("kernel URL is empty")
+	}
+
+	// Build cmdline
+	cmdline := version.Cmdline
+	if distro.KernelParams != "" && cmdline == "" {
+		cmdline = distro.KernelParams
+	}
+	if task.ExtraCmdline != "" {
+		if cmdline != "" {
+			cmdline = cmdline + " " + task.ExtraCmdline
+		} else {
+			cmdline = task.ExtraCmdline
+		}
+	}
+	// Add answer file URL if available
+	answerURL := fmt.Sprintf("http://%s/api/v1/netboot/answer/%s", serverAddr, task.ID)
+	if overlay != nil {
+		ovs, _ := overlay.GetVersionOverrides()
+		for _, ov := range ovs {
+			if ov.Codename == task.VersionCodename && ov.AnswerParam != "" {
+				injected := netboot.InjectAnswerParam(ov.AnswerParam, answerURL)
+				if injected != "" {
+					if cmdline != "" {
+						cmdline = cmdline + " " + injected
+					} else {
+						cmdline = injected
+					}
+				}
+				break
+			}
+		}
+	}
+
+	if isGRUB {
+		return fmt.Sprintf(`menuentry "Install %s %s" {
+  linux %s %s
+  initrd %s
+}
+`, task.DistroName, task.VersionCodename, kernelURL, cmdline, initrdURL), nil
+	}
+
+	return fmt.Sprintf(`DEFAULT install
+LABEL install
+  KERNEL %s
+  APPEND initrd=%s %s
+  IPAPPEND 2
+`, kernelURL, initrdURL, cmdline), nil
+}
+
 
 func (s *Server) Start(ctx context.Context) error {
 	addr := s.cfg.Global.ListenAddr

@@ -55,8 +55,25 @@ export function DataTable<T extends Record<string, any>>({
 
   if (data.length === 0) {
     return (
-      <div className="text-center py-12 text-[var(--text-muted)]">
-        <p className="text-sm">{emptyText}</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr>
+              {columns.map(col => (
+                <th key={col.key} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)] whitespace-nowrap" style={{ width: col.width }}>
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colSpan={columns.length} className="text-center py-12 text-[var(--text-muted)]">
+                <p className="text-sm">{emptyText}</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     )
   }

@@ -141,6 +141,7 @@
     "dhcpModeProxy": "代理模式",
     "dhcpModeOff": "关闭",
     "subnetOverview": "子网概览",
+    "activeOnly": "仅活跃",
     "totalSubnets": "子网总数",
     "totalLeases": "租约总数"
   },
@@ -248,5 +249,21 @@
     "dark": "深色",
     "zh-CN": "中文",
     "en": "English"
+  },
+  "reservations": {
+    "title": "预留管理",
+    "empty": "暂无预留",
+    "add": "添加预留",
+    "edit": "编辑预留",
+    "mac": "MAC 地址",
+    "ip": "IP 地址",
+    "hostname": "主机名",
+    "description": "描述",
+    "interface": "接口",
+    "subnet": "子网",
+    "filterAll": "全部子网",
+    "deleteConfirm": "确定要删除该预留吗？",
+    "ipRequired": "IP 地址不能为空",
+    "macFormat": "MAC 地址格式无效"
   }
 }

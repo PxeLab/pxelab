@@ -1,6 +1,6 @@
 import { type FC, type ReactNode } from 'react'
 
-type TagColor = 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'cyan' | 'orange'
+export type TagColor = 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'cyan' | 'orange'
 type TagVariant = 'filled' | 'subtle'
 
 const colorClasses: Record<TagVariant, Record<TagColor, string>> = {

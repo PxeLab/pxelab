@@ -78,45 +78,66 @@ export default function Logs() {
   const [layout, setLayout] = useState<LayoutMode>(1)
   const [panels, setPanels] = useState<PanelConfig[]>([createPanel(0)])
   const [allPaused, setAllPaused] = useState(false)
+  const allPausedRef = useRef(allPaused) // 同步 allPaused 到 ref，避免闭包捕获过期值
   const [sseKey, setSseKey] = useState(0) // 递增后重连 SSE
   const eventSourceRef = useRef<EventSource | null>(null)
   const bottomRefs = useRef<(HTMLDivElement | null)[]>([])
   const autoScrollRef = useRef<(boolean)[]>([])
 
   autoScrollRef.current = panels.map((_, i) => autoScrollRef.current[i] ?? true)
+  allPausedRef.current = allPaused // 同步到 ref，供 SSE 回调中读取
 
   // 连接 SSE（带过滤参数）
   useEffect(() => {
-    const params = new URLSearchParams()
-    const svc = panels[0]?.service
-    const lvl = panels[0]?.level
-    if (svc) params.set('service', svc)
-    if (lvl) params.set('level', lvl)
-    const qs = params.toString()
-    const url = getBaseURL() + '/api/v1/logs/stream' + (qs ? '?' + qs : '')
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined
 
-    const es = new EventSource(url)
-    eventSourceRef.current = es
+    function connect() {
+      const params = new URLSearchParams()
+      const svc = panels[0]?.service
+      const lvl = panels[0]?.level
+      if (svc) params.set('service', svc)
+      if (lvl) params.set('level', lvl)
+      const qs = params.toString()
+      const url = getBaseURL() + '/api/v1/logs/stream' + (qs ? '?' + qs : '')
 
-    es.onmessage = (e) => {
-      try {
-        const entry: LogEntry = JSON.parse(e.data)
-        setPanels(prev => prev.map(p => {
-          if (p.paused || allPaused) return p
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+      }
 
-          // 按过滤条件判断
-          if (p.service && entry.service !== p.service) return p
-          if (p.level && entry.level !== p.level) return p
+      const es = new EventSource(url)
+      eventSourceRef.current = es
 
-          const next = [...p.logs, entry]
-          if (next.length > 500) next.splice(0, next.length - 500)
-          return { ...p, logs: next }
-        }))
-      } catch { /* ignore parse errors */ }
+      es.onmessage = (e) => {
+        try {
+          const entry: LogEntry = JSON.parse(e.data)
+          setPanels(prev => prev.map(p => {
+            if (p.paused || allPausedRef.current) return p
+
+            // 按过滤条件判断
+            if (p.service && entry.service !== p.service) return p
+            if (p.level && entry.level !== p.level) return p
+
+            const next = [...p.logs, entry]
+            if (next.length > 500) next.splice(0, next.length - 500)
+            return { ...p, logs: next }
+          }))
+        } catch { /* ignore parse errors */ }
+      }
+
+      es.onerror = () => {
+        es.close()
+        reconnectTimer = setTimeout(connect, 3000)
+      }
     }
 
-    return () => { es.close() }
-  }, [allPaused, sseKey])
+    connect()
+
+    return () => {
+      clearTimeout(reconnectTimer)
+      eventSourceRef.current?.close()
+      eventSourceRef.current = null
+    }
+  }, [sseKey])
 
   // 自动滚动
   useEffect(() => {
@@ -167,6 +188,9 @@ export default function Logs() {
 
   return (
     <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">日志</h1>
+      </div>
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -199,7 +223,9 @@ export default function Logs() {
             {allPaused ? '恢复全部' : '暂停全部'}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => {
-            setPanels(prev => prev.map(p => ({ ...p, logs: [] })))
+            setAllPaused(false)
+            setPanels(prev => prev.map(p => ({ ...p, logs: [], paused: false })))
+            setSseKey(k => k + 1)
           }}>
             <Trash2 size={14} className="mr-1" /> 清空全部
           </Button>

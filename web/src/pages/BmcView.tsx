@@ -164,6 +164,20 @@ export default function BmcView() {
     }
   }
 
+  async function batchPXEBoot() {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) { showError('请先选择设备'); return }
+    let successCount = 0
+    for (const id of ids) {
+      try {
+        await api.bmcSetBootDevice(id, 'pxe')
+        successCount++
+      } catch { /* skip failed */ }
+    }
+    success(`${successCount}/${ids.length} 已设置为 PXE 引导`)
+    loadConfigs()
+  }
+
   async function handleCsvImport() {
     if (!csvText.trim()) { showError('请粘贴 CSV 内容'); return }
     setCsvImporting(true)
@@ -244,14 +258,17 @@ export default function BmcView() {
         <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/5 border border-blue-500/10">
           <span className="text-xs text-[var(--text-muted)]">已选择 {selectedIds.size} 项</span>
           <div className="flex-1" />
+          <Button variant="secondary" size="sm" onClick={() => batchAction('restart')}>
+            <RotateCcw size={12} /> 批量重启
+          </Button>
           <Button variant="primary" size="sm" onClick={() => batchAction('on')}>
             <Power size={12} /> 批量开机
           </Button>
           <Button variant="danger" size="sm" onClick={() => batchAction('off')}>
             <PowerOff size={12} /> 批量关机
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => batchAction('restart')}>
-            <RotateCcw size={12} /> 批量重启
+          <Button variant="secondary" size="sm" onClick={batchPXEBoot}>
+            <Disc size={12} /> 从 PXE 引导
           </Button>
         </div>
       )}
@@ -269,6 +286,8 @@ export default function BmcView() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">协议</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">品牌 / 型号</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">SN</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">当前引导模式</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">下次引导设备</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">电源状态</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">操作</th>
               </tr>
@@ -276,7 +295,7 @@ export default function BmcView() {
             <tbody>
               {configs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center text-sm text-[var(--text-muted)]">
+                  <td colSpan={10} className="px-4 py-16 text-center text-sm text-[var(--text-muted)]">
                     暂无 BMC 配置
                   </td>
                 </tr>
@@ -315,6 +334,14 @@ export default function BmcView() {
                     </td>
                     <td className="px-4 py-3">
                       <code className="text-xs font-mono text-[var(--text-muted)]">{cfg.serial || '—'}</code>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/5 text-purple-400 border border-purple-500/10">
+                        {cfg.boot_mode || 'auto'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs">{cfg.next_boot_device ? BOOT_DEVICES.find(d => d.value === cfg.next_boot_device)?.label || cfg.next_boot_device : '—'}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">

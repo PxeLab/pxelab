@@ -111,7 +111,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		if h.cfg.Auth.TokenHash == "" && req.Token == h.cfg.Auth.Token {
 			// 升级存储 hash
 			h.cfg.Auth.TokenHash = hex.EncodeToString(hsh[:])
-			slog.Info("已升级 token 存储为 SHA-256 hash")
+			slog.Info("已升级 token 存储为 SHA-256 hash", "service", "HTTP")
 		} else {
 			Error(w, http.StatusUnauthorized, "token 无效")
 			return
@@ -120,7 +120,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	h.limiter.clear(ip)
 	session := h.sessions.Create()
-	slog.Info("用户登录成功", "remote", r.RemoteAddr)
+	slog.Info("用户登录成功", "service", "HTTP", "remote", r.RemoteAddr)
 
 	OK(w, loginResponse{
 		SessionToken: session.Token,

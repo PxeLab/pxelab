@@ -30,6 +30,7 @@ type BusHandler struct {
 	files   map[string]*os.File
 	fileMu  sync.Mutex
 	closed  bool
+	attrs   []slog.Attr // 来自 WithAttrs 的预置属性
 }
 
 func NewBusHandler(next slog.Handler, bus *eventbus.Bus, logDir string) *BusHandler {
@@ -60,6 +61,22 @@ func (h *BusHandler) Handle(ctx context.Context, r slog.Record) error {
 		Attrs:   make(map[string]any),
 	}
 
+	// 先应用预置属性（来自 WithAttrs，如 service=DHCP）
+	// 后续被调用侧显式传入的同名属性覆盖
+	for _, a := range h.attrs {
+		switch a.Key {
+		case "service":
+			entry.Service = a.Value.String()
+		case "mac":
+			entry.MAC = a.Value.String()
+		case "ip":
+			entry.IP = a.Value.String()
+		default:
+			entry.Attrs[a.Key] = a.Value.Any()
+		}
+	}
+
+	// 再迭代调用侧显式传入的属性（覆盖预置值）
 	r.Attrs(func(a slog.Attr) bool {
 		switch a.Key {
 		case "service":
@@ -150,9 +167,37 @@ func (h *BusHandler) Close() {
 }
 
 func (h *BusHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &BusHandler{next: h.next.WithAttrs(attrs), bus: h.bus, logDir: h.logDir, files: h.files}
+	// 合并已有属性和新属性，新属性同名覆盖
+	merged := make([]slog.Attr, 0, len(h.attrs)+len(attrs))
+	// 先加已有的，再用新的覆盖或追加
+	existing := make(map[string]bool)
+	for _, a := range h.attrs {
+		merged = append(merged, a)
+		existing[a.Key] = true
+	}
+	for _, a := range attrs {
+		if existing[a.Key] {
+			// 替换同名的
+			for i := range merged {
+				if merged[i].Key == a.Key {
+					merged[i] = a
+					break
+				}
+			}
+		} else {
+			merged = append(merged, a)
+		}
+	}
+
+	return &BusHandler{
+		next:   h.next.WithAttrs(attrs),
+		bus:    h.bus,
+		logDir: h.logDir,
+		files:  h.files,
+		attrs:  merged,
+	}
 }
 
 func (h *BusHandler) WithGroup(name string) slog.Handler {
-	return &BusHandler{next: h.next.WithGroup(name), bus: h.bus, logDir: h.logDir, files: h.files}
+	return &BusHandler{next: h.next.WithGroup(name), bus: h.bus, logDir: h.logDir, files: h.files, attrs: h.attrs}
 }

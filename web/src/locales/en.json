@@ -141,6 +141,7 @@
     "dhcpModeProxy": "Proxy",
     "dhcpModeOff": "Off",
     "subnetOverview": "Subnet Overview",
+    "activeOnly": "Active Only",
     "totalSubnets": "Total Subnets",
     "totalLeases": "Total Leases"
   },
@@ -248,5 +249,21 @@
     "dark": "Dark",
     "zh-CN": "中文",
     "en": "English"
+  },
+  "reservations": {
+    "title": "Reservations",
+    "empty": "No reservations",
+    "add": "Add Reservation",
+    "edit": "Edit Reservation",
+    "mac": "MAC",
+    "ip": "IP",
+    "hostname": "Hostname",
+    "description": "Description",
+    "interface": "Interface",
+    "subnet": "Subnet",
+    "filterAll": "All Subnets",
+    "deleteConfirm": "Are you sure you want to delete this reservation?",
+    "ipRequired": "IP address is required",
+    "macFormat": "Invalid MAC address format"
   }
 }

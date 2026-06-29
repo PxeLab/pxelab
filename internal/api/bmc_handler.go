@@ -443,6 +443,12 @@ type bootDeviceRequest struct {
 }
 
 func (h *BMCHandler) SetBootDevice(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid ID")
+		return
+	}
+
 	var req bootDeviceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		Error(w, http.StatusBadRequest, "Invalid request body")
@@ -453,12 +459,35 @@ func (h *BMCHandler) SetBootDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.powerAction(w, r, func(ctx context.Context, ctrl bmc.Controller) (any, error) {
-		if err := ctrl.SetBootDevice(ctx, bmc.BootDevice(req.Device)); err != nil {
-			return nil, err
-		}
-		return map[string]string{"device": req.Device}, nil
+	cfg, err := h.store.GetBMCConfig(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, "BMC config not found")
+		return
+	}
+
+	ctrl, err := bmc.NewController(bmc.Config{
+		Host:     cfg.Host,
+		Port:     cfg.Port,
+		Username: cfg.Username,
+		Password: cfg.Password,
+		Redfish:  cfg.Protocol == "redfish",
 	})
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer ctrl.Close()
+
+	if err := ctrl.SetBootDevice(r.Context(), bmc.BootDevice(req.Device)); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Persist next boot device
+	cfg.NextBootDevice = req.Device
+	h.store.UpdateBMCConfig(r.Context(), cfg)
+
+	OK(w, map[string]string{"device": req.Device})
 }
 
 // ────────────────────────────── Batch operations ──────────────────────────────

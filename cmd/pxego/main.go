@@ -114,6 +114,24 @@ func run(cmd *cobra.Command) error {
 	if err := st.Seed(); err != nil {
 		return fmt.Errorf("初始化默认数据失败: %w", err)
 	}
+	// 创建默认 DNS @ A 记录（指向第一个网卡 IP）
+	if cfg.DNS.LocalDomain != "" {
+		serverIP := "127.0.0.1"
+		if len(cfg.Interfaces) > 0 && cfg.Interfaces[0].IP != "" {
+			serverIP = cfg.Interfaces[0].IP
+		}
+		existing, _ := st.FindDNSRecords(context.Background(), "@", "A", "")
+		if len(existing) == 0 {
+			_ = st.CreateDNSRecord(context.Background(), &models.DNSRecord{
+				Name:    "@",
+				Type:    "A",
+				Value:   serverIP,
+				TTL:     300,
+				Enabled: true,
+			})
+			slog.Info("已创建默认 DNS 记录", "domain", cfg.DNS.LocalDomain, "value", serverIP)
+		}
+	}
 
 	// 导入黑白名单种子（幂等——MAC 已存在则跳过）
 	for _, entry := range cfg.BlacklistSeeds {
@@ -247,7 +265,7 @@ func run(cmd *cobra.Command) error {
 		openBrowser("http://localhost:8080")
 	}
 
-	dnsServer := dns.NewServer(&cfg.DNS, st, bus)
+	dnsServer := dns.NewServer(cfg, st, bus)
 	svcMgr.Register("dns", "DNS", dnsServer, cfg.ServiceAutoStart.DNS, false, cfg.DNS.Port, "UDP")
 
 	return svcMgr.Run(context.Background())

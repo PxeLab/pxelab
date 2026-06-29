@@ -265,7 +265,6 @@ export default function AnswerTemplates() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-base font-bold text-[var(--text-primary)]">应答模板管理</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">管理 kickstart / preseed / autounattend 等应答文件模板</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={load} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">

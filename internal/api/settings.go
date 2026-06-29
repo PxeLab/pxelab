@@ -71,10 +71,11 @@ type TFTPSettings struct {
 }
 
 type DNSSettings struct {
-	Enabled     bool   `json:"enabled"`
-	Port        int    `json:"port"`
-	Upstream    string `json:"upstream"`
-	LocalDomain string `json:"local_domain"`
+	Enabled       bool   `json:"enabled"`
+	Port          int    `json:"port"`
+	Upstream      string `json:"upstream"`
+	LocalDomain   string `json:"local_domain"`
+	DefaultRecord bool   `json:"default_record"`
 }
 
 
@@ -141,6 +142,7 @@ type SubnetSettings struct {
 	DNSServers string   `json:"dns_servers"`
 	LeaseTime  int      `json:"lease_time"`
 	NextServer string   `json:"next_server"`
+	ChainToIPXE bool     `json:"chain_to_ipxe"`
 }
 
 type InterfaceResponse struct {
@@ -158,7 +160,57 @@ type InterfaceResponse struct {
 	Subnets     []SubnetSettings `json:"subnets,omitempty"`
 	TFTP        bool             `json:"tftp"`
 	HTTP        bool             `json:"http"`
-	DNS         bool             `json:"dns"`
+	AutoStart   bool             `json:"auto_start"`
+}
+
+// ── Sub-domain response types for individual settings endpoints ──
+
+type GeneralSettingsResponse struct {
+	ServerName       string              `json:"server_name"`
+	AppMode          bool                `json:"app_mode"`
+	Token            string              `json:"token"`
+	TokenSet         bool                `json:"token_set"`
+	ListenAddr       string              `json:"listen_addr"`
+	LogLevel         string              `json:"log_level"`
+	DataDir          string              `json:"data_dir"`
+	WhitelistEnabled bool                `json:"whitelist_enabled"`
+	ScriptTemplate   string              `json:"script_template"`
+	DefaultMenu      DefaultMenuSettings `json:"default_menu"`
+}
+
+type InterfacesSettingsResponse struct {
+	Interfaces []InterfaceResponse `json:"interfaces"`
+}
+
+type DHCPSettingsResponse struct {
+	Enabled    bool   `json:"enabled"`
+	Range      string `json:"range"`
+	Gateway    string `json:"gateway"`
+	Subnet     string `json:"subnet"`
+	LeaseTime  int    `json:"lease_time"`
+	DNSServers string `json:"dns_servers"`
+}
+
+type TFTPSettingsResponse struct {
+	Enabled        bool   `json:"enabled"`
+	Port           int    `json:"port"`
+	Root           string `json:"root"`
+	PXEConfigFile  string `json:"pxe_config_file"`
+	GRUBConfigFile string `json:"grub_config_file"`
+}
+
+type DNSSettingsResponse struct {
+	Enabled       bool   `json:"enabled"`
+	Port          int    `json:"port"`
+	Upstream      string `json:"upstream"`
+	LocalDomain   string `json:"local_domain"`
+	DefaultRecord bool   `json:"default_record"`
+}
+
+type NetbootSettingsResponse struct {
+	Enabled         bool                    `json:"enabled"`
+	CatalogRedirect CatalogRedirectSettings `json:"catalog_redirect"`
+	CatalogDisplay  CatalogDisplaySettings  `json:"catalog_display"`
 }
 
 func generateToken() string {
@@ -185,15 +237,15 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		hsh := sha256.Sum256([]byte(cfg.Auth.Token))
 		cfg.Auth.TokenHash = hex.EncodeToString(hsh[:])
 		if err := saveConfig(configPath(cfg), cfg); err != nil {
-			slog.Error("保存 token 配置失败", "error", err)
+			slog.Error("保存 token 配置失败", "service", "HTTP", "error", err)
 		}
-		slog.Info("已生成初始 API 令牌（仅首次显示此日志，请妥善保管）", "token", cfg.Auth.Token)
+		slog.Info("已生成初始 API 令牌（仅首次显示此日志，请妥善保管）", "service", "HTTP", "token", cfg.Auth.Token)
 	}
 	if cfg.Auth.TokenHash == "" && cfg.Auth.Token != "" {
 		hsh := sha256.Sum256([]byte(cfg.Auth.Token))
 		cfg.Auth.TokenHash = hex.EncodeToString(hsh[:])
 		if err := saveConfig(configPath(cfg), cfg); err != nil {
-			slog.Error("保存 token hash 失败", "error", err)
+			slog.Error("保存 token hash 失败", "service", "HTTP", "error", err)
 		}
 	}
 	if cfg.Global.ServerName == "" {
@@ -223,7 +275,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Gateway:    "",
 			Subnet:     "",
 			LeaseTime:  config.DefaultLeaseTime,
-			DNSServers: "8.8.8.8",
+			DNSServers: "",
 		},
 		TFTP: TFTPSettings{
 			Enabled: true,
@@ -231,10 +283,11 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Root:    cfg.Boot.RootDir,
 		},
 		DNS: DNSSettings{
-			Enabled:     cfg.DNS.Enabled,
-			Port:        cfg.DNS.Port,
-			Upstream:    cfg.DNS.Upstream,
-			LocalDomain: cfg.DNS.LocalDomain,
+			Enabled:       cfg.DNS.Enabled,
+			Port:          cfg.DNS.Port,
+			Upstream:      cfg.DNS.Upstream,
+			LocalDomain:   cfg.DNS.LocalDomain,
+			DefaultRecord: cfg.DNS.DefaultRecord,
 		},
 		Netboot: NetbootSettings{
 			Enabled:        cfg.Netboot.Enabled,
@@ -266,12 +319,11 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Name:       iface.Name,
 			IP:         iface.IP,
 			Bootloader: iface.Bootloader,
-			ChainToIPXE: iface.ChainToIPXE,
 			TFTP:       iface.TFTP,
 			HTTP:       iface.HTTP,
-			DNS:        iface.DNS,
+			AutoStart:  iface.AutoStart,
 			LeaseTime:  config.DefaultLeaseTime,
-			DNSServers: "8.8.8.8",
+			DNSServers: "",
 		}
 		if len(iface.Subnets) > 0 {
 			ir.DHCPMode = iface.Subnets[0].DHCP
@@ -311,6 +363,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 					DNSServers: sn.DNSServers,
 					LeaseTime:  sn.LeaseTime,
 					NextServer: sn.NextServer,
+					ChainToIPXE: sn.ChainToIPXE,
 				})
 			}
 		}
@@ -387,6 +440,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				Pools: ir.Pools, Gateway: ir.Gateway,
 				DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
 				NextServer: ir.NextServer,
+				ChainToIPXE: false,
 			}}
 		}
 		for si, s := range subnets {
@@ -447,6 +501,19 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	h.cfg.DNS.Upstream = req.DNS.Upstream
 	h.cfg.DNS.LocalDomain = req.DNS.LocalDomain
+	h.cfg.DNS.DefaultRecord = req.DNS.DefaultRecord
+	if h.cfg.DNS.DefaultRecord && h.cfg.DNS.DefaultRecordIP == "" {
+		// 从第一个接口自动获取服务器 IP
+		for _, iface := range h.cfg.Interfaces {
+			if iface.IP != "" {
+				h.cfg.DNS.DefaultRecordIP = iface.IP
+				break
+			}
+		}
+	}
+	if !h.cfg.DNS.DefaultRecord {
+		h.cfg.DNS.DefaultRecordIP = ""
+	}
 	if req.Server.Token != "" && req.Server.Token != h.cfg.Auth.Token && !strings.Contains(req.Server.Token, "...") {
 		h.cfg.Auth.Token = req.Server.Token
 		hsh := sha256.Sum256([]byte(req.Server.Token))
@@ -483,10 +550,9 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				Name: ir.Name,
 				IP:   ir.IP,
 				Bootloader: ir.Bootloader,
-				ChainToIPXE: ir.ChainToIPXE,
 				TFTP: ir.TFTP,
 				HTTP: ir.HTTP,
-				DNS:  ir.DNS,
+				AutoStart:  ir.AutoStart,
 			}
 
 			if len(ir.Subnets) > 0 {
@@ -499,6 +565,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 						DNSServers: s.DNSServers,
 						LeaseTime:  s.LeaseTime,
 						NextServer: s.NextServer,
+						ChainToIPXE: s.ChainToIPXE,
 					})
 				}
 			} else if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" || ir.NextServer != "" {
@@ -510,6 +577,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 					DNSServers: ir.DNSServers,
 					NextServer: ir.NextServer,
 					LeaseTime:  ir.LeaseTime,
+					ChainToIPXE: false,
 				}}
 			}
 			h.cfg.Interfaces = append(h.cfg.Interfaces, iface)
@@ -523,6 +591,478 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	if h.reloader != nil {
 		h.reloader.ReloadSubnets()
+	}
+
+	OK(w, map[string]string{"status": "saved"})
+}
+
+// ── General Settings ──
+
+func (h *SettingsHandler) GetGeneral(w http.ResponseWriter, r *http.Request) {
+	cfg := h.cfg
+
+	h.mu.Lock()
+	if cfg.Auth.Token == "" && cfg.Auth.TokenHash == "" {
+		cfg.Auth.Token = generateToken()
+		hsh := sha256.Sum256([]byte(cfg.Auth.Token))
+		cfg.Auth.TokenHash = hex.EncodeToString(hsh[:])
+		if err := saveConfig(configPath(cfg), cfg); err != nil {
+			slog.Error("保存 token 配置失败", "service", "HTTP", "error", err)
+		}
+		slog.Info("已生成初始 API 令牌（仅首次显示此日志，请妥善保管）", "service", "HTTP", "token", cfg.Auth.Token)
+	}
+	if cfg.Auth.TokenHash == "" && cfg.Auth.Token != "" {
+		hsh := sha256.Sum256([]byte(cfg.Auth.Token))
+		cfg.Auth.TokenHash = hex.EncodeToString(hsh[:])
+		if err := saveConfig(configPath(cfg), cfg); err != nil {
+			slog.Error("保存 token hash 失败", "service", "HTTP", "error", err)
+		}
+	}
+	if cfg.Global.ServerName == "" {
+		cfg.Global.ServerName = "pxego"
+	}
+	if cfg.Global.ListenAddr == "" {
+		cfg.Global.ListenAddr = ":8080"
+	}
+	h.mu.Unlock()
+
+	resp := GeneralSettingsResponse{
+		ServerName:       cfg.Global.ServerName,
+		AppMode:          cfg.Global.AppMode,
+		Token:            cfg.Auth.Token,
+		TokenSet:         cfg.Auth.TokenHash != "",
+		ListenAddr:       cfg.Global.ListenAddr,
+		LogLevel:         cfg.Log.Level,
+		DataDir:          cfg.Global.DataDir,
+		WhitelistEnabled: cfg.Global.WhitelistEnabled,
+		ScriptTemplate:   cfg.Netboot.ScriptTemplate,
+		DefaultMenu: DefaultMenuSettings{
+			Title:           cfg.Netboot.Boot.DefaultMenu.Title,
+			Timeout:         cfg.Netboot.Boot.DefaultMenu.Timeout,
+			Default:         cfg.Netboot.Boot.DefaultMenu.Default,
+			ListAllProfiles: cfg.Netboot.Boot.DefaultMenu.ListAllProfiles,
+			Entries:         convertMenuEntriesToAPI(cfg.Netboot.Boot.DefaultMenu.Entries),
+		},
+	}
+
+	OK(w, resp)
+}
+
+func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) {
+	var req GeneralSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	h.mu.Lock()
+	h.cfg.Global.ServerName = req.ServerName
+	h.cfg.Global.AppMode = req.AppMode
+	h.cfg.Global.WhitelistEnabled = req.WhitelistEnabled
+	h.cfg.Log.Level = req.LogLevel
+	if req.ListenAddr != "" {
+		h.cfg.Global.ListenAddr = req.ListenAddr
+	}
+	if req.Token != "" && req.Token != h.cfg.Auth.Token && !strings.Contains(req.Token, "...") {
+		h.cfg.Auth.Token = req.Token
+		hsh := sha256.Sum256([]byte(req.Token))
+		h.cfg.Auth.TokenHash = hex.EncodeToString(hsh[:])
+	}
+	// Netboot-extracted fields: script_template and default_menu
+	h.cfg.Netboot.ScriptTemplate = req.ScriptTemplate
+	h.cfg.Netboot.Boot.DefaultMenu = config.DefaultMenuConfig{
+		Title:           req.DefaultMenu.Title,
+		Timeout:         req.DefaultMenu.Timeout,
+		Default:         req.DefaultMenu.Default,
+		ListAllProfiles: req.DefaultMenu.ListAllProfiles,
+		Entries:         convertMenuEntriesFromAPI(req.DefaultMenu.Entries),
+	}
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	OK(w, map[string]string{"status": "saved"})
+}
+
+// ── Interfaces ──
+
+func (h *SettingsHandler) GetInterfaces(w http.ResponseWriter, r *http.Request) {
+	cfg := h.cfg
+	var resp InterfacesSettingsResponse
+
+	for _, iface := range cfg.Interfaces {
+		ir := InterfaceResponse{
+			Name:        iface.Name,
+			IP:          iface.IP,
+			Bootloader:  iface.Bootloader,
+			TFTP:        iface.TFTP,
+			HTTP:        iface.HTTP,
+			AutoStart:   iface.AutoStart,
+			LeaseTime:   config.DefaultLeaseTime,
+			DNSServers:  "",
+		}
+		if len(iface.Subnets) > 0 {
+			ir.DHCPMode = iface.Subnets[0].DHCP
+		}
+		if ir.DHCPMode == "" {
+			ir.DHCPMode = "full"
+		}
+		if len(iface.Subnets) > 0 {
+			sn := iface.Subnets[0]
+			ir.Subnet = sn.CIDR
+			if len(sn.Pools) > 0 {
+				ir.Pools = sn.Pools
+			} else if sn.Pool != "" {
+				ir.Pools = []string{sn.Pool}
+			}
+			ir.Gateway = sn.Gateway
+			ir.DNSServers = sn.DNSServers
+			ir.NextServer = sn.NextServer
+			if sn.LeaseTime > 0 {
+				ir.LeaseTime = sn.LeaseTime
+			}
+			for _, sn := range iface.Subnets {
+				dhcpMode := sn.DHCP
+				if dhcpMode == "" {
+					dhcpMode = "full"
+				}
+				pools := sn.Pools
+				if len(pools) == 0 && sn.Pool != "" {
+					pools = []string{sn.Pool}
+				}
+				ir.Subnets = append(ir.Subnets, SubnetSettings{
+					CIDR:       sn.CIDR,
+					DHCPMode:   dhcpMode,
+					Pools:      pools,
+					Gateway:    sn.Gateway,
+					DNSServers: sn.DNSServers,
+					LeaseTime:  sn.LeaseTime,
+					NextServer: sn.NextServer,
+					ChainToIPXE: sn.ChainToIPXE,
+				})
+			}
+		}
+		resp.Interfaces = append(resp.Interfaces, ir)
+	}
+
+	OK(w, resp)
+}
+
+func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Request) {
+	var req InterfacesSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	// Validation (same logic as Update)
+	for i, ir := range req.Interfaces {
+		subnets := ir.Subnets
+		if len(subnets) == 0 && ir.Subnet != "" {
+			subnets = []SubnetSettings{{
+				CIDR: ir.Subnet, DHCPMode: "full",
+				Pools: ir.Pools, Gateway: ir.Gateway,
+				DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
+				NextServer: ir.NextServer,
+				ChainToIPXE: false,
+			}}
+		}
+		for si, s := range subnets {
+			if s.DHCPMode == "" || s.DHCPMode == "off" || s.DHCPMode == "proxy" {
+				continue
+			}
+			for pi, p := range s.Pools {
+				p = strings.TrimSpace(p)
+				if p == "" {
+					continue
+				}
+				parts := strings.SplitN(p, "-", 2)
+				if len(parts) != 2 {
+					Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 格式无效", i+1, si+1, pi+1))
+					return
+				}
+				startIP := strings.TrimSpace(parts[0])
+				endIP := strings.TrimSpace(parts[1])
+				if s.CIDR != "" {
+					if !ipInCIDR(startIP, s.CIDR) {
+						Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 起始地址 %s 不属于子网 %s", i+1, si+1, pi+1, startIP, s.CIDR))
+						return
+					}
+					if !ipInCIDR(endIP, s.CIDR) {
+						Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 结束地址 %s 不属于子网 %s", i+1, si+1, pi+1, endIP, s.CIDR))
+						return
+					}
+				}
+			}
+			validPools := make([]string, 0, len(s.Pools))
+			for _, p := range s.Pools {
+				if strings.TrimSpace(p) != "" && strings.Contains(p, "-") {
+					validPools = append(validPools, p)
+				}
+			}
+			for pi := 0; pi < len(validPools); pi++ {
+				for pj := pi + 1; pj < len(validPools); pj++ {
+					if poolsOverlap(validPools[pi], validPools[pj]) {
+						Error(w, http.StatusBadRequest, fmt.Sprintf("接口 #%d 子网 #%d: 地址池 #%d 和 #%d 范围冲突", i+1, si+1, pi+1, pj+1))
+						return
+					}
+				}
+			}
+		}
+	}
+
+	h.mu.Lock()
+	h.cfg.Interfaces = make([]config.InterfaceConfig, 0, len(req.Interfaces))
+	for _, ir := range req.Interfaces {
+		iface := config.InterfaceConfig{
+			Name:       ir.Name,
+			IP:         ir.IP,
+			Bootloader: ir.Bootloader,
+			TFTP:       ir.TFTP,
+			HTTP:       ir.HTTP,
+			AutoStart:  ir.AutoStart,
+		}
+		if len(ir.Subnets) > 0 {
+			for _, s := range ir.Subnets {
+				iface.Subnets = append(iface.Subnets, config.SubnetConfig{
+					CIDR:       s.CIDR,
+					DHCP:       s.DHCPMode,
+					Pools:      s.Pools,
+					Gateway:    s.Gateway,
+					DNSServers: s.DNSServers,
+					LeaseTime:  s.LeaseTime,
+					NextServer: s.NextServer,
+				})
+			}
+		} else if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" || ir.NextServer != "" {
+			iface.Subnets = []config.SubnetConfig{{
+				CIDR:       ir.Subnet,
+				DHCP:       "full",
+				Pools:      ir.Pools,
+				Gateway:    ir.Gateway,
+				DNSServers: ir.DNSServers,
+				NextServer: ir.NextServer,
+				LeaseTime:  ir.LeaseTime,
+			}}
+		}
+		h.cfg.Interfaces = append(h.cfg.Interfaces, iface)
+	}
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	if h.reloader != nil {
+		h.reloader.ReloadSubnets()
+	}
+
+	OK(w, map[string]string{"status": "saved"})
+}
+
+// ── TFTP ──
+
+func (h *SettingsHandler) GetTFTP(w http.ResponseWriter, r *http.Request) {
+	cfg := h.cfg
+	OK(w, TFTPSettingsResponse{
+		Enabled:        true,
+		Port:           config.DefaultPortTFTP,
+		Root:           cfg.Boot.RootDir,
+		PXEConfigFile:  cfg.Boot.PXEConfigFile,
+		GRUBConfigFile: cfg.Boot.GRUBConfigFile,
+	})
+}
+
+func (h *SettingsHandler) UpdateTFTP(w http.ResponseWriter, r *http.Request) {
+	var req TFTPSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	h.mu.Lock()
+	h.cfg.Boot.RootDir = req.Root
+	if req.PXEConfigFile != "" {
+		h.cfg.Boot.PXEConfigFile = req.PXEConfigFile
+	}
+	if req.GRUBConfigFile != "" {
+		h.cfg.Boot.GRUBConfigFile = req.GRUBConfigFile
+	}
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	OK(w, map[string]string{"status": "saved"})
+}
+
+// ── DHCP (legacy single-interface) ──
+
+func (h *SettingsHandler) GetDHCP(w http.ResponseWriter, r *http.Request) {
+	cfg := h.cfg
+	resp := DHCPSettingsResponse{
+		Enabled:   false,
+		Range:     "",
+		Gateway:   "",
+		Subnet:    "",
+		LeaseTime: config.DefaultLeaseTime,
+	}
+
+	if len(cfg.Interfaces) > 0 && len(cfg.Interfaces[0].Subnets) > 0 {
+		sn := cfg.Interfaces[0].Subnets[0]
+		resp.Enabled = sn.DHCP != "" && sn.DHCP != "off"
+		if len(sn.Pools) > 0 {
+			resp.Range = sn.Pools[0]
+		} else {
+			resp.Range = sn.Pool
+		}
+		resp.Gateway = sn.Gateway
+		resp.Subnet = sn.CIDR
+		resp.LeaseTime = sn.LeaseTime
+		resp.DNSServers = sn.DNSServers
+	}
+
+	OK(w, resp)
+}
+
+func (h *SettingsHandler) UpdateDHCP(w http.ResponseWriter, r *http.Request) {
+	var req DHCPSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	h.mu.Lock()
+	if len(h.cfg.Interfaces) > 0 && len(h.cfg.Interfaces[0].Subnets) > 0 {
+		dhcpMode := "off"
+		if req.Enabled {
+			dhcpMode = "full"
+		}
+		h.cfg.Interfaces[0].Subnets[0].DHCP = dhcpMode
+		if req.Enabled {
+			if req.Range != "" {
+				h.cfg.Interfaces[0].Subnets[0].Pools = []string{req.Range}
+			}
+			h.cfg.Interfaces[0].Subnets[0].Gateway = req.Gateway
+			h.cfg.Interfaces[0].Subnets[0].CIDR = req.Subnet
+			if req.LeaseTime > 0 {
+				h.cfg.Interfaces[0].Subnets[0].LeaseTime = req.LeaseTime
+			}
+			h.cfg.Interfaces[0].Subnets[0].DNSServers = req.DNSServers
+		}
+	}
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	if h.reloader != nil {
+		h.reloader.ReloadSubnets()
+	}
+
+	OK(w, map[string]string{"status": "saved"})
+}
+
+// ── DNS ──
+
+func (h *SettingsHandler) GetDNS(w http.ResponseWriter, r *http.Request) {
+	cfg := h.cfg
+	OK(w, DNSSettingsResponse{
+		Enabled:       cfg.DNS.Enabled,
+		Port:          cfg.DNS.Port,
+		Upstream:      cfg.DNS.Upstream,
+		LocalDomain:   cfg.DNS.LocalDomain,
+		DefaultRecord: cfg.DNS.DefaultRecord,
+	})
+}
+
+func (h *SettingsHandler) UpdateDNS(w http.ResponseWriter, r *http.Request) {
+	var req DNSSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	h.mu.Lock()
+	h.cfg.DNS.Enabled = req.Enabled
+	if req.Port > 0 {
+		h.cfg.DNS.Port = req.Port
+	}
+	h.cfg.DNS.Upstream = req.Upstream
+	h.cfg.DNS.LocalDomain = req.LocalDomain
+	h.cfg.DNS.DefaultRecord = req.DefaultRecord
+	if h.cfg.DNS.DefaultRecord && h.cfg.DNS.DefaultRecordIP == "" {
+		for _, iface := range h.cfg.Interfaces {
+			if iface.IP != "" {
+				h.cfg.DNS.DefaultRecordIP = iface.IP
+				break
+			}
+		}
+	}
+	if !h.cfg.DNS.DefaultRecord {
+		h.cfg.DNS.DefaultRecordIP = ""
+	}
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	OK(w, map[string]string{"status": "saved"})
+}
+
+// ── Netboot (stripped down — no script_template or default_menu) ──
+
+func (h *SettingsHandler) GetNetboot(w http.ResponseWriter, r *http.Request) {
+	cfg := h.cfg
+	OK(w, NetbootSettingsResponse{
+		Enabled: cfg.Netboot.Enabled,
+		CatalogRedirect: CatalogRedirectSettings{
+			Enabled:    cfg.Netboot.Boot.CatalogRedirect.Enabled,
+			TargetURL:  cfg.Netboot.Boot.CatalogRedirect.TargetURL,
+			DetectArch: cfg.Netboot.Boot.CatalogRedirect.DetectArch,
+			Preamble:   cfg.Netboot.Boot.CatalogRedirect.Preamble,
+		},
+		CatalogDisplay: CatalogDisplaySettings{
+			Title:  cfg.Netboot.Boot.CatalogDisplay.Title,
+			Groups: convertCatalogGroupsToAPI(cfg.Netboot.Boot.CatalogDisplay.Groups),
+		},
+	})
+}
+
+func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) {
+	var req NetbootSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	h.mu.Lock()
+	h.cfg.Netboot.Enabled = req.Enabled
+	h.cfg.Netboot.Boot.CatalogRedirect = config.CatalogRedirectConfig{
+		Enabled:    req.CatalogRedirect.Enabled,
+		TargetURL:  req.CatalogRedirect.TargetURL,
+		DetectArch: req.CatalogRedirect.DetectArch,
+		Preamble:   req.CatalogRedirect.Preamble,
+	}
+	h.cfg.Netboot.Boot.CatalogDisplay = config.CatalogDisplayConfig{
+		Title:  req.CatalogDisplay.Title,
+		Groups: convertCatalogGroupsFromAPI(req.CatalogDisplay.Groups),
+	}
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
 	}
 
 	OK(w, map[string]string{"status": "saved"})

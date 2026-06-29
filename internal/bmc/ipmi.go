@@ -34,17 +34,26 @@ func (c *ipmiController) Close() error {
 
 func (c *ipmiController) PowerOn(ctx context.Context) error {
 	_, err := c.client.ChassisControl(ctx, ipmi.ChassisControlPowerUp)
-	return err
+	if err != nil {
+		return fmt.Errorf("power on: %w", err)
+	}
+	return nil
 }
 
 func (c *ipmiController) PowerOff(ctx context.Context) error {
 	_, err := c.client.ChassisControl(ctx, ipmi.ChassisControlPowerDown)
-	return err
+	if err != nil {
+		return fmt.Errorf("power off: %w", err)
+	}
+	return nil
 }
 
 func (c *ipmiController) PowerRestart(ctx context.Context) error {
 	_, err := c.client.ChassisControl(ctx, ipmi.ChassisControlPowerCycle)
-	return err
+	if err != nil {
+		return fmt.Errorf("power restart: %w", err)
+	}
+	return nil
 }
 
 func (c *ipmiController) PowerStatus(ctx context.Context) (PowerState, error) {

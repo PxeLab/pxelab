@@ -8,11 +8,26 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/models"
 	"github.com/pxego/pxego/internal/store"
 )
+
+var (
+	eventIDMu   sync.Mutex
+	eventIDNext int64
+)
+
+// nextEventID 生成唯一事件 ID，格式: 时间戳-序列号
+func nextEventID() string {
+	eventIDMu.Lock()
+	eventIDNext++
+	seq := eventIDNext
+	eventIDMu.Unlock()
+	return fmt.Sprintf("%d-%d", time.Now().UnixNano(), seq)
+}
 
 const ringBufferSize = 1000
 
@@ -111,6 +126,7 @@ func NewEventHandler(st store.Interface, bus *eventbus.Bus) *EventHandler {
 	// 立即订阅事件，确保启动后所有事件都被收集到环形缓冲区
 	bus.Subscribe("event", func(e eventbus.Event) {
 		if evt, ok := e.Payload.(models.Event); ok {
+			evt.ID = nextEventID()
 			h.ring.Push(evt)
 			// WARN/ERROR 级别持久化到数据库
 			if evt.Level == models.EventWarn || evt.Level == models.EventError {

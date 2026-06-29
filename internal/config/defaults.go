@@ -21,7 +21,9 @@ func DefaultConfig() *Config {
 			ListenAddr: ":8080",
 		},
 		Boot: BootConfig{
-			RootDir: "./boot",
+			RootDir:        "./boot",
+			PXEConfigFile:  "pxelinux.cfg/default",
+			GRUBConfigFile: "grub2/grub.cfg",
 		},
 		Netboot: NetbootConfig{
 			Enabled:        true,
@@ -42,6 +44,11 @@ func DefaultConfig() *Config {
 		},
 		Store: StoreConfig{
 			DSN: filepath.Join(dataDir, "pxego.db"),
+		},
+		DNS: DNSConfig{
+			Port:        DefaultPortDNS,
+			Upstream:    "",
+			LocalDomain: "pxego.local",
 		},
 		Log: LogConfig{
 			Level: DefaultLogLevel,

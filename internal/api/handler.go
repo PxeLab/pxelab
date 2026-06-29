@@ -28,50 +28,52 @@ type ServiceController interface {
 }
 
 type Handler struct {
-	Host           *HostHandler
-	Profile        *ProfileHandler
-	Event          *EventHandler
-	File           *FileHandler
-	WOL            *WOLHandler
-	IPMI           *IPMIHandler
-	Lease          *LeaseHandler
-	Settings       *SettingsHandler
-	Logs           *LogStreamHandler
-	Netboot        *NetbootHandler
-	NetbootOverlay *NetbootOverlayHandler
-	AnswerTemplate *AnswerTemplateHandler
-	InstallTask    *InstallTaskHandler
-	Service        *ServiceHandler
-	Auth           *AuthHandler
-	Access         *AccessHandler
-	DNSRecord      *DNSRecordHandler
-	BMC            *BMCHandler
-	svcController  ServiceController
-	sessions       *session.Store
+	Host            *HostHandler
+	Profile         *ProfileHandler
+	Event           *EventHandler
+	File            *FileHandler
+	WOL             *WOLHandler
+	IPMI            *IPMIHandler
+	Lease           *LeaseHandler
+	Settings        *SettingsHandler
+	Logs            *LogStreamHandler
+	Netboot         *NetbootHandler
+	NetbootOverlay  *NetbootOverlayHandler
+	AnswerTemplate  *AnswerTemplateHandler
+	InstallTask     *InstallTaskHandler
+	Service         *ServiceHandler
+	Auth            *AuthHandler
+	Access          *AccessHandler
+	DNSRecord       *DNSRecordHandler
+	BMC             *BMCHandler
+	DHCPReservation *DHCPReservationHandler
+	svcController   ServiceController
+	sessions        *session.Store
 }
 
 func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store) *Handler {
 	h := &Handler{
-		Host:           &HostHandler{store: st},
-		Profile:        &ProfileHandler{store: st},
-		Event:          NewEventHandler(st, bus),
-		File:           &FileHandler{bootFS: bootFS},
-		WOL:            &WOLHandler{store: st},
-		IPMI:           &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
-		Lease:          &LeaseHandler{store: st, config: cfg},
-		Settings:       NewSettingsHandler(cfg, reloader),
-		Logs:           NewLogStreamHandler(bus, logDir(cfg)),
-		Netboot:        NewNetbootHandler(netbootMgr),
-		NetbootOverlay: &NetbootOverlayHandler{store: st},
-		AnswerTemplate: &AnswerTemplateHandler{store: st},
-		InstallTask:    &InstallTaskHandler{store: st, netbootMgr: netbootMgr},
-		Service:        NewServiceHandler(svcController, cfg, func() error { return saveConfig(configPath(cfg), cfg) }),
-		Auth:           NewAuthHandler(cfg, sessions),
-		Access:         NewAccessHandler(st),
-		DNSRecord:      &DNSRecordHandler{store: st, localDomain: cfg.DNS.LocalDomain},
-		BMC:            NewBMCHandler(st),
-		svcController:  svcController,
-		sessions:       sessions,
+		Host:            &HostHandler{store: st},
+		Profile:         &ProfileHandler{store: st},
+		Event:           NewEventHandler(st, bus),
+		File:            &FileHandler{bootFS: bootFS},
+		WOL:             &WOLHandler{store: st},
+		IPMI:            &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
+		Lease:           &LeaseHandler{store: st, config: cfg},
+		Settings:        NewSettingsHandler(cfg, reloader),
+		Logs:            NewLogStreamHandler(bus, logDir(cfg)),
+		Netboot:         NewNetbootHandler(netbootMgr),
+		NetbootOverlay:  &NetbootOverlayHandler{store: st},
+		AnswerTemplate:  &AnswerTemplateHandler{store: st},
+		InstallTask:     &InstallTaskHandler{store: st, netbootMgr: netbootMgr},
+		Service:         NewServiceHandler(svcController, cfg, func() error { return saveConfig(configPath(cfg), cfg) }),
+		Auth:            NewAuthHandler(cfg, sessions),
+		Access:          NewAccessHandler(st),
+		DNSRecord:       &DNSRecordHandler{store: st, localDomain: cfg.DNS.LocalDomain},
+		BMC:             NewBMCHandler(st),
+		DHCPReservation: &DHCPReservationHandler{store: st},
+		svcController:   svcController,
+		sessions:        sessions,
 	}
 	return h
 }
@@ -208,6 +210,13 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/bmc/{id}/restart", h.BMC.PowerRestart)
 		r.Get("/bmc/{id}/status", h.BMC.PowerStatus)
 		r.Post("/bmc/{id}/boot-device", h.BMC.SetBootDevice)
+
+		// DHCP reservations
+		r.Get("/dhcp/reservations", h.DHCPReservation.List)
+		r.Post("/dhcp/reservations", h.DHCPReservation.Create)
+		r.Get("/dhcp/reservations/{id}", h.DHCPReservation.Get)
+		r.Put("/dhcp/reservations/{id}", h.DHCPReservation.Update)
+		r.Delete("/dhcp/reservations/{id}", h.DHCPReservation.Delete)
 
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)

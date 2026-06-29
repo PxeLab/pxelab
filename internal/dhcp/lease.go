@@ -25,10 +25,12 @@ type LeaseManager struct {
 }
 
 type SubnetPool struct {
-	CIDR    string
-	Gateway net.IP
-	Pools   []*IPRange
-	Leases  map[string]*models.Lease
+	CIDR         string
+	Gateway      net.IP
+	Pools        []*IPRange
+	Leases       map[string]*models.Lease
+	Reservations map[string]string // MAC → IP (MAC-based binding)
+	ReservedIPs  map[string]bool   // IP → reserved (IP-only reservation)
 }
 
 type IPRange struct {
@@ -80,10 +82,23 @@ func (lm *LeaseManager) AddSubnet(cidr string, pools []*IPRange, gateway net.IP)
 	lm.mu.Lock()
 	defer lm.mu.Unlock()
 	lm.subnets[cidr] = &SubnetPool{
-		CIDR:    cidr,
-		Gateway: gateway,
-		Pools:   pools,
-		Leases:  make(map[string]*models.Lease),
+		CIDR:         cidr,
+		Gateway:      gateway,
+		Pools:        pools,
+		Leases:       make(map[string]*models.Lease),
+		Reservations: make(map[string]string),
+		ReservedIPs:  make(map[string]bool),
+	}
+}
+
+func (lm *LeaseManager) AddReservation(cidr, mac, ip string) {
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	if pool, ok := lm.subnets[cidr]; ok {
+		if mac != "" {
+			pool.Reservations[mac] = ip
+		}
+		pool.ReservedIPs[ip] = true
 	}
 }
 
@@ -123,6 +138,14 @@ func (lm *LeaseManager) AllocateWithInfo(cidr, mac, arch, platform string) (net.
 		return ip, nil
 	}
 
+	// 检查 MAC 绑定预留
+	if ip, ok := pool.Reservations[mac]; ok {
+		if arch != "" {
+			lm.ipToClient[ip] = ClientInfo{MAC: mac, Arch: arch, Platform: platform}
+		}
+		return net.ParseIP(ip), nil
+	}
+
 	// 检查是否已有租约
 	if lease, ok := pool.Leases[mac]; ok {
 		if time.Now().Before(lease.ExpiresAt) {
@@ -149,7 +172,7 @@ func (lm *LeaseManager) AllocateWithInfo(cidr, mac, arch, platform string) (net.
 					break
 				}
 			}
-			if !used {
+			if !used && !pool.ReservedIPs[ip.String()] {
 				lease := &models.Lease{
 					MAC:       mac,
 					IP:        ip.String(),

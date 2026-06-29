@@ -44,6 +44,8 @@ func (s *sqliteStore) Migrate() error {
 	s.migrateAddColumn("whitelist_entries", "subnet_cidr", "varchar(43) NOT NULL DEFAULT ''")
 	s.migrateAddColumn("whitelist_entries", "source", "varchar(32) DEFAULT 'db'")
 	s.migrateAddColumn("unauthorized_devices", "subnet_cidr", "varchar(43) NOT NULL DEFAULT ''")
+	s.migrateAddColumn("bmc_configs", "next_boot_device", "varchar(32) DEFAULT ''")
+	s.migrateRenameColumn("dhcp_reservations", "subnet_c_id_r", "subnet_cidr", "varchar(255) NOT NULL DEFAULT ''")
 
 	return s.db.AutoMigrate(
 		&models.Host{},
@@ -59,7 +61,17 @@ func (s *sqliteStore) Migrate() error {
 		&models.WhitelistEntry{},
 		&models.UnauthorizedDevice{},
 		&models.BMCConfig{},
+		&models.DHCPReservation{},
 	)
+}
+
+// migrateRenameColumn renames a column if the old name still exists.
+func (s *sqliteStore) migrateRenameColumn(table, oldName, newName, typ string) {
+	var count int64
+	s.db.Raw("SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?", table, oldName).Scan(&count)
+	if count > 0 {
+		s.db.Exec("ALTER TABLE " + table + " RENAME COLUMN " + oldName + " TO " + newName)
+	}
 }
 
 // migrateAddColumn adds a column if it doesn't already exist, avoiding
@@ -454,7 +466,7 @@ func (s *sqliteStore) FindDNSRecords(ctx context.Context, name string, recordTyp
 
 func (s *sqliteStore) ListBMCConfigs(ctx context.Context) ([]models.BMCConfig, error) {
 	var configs []models.BMCConfig
-	if err := s.db.WithContext(ctx).Find(&configs).Error; err != nil {
+	if err := s.db.WithContext(ctx).Order("created_at DESC").Find(&configs).Error; err != nil {
 		return nil, err
 	}
 	return configs, nil
@@ -478,4 +490,54 @@ func (s *sqliteStore) UpdateBMCConfig(ctx context.Context, cfg *models.BMCConfig
 
 func (s *sqliteStore) DeleteBMCConfig(ctx context.Context, id int64) error {
 	return s.db.WithContext(ctx).Delete(&models.BMCConfig{}, id).Error
+}
+
+// ── DHCP Reservations ──
+
+func (s *sqliteStore) ListDHCPReservations(ctx context.Context, subnetCIDR string) ([]models.DHCPReservation, error) {
+	var reservations []models.DHCPReservation
+	query := s.db.WithContext(ctx).Model(&models.DHCPReservation{})
+	if subnetCIDR != "" {
+		query = query.Where("subnet_cidr = ?", subnetCIDR)
+	}
+	if err := query.Order("created_at DESC").Find(&reservations).Error; err != nil {
+		return nil, err
+	}
+	return reservations, nil
+}
+
+func (s *sqliteStore) GetDHCPReservation(ctx context.Context, id uint) (*models.DHCPReservation, error) {
+	var r models.DHCPReservation
+	if err := s.db.WithContext(ctx).First(&r, id).Error; err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+func (s *sqliteStore) GetDHCPReservationByMAC(ctx context.Context, subnetCIDR, mac string) (*models.DHCPReservation, error) {
+	var r models.DHCPReservation
+	if err := s.db.WithContext(ctx).Where("subnet_cidr = ? AND mac = ?", subnetCIDR, mac).First(&r).Error; err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+func (s *sqliteStore) GetDHCPReservationByIP(ctx context.Context, subnetCIDR, ip string) (*models.DHCPReservation, error) {
+	var r models.DHCPReservation
+	if err := s.db.WithContext(ctx).Where("subnet_cidr = ? AND ip = ?", subnetCIDR, ip).First(&r).Error; err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+func (s *sqliteStore) CreateDHCPReservation(ctx context.Context, r *models.DHCPReservation) error {
+	return s.db.WithContext(ctx).Create(r).Error
+}
+
+func (s *sqliteStore) UpdateDHCPReservation(ctx context.Context, r *models.DHCPReservation) error {
+	return s.db.WithContext(ctx).Save(r).Error
+}
+
+func (s *sqliteStore) DeleteDHCPReservation(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.DHCPReservation{}, id).Error
 }

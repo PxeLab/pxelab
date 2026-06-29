@@ -16,47 +16,50 @@ import (
 var ErrNotFound = errors.New("record not found")
 
 type memoryStore struct {
-	mu              sync.RWMutex
-	hosts           map[string]*models.Host
-	profiles        map[string]*models.Profile
-	events          []models.Event
-	leases          map[string]*models.Lease
-	overlays        map[string]*models.NetbootOverlay
-	answerTemplates map[uint]*models.AnswerTemplate
-	tmplVersions    []models.AnswerTemplateVersion
-	installTasks    map[string]*models.InstallTask
-	dnsRecords      map[uint]*models.DNSRecord
-	blacklist       map[string]*models.BlacklistEntry
-	whitelist       map[string]*models.WhitelistEntry
-	unauthDevices   map[string]*models.UnauthorizedDevice
-	bmcConfigs      map[int64]*models.BMCConfig
-	blIdx           uint
-	wlIdx           uint
-	uaIdx           uint
-	bmcIdx          int64
-	hostIdx         int
-	profIdx         int
-	tmplIdx         uint
-	tmplVerIdx      uint
-	dnsRecIdx       uint
-	tmplVerMu       sync.RWMutex
+	mu               sync.RWMutex
+	hosts            map[string]*models.Host
+	profiles         map[string]*models.Profile
+	events           []models.Event
+	leases           map[string]*models.Lease
+	overlays         map[string]*models.NetbootOverlay
+	answerTemplates  map[uint]*models.AnswerTemplate
+	tmplVersions     []models.AnswerTemplateVersion
+	installTasks     map[string]*models.InstallTask
+	dnsRecords       map[uint]*models.DNSRecord
+	blacklist        map[string]*models.BlacklistEntry
+	whitelist        map[string]*models.WhitelistEntry
+	unauthDevices    map[string]*models.UnauthorizedDevice
+	bmcConfigs       map[int64]*models.BMCConfig
+	dhcpReservations map[uint]*models.DHCPReservation
+	blIdx            uint
+	wlIdx            uint
+	uaIdx            uint
+	bmcIdx           int64
+	dhcpResIdx       uint
+	hostIdx          int
+	profIdx          int
+	tmplIdx          uint
+	tmplVerIdx       uint
+	dnsRecIdx        uint
+	tmplVerMu        sync.RWMutex
 }
 
 func NewMemory() Interface {
 	return &memoryStore{
-		hosts:           make(map[string]*models.Host),
-		profiles:        make(map[string]*models.Profile),
-		events:          make([]models.Event, 0),
-		leases:          make(map[string]*models.Lease),
-		overlays:        make(map[string]*models.NetbootOverlay),
-		answerTemplates: make(map[uint]*models.AnswerTemplate),
-		tmplVersions:    make([]models.AnswerTemplateVersion, 0),
-		installTasks:    make(map[string]*models.InstallTask),
-		dnsRecords:      make(map[uint]*models.DNSRecord),
-		blacklist:       make(map[string]*models.BlacklistEntry),
-		whitelist:       make(map[string]*models.WhitelistEntry),
-		unauthDevices:   make(map[string]*models.UnauthorizedDevice),
-		bmcConfigs:      make(map[int64]*models.BMCConfig),
+		hosts:            make(map[string]*models.Host),
+		profiles:         make(map[string]*models.Profile),
+		events:           make([]models.Event, 0),
+		leases:           make(map[string]*models.Lease),
+		overlays:         make(map[string]*models.NetbootOverlay),
+		answerTemplates:  make(map[uint]*models.AnswerTemplate),
+		tmplVersions:     make([]models.AnswerTemplateVersion, 0),
+		installTasks:     make(map[string]*models.InstallTask),
+		dnsRecords:       make(map[uint]*models.DNSRecord),
+		blacklist:        make(map[string]*models.BlacklistEntry),
+		whitelist:        make(map[string]*models.WhitelistEntry),
+		unauthDevices:    make(map[string]*models.UnauthorizedDevice),
+		bmcConfigs:       make(map[int64]*models.BMCConfig),
+		dhcpReservations: make(map[uint]*models.DHCPReservation),
 	}
 }
 
@@ -899,5 +902,89 @@ func (s *memoryStore) DeleteBMCConfig(_ context.Context, id int64) error {
 		return ErrNotFound
 	}
 	delete(s.bmcConfigs, id)
+	return nil
+}
+
+// ── DHCP Reservations ──
+
+func (s *memoryStore) ListDHCPReservations(_ context.Context, subnetCIDR string) ([]models.DHCPReservation, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []models.DHCPReservation
+	for _, r := range s.dhcpReservations {
+		if subnetCIDR != "" && r.SubnetCIDR != subnetCIDR {
+			continue
+		}
+		list = append(list, *r)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].CreatedAt.After(list[j].CreatedAt)
+	})
+	return list, nil
+}
+
+func (s *memoryStore) GetDHCPReservation(_ context.Context, id uint) (*models.DHCPReservation, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	r, ok := s.dhcpReservations[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return r, nil
+}
+
+func (s *memoryStore) GetDHCPReservationByMAC(_ context.Context, subnetCIDR, mac string) (*models.DHCPReservation, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, r := range s.dhcpReservations {
+		if r.SubnetCIDR == subnetCIDR && r.MAC == mac {
+			return r, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (s *memoryStore) GetDHCPReservationByIP(_ context.Context, subnetCIDR, ip string) (*models.DHCPReservation, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, r := range s.dhcpReservations {
+		if r.SubnetCIDR == subnetCIDR && r.IP == ip {
+			return r, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (s *memoryStore) CreateDHCPReservation(_ context.Context, r *models.DHCPReservation) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dhcpResIdx++
+	r.ID = s.dhcpResIdx
+	r.CreatedAt = time.Now()
+	r.UpdatedAt = time.Now()
+	s.dhcpReservations[r.ID] = r
+	return nil
+}
+
+func (s *memoryStore) UpdateDHCPReservation(_ context.Context, r *models.DHCPReservation) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	existing, ok := s.dhcpReservations[r.ID]
+	if !ok {
+		return ErrNotFound
+	}
+	r.CreatedAt = existing.CreatedAt
+	r.UpdatedAt = time.Now()
+	s.dhcpReservations[r.ID] = r
+	return nil
+}
+
+func (s *memoryStore) DeleteDHCPReservation(_ context.Context, id uint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.dhcpReservations[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.dhcpReservations, id)
 	return nil
 }

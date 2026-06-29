@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, ChevronDown, ChevronRight, Info } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight, Info, Eye } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { Button } from '../components/ui/Button'
@@ -21,6 +21,7 @@ export default function Profiles() {
   const [showVars, setShowVars] = useState(false)
   const [saving, setSaving] = useState(false)
   const [nameError, setNameError] = useState(false)
+  const [previewProfile, setPreviewProfile] = useState<Profile | null>(null)
   const [osCatalog, setOSCatalog] = useState<NetbootDistro[]>([])
 
   useEffect(() => { loadProfiles() }, [])
@@ -35,6 +36,10 @@ export default function Profiles() {
       setProfiles(res.data)
     } catch { error('加载失败') }
     finally { setLoading(false) }
+  }
+
+  function openPreview(p: Profile) {
+    setPreviewProfile(p)
   }
 
   function openCreate() {
@@ -108,16 +113,17 @@ export default function Profiles() {
     { key: 'is_default', label: t('profiles.isDefault'), render: (p) => p.is_default ? <Tag color="green">默认</Tag> : null },
     { key: 'actions', label: '', render: (p) => (
       <div className="flex gap-1">
+        <Button variant="ghost" size="sm" onClick={() => openPreview(p)}><Eye size={13} /></Button>
         <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>{t('common.edit')}</Button>
         <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}>{t('common.delete')}</Button>
       </div>
-    ), width: '100px' },
+    ), width: '130px' },
   ]
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <div></div>
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">启动配置</h1>
         <Button variant="primary" onClick={openCreate}>
           <Plus size={14} /> {t('profiles.addProfile')}
         </Button>
@@ -314,6 +320,92 @@ export default function Profiles() {
             </div>
           </Modal>
         )}
+      </Modal>
+
+      {/* 预览 */}
+      <Modal open={!!previewProfile} onClose={() => setPreviewProfile(null)} title={t('profiles.preview', '查看配置')} width="560px">
+        {previewProfile && (() => {
+          const entry = previewProfile.menu?.entries?.[0]
+          const entryLabels: Record<string, string> = { direct: 'direct — 内核+initrd 引导', chain: 'chain — 链式加载 NBP', local: 'local — 本地硬盘启动', sanboot: 'sanboot — SAN 存储启动', wds: 'wds — WIM 文件启动' }
+          return (
+            <div className="space-y-5">
+              <div>
+                <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">基本信息</h3>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                  <div>
+                    <span className="text-[var(--text-muted)] text-xs">{t('profiles.name')}</span>
+                    <p className="font-medium text-[var(--text-primary)] mt-0.5">{previewProfile.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-[var(--text-muted)] text-xs">{t('profiles.arch')}</span>
+                    <p className="font-mono text-sm text-[var(--text-primary)] mt-0.5">{previewProfile.arch || '自动'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-[var(--text-muted)] text-xs">{t('profiles.description')}</span>
+                    <p className="text-sm text-[var(--text-primary)] mt-0.5">{previewProfile.description || '-'}</p>
+                  </div>
+                  <div>
+                    <span className="text-[var(--text-muted)] text-xs">{t('profiles.isDefault')}</span>
+                    <p className="text-sm mt-0.5">{previewProfile.is_default ? <Tag color="green">默认</Tag> : '否'}</p>
+                  </div>
+                  <div>
+                    <span className="text-[var(--text-muted)] text-xs">创建时间</span>
+                    <p className="text-sm text-[var(--text-primary)] mt-0.5 font-mono">{previewProfile.created_at?.replace('T', ' ').slice(0, 19)}</p>
+                  </div>
+                </div>
+              </div>
+              {entry && (
+                <div>
+                  <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">引导项</h3>
+                  <div className="bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                      <div>
+                        <span className="text-[var(--text-muted)] text-xs">{t('profiles.entryType')}</span>
+                        <p className="text-[var(--text-primary)] mt-0.5">{entryLabels[entry.type] || entry.type}</p>
+                      </div>
+                      {entry.type === 'local' && (
+                        <div>
+                          <span className="text-[var(--text-muted)] text-xs">标签</span>
+                          <p className="text-[var(--text-primary)] mt-0.5 font-mono text-xs">{entry.label}</p>
+                        </div>
+                      )}
+                    </div>
+                    {entry.type === 'direct' && (
+                      <div className="space-y-2.5">
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+                          <div>
+                            <span className="text-[var(--text-muted)] text-xs">{t('profiles.kernel')}</span>
+                            <p className="text-[var(--text-primary)] mt-0.5 font-mono text-xs break-all">{entry.kernel || '-'}</p>
+                          </div>
+                          <div>
+                            <span className="text-[var(--text-muted)] text-xs">{t('profiles.initrd')}</span>
+                            <p className="text-[var(--text-primary)] mt-0.5 font-mono text-xs break-all">{entry.initrd || '-'}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-[var(--text-muted)] text-xs">{t('profiles.cmdline')}</span>
+                          <p className="text-[var(--text-primary)] mt-0.5 font-mono text-xs break-all">{entry.cmdline || '-'}</p>
+                        </div>
+                      </div>
+                    )}
+                    {entry.type === 'chain' && (
+                      <div>
+                        <span className="text-[var(--text-muted)] text-xs">{t('profiles.url')}</span>
+                        <p className="text-[var(--text-primary)] mt-0.5 font-mono text-xs break-all">{entry.url || '-'}</p>
+                      </div>
+                    )}
+                    {entry.type === 'wds' && (
+                      <div>
+                        <span className="text-[var(--text-muted)] text-xs">{t('profiles.wim')}</span>
+                        <p className="text-[var(--text-primary)] mt-0.5 font-mono text-xs break-all">{entry.wim || '-'}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </Modal>
     </div>
   )

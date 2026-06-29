@@ -80,6 +80,14 @@ export default function Hosts() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">主机</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
+            <Plus size={14} /> {t('hosts.addHost')}
+          </Button>
+        </div>
+      </div>
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -92,9 +100,6 @@ export default function Hosts() {
           </div>
           <span className="text-sm text-[var(--text-muted)]">{t('common.total', '共')} {total} {t('common.items', '条')}</span>
         </div>
-        <Button variant="primary" onClick={() => setShowModal(true)}>
-          <Plus size={14} /> {t('hosts.addHost')}
-        </Button>
       </div>
 
       <Card padding={false}>
