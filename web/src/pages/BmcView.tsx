@@ -257,34 +257,31 @@ export default function BmcView() {
       )}
 
       <Card padding={false}>
-        {configs.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <p className="text-sm text-[var(--text-muted)] mb-4">暂无 BMC 配置</p>
-              <Button variant="primary" size="sm" onClick={openCreate}>
-                <Plus size={14} /> 新建配置
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--bg-border)]">
-                  <th className="px-4 py-3 w-10">
-                    <input type="checkbox" checked={selectedIds.size === configs.length && configs.length > 0} onChange={selectAll} className="accent-blue-500 cursor-pointer" />
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">设备名</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">BMC 地址</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">协议</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">品牌 / 型号</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">SN</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">电源状态</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">操作</th>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[var(--bg-border)]">
+                <th className="px-4 py-3 w-10">
+                  <input type="checkbox" checked={selectedIds.size === configs.length && configs.length > 0} onChange={selectAll} className="accent-blue-500 cursor-pointer" />
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">设备名</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">BMC 地址</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">协议</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">品牌 / 型号</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">SN</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">电源状态</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {configs.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-16 text-center text-sm text-[var(--text-muted)]">
+                    暂无 BMC 配置
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {configs.map(cfg => (
+              ) : (
+                configs.map(cfg => (
                   <tr key={cfg.id} className="border-b border-[var(--bg-border)] last:border-0 hover:bg-[var(--bg-card)]/50 transition-colors">
                     <td className="px-4 py-3">
                       <input type="checkbox" checked={selectedIds.has(cfg.id!)} onChange={() => toggleSelect(cfg.id!)} className="accent-blue-500 cursor-pointer" />
@@ -360,11 +357,10 @@ export default function BmcView() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
-        )}
       </Card>
 
       <BMCConfigForm
