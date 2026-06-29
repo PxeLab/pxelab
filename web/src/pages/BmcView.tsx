@@ -48,6 +48,8 @@ export default function BmcView() {
 
   const [refreshingIds, setRefreshingIds] = useState<Set<number>>(new Set())
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const configsRef = useRef(configs)
+  configsRef.current = configs
 
   useEffect(() => { loadConfigs(); return () => { if (pollRef.current) clearInterval(pollRef.current) } }, [])
 
@@ -58,7 +60,7 @@ export default function BmcView() {
       setConfigs(res.data)
       refreshAllStatus(res.data)
       if (pollRef.current) clearInterval(pollRef.current)
-      pollRef.current = setInterval(() => refreshAllStatus(res.data), 10000)
+      pollRef.current = setInterval(() => refreshAllStatus(configsRef.current), 10000)
     } catch (err: any) {
       showError(err.message || '加载失败')
     } finally {

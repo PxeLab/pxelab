@@ -82,7 +82,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
     setSaving(true)
     setError('')
     try {
-      const data: any = { host, port, username, password, protocol, boot_mode: bootMode }
+      const data: Partial<BMCConfigType> = { host, port, username, password, protocol, boot_mode: bootMode }
       if (probeResult) {
         data.name = probeResult.name
         data.vendor = probeResult.vendor
