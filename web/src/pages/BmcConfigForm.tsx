@@ -16,12 +16,6 @@ const PROTOCOL_OPTIONS = [
   { value: 'redfish', label: 'Redfish' },
 ]
 
-const BOOT_MODE_OPTIONS = [
-  { value: 'auto', label: '自动探测' },
-  { value: 'uefi', label: 'UEFI' },
-  { value: 'legacy', label: 'Legacy' },
-]
-
 export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Props) {
   const isEdit = !!editConfig
 
@@ -48,7 +42,6 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
   const [probeError, setProbeError] = useState('')
   const [probeSkipped, setProbeSkipped] = useState(false)
 
-  const [bootMode, setBootMode] = useState(editConfig?.boot_mode || 'auto')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -88,7 +81,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
     setSaving(true)
     setError('')
     try {
-      const data: Partial<BMCConfigType> = { host, port, username, password, protocol, boot_mode: bootMode }
+      const data: Partial<BMCConfigType> = { host, port, username, password, protocol }
       if (probeResult) {
         data.name = probeResult.name
         data.vendor = probeResult.vendor
@@ -253,18 +246,6 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
             </div>
           </div>
         )}
-
-        <div>
-          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">引导模式</label>
-          <select
-            value={bootMode} onChange={e => setBootMode(e.target.value)}
-            className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
-          >
-            {BOOT_MODE_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
 
         {host && (
           <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
