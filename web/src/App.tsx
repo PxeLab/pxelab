@@ -2,6 +2,7 @@ import { useState, useEffect, Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { ToastProvider } from './components/ui/Toast'
+import { UIConfigProvider } from './contexts/UIConfigContext'
 import { checkSession } from './api/client'
 import LoginPage from './pages/Login'
 import './i18n'
@@ -10,16 +11,13 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Hosts = lazy(() => import('./pages/Hosts'))
 const HostDetail = lazy(() => import('./pages/HostDetail'))
 const Profiles = lazy(() => import('./pages/Profiles'))
-const Files = lazy(() => import('./pages/Files'))
+
 const Events = lazy(() => import('./pages/Events'))
 const Logs = lazy(() => import('./pages/Logs'))
 const SettingsLayout = lazy(() => import('./pages/SettingsLayout'))
-const SettingsGeneral = lazy(() => import('./pages/SettingsGeneral'))
 const SettingsDHCP = lazy(() => import('./pages/SettingsDHCP'))
 const SettingsTFTP = lazy(() => import('./pages/SettingsTFTP'))
 const SettingsDNS = lazy(() => import('./pages/SettingsDNS'))
-const SettingsNetboot = lazy(() => import('./pages/SettingsNetboot'))
-const Services = lazy(() => import('./pages/Services'))
 const NetbootCatalog = lazy(() => import('./pages/NetbootCatalog'))
 const AnswerTemplates = lazy(() => import('./pages/AnswerTemplates'))
 const AccessControl = lazy(() => import('./pages/AccessControl'))
@@ -70,6 +68,7 @@ function AppContent() {
   }
 
   return (
+    <UIConfigProvider>
     <AppShell>
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
@@ -77,26 +76,25 @@ function AppContent() {
           <Route path="/hosts" element={<Hosts />} />
           <Route path="/hosts/:id" element={<HostDetail />} />
           <Route path="/profiles" element={<Profiles />} />
-          <Route path="/files" element={<Files />} />
-          <Route path="/netboot-catalog" element={<NetbootCatalog />} />
+
           <Route path="/answer-templates" element={<AnswerTemplates />} />
           <Route path="/access-control" element={<AccessControl />} />
           <Route path="/install-tasks" element={<InstallTasks />} />
           <Route path="/bmc" element={<BmcView />} />
+          <Route path="/netboot-catalog" element={<NetbootCatalog />} />
           <Route path="/events" element={<Events />} />
           <Route path="/logs" element={<Logs />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/settings" element={<SettingsLayout />}>
-            <Route index element={<SettingsGeneral />} />
+          <Route path="/services" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="/services/dhcp" replace />} />
             <Route path="dhcp" element={<SettingsDHCP />} />
             <Route path="tftp" element={<SettingsTFTP />} />
             <Route path="dns" element={<SettingsDNS />} />
-            <Route path="netboot" element={<SettingsNetboot />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </AppShell>
+    </UIConfigProvider>
   )
 }
 

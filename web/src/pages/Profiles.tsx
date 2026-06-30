@@ -56,7 +56,14 @@ export default function Profiles() {
       description: p.description || '',
       arch: p.arch || '',
       is_default: p.is_default,
-      entry: { ...e, kernel: e.kernel || '', initrd: e.initrd || '', cmdline: e.cmdline || '', url: e.url || '', wim: e.wim || '' },
+      entry: {
+        ...e,
+        kernel: e.kernel || '',
+        initrd: e.initrd || '',
+        cmdline: e.cmdline || '',
+        url: e.url || '',
+        wim: e.wim || '',
+      },
     })
     setShowModal(true)
   }
@@ -70,12 +77,13 @@ export default function Profiles() {
     setSaving(true)
     try {
       const label = form.name || '未命名'
+      const entryData: Partial<MenuEntry> = { label, ...form.entry }
       const data = {
         name: form.name,
         description: form.description,
         arch: form.arch,
         is_default: form.is_default,
-        menu: { entries: [{ ...form.entry, label }] },
+        menu: { entries: [entryData as MenuEntry] },
       }
       if (editing) {
         await api.updateProfile(editing.id, data)
@@ -213,19 +221,17 @@ export default function Profiles() {
               </div>
               {form.entry.type === 'direct' && (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.kernel')}</label>
-                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.kernel || ''} onChange={e => updateEntry('kernel', e.target.value)} placeholder="vmlinuz 或 bootos/${arch}/vmlinuz" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.initrd')}</label>
-                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.initrd || ''} onChange={e => updateEntry('initrd', e.target.value)} placeholder="initrd.img 或 bootos/${arch}/initrd" />
-                    </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.kernel')}</label>
+                    <textarea className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.kernel || ''} onChange={e => updateEntry('kernel', e.target.value)} placeholder="vmlinuz 或 bootos/${arch}/vmlinuz" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.initrd')}</label>
+                    <textarea className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.initrd || ''} onChange={e => updateEntry('initrd', e.target.value)} placeholder="initrd.img 或 bootos/${arch}/initrd" />
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
-                    <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} placeholder="例: console=tty0 quiet" />
+                    <textarea className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} placeholder="例: console=tty0 quiet" />
                   </div>
                   <div className="flex justify-end">
                     <button
@@ -250,6 +256,7 @@ export default function Profiles() {
                   <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} />
                 </div>
               )}
+
             </div>
           </div>
 

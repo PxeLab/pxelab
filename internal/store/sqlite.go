@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"github.com/google/uuid"
 	"github.com/pxego/pxego/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -46,6 +47,7 @@ func (s *sqliteStore) Migrate() error {
 	s.migrateAddColumn("unauthorized_devices", "subnet_cidr", "varchar(43) NOT NULL DEFAULT ''")
 	s.migrateAddColumn("bmc_configs", "next_boot_device", "varchar(32) DEFAULT ''")
 	s.migrateRenameColumn("dhcp_reservations", "subnet_c_id_r", "subnet_cidr", "varchar(255) NOT NULL DEFAULT ''")
+	s.migrateEmptyProfileIDs()
 
 	return s.db.AutoMigrate(
 		&models.Host{},
@@ -84,6 +86,23 @@ func (s *sqliteStore) migrateAddColumn(table, column, typ string) {
 	}
 }
 
+
+// migrateEmptyProfileIDs assigns UUIDs to profiles that have empty IDs.
+func (s *sqliteStore) migrateEmptyProfileIDs() {
+	var count int64
+	s.db.Model(&models.Profile{}).Where("id = ''").Count(&count)
+	if count > 0 {
+		type rowID struct {
+			RowID int64 `gorm:"column:rowid"`
+		}
+		var rows []rowID
+		s.db.Raw("SELECT rowid FROM profiles WHERE id = ''").Scan(&rows)
+		for _, r := range rows {
+			s.db.Exec("UPDATE profiles SET id = ? WHERE rowid = ?", uuid.New().String(), r.RowID)
+		}
+	}
+}
+
 func (s *sqliteStore) Seed() error {
 	var count int64
 	if err := s.db.Model(&models.Profile{}).Count(&count).Error; err != nil {
@@ -91,6 +110,7 @@ func (s *sqliteStore) Seed() error {
 	}
 	if count == 0 {
 		profile := &models.Profile{
+			ID:          uuid.New().String(),
 			Name:        "默认引导配置",
 			Description: "系统自动创建的默认引导配置，首条为本地硬盘启动",
 			IsDefault:   true,

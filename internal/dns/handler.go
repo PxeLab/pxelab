@@ -26,14 +26,15 @@ var dnsTypeMap = map[uint16]string{
 }
 
 type Handler struct {
-	store           store.Interface
-	localDomain     string
-	upstreams       []string
-	client          *dns.Client
-	eventBus        *eventbus.Bus
-	defaultRecord   bool
-	defaultRecordIP string
-	interfaces      []config.InterfaceConfig
+	store         store.Interface
+	localDomain   string
+	upstreams     []string
+	client        *dns.Client
+	eventBus      *eventbus.Bus
+	defaultRecord bool
+	subnetCIDRs   []string          // all known subnet CIDRs
+	subnetIPMap   map[string]string // subnet CIDR → 服务器 IP
+	fallbackIP    string            // 非 loopback 兜底 IP
 }
 
 func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Handler {
@@ -41,17 +42,61 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Hand
 	if localDomain == "" {
 		localDomain = "pxego.local"
 	}
-	defaultRecordIP := cfg.DNS.DefaultRecordIP
-	return &Handler{
-		store:           st,
-		localDomain:     localDomain,
-		upstreams:       parseUpstreams(cfg.DNS.Upstream),
-		client:          &dns.Client{ReadTimeout: dnsTimeout},
-		eventBus:        bus,
-		defaultRecord:   cfg.DNS.DefaultRecord,
-		defaultRecordIP: defaultRecordIP,
-		interfaces:      cfg.Interfaces,
+
+	subnetIPMap := make(map[string]string)
+	var subnetCIDRs []string
+	var fallbackIP string
+	for _, iface := range cfg.Interfaces {
+		ip := net.ParseIP(iface.IP)
+		if ip == nil || ip.IsLoopback() {
+			continue
+		}
+		if fallbackIP == "" {
+			fallbackIP = iface.IP
+		}
+		for _, sn := range iface.Subnets {
+			if sn.CIDR != "" {
+				subnetIPMap[sn.CIDR] = iface.IP
+				subnetCIDRs = append(subnetCIDRs, sn.CIDR)
+			}
+		}
 	}
+	// 优先使用保存的 DefaultRecordIP（用户可能手动配过）
+	if cfg.DNS.DefaultRecordIP != "" {
+		fallbackIP = cfg.DNS.DefaultRecordIP
+	}
+
+	return &Handler{
+		store:         st,
+		localDomain:   localDomain,
+		upstreams:     parseUpstreams(cfg.DNS.Upstream),
+		client:        &dns.Client{ReadTimeout: dnsTimeout},
+		eventBus:      bus,
+		defaultRecord: cfg.DNS.DefaultRecord,
+		subnetCIDRs:   subnetCIDRs,
+		subnetIPMap:   subnetIPMap,
+		fallbackIP:    fallbackIP,
+	}
+}
+
+// defaultRecordIP 根据客户端子网返回匹配的服务器 IP，无匹配时返回兜底 IP
+func (h *Handler) defaultRecordIP(clientSubnet string) string {
+	if clientSubnet != "" {
+		if ip, ok := h.subnetIPMap[clientSubnet]; ok {
+			return ip
+		}
+		// 尝试 CIDR 前缀匹配（/24 范围内可能有细微差异）
+		for cidr, ip := range h.subnetIPMap {
+			_, network, err := net.ParseCIDR(cidr)
+			if err == nil {
+				clientIP, _, _ := net.ParseCIDR(clientSubnet + "/" + strings.Split(cidr, "/")[1])
+				if clientIP != nil && network.Contains(clientIP) {
+					return ip
+				}
+			}
+		}
+	}
+	return h.fallbackIP
 }
 
 // parseUpstreams splits an upstream string by comma or whitespace.
@@ -100,12 +145,16 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			return
 		}
 
-		// 泛域名解析：本地未命中且查询在本地域内时，返回默认 IP
-		if h.defaultRecord && h.defaultRecordIP != "" && typeStr == "A" {
+		// 泛域名解析：本地未命中且查询在本地域内时，返回匹配子网的 IP
+		if h.defaultRecord && typeStr == "A" {
 			if strings.HasSuffix(qName, "."+h.localDomain) || strings.EqualFold(qName, h.localDomain) {
-				slog.Info("DNS 泛域名解析", "service", "DNS", "name", qName, "ip", h.defaultRecordIP, "client", clientIP)
+				ip := h.defaultRecordIP(clientSubnet)
+				if ip == "" {
+					return
+				}
+				slog.Info("DNS 泛域名解析", "service", "DNS", "name", qName, "ip", ip, "client", clientIP)
 				m.Authoritative = true
-				rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN A %s", q.Name, h.defaultRecordIP))
+				rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN A %s", q.Name, ip))
 				if err == nil {
 					m.Answer = append(m.Answer, rr)
 				}
@@ -193,12 +242,10 @@ func (h *Handler) matchClientSubnet(clientAddr string) string {
 	if clientIP == nil {
 		return ""
 	}
-	for _, iface := range h.interfaces {
-		for _, subnet := range iface.Subnets {
-			_, cidrNet, err := net.ParseCIDR(subnet.CIDR)
-			if err == nil && cidrNet.Contains(clientIP) {
-				return subnet.CIDR
-			}
+	for _, cidr := range h.subnetCIDRs {
+		_, cidrNet, err := net.ParseCIDR(cidr)
+		if err == nil && cidrNet.Contains(clientIP) {
+			return cidr
 		}
 	}
 	return ""

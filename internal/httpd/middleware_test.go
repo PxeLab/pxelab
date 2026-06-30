@@ -148,7 +148,7 @@ func TestAuthMiddleware(t *testing.T) {
 		}))
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest("GET", "/settings", nil)
+		r := httptest.NewRequest("GET", "/services/dhcp", nil)
 		r.RemoteAddr = "192.168.1.100:12345"
 		handler.ServeHTTP(w, r)
 

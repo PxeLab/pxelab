@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
 import { useToast } from '../components/ui/Toast'
 import { api, type Event } from '../api/client'
+import { useUIConfig } from '../contexts/UIConfigContext'
 
 const filterChips = [
   { key: '', label: 'events.all', color: 'blue' as const },
@@ -31,7 +32,7 @@ export default function Events() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const esRef = useRef<EventSource | null>(null)
 
-  const size = 20
+  const { pageSize } = useUIConfig()
 
   useEffect(() => {
     loadEvents()
@@ -45,7 +46,7 @@ export default function Events() {
   async function loadEvents() {
     setLoading(true)
     try {
-      const params: Record<string, string> = { page: String(page), size: String(size) }
+      const params: Record<string, string> = { page: String(page), size: String(pageSize) }
       if (filter) params.type = filter
       const res = await api.getEvents(params)
       setEvents(res.data.events)
@@ -65,7 +66,7 @@ export default function Events() {
           setLiveEvents(prev => [evt, ...prev].slice(0, 100))
           return
         }
-        setEvents(prev => [evt, ...prev].slice(0, size * 3))
+        setEvents(prev => [evt, ...prev].slice(0, pageSize * 3))
       } catch { /* ignore */ }
     }
     es.onerror = () => {
@@ -80,7 +81,7 @@ export default function Events() {
       setPaused(false)
       const batch = liveEvents
       setLiveEvents([])
-      setEvents(prev => [...batch, ...prev].slice(0, size * 3))
+      setEvents(prev => [...batch, ...prev].slice(0, pageSize * 3))
     } else {
       setPaused(true)
     }
@@ -180,7 +181,7 @@ export default function Events() {
             </div>
           )}
           <div className="px-5 py-3 border-t border-[var(--bg-border)]">
-            <Pagination page={page} total={total} size={size} onChange={setPage} />
+            <Pagination page={page} total={total} size={pageSize} onChange={setPage} />
           </div>
         </Card>
       </div>

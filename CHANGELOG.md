@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- 文件管理表格显示修改时间、MD5 列，带表头展示
+- 后端文件列表 API 返回 MD5 哈希
+- data_dir 路径校验（创建 + 可写测试）
+- DNS 自动创建服务器名称 A 记录（server_name.domain.local）
+- DNS 子网感知解析：根据客户端来源子网返回对应网段的服务器 IP
+- TFTP 基本设置页签（URL 参数持久化）
+- 设置弹窗「每页条数」字段
+- DHCP 设置 / 访问控制 / OS 安装目录页签 URL 参数持久化（刷新不丢失）
 - DHCP 预留管理（IP+MAC 绑定）：DB 存储 + CRUD API + 前端「预留管理」页面标签
 - IP 预留冲突检测：新建/编辑时检查 IP 是否已被其他预留或活跃租约占用，前端实时提示
 - IP 地址池范围显示：预留管理页面展示所选子网的可用池范围
@@ -12,6 +20,14 @@
 - 后端 Seed() 方法，存储层统一初始化入口
 
 ### Changed
+- /files 页面移至 /settings/tftp 文件管理页签
+- TFTP 引导文件映射改为三个切换页签（iPXE / PXELinux / GRUB2）
+- 文件管理改为表格布局（名称 / 大小 / 修改时间 / MD5 / 删除）
+- 设置弹窗保存后同步 pageSize 到 UIConfigContext
+- DNS 默认 @ 记录创建跳过 loopback IP，取第一个非 loopback 接口 IP
+- 路由重构：/settings/dhcp → /services/dhcp，/settings/tftp → /services/tftp，/settings/dns → /services/dns（前端路由 + 后端 API 同步）
+- 导航调整：OS 安装目录从「管理」移至「设置」分组；移除 /settings 首页（重定向到 /services/dhcp）
+- Toast 通知 z-index 提升至 [200]，避免被模态框遮挡
 - 统一引导菜单管理：移除动态追加（AppendLocal/AppendNetboot），所有引导项通过 Profile 管理
 - 每个 Profile 改为单引导项，简化创建/编辑界面（移除多条目列表，直接选择引导类型和参数）
 - 默认菜单支持两种模式：仅显示默认 Profile 的引导项，或列出所有 Profile

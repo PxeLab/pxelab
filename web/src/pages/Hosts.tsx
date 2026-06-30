@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
 import { api, type Host } from '../api/client'
+import { useUIConfig } from '../contexts/UIConfigContext'
 
 export default function Hosts() {
   const { t } = useTranslation()
@@ -22,7 +23,7 @@ export default function Hosts() {
   const [showModal, setShowModal] = useState(false)
   const [newHost, setNewHost] = useState({ name: '', mac: '', ip: '', profile_id: '' })
 
-  const size = 10
+  const { pageSize } = useUIConfig()
 
   useEffect(() => {
     loadHosts()
@@ -31,7 +32,7 @@ export default function Hosts() {
   async function loadHosts() {
     setLoading(true)
     try {
-      const res = await api.getHosts({ page: String(page), size: String(size), search })
+      const res = await api.getHosts({ page: String(page), size: String(pageSize), search })
       setHosts(res.data.hosts)
       setTotal(res.data.meta.total)
     } catch (err: any) {
@@ -111,7 +112,7 @@ export default function Hosts() {
           emptyText={t('hosts.empty', '暂无主机')}
         />
         <div className="px-5 py-3">
-          <Pagination page={page} total={total} size={size} onChange={setPage} />
+          <Pagination page={page} total={total} size={pageSize} onChange={setPage} />
         </div>
       </Card>
 

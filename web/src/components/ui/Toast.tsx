@@ -76,7 +76,7 @@ export const ToastProvider: FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <ToastContext.Provider value={{ toast, success, error, info, warning, showToast }}>
       {children}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2">
+      <div className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2">
         {toasts.map(t => {
           const Icon = iconMap[t.type]
           return (

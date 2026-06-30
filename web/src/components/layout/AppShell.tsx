@@ -1,13 +1,14 @@
-import { type FC, type ReactNode, useState } from 'react'
+import { type FC, type ReactNode, useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../../hooks/useTheme'
 import { ThemeToggle } from '../ThemeToggle'
 import { LangSwitch } from '../LangSwitch'
 import { StatusDot } from '../ui/StatusDot'
+import { getServices, startService, stopService, restartService, batchService, type ServiceInfo } from '../../api/client'
 import SettingsModal from './SettingsModal'
 import {
-  LayoutDashboard, Server, FileCode, FolderOpen, Activity, Settings,
+  LayoutDashboard, Server, FileCode, Activity, Settings,
   Monitor, ShieldCheck, Network, Menu, ChevronRight,
   PanelLeftClose, PanelLeftOpen, HardDrive, Cpu,
 } from 'lucide-react'
@@ -32,8 +33,6 @@ const navSections = [
     items: [
       { path: '/hosts', label: 'nav.hosts', icon: Server },
       { path: '/profiles', label: 'nav.profiles', icon: FileCode },
-      { path: '/files', label: 'nav.files', icon: FolderOpen },
-      { path: '/netboot-catalog', label: 'nav.netboot', icon: Server },
       { path: '/answer-templates', label: '应答模板', icon: FileCode },
       { path: '/access-control', label: '访问控制', icon: ShieldCheck },
       { path: '/install-tasks', label: 'nav.installTasks', icon: HardDrive },
@@ -50,17 +49,147 @@ const navSections = [
   {
     label: 'nav.section.settings',
     items: [
-      { path: '/settings/dhcp', label: 'nav.settings.dhcp', icon: Network },
-      { path: '/settings/tftp', label: 'nav.settings.tftp', icon: Monitor },
-      { path: '/settings/dns', label: 'nav.settings.dns', icon: Monitor },
-      { path: '/settings/netboot', label: 'nav.settings.netboot', icon: Monitor },
-      { path: '/services', label: 'nav.services', icon: Monitor },
+      { path: '/services/dhcp', label: 'nav.settings.dhcp', icon: Network },
+      { path: '/services/tftp', label: 'nav.settings.tftp', icon: Monitor },
+      { path: '/services/dns', label: 'nav.settings.dns', icon: Monitor },
+      { path: '/netboot-catalog', label: 'OS 安装目录', icon: Monitor },
     ] as NavItem[],
   },
 ]
 
 interface Props {
   children: ReactNode
+}
+
+function ServiceDropdown() {
+  const [services, setServices] = useState<ServiceInfo[]>([])
+  const [open, setOpen] = useState(false)
+  const [operating, setOperating] = useState<Set<string>>(new Set())
+  const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const hoverOpen = () => {
+    clearTimeout(hoverTimer.current)
+    setOpen(true)
+  }
+  const hoverClose = () => {
+    hoverTimer.current = setTimeout(() => setOpen(false), 200)
+  }
+
+  const load = useCallback(async () => {
+    try {
+      const res = await getServices()
+      setServices(res.data)
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { load(); const iv = setInterval(load, 5000); return () => clearInterval(iv) }, [load])
+
+  const running = services.filter(s => s.status === 'running').length
+  const stopped = services.filter(s => s.status === 'stopped').length
+  const errors = services.filter(s => s.status === 'error').length
+
+  const runOp = async (name: string, op: 'start' | 'stop' | 'restart') => {
+    setOperating(prev => new Set(prev).add(name + op))
+    try {
+      if (op === 'start') await startService(name)
+      else if (op === 'stop') await stopService(name)
+      else await restartService(name)
+      await load()
+    } catch { /* ignore */ }
+    setOperating(prev => { const next = new Set(prev); next.delete(name + op); return next })
+  }
+
+  const batchAll = async (op: 'start' | 'stop' | 'restart') => {
+    const targets = services.filter(s => !s.protected && (op === 'start' ? s.status !== 'running' : true))
+    if (targets.length === 0) return
+    const names = targets.map(s => s.name)
+    names.forEach(n => setOperating(prev => new Set(prev).add(n + op)))
+    try {
+      await batchService(op, names)
+      await load()
+    } catch { /* ignore */ }
+    names.forEach(n => setOperating(prev => { const next = new Set(prev); next.delete(n + op); return next }))
+  }
+
+  const anyOperating = (op: string) => services.some(s => operating.has(s.name + op))
+
+  return (
+    <div className="relative" onMouseEnter={hoverOpen} onMouseLeave={hoverClose}>
+      <button
+        className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold bg-[var(--bg-card)] border border-[var(--bg-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors"
+      >
+        <div className="flex items-center gap-2.5 py-0.5">
+          <span className="flex items-center gap-1"><StatusDot color="green" /><span className="text-green-400 font-bold">{running}</span><span className="text-[10px] text-[var(--text-muted)]">运行</span></span>
+          <span className="flex items-center gap-1"><StatusDot color="yellow" /><span className="text-yellow-400 font-bold">{stopped}</span><span className="text-[10px] text-[var(--text-muted)]">停止</span></span>
+          <span className="flex items-center gap-1"><StatusDot color="red" /><span className="text-red-400 font-bold">{errors}</span><span className="text-[10px] text-[var(--text-muted)]">错误</span></span>
+        </div>
+      </button>
+      {open && (
+        <div onMouseEnter={hoverOpen} onMouseLeave={hoverClose}>
+          <div className="absolute right-0 top-full mt-2 w-[520px] z-50 rounded-xl bg-[var(--bg-elevated)] border border-[var(--bg-border)] shadow-2xl overflow-hidden">
+            {/* 一键操作 */}
+            <div className="px-4 py-3 border-b border-[var(--bg-border)] bg-[var(--bg-base)]/50">
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => batchAll('start')} disabled={anyOperating('start')}
+                  className="px-2.5 py-1 text-[10px] font-medium rounded bg-green-500/15 text-green-400 hover:bg-green-500/25 disabled:opacity-40 transition-colors">
+                  {anyOperating('start') ? '...' : '一键启动'}
+                </button>
+                <button onClick={() => batchAll('stop')} disabled={anyOperating('stop')}
+                  className="px-2.5 py-1 text-[10px] font-medium rounded bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-40 transition-colors">
+                  {anyOperating('stop') ? '...' : '一键停止'}
+                </button>
+                <button onClick={() => batchAll('restart')} disabled={anyOperating('restart')}
+                  className="px-2.5 py-1 text-[10px] font-medium rounded bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-40 transition-colors">
+                  {anyOperating('restart') ? '...' : '一键重启'}
+                </button>
+              </div>
+            </div>
+            {/* 服务列表 */}
+            <div className="max-h-[320px] overflow-y-auto">
+              {services.map(svc => {
+                const color = svc.status === 'running' ? 'green' : svc.status === 'error' ? 'red' : 'yellow'
+                return (
+                  <div key={svc.name} className="flex items-center justify-between px-4 py-2.5 hover:bg-[var(--bg-hover)]/30 border-b border-[var(--bg-border)] last:border-0">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <StatusDot color={color as any} />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium text-[var(--text-primary)]">{svc.display}</span>
+                        <span className="text-[10px] text-[var(--text-muted)] ml-2 font-mono">{svc.port}/{svc.protocol}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {svc.protected ? (
+                        <span className="text-[10px] text-blue-400 font-medium">Core</span>
+                      ) : (
+                        <>
+                          {svc.status !== 'running' && (
+                            <button onClick={() => runOp(svc.name, 'start')} disabled={operating.has(svc.name + 'start')}
+                              className="px-2 py-0.5 text-[10px] font-medium rounded bg-green-500/15 text-green-400 hover:bg-green-500/25 disabled:opacity-40">
+                              {operating.has(svc.name + 'start') ? '...' : '启动'}
+                            </button>
+                          )}
+                          {svc.status === 'running' && (
+                            <button onClick={() => runOp(svc.name, 'stop')} disabled={operating.has(svc.name + 'stop')}
+                              className="px-2 py-0.5 text-[10px] font-medium rounded bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-40">
+                              {operating.has(svc.name + 'stop') ? '...' : '停止'}
+                            </button>
+                          )}
+                          <button onClick={() => runOp(svc.name, 'restart')} disabled={operating.has(svc.name + 'restart')}
+                            className="px-2 py-0.5 text-[10px] font-medium rounded bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-40">
+                            {operating.has(svc.name + 'restart') ? '...' : '重启'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export const AppShell: FC<Props> = ({ children }) => {
@@ -85,7 +214,7 @@ export const AppShell: FC<Props> = ({ children }) => {
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
-    if (path === '/settings') return location.pathname === '/settings'
+    if (path === '/services') return location.pathname === '/services'
     return location.pathname.startsWith(path)
   }
 
@@ -247,10 +376,7 @@ export const AppShell: FC<Props> = ({ children }) => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold bg-[var(--bg-card)] border border-[var(--bg-border)] text-[var(--text-secondary)]">
-              <StatusDot color="green" />
-              All Services Running
-            </span>
+            <ServiceDropdown />
             <LangSwitch />
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
           </div>

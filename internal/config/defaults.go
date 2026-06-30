@@ -19,6 +19,7 @@ func DefaultConfig() *Config {
 			DataDir:    dataDir,
 			ServerName: "pxego",
 			ListenAddr: ":8080",
+			PageSize:   50,
 		},
 		Boot: BootConfig{
 			RootDir:        "./boot",

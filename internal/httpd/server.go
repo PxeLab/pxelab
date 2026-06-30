@@ -78,7 +78,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		}
 		// failsafe 未启用——直接返回引导菜单
 		mac := r.URL.Query().Get("mac")
-		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
+		script, err := generateBootMenu(cfg, st, netbootMgr, mac, r.Host, r.Context())
 		if err != nil {
 			slog.Error("生成 iPXE 菜单失败", "service", "HTTP", "error", err)
 			http.Error(w, "script error", http.StatusInternalServerError)
@@ -93,7 +93,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 	// iPXE 引导菜单端点（不含 failsafe，供 autoexec chain 调用）
 	r.Get("/boot/ipxe/menu", func(w http.ResponseWriter, r *http.Request) {
 		mac := r.URL.Query().Get("mac")
-		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
+		script, err := generateBootMenu(cfg, st, netbootMgr, mac, r.Host, r.Context())
 		if err != nil {
 			slog.Error("生成 iPXE 菜单失败", "service", "HTTP", "error", err)
 			http.Error(w, "script error", http.StatusInternalServerError)
@@ -158,7 +158,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 			platform := r.URL.Query().Get("platform")
 			script := netboot.GenerateNetbootScript(netbootMgr.Catalog(), serverAddr, arch, platform,
 				cfg.Netboot.Boot.CatalogDisplay.Title,
-				cfg.Netboot.Boot.CatalogDisplay.Groups, nil)
+				nil, nil)
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.Header().Set("Content-Length", strconv.Itoa(len(script)))
 			w.Write([]byte(script))
@@ -229,7 +229,7 @@ func (s *Server) Name() string { return s.name }
 func (s *Server) API() *api.Handler { return s.api }
 
 // generateBootMenu 根据配置生成 iPXE 引导菜单（不含 failsafe 包装）
-func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr string, ctx context.Context) (string, error) {
+func generateBootMenu(cfg *config.Config, st store.Interface, mgr *netboot.Manager, mac, serverAddr string, ctx context.Context) (string, error) {
 	// 1. 自定义脚本逃生口
 	if tmpl := cfg.Netboot.ScriptTemplate; tmpl != "" {
 		return renderTemplate(tmpl, serverAddr, mac)
@@ -283,7 +283,7 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 
 	// 3. 安装目录跳转
 	cr := cfg.Netboot.Boot.CatalogRedirect
-	if cr.Enabled && cfg.Netboot.Enabled {
+	if cr.Enabled {
 		var b strings.Builder
 		b.WriteString("#!ipxe\n")
 		if cr.DetectArch {

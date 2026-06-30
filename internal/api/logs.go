@@ -115,8 +115,8 @@ func (h *LogStreamHandler) readLogFiles(serviceFilter, levelFilter string) ([]lo
 		return si.ModTime().After(sj.ModTime())
 	})
 
-	const maxLinesPerFile = 20
-	const maxTotalEntries = 50
+	const maxLinesPerFile = 10
+	const maxTotalEntries = 30
 	var all []logbus.LogEntry
 
 	for _, path := range matches {

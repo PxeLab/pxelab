@@ -223,9 +223,7 @@ export default function Logs() {
             {allPaused ? '恢复全部' : '暂停全部'}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => {
-            setAllPaused(false)
-            setPanels(prev => prev.map(p => ({ ...p, logs: [], paused: false })))
-            setSseKey(k => k + 1)
+            setPanels(prev => prev.map(p => ({ ...p, logs: [] })))
           }}>
             <Trash2 size={14} className="mr-1" /> 清空全部
           </Button>

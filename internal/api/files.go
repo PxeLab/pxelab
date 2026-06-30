@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/md5"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -37,6 +39,7 @@ func (h *FileHandler) List(w http.ResponseWriter, r *http.Request) {
 			"size":    info.Size(),
 			"is_dir":  info.IsDir(),
 			"modtime": info.ModTime(),
+			"md5":     fileMD5(filepath.Join(h.bootFS.Root(), clean, info.Name())),
 		})
 	}
 	OK(w, files)
@@ -116,4 +119,17 @@ func (h *FileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func fileMD5(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	h := md5.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
 }

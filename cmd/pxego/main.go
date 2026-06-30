@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -114,11 +115,15 @@ func run(cmd *cobra.Command) error {
 	if err := st.Seed(); err != nil {
 		return fmt.Errorf("初始化默认数据失败: %w", err)
 	}
-	// 创建默认 DNS @ A 记录（指向第一个网卡 IP）
+	// 创建默认 DNS @ A 记录（指向第一个非 loopback 的网卡 IP）
 	if cfg.DNS.LocalDomain != "" {
 		serverIP := "127.0.0.1"
-		if len(cfg.Interfaces) > 0 && cfg.Interfaces[0].IP != "" {
-			serverIP = cfg.Interfaces[0].IP
+		for _, iface := range cfg.Interfaces {
+			ip := net.ParseIP(iface.IP)
+			if ip != nil && !ip.IsLoopback() {
+				serverIP = iface.IP
+				break
+			}
 		}
 		existing, _ := st.FindDNSRecords(context.Background(), "@", "A", "")
 		if len(existing) == 0 {
@@ -131,6 +136,25 @@ func run(cmd *cobra.Command) error {
 			})
 			slog.Info("已创建默认 DNS 记录", "domain", cfg.DNS.LocalDomain, "value", serverIP)
 		}
+
+			// 创建服务器名称 A 记录（如 pxe-server.pxego.local）
+			srvName := cfg.Global.ServerName
+			if srvName == "" {
+				srvName = "pxego"
+			}
+			if srvName != "@" {
+				existing, _ := st.FindDNSRecords(context.Background(), srvName, "A", "")
+				if len(existing) == 0 {
+					_ = st.CreateDNSRecord(context.Background(), &models.DNSRecord{
+						Name:    srvName,
+						Type:    "A",
+						Value:   serverIP,
+						TTL:     300,
+						Enabled: true,
+					})
+					slog.Info("已创建服务器名称 DNS 记录", "name", srvName, "domain", cfg.DNS.LocalDomain, "value", serverIP)
+				}
+			}
 	}
 
 	// 导入黑白名单种子（幂等——MAC 已存在则跳过）

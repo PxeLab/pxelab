@@ -123,15 +123,7 @@ type CatalogRedirectSettings struct {
 }
 
 type CatalogDisplaySettings struct {
-	Title  string                `json:"title"`
-	Groups []CatalogGroupSettings `json:"groups"`
-}
-
-type CatalogGroupSettings struct {
-	Name    string `json:"name"`
-	Title   string `json:"title"`
-	Enabled bool   `json:"enabled"`
-	Order   int    `json:"order"`
+	Title string `json:"title"`
 }
 
 type SubnetSettings struct {
@@ -176,6 +168,8 @@ type GeneralSettingsResponse struct {
 	WhitelistEnabled bool                `json:"whitelist_enabled"`
 	ScriptTemplate   string              `json:"script_template"`
 	DefaultMenu      DefaultMenuSettings `json:"default_menu"`
+	PageSize         int                 `json:"page_size"`
+	MigrateBoot      bool                `json:"migrate_boot"`
 }
 
 type InterfacesSettingsResponse struct {
@@ -308,7 +302,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 				},
 				CatalogDisplay: CatalogDisplaySettings{
 					Title:  cfg.Netboot.Boot.CatalogDisplay.Title,
-					Groups: convertCatalogGroupsToAPI(cfg.Netboot.Boot.CatalogDisplay.Groups),
+	
 				},
 			},
 		},
@@ -505,7 +499,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if h.cfg.DNS.DefaultRecord && h.cfg.DNS.DefaultRecordIP == "" {
 		// 从第一个接口自动获取服务器 IP
 		for _, iface := range h.cfg.Interfaces {
-			if iface.IP != "" {
+			if iface.IP != "" && !net.ParseIP(iface.IP).IsLoopback() {
 				h.cfg.DNS.DefaultRecordIP = iface.IP
 				break
 			}
@@ -539,7 +533,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		},
 		CatalogDisplay: config.CatalogDisplayConfig{
 			Title:  req.Netboot.Boot.CatalogDisplay.Title,
-			Groups: convertCatalogGroupsFromAPI(req.Netboot.Boot.CatalogDisplay.Groups),
+			Groups: h.cfg.Netboot.Boot.CatalogDisplay.Groups,
 		},
 	}
 
@@ -643,6 +637,7 @@ func (h *SettingsHandler) GetGeneral(w http.ResponseWriter, r *http.Request) {
 			ListAllProfiles: cfg.Netboot.Boot.DefaultMenu.ListAllProfiles,
 			Entries:         convertMenuEntriesToAPI(cfg.Netboot.Boot.DefaultMenu.Entries),
 		},
+		PageSize: cfg.Global.PageSize,
 	}
 
 	OK(w, resp)
@@ -655,10 +650,30 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	oldDataDir := h.cfg.Global.DataDir
+
+	// 校验 data_dir 路径是否可用
+	if req.DataDir != "" {
+		cleaned := filepath.Clean(req.DataDir)
+		if err := os.MkdirAll(cleaned, 0755); err != nil {
+			Error(w, http.StatusBadRequest, "数据目录无法创建: "+err.Error())
+			return
+		}
+		testFile := filepath.Join(cleaned, ".pxego_write_test")
+		if err := os.WriteFile(testFile, []byte{}, 0644); err != nil {
+			Error(w, http.StatusBadRequest, "数据目录不可写: "+err.Error())
+			return
+		}
+		os.Remove(testFile)
+		req.DataDir = cleaned
+	}
+
 	h.mu.Lock()
 	h.cfg.Global.ServerName = req.ServerName
 	h.cfg.Global.AppMode = req.AppMode
 	h.cfg.Global.WhitelistEnabled = req.WhitelistEnabled
+	h.cfg.Global.PageSize = req.PageSize
+	h.cfg.Global.DataDir = req.DataDir
 	h.cfg.Log.Level = req.LogLevel
 	if req.ListenAddr != "" {
 		h.cfg.Global.ListenAddr = req.ListenAddr
@@ -676,6 +691,19 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 		Default:         req.DefaultMenu.Default,
 		ListAllProfiles: req.DefaultMenu.ListAllProfiles,
 		Entries:         convertMenuEntriesFromAPI(req.DefaultMenu.Entries),
+	}
+	// data_dir 变更时检查 boot.root_dir 是否默认值，按需迁移
+	if req.DataDir != "" && req.DataDir != oldDataDir {
+		oldBootDir := filepath.Join(oldDataDir, "boot")
+		if h.cfg.Boot.RootDir == oldBootDir {
+			newBootDir := filepath.Join(req.DataDir, "boot")
+			if req.MigrateBoot {
+				if err := copyDir(oldBootDir, newBootDir); err != nil {
+					slog.Warn("迁移启动文件失败", "from", oldBootDir, "to", newBootDir, "error", err)
+				}
+			}
+			h.cfg.Boot.RootDir = newBootDir
+		}
 	}
 	h.mu.Unlock()
 
@@ -1001,7 +1029,7 @@ func (h *SettingsHandler) UpdateDNS(w http.ResponseWriter, r *http.Request) {
 	h.cfg.DNS.DefaultRecord = req.DefaultRecord
 	if h.cfg.DNS.DefaultRecord && h.cfg.DNS.DefaultRecordIP == "" {
 		for _, iface := range h.cfg.Interfaces {
-			if iface.IP != "" {
+			if iface.IP != "" && !net.ParseIP(iface.IP).IsLoopback() {
 				h.cfg.DNS.DefaultRecordIP = iface.IP
 				break
 			}
@@ -1034,7 +1062,7 @@ func (h *SettingsHandler) GetNetboot(w http.ResponseWriter, r *http.Request) {
 		},
 		CatalogDisplay: CatalogDisplaySettings{
 			Title:  cfg.Netboot.Boot.CatalogDisplay.Title,
-			Groups: convertCatalogGroupsToAPI(cfg.Netboot.Boot.CatalogDisplay.Groups),
+	
 		},
 	})
 }
@@ -1056,7 +1084,7 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	}
 	h.cfg.Netboot.Boot.CatalogDisplay = config.CatalogDisplayConfig{
 		Title:  req.CatalogDisplay.Title,
-		Groups: convertCatalogGroupsFromAPI(req.CatalogDisplay.Groups),
+		Groups: h.cfg.Netboot.Boot.CatalogDisplay.Groups,
 	}
 	h.mu.Unlock()
 
@@ -1086,23 +1114,6 @@ func convertMenuEntriesToAPI(entries []config.MenuEntry) []MenuEntrySettings {
 	}
 	return result
 }
-
-func convertCatalogGroupsToAPI(groups []config.CatalogGroup) []CatalogGroupSettings {
-	if len(groups) == 0 {
-		return nil
-	}
-	result := make([]CatalogGroupSettings, len(groups))
-	for i, g := range groups {
-		result[i] = CatalogGroupSettings{
-			Name:    g.Name,
-			Title:   g.Title,
-			Enabled: g.Enabled,
-			Order:   g.Order,
-		}
-	}
-	return result
-}
-
 func convertMenuEntriesFromAPI(entries []MenuEntrySettings) []config.MenuEntry {
 	if len(entries) == 0 {
 		return nil
@@ -1121,23 +1132,6 @@ func convertMenuEntriesFromAPI(entries []MenuEntrySettings) []config.MenuEntry {
 	}
 	return result
 }
-
-func convertCatalogGroupsFromAPI(groups []CatalogGroupSettings) []config.CatalogGroup {
-	if len(groups) == 0 {
-		return nil
-	}
-	result := make([]config.CatalogGroup, len(groups))
-	for i, g := range groups {
-		result[i] = config.CatalogGroup{
-			Name:    g.Name,
-			Title:   g.Title,
-			Enabled: g.Enabled,
-			Order:   g.Order,
-		}
-	}
-	return result
-}
-
 func saveConfig(path string, cfg *config.Config) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -1151,4 +1145,36 @@ func saveConfig(path string, cfg *config.Config) error {
 	enc := yaml.NewEncoder(f)
 	enc.SetIndent(2)
 	return enc.Encode(cfg)
+}
+
+// copyDir 递归复制目录内容
+func copyDir(src, dst string) error {
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+		if entry.IsDir() {
+			if err := copyDir(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			data, err := os.ReadFile(srcPath)
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(dstPath, data, 0644); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

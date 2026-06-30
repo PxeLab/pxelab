@@ -8,7 +8,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { useToast } from '../components/ui/Toast'
 import { api, type FileInfo } from '../api/client'
 
-export default function Files() {
+export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; rootPath?: string }) {
   const { t } = useTranslation()
   const { success, error } = useToast()
   const [files, setFiles] = useState<FileInfo[]>([])
@@ -67,22 +67,22 @@ export default function Files() {
     return (size / (1024 * 1024)).toFixed(1) + ' MB'
   }
 
+  const timeStr = (modtime: string) => {
+    try {
+      const d = new Date(modtime)
+      const pad = (n: number) => n.toString().padStart(2, '0')
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+    } catch {
+      return modtime
+    }
+  }
+
+  const displayPath = currentDir === '.' ? (rootPath || '') : (rootPath ? rootPath + '/' + currentDir : currentDir)
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">文件</h1>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={loadFiles}>
-            <RefreshCw size={14} /> {t('common.refresh', '刷新')}
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
-            <Upload size={14} /> {t('files.upload')}
-          </Button>
-          <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
-        </div>
-      </div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
+      {hideHeader ? (
+        <div className="flex items-center justify-between mb-4 pt-2">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
@@ -91,11 +91,46 @@ export default function Files() {
               value={search} onChange={e => setSearch(e.target.value)}
             />
           </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={loadFiles}>
+              <RefreshCw size={14} /> {t('common.refresh', '刷新')}
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Upload size={14} /> {t('files.upload')}
+            </Button>
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-lg font-bold text-[var(--text-primary)]">文件</h1>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={loadFiles}>
+                <RefreshCw size={14} /> {t('common.refresh', '刷新')}
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload size={14} /> {t('files.upload')}
+              </Button>
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                <input
+                  className="w-[280px] bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-blue-500"
+                  placeholder={t('common.search') + '...'}
+                  value={search} onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       <Card
-        title={'/' + (currentDir === '.' ? '' : currentDir)}
         footer={<span className="text-[var(--text-muted)]">{files.length} {t('common.items', '个项目')}</span>}
       >
         {currentDir !== '.' && (
@@ -112,26 +147,60 @@ export default function Files() {
         ) : filtered.length === 0 ? (
           <EmptyState title={t('files.empty')} />
         ) : (
-          <div className="divide-y divide-[#232738]">
-            {folders.map(f => (
-              <div key={f.name} className="flex items-center gap-3 px-2 py-2 rounded cursor-pointer hover:bg-[var(--bg-hover)] transition-colors group" onClick={() => enterDir(f.name)}>
-                <Folder size={16} className="text-yellow-500 shrink-0" />
-                <span className="flex-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{f.name}/</span>
-                <span className="text-[11px] text-[var(--text-muted)] font-mono">—</span>
-                <Tag color="yellow">dir</Tag>
-              </div>
-            ))}
-            {fileItems.map(f => (
-              <div key={f.name} className="flex items-center gap-3 px-2 py-2 rounded hover:bg-[var(--bg-hover)] transition-colors group">
-                <File size={16} className="text-blue-500 shrink-0" />
-                <span className="flex-1 text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{f.name}</span>
-                <span className="text-[11px] text-[var(--text-muted)] font-mono">{sizeStr(f.size)}</span>
-                <button onClick={() => handleDelete(f.name)} className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-red-400 transition-all">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-[var(--bg-border)]">
+                <tr className="text-left text-xs font-semibold text-[var(--text-secondary)]">
+                  <th className="px-3 py-2 w-8"></th>
+                  <th className="px-3 py-2">名称</th>
+                  <th className="px-3 py-2 w-24 text-right">大小</th>
+                  <th className="px-3 py-2 w-32">修改时间</th>
+                  <th className="px-3 py-2 w-28">MD5</th>
+                  <th className="px-3 py-2 w-10"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--bg-border)]">
+                {folders.map(f => (
+                  <tr key={f.name}
+                    onClick={() => enterDir(f.name)}
+                    className="cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
+                  >
+                    <td className="px-3 py-2"><Folder size={16} className="text-yellow-500" /></td>
+                    <td className="px-3 py-2 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{f.name}/</td>
+                    <td className="px-3 py-2 text-right text-[var(--text-muted)] font-mono text-xs">—</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)] text-xs">{timeStr(f.modtime)}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)] text-xs font-mono">—</td>
+                    <td className="px-3 py-2"><Tag color="yellow">dir</Tag></td>
+                  </tr>
+                ))}
+                {fileItems.map(f => (
+                  <tr key={f.name} className="hover:bg-[var(--bg-hover)] transition-colors group">
+                    <td className="px-3 py-2"><File size={16} className="text-blue-500" /></td>
+                    <td className="px-3 py-2 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{f.name}</td>
+                    <td className="px-3 py-2 text-right text-[var(--text-muted)] font-mono text-xs">{sizeStr(f.size)}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)] text-xs">{timeStr(f.modtime)}</td>
+                    <td className="px-3 py-2">
+                      {f.md5 ? (
+                        <span className="text-[10px] text-[var(--text-muted)] font-mono" title={f.md5}>{f.md5.slice(0, 16)}</span>
+                      ) : (
+                        <span className="text-[10px] text-[var(--text-muted)]">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <button onClick={() => handleDelete(f.name)}
+                        className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-red-400 transition-all"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        )}
+        {rootPath && (
+          <p className="px-1 pt-3 text-xs text-[var(--text-muted)] font-mono">路径：{displayPath}</p>
         )}
       </Card>
     </div>

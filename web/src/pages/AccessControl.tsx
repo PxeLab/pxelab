@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Trash2, ShieldPlus, ShieldX, AlertTriangle, RefreshCw } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -34,7 +35,8 @@ function parseMACs(input: string): string[] {
 
 export default function AccessControl() {
   const { success, error: showError } = useToast()
-  const [activeTab, setActiveTab] = useState<Tab>('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = (searchParams.get('tab') as Tab) || 'all'
   const [blacklist, setBlacklist] = useState<BlacklistEntry[]>([])
   const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([])
   const [unauthorized, setUnauthorized] = useState<UnauthorizedDevice[]>([])
@@ -324,7 +326,7 @@ export default function AccessControl() {
         {tabs.map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => setSearchParams({ tab: tab.key })}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
               activeTab === tab.key
                 ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'

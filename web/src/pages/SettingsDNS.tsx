@@ -88,7 +88,7 @@ export default function SettingsDNS() {
   async function handleSave() {
     setSaving(true)
     try {
-      await api.updateDNSSettings({ ...config, port: 53 })
+      await api.updateDNSSettings({ ...config, enabled: true, port: 53 })
       success('设置已保存')
     } catch (err: any) {
       error(err.message || '保存失败')
@@ -184,7 +184,6 @@ export default function SettingsDNS() {
           </div>
         ) : (
           <div className="space-y-4">
-            <Toggle checked={config.enabled} onChange={v => setConfig({...config, enabled: v})} label={t('settings.enabled') + ' DNS'} />
             <div className="grid grid-cols-2 gap-4">
               <SettingsField label="本地域名" help={`DNS 记录中的主机名会以此域名后缀进行本地解析。例如 pxe-server → pxe-server.${config.local_domain || 'pxego.local'}`}>
                 <SettingsInput value={config.local_domain || ''} onChange={v => setConfig({...config, local_domain: v})} />

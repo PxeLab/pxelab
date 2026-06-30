@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { RefreshCw, Trash2, AlertTriangle, Plus, Pencil } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -1101,7 +1102,8 @@ function ReservationTab() {
 }
 
 export default function SettingsInterfaces() {
-  const [activeTab, setActiveTab] = useState<'dhcp' | 'leases' | 'reservations'>('dhcp')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = (searchParams.get('tab') as 'dhcp' | 'leases' | 'reservations') || 'dhcp'
 
   const tabs = [
     { key: 'dhcp' as const, label: '子网管理' },
@@ -1117,7 +1119,7 @@ export default function SettingsInterfaces() {
       <div className="flex gap-1 mb-6 border-b border-[var(--bg-border)]">
         {tabs.map(tab => (
           <button key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => setSearchParams({ tab: tab.key })}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-[1px] ${
               activeTab === tab.key
                 ? 'border-blue-500 text-blue-400'

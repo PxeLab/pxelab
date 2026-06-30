@@ -33,6 +33,7 @@ type GlobalConfig struct {
 	ServerName       string `yaml:"server_name" mapstructure:"server_name"`
 	ListenAddr       string `yaml:"listen_addr" mapstructure:"listen_addr"`
 	WhitelistEnabled bool   `yaml:"whitelist_enabled" mapstructure:"whitelist_enabled"`
+	PageSize         int    `yaml:"page_size" mapstructure:"page_size"`
 }
 
 type InterfaceConfig struct {

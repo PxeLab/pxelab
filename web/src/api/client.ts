@@ -63,6 +63,7 @@ export interface FileInfo {
   size: number
   is_dir: boolean
   modtime: string
+  md5: string
 }
 
 export interface DNSRecord {
@@ -365,12 +366,6 @@ export interface BootSettings {
   }
   catalog_display: {
     title: string
-    groups: {
-      name: string
-      title: string
-      enabled: boolean
-      order: number
-    }[]
   }
 }
 
@@ -420,6 +415,8 @@ export interface GeneralSettings {
   whitelist_enabled: boolean
   script_template: string
   default_menu: BootSettings['default_menu']
+  page_size: number
+  migrate_boot?: boolean
 }
 
 export interface InterfaceSettingsList {
@@ -474,27 +471,27 @@ export function updateInterfaceSettings(data: InterfaceSettingsList): Promise<Ap
 }
 
 export function getDHCPSettings(): Promise<ApiResponse<DHCPSettingsData>> {
-  return request<DHCPSettingsData>('GET', '/settings/dhcp')
+  return request<DHCPSettingsData>('GET', '/services/dhcp')
 }
 
 export function updateDHCPSettings(data: DHCPSettingsData): Promise<ApiResponse<unknown>> {
-  return request<unknown>('PUT', '/settings/dhcp', data)
+  return request<unknown>('PUT', '/services/dhcp', data)
 }
 
 export function getTFTPSettings(): Promise<ApiResponse<TFTPSettingsData>> {
-  return request<TFTPSettingsData>('GET', '/settings/tftp')
+  return request<TFTPSettingsData>('GET', '/services/tftp')
 }
 
 export function updateTFTPSettings(data: TFTPSettingsData): Promise<ApiResponse<unknown>> {
-  return request<unknown>('PUT', '/settings/tftp', data)
+  return request<unknown>('PUT', '/services/tftp', data)
 }
 
 export function getDNSSettings(): Promise<ApiResponse<DNSSettingsData>> {
-  return request<DNSSettingsData>('GET', '/settings/dns')
+  return request<DNSSettingsData>('GET', '/services/dns')
 }
 
 export function updateDNSSettings(data: DNSSettingsData): Promise<ApiResponse<unknown>> {
-  return request<unknown>('PUT', '/settings/dns', data)
+  return request<unknown>('PUT', '/services/dns', data)
 }
 
 export function getNetbootSettings(): Promise<ApiResponse<NetbootSettingsData>> {
@@ -513,6 +510,7 @@ export interface NetbootDistro {
   menu_group: string
   logo?: string
   mirror?: string
+  kernel_params?: string
   versions: NetbootVersion[]
 }
 
@@ -524,6 +522,7 @@ export interface NetbootVersion {
   local?: { kernel: string; initrd: string }
   remote?: { kernel: string; initrd: string }
   cmdline?: string
+  boot_type?: string
   install_type?: string
 }
 
