@@ -123,26 +123,25 @@ export default function SettingsTFTP() {
       <h1 className="text-lg font-bold text-[var(--text-primary)] mb-6">TFTP 设置</h1>
 
       {/* 页面页签 + 操作按钮 */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-1">
-          {([
-            { key: 'settings' as PageTab, label: '基本设置' },
-            { key: 'files' as PageTab, label: '文件管理' },
-          ]).map(tab => (
-            <button key={tab.key}
-              onClick={() => setSearchParams({ tab: tab.key })}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
-                pageTab === tab.key
-                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                  : 'text-[var(--text-secondary)] border-transparent hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex gap-1 mb-6 border-b border-[var(--bg-border)]">
+        {([
+          { key: 'settings' as PageTab, label: '基本设置' },
+          { key: 'files' as PageTab, label: '文件管理' },
+        ]).map(tab => (
+          <button key={tab.key}
+            onClick={() => setSearchParams({ tab: tab.key })}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-[1px] ${
+              pageTab === tab.key
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+        <div className="flex-1" />
         {pageTab === 'settings' && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 pb-2.5">
             <Button variant="secondary" size="sm" disabled={loading} onClick={loadSettings}>
               <RefreshCw size={14} /> 刷新
             </Button>

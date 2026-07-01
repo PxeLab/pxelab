@@ -6,6 +6,7 @@ import (
 	"embed"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 	"github.com/pxego/pxego/internal/models"
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/netboot"
+	"github.com/pxego/pxego/internal/netboot/menus"
 	"github.com/pxego/pxego/internal/session"
 	"github.com/pxego/pxego/internal/store"
 )
@@ -78,7 +80,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		}
 		// failsafe 未启用——直接返回引导菜单
 		mac := r.URL.Query().Get("mac")
-		script, err := generateBootMenu(cfg, st, netbootMgr, mac, r.Host, r.Context())
+		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
 		if err != nil {
 			slog.Error("生成 iPXE 菜单失败", "service", "HTTP", "error", err)
 			http.Error(w, "script error", http.StatusInternalServerError)
@@ -93,7 +95,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 	// iPXE 引导菜单端点（不含 failsafe，供 autoexec chain 调用）
 	r.Get("/boot/ipxe/menu", func(w http.ResponseWriter, r *http.Request) {
 		mac := r.URL.Query().Get("mac")
-		script, err := generateBootMenu(cfg, st, netbootMgr, mac, r.Host, r.Context())
+		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
 		if err != nil {
 			slog.Error("生成 iPXE 菜单失败", "service", "HTTP", "error", err)
 			http.Error(w, "script error", http.StatusInternalServerError)
@@ -152,16 +154,42 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 
 	// Netboot OS catalog menu + HTTPS proxy for boot files
 	if netbootMgr != nil && cfg.Netboot.Enabled {
+		// Chain wrapper --- overrides boot_domain and chains to the hosted menu
 		r.Get("/netboot/menu.ipxe", func(w http.ResponseWriter, r *http.Request) {
-			serverAddr := r.Host
-			arch := r.URL.Query().Get("arch")
-			platform := r.URL.Query().Get("platform")
-			script := netboot.GenerateNetbootScript(netbootMgr.Catalog(), serverAddr, arch, platform,
-				cfg.Netboot.Boot.CatalogDisplay.Title,
-				nil, nil)
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			w.Header().Set("Content-Length", strconv.Itoa(len(script)))
-			w.Write([]byte(script))
+			fmt.Fprintf(w, "#!ipxe\n")
+			fmt.Fprintf(w, "set boot_domain %s/netboot/menu\n", r.Host)
+			fmt.Fprintf(w, "set site_name PxeGo Netboot\n")
+			fmt.Fprintf(w, "chain http://${boot_domain}/menu.ipxe\n")
+		})
+
+		// Static file serving for netboot.xyz menu files
+		// boot.cfg is templated at runtime to set the local boot_domain
+		menuFS := menus.Open()
+		r.Get("/netboot/menu/*", func(w http.ResponseWriter, r *http.Request) {
+			filePath := chi.URLParam(r, "*")
+			filePath = strings.TrimPrefix(filePath, "/")
+			if filePath == "" {
+				http.Redirect(w, r, "/netboot/menu/menu.ipxe", http.StatusFound)
+				return
+			}
+
+			// Template boot.cfg with the local server's boot_domain
+			if filePath == "boot.cfg" {
+				data, err := fs.ReadFile(menuFS, "boot.cfg")
+				if err != nil {
+				http.NotFound(w, r)
+				return
+				}
+				s := strings.Replace(string(data),
+					"set boot_domain boot.netboot.xyz/3.0.2",
+					"set boot_domain "+r.Host+"/netboot/menu", 1)
+				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+				w.Write([]byte(s))
+				return
+			}
+
+			http.StripPrefix("/netboot/menu/", http.FileServer(http.FS(menuFS))).ServeHTTP(w, r)
 		})
 
 		// Proxy GitHub HTTPS assets to HTTP for iPXE (which lacks HTTPS support)
@@ -229,7 +257,7 @@ func (s *Server) Name() string { return s.name }
 func (s *Server) API() *api.Handler { return s.api }
 
 // generateBootMenu 根据配置生成 iPXE 引导菜单（不含 failsafe 包装）
-func generateBootMenu(cfg *config.Config, st store.Interface, mgr *netboot.Manager, mac, serverAddr string, ctx context.Context) (string, error) {
+func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr string, ctx context.Context) (string, error) {
 	// 1. 自定义脚本逃生口
 	if tmpl := cfg.Netboot.ScriptTemplate; tmpl != "" {
 		return renderTemplate(tmpl, serverAddr, mac)
@@ -258,6 +286,10 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mgr *netboot.Manag
 							Cmdline: replaceBootVars(ptrStr(e.Cmdline), serverAddr, mac),
 							URL:     replaceBootVars(ptrStr(e.URL), serverAddr, mac),
 							WIM:     ptrStr(e.WIM),
+							SANAction:     e.SANAction,
+							SANNoDescribe: e.SANNoDescribe,
+							SANDrive:      e.SANDrive,
+							SANKeepSAN:    e.SANKeepSAN,
 						}
 						entries = append(entries, entry)
 					}
@@ -319,6 +351,10 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mgr *netboot.Manag
 					Cmdline: replaceBootVars(ptrStr(e.Cmdline), serverAddr, mac),
 					URL:     replaceBootVars(ptrStr(e.URL), serverAddr, mac),
 					WIM:     ptrStr(e.WIM),
+					SANAction:     e.SANAction,
+					SANNoDescribe: e.SANNoDescribe,
+					SANDrive:      e.SANDrive,
+					SANKeepSAN:    e.SANKeepSAN,
 				}
 			}
 
@@ -566,114 +602,6 @@ func extractPXEMac(filePath string, cfg *config.Config) string {
 	return strings.Join(parts, ":")
 }
 
-// generateInstallPXEConfig generates a PXELinux or GRUB2 config for an active install task.
-// Returns the config text or empty string if generation is not possible/supported.
-func generateInstallPXEConfig(cfg *config.Config, mgr *netboot.Manager, st store.Interface, task *models.InstallTask, serverAddr, filePath string) (string, error) {
-	isGRUB := strings.Contains(filePath, cfg.Boot.GRUBConfigFile)
-
-	// Get distro info from catalog
-	distro := mgr.GetDistro(task.DistroName)
-	if distro == nil {
-		return "", fmt.Errorf("distro %s not found in catalog", task.DistroName)
-	}
-
-	// Find matching version
-	var version *netboot.Version
-	foundArch := task.Arch
-	if foundArch == "" {
-		foundArch = "amd64"
-	}
-	for _, v := range distro.Versions {
-		if v.Codename == task.VersionCodename && (v.Arch == foundArch || v.Arch == "") {
-			version = v
-			break
-		}
-	}
-	if version == nil {
-		return "", fmt.Errorf("version %s/%s not found for distro %s", task.VersionCodename, foundArch, task.DistroName)
-	}
-
-	// Build kernel/initrd URLs
-	overlay, _ := st.GetNetbootOverlay(context.Background(), task.DistroName)
-	localBase := overlay.LocalBase
-	if localBase == "" {
-		localBase = distro.LocalBase
-	}
-	bootPrefix := "/boot"
-
-	var kernelURL, initrdURL string
-	if version.Local != nil {
-		basePath := localBase
-		if basePath == "" {
-			basePath = task.DistroName
-		}
-		kernelURL = fmt.Sprintf("http://%s%s/%s/%s", serverAddr, bootPrefix, basePath, version.Local.Kernel)
-		initrdURL = fmt.Sprintf("http://%s%s/%s/%s", serverAddr, bootPrefix, basePath, version.Local.Initrd)
-	} else if version.Remote != nil {
-		// For remote files, use direct URLs (PXELinux/GRUB2 can fetch HTTP)
-		kernelURL = version.Remote.Kernel
-		initrdURL = version.Remote.Initrd
-		// If it's HTTPS, try proxy
-		if strings.HasPrefix(kernelURL, "https://") {
-			kernelURL = fmt.Sprintf("http://%s%s/proxy/https/%s", serverAddr, bootPrefix, strings.TrimPrefix(kernelURL, "https://"))
-		}
-		if initrdURL != "" && strings.HasPrefix(initrdURL, "https://") {
-			initrdURL = fmt.Sprintf("http://%s%s/proxy/https/%s", serverAddr, bootPrefix, strings.TrimPrefix(initrdURL, "https://"))
-		}
-	} else {
-		return "", fmt.Errorf("no boot files for version %s", task.VersionCodename)
-	}
-
-	if kernelURL == "" {
-		return "", fmt.Errorf("kernel URL is empty")
-	}
-
-	// Build cmdline
-	cmdline := version.Cmdline
-	if distro.KernelParams != "" && cmdline == "" {
-		cmdline = distro.KernelParams
-	}
-	if task.ExtraCmdline != "" {
-		if cmdline != "" {
-			cmdline = cmdline + " " + task.ExtraCmdline
-		} else {
-			cmdline = task.ExtraCmdline
-		}
-	}
-	// Add answer file URL if available
-	answerURL := fmt.Sprintf("http://%s/api/v1/netboot/answer/%s", serverAddr, task.ID)
-	if overlay != nil {
-		ovs, _ := overlay.GetVersionOverrides()
-		for _, ov := range ovs {
-			if ov.Codename == task.VersionCodename && ov.AnswerParam != "" {
-				injected := netboot.InjectAnswerParam(ov.AnswerParam, answerURL)
-				if injected != "" {
-					if cmdline != "" {
-						cmdline = cmdline + " " + injected
-					} else {
-						cmdline = injected
-					}
-				}
-				break
-			}
-		}
-	}
-
-	if isGRUB {
-		return fmt.Sprintf(`menuentry "Install %s %s" {
-  linux %s %s
-  initrd %s
-}
-`, task.DistroName, task.VersionCodename, kernelURL, cmdline, initrdURL), nil
-	}
-
-	return fmt.Sprintf(`DEFAULT install
-LABEL install
-  KERNEL %s
-  APPEND initrd=%s %s
-  IPAPPEND 2
-`, kernelURL, initrdURL, cmdline), nil
-}
 
 
 func (s *Server) Start(ctx context.Context) error {

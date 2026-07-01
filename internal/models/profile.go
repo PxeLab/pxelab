@@ -74,13 +74,20 @@ type BootMenu struct {
 
 type MenuEntry struct {
 	Label     string  `json:"label"`
-	Type      string  `json:"type"` // local | direct | chain | sanboot | wds
+	Type      string  `json:"type"` // local | direct | chain | sanboot | wds | custom
 	Kernel    *string `json:"kernel,omitempty"`
 	Initrd    *string `json:"initrd,omitempty"`
 	Cmdline   *string `json:"cmdline,omitempty"`
 	URL       *string `json:"url,omitempty"`
 	WIM       *string `json:"wim,omitempty"`
+	Script    *string `json:"script,omitempty"` // raw iPXE script for "custom" type
 	IsDefault bool    `json:"is_default,omitempty"`
+
+	// SAN boot options (used when Type is "sanboot")
+	SANAction     string `json:"san_action,omitempty"`      // "boot" | "hook" | "zap" | "unhook"
+	SANNoDescribe bool   `json:"san_no_describe,omitempty"` // --no-describe flag
+	SANDrive      string `json:"san_drive,omitempty"`       // --drive flag, e.g. "0x80"
+	SANKeepSAN    bool   `json:"san_keep_san,omitempty"`    // set keep-san 1
 }
 
 func (bm *BootMenu) Scan(value any) error {

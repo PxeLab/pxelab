@@ -54,7 +54,7 @@ type Handler struct {
 func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store) *Handler {
 	h := &Handler{
 		Host:            &HostHandler{store: st},
-		Profile:         &ProfileHandler{store: st},
+		Profile:         &ProfileHandler{store: st, netbootMgr: netbootMgr},
 		Event:           NewEventHandler(st, bus),
 		File:            &FileHandler{bootFS: bootFS},
 		WOL:             &WOLHandler{store: st},
@@ -65,7 +65,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Netboot:         NewNetbootHandler(netbootMgr),
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
 		AnswerTemplate:  &AnswerTemplateHandler{store: st},
-		InstallTask:     &InstallTaskHandler{store: st, netbootMgr: netbootMgr},
+		InstallTask:     &InstallTaskHandler{store: st},
 		Service:         NewServiceHandler(svcController, cfg, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:            NewAuthHandler(cfg, sessions),
 		Access:          NewAccessHandler(st),
@@ -104,6 +104,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/profiles/{id}", h.Profile.Get)
 		r.Put("/profiles/{id}", h.Profile.Update)
 		r.Delete("/profiles/{id}", h.Profile.Delete)
+		r.Post("/profiles/from-netboot", h.Profile.CreateFromNetboot)
 
 		r.Get("/files", h.File.List)
 		r.Post("/files/upload", h.File.Upload)

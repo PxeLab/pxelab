@@ -13,8 +13,7 @@ import (
 )
 
 type InstallTaskHandler struct {
-	store     store.Interface
-	netbootMgr *netboot.Manager
+	store store.Interface
 }
 
 func (h *InstallTaskHandler) List(w http.ResponseWriter, r *http.Request) {

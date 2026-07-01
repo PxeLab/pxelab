@@ -2,6 +2,7 @@ package boot
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,29 +24,64 @@ func (b *BootFileServer) Root() string {
 	return b.rootDir
 }
 
-func (b *BootFileServer) Read(path string) ([]byte, error) {
+// resolvePath 校验并拼接完整路径，返回绝对路径
+func (b *BootFileServer) resolvePath(path string) (string, error) {
 	cleanPath := filepath.Clean(path)
 	if strings.Contains(cleanPath, "..") {
-		return nil, fmt.Errorf("路径越权: %s", path)
+		return "", fmt.Errorf("路径越权: %s", path)
 	}
 	fullPath := filepath.Join(b.rootDir, cleanPath)
 
 	absRoot, err := filepath.Abs(b.rootDir)
 	if err != nil {
-		return nil, fmt.Errorf("获取根路径失败: %w", err)
+		return "", fmt.Errorf("获取根路径失败: %w", err)
 	}
 	absFile, err := filepath.Abs(fullPath)
 	if err != nil {
-		return nil, fmt.Errorf("获取文件路径失败: %w", err)
+		return "", fmt.Errorf("获取文件路径失败: %w", err)
 	}
 
-	// 安全检查：确认文件路径在 rootDir 之下
 	rootPrefix := absRoot + string(filepath.Separator)
 	if !strings.HasPrefix(absFile, rootPrefix) && absFile != absRoot {
-		return nil, fmt.Errorf("路径越权: %s", path)
+		return "", fmt.Errorf("路径越权: %s", path)
+	}
+	return absFile, nil
+}
+
+func (b *BootFileServer) Read(path string) ([]byte, error) {
+	absFile, err := b.resolvePath(path)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(absFile)
+}
+
+// Open 返回 *os.File 用于 http.ServeContent 的 Range/HEAD/Seek 支持
+func (b *BootFileServer) Open(path string) (*os.File, error) {
+	absFile, err := b.resolvePath(path)
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(absFile)
+}
+
+// Serve 将文件写入 http.ResponseWriter，支持 Range/HEAD
+func (b *BootFileServer) Serve(w http.ResponseWriter, r *http.Request, path string) {
+	f, err := b.Open(path)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+
+	stat, err := f.Stat()
+	if err != nil {
+		http.NotFound(w, r)
+		return
 	}
 
-	return os.ReadFile(fullPath)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	http.ServeContent(w, r, stat.Name(), stat.ModTime(), f)
 }
 
 func (b *BootFileServer) Exists(path string) bool {

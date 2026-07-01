@@ -68,6 +68,12 @@ type Version struct {
 	BootType    BootType    `yaml:"type,omitempty" json:"type,omitempty"`
 	InstallType InstallType `yaml:"install_type,omitempty" json:"install_type,omitempty"`
 	AnswerParam string      `yaml:"answer_param,omitempty" json:"answer_param,omitempty"`
+
+	// SAN boot options (used when BootType is "sanboot")
+	SANAction     string `yaml:"san_action,omitempty" json:"san_action,omitempty"`
+	SANNoDescribe bool   `yaml:"san_no_describe,omitempty" json:"san_no_describe,omitempty"`
+	SANDrive      string `yaml:"san_drive,omitempty" json:"san_drive,omitempty"`
+	SANKeepSAN    bool   `yaml:"san_keep_san,omitempty" json:"san_keep_san,omitempty"`
 }
 
 // Catalog holds all distro definitions

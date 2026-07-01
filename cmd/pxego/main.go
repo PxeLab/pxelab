@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 
 	"github.com/pxego/pxego/internal/boot"
 	"github.com/pxego/pxego/internal/config"
@@ -19,6 +20,7 @@ import (
 	"github.com/pxego/pxego/internal/httpd"
 	"github.com/pxego/pxego/internal/models"
 	"github.com/pxego/pxego/internal/netboot"
+	"github.com/pxego/pxego/internal/netboot/menus"
 	"github.com/pxego/pxego/internal/logbus"
 	"github.com/pxego/pxego/internal/servicemanager"
 	"github.com/pxego/pxego/internal/session"
@@ -27,9 +29,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version 在编译时通过 -ldflags -X main.Version=xxx 注入
+var Version = "dev"
+
+// vcsRevision 从 Go 构建信息中读取 git commit
+func vcsRevision() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	for _, s := range info.Settings {
+		if s.Key == "vcs.revision" {
+			rev := s.Value
+			if len(rev) > 8 {
+				rev = rev[:8]
+			}
+			return rev
+		}
+	}
+	return ""
+}
+
 var rootCmd = &cobra.Command{
-	Use:   "pxego",
-	Short: "PxeGo - 一体化 PXE 服务器",
+	Use:     "pxego",
+	Short:   "PxeGo - 一体化 PXE 服务器",
+	Version: Version,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if handled, err := runAsService(); handled {
 			return err
@@ -102,7 +126,11 @@ func run(cmd *cobra.Command) error {
 		logDir,
 	)))
 
-	slog.Info("PxeGo 启动", "data_dir", cfg.Global.DataDir, "log_dir", logDir)
+	buildVer := Version
+	if rev := vcsRevision(); rev != "" {
+		buildVer = Version + " (" + rev + ")"
+	}
+	slog.Info("PxeGo 启动", "version", buildVer, "data_dir", cfg.Global.DataDir, "log_dir", logDir)
 
 	// 初始化存储
 	st, err := store.NewSQLite(cfg.Store.DSN)
@@ -271,6 +299,11 @@ func run(cmd *cobra.Command) error {
 	catalogDir := filepath.Join(cfg.Global.DataDir, "netboot", "catalog")
 	os.MkdirAll(catalogDir, 0755)
 	netboot.ExtractSeed(catalogDir)
+	// Extract netboot.xyz menu files for static serving
+	menuDir := filepath.Join(cfg.Global.DataDir, "netboot", "menu")
+	if err := menus.ExtractMenus(menuDir); err != nil {
+		slog.Warn("extract netboot menus failed", "error", err)
+	}
 
 	cat, err := netboot.LoadCatalog(catalogDir)
 	if err != nil || len(cat.Distros) == 0 {

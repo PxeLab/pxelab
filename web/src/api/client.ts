@@ -30,12 +30,18 @@ export interface BootMenu {
 
 export interface MenuEntry {
   label: string
-  type: 'local' | 'direct' | 'chain' | 'sanboot' | 'wds'
+  type: 'local' | 'direct' | 'chain' | 'sanboot' | 'wds' | 'custom'
   kernel?: string
   initrd?: string
   cmdline?: string
   url?: string
   wim?: string
+  script?: string
+  is_default?: boolean
+  san_action?: 'boot' | 'hook' | 'zap' | 'unhook'
+  san_no_describe?: boolean
+  san_drive?: string
+  san_keep_san?: boolean
 }
 
 export interface Event {
@@ -141,9 +147,11 @@ export async function login(masterToken: string): Promise<string> {
     const err = await res.json().catch(() => ({ error: '登录失败' }))
     throw new Error(err.error || '登录失败')
   }
-  const data = await res.json()
-  saveSession(data.session_token)
-  return data.session_token
+  const json = await res.json()
+  const sessionToken = json.data?.session_token
+  if (!sessionToken) throw new Error('登录失败：未获取到会话令牌')
+  saveSession(sessionToken)
+  return sessionToken
 }
 
 export async function logout() {
@@ -267,6 +275,19 @@ export function updateProfile(id: string, data: Partial<Profile>): Promise<ApiRe
 
 export function deleteProfile(id: string): Promise<ApiResponse<void>> {
   return request<void>('DELETE', '/profiles/' + encodeURIComponent(id))
+}
+
+// ── Profiles from Netboot Catalog ──
+export interface CreateProfileFromNetbootData {
+  distro_name: string
+  version_codename: string
+  arch?: string
+  profile_name: string
+  description?: string
+}
+
+export function createProfileFromNetboot(data: CreateProfileFromNetbootData): Promise<ApiResponse<Profile>> {
+  return request<Profile>('POST', '/profiles/from-netboot', data)
 }
 
 // ── Events ──
@@ -450,6 +471,7 @@ export interface DNSSettingsData {
 
 export interface NetbootSettingsData {
   enabled: boolean
+  proxy_https: boolean
   catalog_redirect: BootSettings['catalog_redirect']
   catalog_display: BootSettings['catalog_display']
 }
@@ -955,6 +977,7 @@ export const api = {
   createProfile,
   updateProfile,
   deleteProfile,
+  createProfileFromNetboot,
   getEvents,
   getFiles,
   uploadFile,

@@ -318,6 +318,10 @@ function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: 
         <Toggle checked={data.enabled} onChange={v => onChange({...data, enabled: v})} />
       </SettingsField>
       <p className="text-xs text-[var(--text-muted)] -mt-2">启用后，PXE 引导菜单将显示「[Netboot] 网络安装操作系统目录」选项。</p>
+      <SettingsField label="HTTPS 代理">
+        <Toggle checked={data.proxy_https} onChange={v => onChange({...data, proxy_https: v})} />
+        <p className="text-xs text-[var(--text-muted)] mt-1">开启后自动将 HTTPS 引导 URL 通过本地 HTTP 代理拉取，适用于不支持 HTTPS 的 iPXE 固件。</p>
+      </SettingsField>
       <SettingsField label="菜单标题">
         <input className={inputCls} value={data.catalog_display.title}
           onChange={e => onChange({...data, catalog_display: {...data.catalog_display, title: e.target.value}})} />

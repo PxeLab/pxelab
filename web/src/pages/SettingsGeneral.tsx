@@ -21,6 +21,7 @@ export default function SettingsGeneral() {
   const [migrateBoot, setMigrateBoot] = useState(false)
   const [netbootConfig, setNetbootConfig] = useState<NetbootSettingsData>({
     enabled: false,
+    proxy_https: true,
     catalog_redirect: { enabled: true, target_url: '', detect_arch: true, preamble: '' },
     catalog_display: { title: '' },
   })
@@ -78,6 +79,7 @@ export default function SettingsGeneral() {
       const nd = netbootRes.data
       setNetbootConfig({
         enabled: nd.enabled ?? false,
+        proxy_https: nd.proxy_https ?? true,
         catalog_redirect: {
           enabled: nd.catalog_redirect?.enabled ?? true,
           target_url: nd.catalog_redirect?.target_url || 'http://{{.URL}}/netboot/menu.ipxe?arch=${arch}&platform=${platform}',
@@ -268,6 +270,12 @@ export default function SettingsGeneral() {
               <p className="text-xs text-[var(--text-muted)] mt-1 mb-4">
                 启用后，PXE 引导菜单将显示「[Netboot] 网络安装操作系统目录」选项，允许客户端从本地或远程引导文件安装操作系统。
               </p>
+              <SettingsField label="HTTPS 代理">
+                <div className="flex items-center gap-3">
+                  <Toggle checked={netbootConfig.proxy_https} onChange={v => setNetbootConfig({...netbootConfig, proxy_https: v})} />
+                  <span className="text-xs text-[var(--text-muted)]">开启后自动将 HTTPS 引导 URL 通过本地 HTTP 代理拉取，适用于不支持 HTTPS 的 iPXE 固件。</span>
+                </div>
+              </SettingsField>
               <SettingsField label="菜单标题">
                 <SettingsInput value={netbootConfig.catalog_display.title}
                   onChange={v => setNetbootConfig({...netbootConfig, catalog_display: {...netbootConfig.catalog_display, title: v}})} />

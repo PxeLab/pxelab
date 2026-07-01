@@ -15,6 +15,7 @@ const (
 	BootSANBoot BootType = "sanboot"
 	BootWDS     BootType = "wds"
 	BootNetboot BootType = "netboot"
+	BootCustom  BootType = "custom"
 )
 
 type TemplateData struct {
@@ -31,6 +32,12 @@ type TemplateData struct {
 	// Netboot fields
 	KernelURL string
 	InitrdURL string
+
+	// SAN boot options (used by standalone sanboot template)
+	SANAction     string
+	SANNoDescribe bool
+	SANDrive      string
+	SANKeepSAN    bool
 }
 
 type MenuData struct {
@@ -49,6 +56,13 @@ type MenuEntryData struct {
 	Cmdline string
 	URL     string
 	WIM     string
+	Script  string
+
+	// SAN boot options
+	SANAction     string // "boot" | "hook" | "zap" | "unhook"
+	SANNoDescribe bool   // --no-describe flag
+	SANDrive      string // --drive flag, e.g. "0x80"
+	SANKeepSAN    bool   // set keep-san 1
 }
 
 type OSData struct {

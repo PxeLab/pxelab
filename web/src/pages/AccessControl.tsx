@@ -322,15 +322,15 @@ export default function AccessControl() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 bg-[var(--bg-elevated)] rounded-lg border border-[var(--bg-border)] p-0.5 w-fit">
+      <div className="flex gap-1 border-b border-[var(--bg-border)]">
         {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setSearchParams({ tab: tab.key })}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-[1px] ${
               activeTab === tab.key
-                ? 'bg-[var(--bg-card)] text-[var(--text-primary)] shadow-sm'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
             {tab.key === 'unauthorized' && <AlertTriangle size={14} className="text-amber-400" />}

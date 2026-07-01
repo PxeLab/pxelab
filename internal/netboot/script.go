@@ -24,7 +24,8 @@ var archMap = map[string]string{
 // platform may be "efi" or "pc" (not yet used for filtering, reserved for future use).
 // menuTitle overrides the default catalog menu title.
 // groups provides configurable group ordering, titles, and enabled/disabled state.
-func GenerateNetbootScript(c *Catalog, serverAddr, arch, platform, menuTitle string, groups []config.CatalogGroup, task *BootTaskInfo) string {
+// proxyHTTPS controls whether HTTPS boot URLs are proxied through the local HTTP server.
+func GenerateNetbootScript(c *Catalog, serverAddr, arch, platform, menuTitle string, groups []config.CatalogGroup, task *BootTaskInfo, proxyHTTPS bool) string {
 	archFilter := archMap[arch]
 
 	// Build group config lookup maps
@@ -150,7 +151,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr, arch, platform, menuTitle str
 				}
 				versionLabel := versionLabel(d, v)
 				b.WriteString(fmt.Sprintf(":%s\n", versionLabel))
-				b.WriteString(GenerateBootLine(v, serverAddr, "/boot/netboot", d.KernelParams, task))
+				b.WriteString(GenerateBootLine(v, serverAddr, "/boot/netboot", d.KernelParams, task, proxyHTTPS))
 				b.WriteString("\n")
 			}
 
@@ -169,7 +170,7 @@ func GenerateNetbootScript(c *Catalog, serverAddr, arch, platform, menuTitle str
 }
 
 // GenerateDistroScript generates a menu for a single distro
-func GenerateDistroScript(d *Distro, serverAddr, bootPrefix string, task *BootTaskInfo) string {
+func GenerateDistroScript(d *Distro, serverAddr, bootPrefix string, task *BootTaskInfo, proxyHTTPS bool) string {
 	var b strings.Builder
 	b.WriteString("#!ipxe\n\n")
 	b.WriteString(fmt.Sprintf("menu %s\n\n", d.Name))
@@ -188,7 +189,7 @@ func GenerateDistroScript(d *Distro, serverAddr, bootPrefix string, task *BootTa
 		}
 		versionLabel := versionLabel(d, v)
 		b.WriteString(fmt.Sprintf(":%s\n", versionLabel))
-		b.WriteString(GenerateBootLine(v, serverAddr, bootPrefix, d.KernelParams, task))
+		b.WriteString(GenerateBootLine(v, serverAddr, bootPrefix, d.KernelParams, task, proxyHTTPS))
 		b.WriteString("\n")
 	}
 
@@ -200,15 +201,16 @@ func GenerateDistroScript(d *Distro, serverAddr, bootPrefix string, task *BootTa
 // GenerateBootLine generates the kernel+initrd boot line for a version.
 // Supports multiple boot types: kernel (default), memdisk, sanboot, memtest, wimboot.
 // If task is non-nil, answer parameters are injected into the cmdline.
-func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, task *BootTaskInfo) string {
+// proxyHTTPS controls whether HTTPS URLs are proxied through the local HTTP server.
+func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, task *BootTaskInfo, proxyHTTPS bool) string {
 	var kernelURL, initrdURL string
 
 	if v.Local != nil {
 		kernelURL = fmt.Sprintf("http://%s%s/%s", serverAddr, bootPrefix, v.Local.Kernel)
 		initrdURL = fmt.Sprintf("http://%s%s/%s", serverAddr, bootPrefix, v.Local.Initrd)
 	} else if v.Remote != nil {
-		kernelURL = proxyRemoteURL(serverAddr, bootPrefix, v.Remote.Kernel)
-		initrdURL = proxyRemoteURL(serverAddr, bootPrefix, v.Remote.Initrd)
+		kernelURL = proxyRemoteURL(serverAddr, bootPrefix, v.Remote.Kernel, proxyHTTPS)
+		initrdURL = proxyRemoteURL(serverAddr, bootPrefix, v.Remote.Initrd, proxyHTTPS)
 	}
 
 	switch v.BootType {
@@ -235,10 +237,31 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, t
 		if url == "" {
 			url = kernelURL
 		}
-		if url == "" {
-			return "# No boot file configured\n"
+		var b strings.Builder
+		if v.SANKeepSAN {
+			b.WriteString("set keep-san 1\n")
 		}
-		return  fmt.Sprintf("sanboot %s\n", url)
+		switch v.SANAction {
+		case "hook":
+			b.WriteString(fmt.Sprintf("sanhook %s\n", url))
+		case "zap":
+			b.WriteString(fmt.Sprintf("sanzboot %s\n", url))
+		case "unhook":
+			b.WriteString("sanhook\n")
+		default:
+			b.WriteString("sanboot")
+			if v.SANNoDescribe {
+				b.WriteString(" --no-describe")
+			}
+			if v.SANDrive != "" {
+				b.WriteString(fmt.Sprintf(" --drive %s", v.SANDrive))
+			}
+			if url != "" {
+				b.WriteString(fmt.Sprintf(" %s", url))
+			}
+			b.WriteString("\n")
+		}
+		return b.String()
 
 	default: // BootKernel — standard kernel+initrd+boot
 		if kernelURL == "" && initrdURL == "" {
@@ -309,7 +332,11 @@ func sanitizeLabel(s string) string {
 
 // proxyRemoteURL rewrites HTTPS URLs to go through PxeGo's HTTP proxy,
 // so that iPXE firmware without HTTPS support can fetch them.
-func proxyRemoteURL(serverAddr, bootPrefix, remoteURL string) string {
+// When proxyHTTPS is false, the original URL is returned unchanged.
+func proxyRemoteURL(serverAddr, bootPrefix, remoteURL string, proxyHTTPS bool) string {
+	if !proxyHTTPS {
+		return remoteURL
+	}
 	if strings.HasPrefix(remoteURL, "https://") {
 		stripped := strings.TrimPrefix(remoteURL, "https://")
 		return fmt.Sprintf("http://%s%s/proxy/https/%s", serverAddr, bootPrefix, stripped)

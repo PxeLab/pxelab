@@ -203,6 +203,7 @@ type DNSSettingsResponse struct {
 
 type NetbootSettingsResponse struct {
 	Enabled         bool                    `json:"enabled"`
+	ProxyHTTPS      bool                    `json:"proxy_https"`
 	CatalogRedirect CatalogRedirectSettings `json:"catalog_redirect"`
 	CatalogDisplay  CatalogDisplaySettings  `json:"catalog_display"`
 }
@@ -1054,6 +1055,7 @@ func (h *SettingsHandler) GetNetboot(w http.ResponseWriter, r *http.Request) {
 	cfg := h.cfg
 	OK(w, NetbootSettingsResponse{
 		Enabled: cfg.Netboot.Enabled,
+		ProxyHTTPS: cfg.Netboot.ProxyHTTPS,
 		CatalogRedirect: CatalogRedirectSettings{
 			Enabled:    cfg.Netboot.Boot.CatalogRedirect.Enabled,
 			TargetURL:  cfg.Netboot.Boot.CatalogRedirect.TargetURL,
@@ -1076,6 +1078,7 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 
 	h.mu.Lock()
 	h.cfg.Netboot.Enabled = req.Enabled
+	h.cfg.Netboot.ProxyHTTPS = req.ProxyHTTPS
 	h.cfg.Netboot.Boot.CatalogRedirect = config.CatalogRedirectConfig{
 		Enabled:    req.CatalogRedirect.Enabled,
 		TargetURL:  req.CatalogRedirect.TargetURL,

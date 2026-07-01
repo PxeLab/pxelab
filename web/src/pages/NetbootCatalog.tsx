@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Search, RefreshCw, HardDrive, Globe, Monitor, Cpu, Package, Wrench, Server, CheckCircle2, XCircle, Settings2, Trash2 } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { Search, RefreshCw, HardDrive, Globe, Monitor, Cpu, Package, Wrench, Server, CheckCircle2, XCircle, Settings2, Trash2, Plus } from 'lucide-react'
+import { useToast } from '../components/ui/Toast'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { Pagination } from '../components/ui/Pagination'
@@ -105,9 +106,15 @@ export default function NetbootCatalog() {
   const [overlayDistro, setOverlayDistro] = useState<NetbootDistro | null>(null)
   const [editingOverlay, setEditingOverlay] = useState<NetbootOverlay | null>(null)
   const [overlaySaving, setOverlaySaving] = useState(false)
+  // Create profile dialog
+  const [createTarget, setCreateTarget] = useState<{ distro: NetbootDistro; version: NetbootVersion } | null>(null)
+  const [createName, setCreateName] = useState('')
+  const [createLoading, setCreateLoading] = useState(false)
   // Pagination
   const [page, setPage] = useState(1)
 
+  const navigate = useNavigate()
+  const { success, error: toastError } = useToast()
   const { pageSize } = useUIConfig()
 
   const loadData = useCallback(async () => {
@@ -364,21 +371,21 @@ export default function NetbootCatalog() {
             className="w-full pl-8 pr-4 py-1.5 text-sm border border-[var(--border-color)] rounded bg-[var(--bg-primary)]"
           />
         </div>
-        <div className="flex gap-1 flex-wrap">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setSearchParams({ tab: tab.key })}
-              className={`px-3 py-1.5 text-sm rounded ${
-                activeTab === tab.key
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      </div>
+      <div className="flex gap-1 flex-wrap border-b border-[var(--bg-border)] mb-6">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setSearchParams({ tab: tab.key })}
+            className={`px-3 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-[1px] ${
+              activeTab === tab.key
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -406,6 +413,7 @@ export default function NetbootCatalog() {
                   <th className="text-center px-3 py-2.5 font-medium text-[var(--text-muted)] text-[11px]">
                     <span title="Kernel/Initrd 文件是否已缓存到本地服务器">缓存</span>
                   </th>
+                  <th className="text-center px-3 py-2.5 font-medium text-[var(--text-muted)] text-[11px]">操作</th>
                   <th className="text-center px-3 py-2.5 font-medium text-[var(--text-muted)] text-[11px]">覆盖</th>
                 </tr>
               </thead>
@@ -442,6 +450,17 @@ export default function NetbootCatalog() {
                         ? <CheckCircle2 size={14} className="text-green-500 inline" />
                         : <XCircle size={14} className="text-red-400/60 inline" />
                       }
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <button
+                        onClick={() => {
+                          setCreateTarget({ distro, version })
+                          setCreateName(distro.name + ' ' + version.name)
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded transition-colors bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                      >
+                        <Plus size={12} /> 创建
+                      </button>
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       <button
@@ -507,6 +526,74 @@ export default function NetbootCatalog() {
         }
       >
         {renderOverlayBody()}
+      </Modal>
+
+      {/* Create Profile Dialog */}
+      <Modal
+        open={!!createTarget}
+        onClose={() => setCreateTarget(null)}
+        title="创建 Profile"
+        width="400px"
+        footer={
+          <>
+            <button
+              onClick={() => setCreateTarget(null)}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors"
+            >
+              取消
+            </button>
+            <button
+              onClick={async () => {
+                if (!createTarget) return
+                setCreateLoading(true)
+                try {
+                  await api.createProfileFromNetboot({
+                    distro_name: createTarget.distro.name,
+                    version_codename: createTarget.version.codename,
+                    arch: createTarget.version.arch,
+                    profile_name: createName,
+                  })
+                  success('Profile 创建成功')
+                  setCreateTarget(null)
+                  navigate('/profiles')
+                } catch {
+                  toastError('创建 Profile 失败')
+                }
+                setCreateLoading(false)
+              }}
+              disabled={createLoading || !createName.trim()}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 disabled:opacity-40 transition-colors"
+            >
+              {createLoading ? '创建中...' : '确定创建'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Profile 名称</label>
+            <input
+              type="text"
+              value={createName}
+              onChange={e => setCreateName(e.target.value)}
+              placeholder="输入 Profile 名称"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+              autoFocus
+            />
+          </div>
+          {createTarget && (
+            <div className="text-xs text-[var(--text-muted)] space-y-1">
+              <p>发行版: <span className="text-[var(--text-primary)]">{createTarget.distro.name}</span></p>
+              <p>版本: <span className="text-[var(--text-primary)]">{createTarget.version.name} ({createTarget.version.codename})</span></p>
+              <p>架构: <span className="text-[var(--text-primary)]">{createTarget.version.arch}</span></p>
+              {createTarget.version.remote?.kernel && (
+                <p className="truncate" title={createTarget.version.remote.kernel}>
+                  Kernel: <span className="text-[var(--text-primary)]">{createTarget.version.remote.kernel}</span>
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   )
