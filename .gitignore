@@ -28,6 +28,7 @@ web/node_modules/
 
 # Build output
 web/dist/
+cmd/pxego/webdist/assets/
 *.tsbuildinfo
 
 # Environment

@@ -1,4 +1,5 @@
 import { type FC } from 'react'
+import { Button } from './Button'
 
 interface Props {
   icon?: string
@@ -13,12 +14,9 @@ export const EmptyState: FC<Props> = ({ icon = '📦', title, description, actio
     <h3 className="text-base text-[var(--text-secondary)] mb-1.5">{title}</h3>
     {description && <p className="text-sm mb-4">{description}</p>}
     {action && (
-      <button
-        onClick={action.onClick}
-        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-      >
+      <Button variant="primary" size="md" onClick={action.onClick}>
         {action.label}
-      </button>
+      </Button>
     )}
   </div>
 )

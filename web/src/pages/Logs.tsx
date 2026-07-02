@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Play, Pause, Trash2, Columns, LayoutGrid } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { getBaseURL } from '../api/client'
@@ -25,7 +26,7 @@ interface PanelConfig {
 }
 
 const SERVICES = [
-  { value: '', label: '全部' },
+  { value: '', label: 'logs.allServices' },
   { value: 'DHCP', label: 'DHCP' },
   { value: 'TFTP', label: 'TFTP' },
   { value: 'HTTP', label: 'HTTP' },
@@ -35,7 +36,7 @@ const SERVICES = [
 ]
 
 const LEVELS: { value: LogLevel | ''; label: string; color: string }[] = [
-  { value: '', label: '全部', color: '' },
+  { value: '', label: 'logs.allLevels', color: '' },
   { value: 'debug', label: 'DEBUG', color: 'text-gray-500' },
   { value: 'info', label: 'INFO', color: 'text-blue-400' },
   { value: 'warn', label: 'WARN', color: 'text-yellow-500' },
@@ -61,7 +62,7 @@ const SERVICE_COLORS: Record<string, string> = {
 function formatTime(iso: string): string {
   try {
     const d = new Date(iso)
-    return d.toLocaleTimeString('zh-CN', { hour12: false })
+    return d.toLocaleString()
   } catch {
     return iso
   }
@@ -75,6 +76,7 @@ function createPanel(id: number, defaultService = ''): PanelConfig {
 const LAYOUT_SERVICES = ['DHCP', 'TFTP', 'HTTP', 'DNS', 'IPMI']
 
 export default function Logs() {
+  const { t } = useTranslation()
   const [layout, setLayout] = useState<LayoutMode>(1)
   const [panels, setPanels] = useState<PanelConfig[]>([createPanel(0)])
   const [allPaused, setAllPaused] = useState(false)
@@ -86,6 +88,15 @@ export default function Logs() {
 
   autoScrollRef.current = panels.map((_, i) => autoScrollRef.current[i] ?? true)
   allPausedRef.current = allPaused // 同步到 ref，供 SSE 回调中读取
+  const scrollRafRef = useRef<number | null>(null)
+
+  const handleScroll = useCallback((idx: number) => (e: React.UIEvent<HTMLDivElement>) => {
+    if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current)
+    scrollRafRef.current = requestAnimationFrame(() => {
+      const el = e.currentTarget
+      autoScrollRef.current[idx] = el.scrollHeight - el.scrollTop - el.clientHeight < 50
+    })
+  }, [])
 
   // 连接 SSE（带过滤参数）
   useEffect(() => {
@@ -153,12 +164,13 @@ export default function Logs() {
     setLayout(mode)
     setPanels(prev => {
       const count = mode
-      while (prev.length < count) {
-        const i = prev.length
+      const next = [...prev]
+      while (next.length < count) {
+        const i = next.length
         const svc = mode > 1 ? LAYOUT_SERVICES[i] ?? '' : ''
-        prev.push(createPanel(i, svc))
+        next.push(createPanel(i, svc))
       }
-      return prev.slice(0, count)
+      return next.slice(0, count)
     })
     bottomRefs.current = bottomRefs.current.slice(0, mode)
     setSseKey(k => k + 1) // 面板 0 服务可能变化，重连 SSE
@@ -184,17 +196,14 @@ export default function Logs() {
     setPanels(prev => prev.map(p => p.id === id ? { ...p, ...upd } : p))
   }, [])
 
-  const gridClasses = layout === 1 ? 'grid-cols-1' : layout === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'
+  const gridClasses = layout === 1 ? 'grid-cols-1' : layout === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 auto-rows-fr'
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">日志</h1>
-      </div>
-      {/* Toolbar */}
       <div className="flex items-center justify-between mb-4">
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('logs.title')}</h1>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-[var(--text-secondary)] mr-1">布局</span>
+          <span className="text-xs font-semibold text-[var(--text-secondary)] mr-1">{t('logs.layout')}</span>
           <Button
             variant={layout === 1 ? 'primary' : 'secondary'} size="sm"
             onClick={() => changeLayout(1)}
@@ -213,19 +222,18 @@ export default function Logs() {
           >
             <LayoutGrid size={14} className="mr-1" /> 4
           </Button>
-        </div>
-        <div className="flex items-center gap-2">
+          <div className="w-px h-4 bg-[var(--bg-border)] mx-1" />
           <Button
             variant="secondary" size="sm"
             onClick={() => setAllPaused(!allPaused)}
           >
             {allPaused ? <Play size={14} className="mr-1" /> : <Pause size={14} className="mr-1" />}
-            {allPaused ? '恢复全部' : '暂停全部'}
+            {allPaused ? t('logs.resumeAll') : t('logs.pauseAll')}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => {
             setPanels(prev => prev.map(p => ({ ...p, logs: [] })))
           }}>
-            <Trash2 size={14} className="mr-1" /> 清空全部
+            <Trash2 size={14} className="mr-1" /> {t('logs.clearAll')}
           </Button>
         </div>
       </div>
@@ -239,22 +247,22 @@ export default function Logs() {
               <div className="flex items-center gap-2">
                 {/* Service filter */}
                 <select
-                  className="text-xs bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-1.5 py-1 text-[var(--text-primary)] outline-none"
+                  className="text-xs bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-1.5 py-1 text-[var(--text-primary)] outline-none"
                   value={panel.service}
                   onChange={e => updatePanel(panel.id, { service: e.target.value })}
                 >
                   {SERVICES.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
+                    <option key={s.value} value={s.value}>{t(s.label)}</option>
                   ))}
                 </select>
                 {/* Level filter */}
                 <select
-                  className="text-xs bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-1.5 py-1 text-[var(--text-primary)] outline-none"
+                  className="text-xs bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-1.5 py-1 text-[var(--text-primary)] outline-none"
                   value={panel.level}
                   onChange={e => updatePanel(panel.id, { level: e.target.value as LogLevel | '' })}
                 >
                   {LEVELS.map(l => (
-                    <option key={l.value} value={l.value}>{l.label}</option>
+                    <option key={l.value} value={l.value}>{t(l.label)}</option>
                   ))}
                 </select>
               </div>
@@ -263,14 +271,14 @@ export default function Logs() {
                 <button
                   onClick={() => clearPanel(panel.id)}
                   className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  title="清空"
+                  title={t('logs.clear')}
                 >
                   <Trash2 size={13} />
                 </button>
                 <button
                   onClick={() => togglePausePanel(panel.id)}
                   className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                  title={panel.paused ? '恢复' : '暂停'}
+                  title={panel.paused ? t('logs.resume') : t('logs.pause')}
                 >
                   {panel.paused ? <Play size={13} /> : <Pause size={13} />}
                 </button>
@@ -279,20 +287,17 @@ export default function Logs() {
 
             {/* Log Lines */}
             <div
-              className="flex-1 overflow-y-auto rounded-b-xl border border-[var(--bg-border)] bg-[var(--bg-card)] font-mono text-xs leading-relaxed"
-              onScroll={e => {
-                const el = e.currentTarget
-                autoScrollRef.current[idx] = el.scrollHeight - el.scrollTop - el.clientHeight < 50
-              }}
+              className="flex-1 overflow-y-auto overflow-x-auto rounded-b-xl border border-[var(--bg-border)] bg-[var(--bg-card)] font-mono text-xs leading-relaxed"
+              onScroll={handleScroll(idx)}
             >
               {panel.logs.length === 0 ? (
                 <div className="flex items-center justify-center h-full min-h-[100px] text-[var(--text-muted)] italic text-xs">
-                  暂无日志，服务产生日志时实时显示
+                  {t('logs.noLogs')}
                 </div>
               ) : (
                 panel.logs.map((entry, li) => (
-                  <div key={li} className="flex items-start gap-2 px-3 py-0.5 hover:bg-[var(--bg-hover)] border-b border-[var(--bg-border)]/30 last:border-0">
-                    <span className="text-[var(--text-muted)] shrink-0 pt-0.5 tabular-nums">{formatTime(entry.time)}</span>
+                  <div key={li} className="flex items-center gap-2 px-3 py-0.5 hover:bg-[var(--bg-hover)] border-b border-[var(--bg-border)]/30 last:border-0 whitespace-nowrap">
+                    <span className="text-[var(--text-muted)] shrink-0 tabular-nums">{formatTime(entry.time)}</span>
                     <span className={`shrink-0 font-semibold ${LEVEL_COLORS[entry.level] || ''} px-1 rounded text-[10px] leading-4`}>
                       {entry.level.toUpperCase()}
                     </span>
@@ -301,18 +306,16 @@ export default function Logs() {
                         {entry.service}
                       </span>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[var(--text-primary)] break-all">{entry.message}</span>
-                      {(entry.mac || entry.ip || (entry.attrs && Object.keys(entry.attrs).length > 0)) && (
-                        <div className="text-[11px] text-[var(--text-muted)] leading-snug mt-0.5 flex flex-wrap gap-x-2 gap-y-0">
-                          {entry.mac && <span className="font-mono">mac={entry.mac}</span>}
-                          {entry.ip && <span className="font-mono">ip={entry.ip}</span>}
-                          {entry.attrs && Object.entries(entry.attrs).map(([k, v]) => (
-                            <span key={k} className="font-mono">{k}={typeof v === 'string' ? v : JSON.stringify(v)}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <span className="text-[var(--text-primary)]">{entry.message}</span>
+                    {(entry.mac || entry.ip || (entry.attrs && Object.keys(entry.attrs).length > 0)) && (
+                      <span className="text-[11px] text-[var(--text-muted)] font-mono shrink-0">
+                        {entry.mac && <span className="mr-2">mac={entry.mac}</span>}
+                        {entry.ip && <span className="mr-2">ip={entry.ip}</span>}
+                        {entry.attrs && Object.entries(entry.attrs).map(([k, v]) => (
+                          <span key={k} className="mr-2">{k}={typeof v === 'string' ? v : JSON.stringify(v)}</span>
+                        ))}
+                      </span>
+                    )}
                   </div>
                 ))
               )}

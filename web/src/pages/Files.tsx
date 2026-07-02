@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Tag } from '../components/ui/Tag'
 import { EmptyState } from '../components/ui/EmptyState'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { api, type FileInfo } from '../api/client'
 
@@ -15,6 +16,7 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
   const [loading, setLoading] = useState(true)
   const [currentDir, setCurrentDir] = useState('.')
   const [search, setSearch] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadFiles() }, [currentDir])
@@ -40,13 +42,18 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
   }
 
   async function handleDelete(name: string) {
-    if (!confirm(t('files.deleteConfirm'))) return
-    const path = currentDir === '.' ? name : currentDir + '/' + name
+    setConfirmDelete(name)
+  }
+
+  async function doDelete() {
+    if (!confirmDelete) return
+    const path = currentDir === '.' ? confirmDelete : currentDir + '/' + confirmDelete
     try {
       await api.deleteFile(path)
-      success( `${name} ${t('common.deleted', '已删除')}`)
+      success( `${confirmDelete} ${t('common.deleted', '已删除')}`)
       loadFiles()
     } catch (err: any) { error(err.message) }
+    setConfirmDelete(null)
   }
 
   function enterDir(name: string) {
@@ -104,7 +111,7 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
       ) : (
         <>
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-lg font-bold text-[var(--text-primary)]">文件</h1>
+            <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('files.title')}</h1>
             <div className="flex gap-2">
               <Button variant="secondary" size="sm" onClick={loadFiles}>
                 <RefreshCw size={14} /> {t('common.refresh', '刷新')}
@@ -135,13 +142,13 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
       >
         {currentDir !== '.' && (
           <button onClick={() => setCurrentDir('.')} className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors mb-1">
-            .. 返回上级
+            {t('files.backToParent')}
           </button>
         )}
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-9 bg-[var(--bg-card)] rounded animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[var(--bg-card)] via-[var(--bg-hover)] to-[var(--bg-card)] bg-[length:200%_100%]" />
+              <div key={i} className="h-9 bg-[var(--bg-card)] rounded animate-shimmer" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -152,9 +159,9 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
               <thead className="border-b border-[var(--bg-border)]">
                 <tr className="text-left text-xs font-semibold text-[var(--text-secondary)]">
                   <th className="px-3 py-2 w-8"></th>
-                  <th className="px-3 py-2">名称</th>
-                  <th className="px-3 py-2 w-24 text-right">大小</th>
-                  <th className="px-3 py-2 w-32">修改时间</th>
+                  <th className="px-3 py-2">{t('files.colName')}</th>
+                  <th className="px-3 py-2 w-24 text-right">{t('files.colSize')}</th>
+                  <th className="px-3 py-2 w-32">{t('files.colModified')}</th>
                   <th className="px-3 py-2 w-28">MD5</th>
                   <th className="px-3 py-2 w-10"></th>
                 </tr>
@@ -200,9 +207,16 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
           </div>
         )}
         {rootPath && (
-          <p className="px-1 pt-3 text-xs text-[var(--text-muted)] font-mono">路径：{displayPath}</p>
+          <p className="px-1 pt-3 text-xs text-[var(--text-muted)] font-mono">{t('files.path')}:{displayPath}</p>
         )}
       </Card>
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={doDelete}
+        title={t('files.deleteTitle')}
+        message={t('files.deleteConfirm')}
+      />
     </div>
   )
 }

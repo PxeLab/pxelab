@@ -4,27 +4,50 @@
 
 /* ── Theme CSS Variables ── */
 :root {
-  --bg-base: #f5f6f8;
+  --bg-base: #f8f9fc;
   --bg-elevated: #ffffff;
-  --bg-card: #ebedf0;
-  --bg-hover: #e2e4e9;
-  --bg-input: #e8eaed;
-  --bg-border: #d4d6dd;
-  --text-primary: #1a1d2e;
-  --text-secondary: #4a4d5e;
-  --text-muted: #8b8fa0;
+  --bg-card: #ffffff;
+  --bg-hover: #f0f2f7;
+  --bg-input: #e8ebf2;
+  --bg-border: #dce0ea;
+  --text-primary: #0f1729;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-color: 220 40% 2%;
+  --shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.04), 0 1px 3px hsl(var(--shadow-color) / 0.06);
+  --shadow-md: 0 2px 4px hsl(var(--shadow-color) / 0.04), 0 4px 12px hsl(var(--shadow-color) / 0.06);
+  --shadow-lg: 0 4px 8px hsl(var(--shadow-color) / 0.04), 0 12px 32px hsl(var(--shadow-color) / 0.08);
+  --shadow-xl: 0 8px 16px hsl(var(--shadow-color) / 0.06), 0 24px 56px hsl(var(--shadow-color) / 0.1);
+
+  --glow-blue: 0 0 20px -4px rgba(59,130,246,0.35);
+  --glow-green: 0 0 16px -4px rgba(34,197,94,0.3);
 }
 
 .dark {
-  --bg-base: #0a0c10;
-  --bg-elevated: #111318;
-  --bg-card: #16181f;
-  --bg-hover: #1c1f2c;
-  --bg-input: #1a1d2e;
-  --bg-border: #232738;
-  --text-primary: #e8eaed;
-  --text-secondary: #9aa0ab;
-  --text-muted: #6b7294;
+  --bg-base: #080a10;
+  --bg-elevated: #0e1118;
+  --bg-card: #13161f;
+  --bg-hover: #1a1e2c;
+  --bg-input: #22283a;
+  --bg-border: #2d3348;
+  --text-primary: #edf0f7;
+  --text-secondary: #9ba3b8;
+  --text-muted: #5c6480;
+
+  --shadow-color: 220 60% 2%;
+  --shadow-sm: 0 1px 3px hsl(var(--shadow-color) / 0.3), 0 1px 2px hsl(var(--shadow-color) / 0.4);
+  --shadow-md: 0 4px 12px hsl(var(--shadow-color) / 0.35), 0 8px 24px hsl(var(--shadow-color) / 0.25);
+  --shadow-lg: 0 8px 24px hsl(var(--shadow-color) / 0.4), 0 16px 48px hsl(var(--shadow-color) / 0.3);
+  --shadow-xl: 0 12px 32px hsl(var(--shadow-color) / 0.5), 0 32px 64px hsl(var(--shadow-color) / 0.35);
+
+  --glow-blue: 0 0 24px -4px rgba(59,130,246,0.4);
+  --glow-green: 0 0 20px -4px rgba(34,197,94,0.35);
 }
 
 @theme {
@@ -37,9 +60,47 @@
   --color-accent-orange: #f97316;
 }
 
+/* ── Font ── */
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ── Animations ── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+  50% { box-shadow: 0 0 0 4px rgba(59,130,246,0.1); }
 }
 
 .animate-shimmer {
@@ -48,7 +109,19 @@
   animation: shimmer 1.5s infinite;
 }
 
-/* Custom scrollbar for dark theme */
+.animate-modal-in {
+  animation: modal-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-overlay-in {
+  animation: overlay-in 0.2s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+/* ── Scrollbar ── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -64,10 +137,89 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3f52;
+  background: var(--text-muted);
 }
 
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--bg-border) transparent;
+}
+
+/* ── Color Palettes ── */
+
+/* Ocean — cool blue (default) */
+/* Forest — teal/emerald */
+.palette-forest {
+  --color-blue-50: oklch(0.95 0.03 180);
+  --color-blue-100: oklch(0.90 0.05 180);
+  --color-blue-200: oklch(0.85 0.08 180);
+  --color-blue-300: oklch(0.75 0.12 180);
+  --color-blue-400: #2dd4bf;
+  --color-blue-500: #14b8a6;
+  --color-blue-600: #0d9488;
+  --color-blue-700: #0f766e;
+  --color-blue-800: #115e59;
+  --color-blue-900: #134e4a;
+  --glow-blue: 0 0 20px -4px rgba(20,184,166,0.35);
+  --glow-green: 0 0 16px -4px rgba(16,185,129,0.3);
+}
+
+/* Sunset — warm amber */
+.palette-sunset {
+  --color-blue-50: oklch(0.95 0.03 80);
+  --color-blue-100: oklch(0.90 0.06 80);
+  --color-blue-200: oklch(0.85 0.10 80);
+  --color-blue-300: oklch(0.78 0.14 80);
+  --color-blue-400: #fbbf24;
+  --color-blue-500: #f59e0b;
+  --color-blue-600: #d97706;
+  --color-blue-700: #b45309;
+  --color-blue-800: #92400e;
+  --color-blue-900: #78350f;
+  --glow-blue: 0 0 20px -4px rgba(245,158,11,0.35);
+  --glow-green: 0 0 16px -4px rgba(251,191,36,0.3);
+}
+
+/* Violet — purple */
+.palette-violet {
+  --color-blue-50: oklch(0.95 0.03 290);
+  --color-blue-100: oklch(0.90 0.06 290);
+  --color-blue-200: oklch(0.85 0.10 290);
+  --color-blue-300: oklch(0.78 0.14 290);
+  --color-blue-400: #a78bfa;
+  --color-blue-500: #8b5cf6;
+  --color-blue-600: #7c3aed;
+  --color-blue-700: #6d28d9;
+  --color-blue-800: #5b21b6;
+  --color-blue-900: #4c1d95;
+  --glow-blue: 0 0 20px -4px rgba(139,92,246,0.35);
+  --glow-green: 0 0 16px -4px rgba(168,85,247,0.3);
+}
+
+/* Rose — pink */
+.palette-rose {
+  --color-blue-50: oklch(0.95 0.03 0);
+  --color-blue-100: oklch(0.90 0.06 0);
+  --color-blue-200: oklch(0.85 0.10 0);
+  --color-blue-300: oklch(0.78 0.14 0);
+  --color-blue-400: #fb7185;
+  --color-blue-500: #f43f5e;
+  --color-blue-600: #e11d48;
+  --color-blue-700: #be123c;
+  --color-blue-800: #9f1239;
+  --color-blue-900: #881337;
+  --glow-blue: 0 0 20px -4px rgba(244,63,94,0.35);
+  --glow-green: 0 0 16px -4px rgba(251,113,133,0.3);
+}
+
+/* Midnight — deeper, cooler dark blue */
+.palette-midnight {
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+  --glow-blue: 0 0 24px -4px rgba(59,130,246,0.5);
+  --glow-green: 0 0 20px -4px rgba(34,197,94,0.4);
 }

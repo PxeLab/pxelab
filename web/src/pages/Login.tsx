@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { login } from '../api/client'
+import { Button } from '../components/ui/Button'
 
 interface LoginProps {
   onLogin: () => void
@@ -29,45 +30,57 @@ export default function LoginPage({ onLogin }: LoginProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-base)] px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-base)] px-4 relative overflow-hidden">
+      {/* Background gradient decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-1/2 -left-1/4 w-[600px] h-[600px] rounded-full bg-blue-500/5 blur-3xl" />
+        <div className="absolute -bottom-1/2 -right-1/4 w-[600px] h-[600px] rounded-full bg-purple-500/5 blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-sm relative">
+        {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">PxeGo</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-2">{t('login.title', '管理控制台')}</p>
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-extrabold text-xl text-white shadow-xl shadow-blue-500/25 mx-auto mb-4">
+            PX
+          </div>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">PxeGo</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-2">{t('login.title')}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-6 space-y-4">
+        {/* Login Card */}
+        <form onSubmit={handleSubmit} className="bg-[var(--bg-card)]/80 backdrop-blur-xl border border-[var(--bg-border)] rounded-2xl p-6 space-y-4 shadow-xl">
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
-              {t('login.tokenLabel', 'API 认证令牌')}
+              {t('login.tokenLabel')}
             </label>
             <input
               type="password"
               value={token}
               onChange={e => setToken(e.target.value)}
-              placeholder={t('login.tokenPlaceholder', '请输入 API 令牌')}
+              placeholder={t('login.tokenPlaceholder')}
               autoFocus
-              className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2.5 text-sm text-[var(--text-primary)] outline-none transition-all placeholder-[var(--text-muted)] focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10"
+              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none transition-all placeholder-[var(--text-muted)] focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
             />
           </div>
 
           {error && (
-            <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+            <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
               {error}
             </div>
           )}
 
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            className="w-full justify-center py-3 text-sm"
             disabled={loading || !token.trim()}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/40 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg px-4 py-2.5 transition-colors"
           >
-            {loading ? t('login.loggingIn', '登录中...') : t('login.submit', '登录')}
-          </button>
+            {loading ? t('login.loggingIn') : t('login.submit')}
+          </Button>
         </form>
 
-        <p className="text-xs text-center text-[var(--text-muted)] mt-4">
-          {t('login.hint', '首次使用？在服务器终端查看初始令牌，或从本机访问设置页面。')}
+        <p className="text-xs text-center text-[var(--text-muted)] mt-5">
+          {t('login.hint')}
         </p>
       </div>
     </div>

@@ -1,4 +1,5 @@
-import { type FC, type ReactNode, useEffect, useCallback } from 'react'
+import { type FC, type ReactNode, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 interface Props {
@@ -11,25 +12,43 @@ interface Props {
   disableBackdropClose?: boolean
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 export const Modal: FC<Props> = ({ open, onClose, title, children, footer, width = '480px', disableBackdropClose }) => {
+  const contentRef = useRef<HTMLDivElement>(null)
+
   const handleKey = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose()
+    if (e.key === 'Escape') { onClose(); return }
+    if (e.key === 'Tab' && contentRef.current) {
+      const els = contentRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)
+      if (els.length === 0) return
+      const first = els[0]
+      const last = els[els.length - 1]
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus() }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
+    }
   }, [onClose])
 
   useEffect(() => {
-    if (open) document.addEventListener('keydown', handleKey)
+    if (!open) return
+    document.addEventListener('keydown', handleKey)
+    contentRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
     return () => document.removeEventListener('keydown', handleKey)
   }, [open, handleKey])
 
   if (!open) return null
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-overlay-in"
       onClick={(e) => { if (!disableBackdropClose && e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] max-h-[80vh] overflow-y-auto"
+        ref={contentRef}
+        className="bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-2xl shadow-xl max-h-[80vh] overflow-y-auto animate-modal-in"
         style={{ width, maxWidth: '90vw' }}
       >
         <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--bg-border)]">
@@ -48,6 +67,7 @@ export const Modal: FC<Props> = ({ open, onClose, title, children, footer, width
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -32,7 +32,7 @@ interface TagProps {
 }
 
 export const Tag: FC<TagProps> = ({ color = 'blue', variant = 'subtle', children, className = '' }) => (
-  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-semibold ${colorClasses[variant][color]} ${className}`}>
+  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono font-semibold ${colorClasses[variant][color]} ${className}`}>
     {children}
   </span>
 )

@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X, Save, Copy, Check, RotateCw, Settings as SettingsIcon, Monitor, FileCode, Activity } from 'lucide-react'
 import { Toggle } from '../../components/ui/Toggle'
+import { Button } from '../../components/ui/Button'
 import { useToast } from '../../components/ui/Toast'
 import { useUIConfig } from '../../contexts/UIConfigContext'
 import {
@@ -78,9 +80,9 @@ export default function SettingsModal({ open, onClose }: Props) {
       if (netboot) promises.push(updateNetbootSettings(netboot))
       await Promise.all(promises)
       if (general?.page_size) setPageSize(general.page_size)
-      success('设置已保存')
+      success(t('settings.saved'))
     } catch (e: any) {
-      showError(e?.message || '保存失败')
+      showError(e?.message || t('settings.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -92,11 +94,11 @@ export default function SettingsModal({ open, onClose }: Props) {
     { key: 'general', label: t('nav.settings.general'), icon: SettingsIcon },
     { key: 'boot', label: t('nav.settings.bootMenu'), icon: FileCode },
     { key: 'netboot', label: t('nav.settings.netboot'), icon: Monitor },
-    { key: 'services', label: '服务自动启动', icon: Activity },
+    { key: 'services', label: t('settings.modalServiceAutoStart'), icon: Activity },
   ]
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-overlay-in" onClick={onClose}>
       <div className="flex w-full h-full md:w-[75vw] md:h-[80vh] md:max-w-[900px] md:rounded-xl bg-[var(--bg-elevated)] border border-[var(--bg-border)] overflow-hidden" onClick={e => e.stopPropagation()}>
         {/* Sidebar */}
         <aside className="w-[160px] shrink-0 bg-[var(--bg-base)] border-r border-[var(--bg-border)] flex flex-col overflow-hidden">
@@ -126,11 +128,10 @@ export default function SettingsModal({ open, onClose }: Props) {
           <div className="flex items-center justify-between h-14 px-5 border-b border-[var(--bg-border)] shrink-0">
             <span className="font-bold text-sm">{navItems.find(n => n.key === section)?.label}</span>
             <div className="flex items-center gap-2">
-              <button onClick={handleSave} disabled={saving}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50">
+              <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
                 <Save size={14} />
-                {saving ? t('common.loading') : t('settings.save')}
-              </button>
+                {saving ? t('settings.loading') : t('settings.save')}
+              </Button>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
                 <X size={18} />
               </button>
@@ -142,7 +143,7 @@ export default function SettingsModal({ open, onClose }: Props) {
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
-                <span className="ml-3 text-sm text-[var(--text-muted)]">加载中...</span>
+                <span className="ml-3 text-sm text-[var(--text-muted)]">{t('settings.loading')}</span>
               </div>
             ) : (
               <>
@@ -155,7 +156,8 @@ export default function SettingsModal({ open, onClose }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -176,7 +178,7 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
 
   return (
     <div className="p-6 space-y-4">
-      <h3 className="text-sm font-semibold text-[var(--text-primary)]">基本设置</h3>
+      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('settings.modalBasicSettings')}</h3>
       <SettingsField label={t('common.serverName', '服务器名称')}>
         <input className={inputCls} value={config.server_name} onChange={e => onChange({...config, server_name: e.target.value})} />
       </SettingsField>
@@ -185,11 +187,11 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
           <option>info</option><option>debug</option><option>warn</option><option>error</option>
         </select>
       </SettingsField>
-      <SettingsField label="每页条数">
+      <SettingsField label={t('settings.modalPerPage')}>
         <input type="number" min={5} max={500} value={config.page_size}
           onChange={e => onChange({...config, page_size: parseInt(e.target.value) || 50})}
           className="w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" />
-        <p className="text-xs text-[var(--text-muted)] mt-1">列表页和表格每页显示的数据条数，默认 50。</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.modalPerPageHelp')}</p>
       </SettingsField>
       <SettingsField label={t('settings.dataDir')}>
         <div className="flex gap-2">
@@ -199,7 +201,7 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
           <label className="flex items-center gap-2 mt-2 cursor-pointer" onClick={e => e.stopPropagation()}>
             <input type="checkbox" checked={!!config.migrate_boot} onChange={e => onChange({...config, migrate_boot: e.target.checked})}
               className="rounded border-[var(--bg-border)] bg-[var(--bg-input)]" />
-            <span className="text-xs text-[var(--text-muted)]">同时将旧目录中的启动文件迁移到新目录</span>
+            <span className="text-xs text-[var(--text-muted)]">{t('settings.modalMigrateBoot')}</span>
           </label>
         )}
       </SettingsField>
@@ -226,35 +228,35 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
               }
             }
           }}>
-            <option value="">选择网卡</option>
-            <option value="*">所有接口 (0.0.0.0:{config.listen_addr.split(':')[1] || '8080'})</option>
+            <option value="">{t('settings.modalSelectInterface')}</option>
+            <option value="*">{t('settings.allInterfaces')} (0.0.0.0:{config.listen_addr.split(':')[1] || '8080'})</option>
             {ifaces.filter(ai => ai.up && ai.ipv4?.length > 0).map(ai => (
               <option key={ai.name} value={ai.name}>{ai.name} ({ai.ipv4[0]})</option>
             ))}
           </select>
         </div>
-        <p className="text-xs text-[var(--text-muted)] mt-1">修改后需要重启 HTTP 服务才能生效。默认 127.0.0.1:8080（仅本机访问）；设为 0.0.0.0:8080 允许远程访问（需要登录认证）。</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.modalListenAddrHelp')}</p>
       </SettingsField>
 
-      <SettingsField label="API 认证令牌">
+      <SettingsField label={t('settings.authToken')}>
         <div className="flex items-center gap-2">
           <input type="text" readOnly
             value={config.token.length === 32 && /^[0-9a-f]+$/i.test(config.token)
               ? config.token.slice(0, 4) + '...' + config.token.slice(-4)
-              : config.token || '未设置'}
+              : config.token || t('settings.notSet')}
             className="flex-1 bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] font-mono outline-none select-all" />
-          <button onClick={onCopy} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-card)] transition-colors text-[var(--text-secondary)]" title="复制">
+          <button onClick={onCopy} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-card)] transition-colors text-[var(--text-secondary)]" title={t('settings.modalCopy')}>
             {tokenCopied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
           </button>
-          <button onClick={onRegenerate} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-card)] transition-colors text-[var(--text-secondary)]" title="重新生成">
+          <button onClick={onRegenerate} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-card)] transition-colors text-[var(--text-secondary)]" title={t('settings.modalRegenerate')}>
             <RotateCw size={16} />
           </button>
         </div>
-        <p className="text-xs text-[var(--text-muted)] mt-1">用于 API 请求的身份验证。将令牌输入登录页即可获取会话令牌。</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.modalTokenHelp')}</p>
 
         {config.token && !config.token.includes('...') && (
           <div className="mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400">
-            ⚠ 新令牌已生成！请立即复制并保存。保存配置后令牌将仅显示掩码。
+            {t('settings.modalNewTokenWarning')}
           </div>
         )}
       </SettingsField>
@@ -265,7 +267,7 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
           <Toggle checked={config.app_mode} onChange={v => onChange({...config, app_mode: v})} />
         </label>
         <label className="flex items-center justify-between gap-4 py-2 border-b border-[var(--bg-border)]">
-          <span className="text-sm text-[var(--text-secondary)]">启用全局白名单</span>
+          <span className="text-sm text-[var(--text-secondary)]">{t('settings.modalEnableWhitelist')}</span>
           <Toggle checked={config.whitelist_enabled} onChange={v => onChange({...config, whitelist_enabled: v})} />
         </label>
       </div>
@@ -276,13 +278,14 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
 // ── Boot Customization ──
 
 function BootForm({ config, onChange }: { config: GeneralSettings; onChange: (c: GeneralSettings) => void }) {
+  const { t } = useTranslation()
   const inputCls = 'w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500'
   return (
     <div className="p-6 space-y-4">
-      <h3 className="text-sm font-semibold text-[var(--text-primary)]">引导定制</h3>
+      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('settings.modalBootCustomization')}</h3>
 
-      <SettingsField label="自定义 iPXE 脚本">
-        <p className="text-xs text-[var(--text-muted)] mb-2">仅当客户端使用 <strong>iPXE</strong> 引导时生效（pxelinux/GRUB2 不受此影响）。留空则使用下方可视化配置的引导逻辑。</p>
+      <SettingsField label={t('settings.modalCustomIpxeScript')}>
+        <p className="text-xs text-[var(--text-muted)] mb-2">{t('settings.modalCustomIpxeHelp')}</p>
         <textarea value={config.script_template} onChange={e => onChange({...config, script_template: e.target.value})}
           rows={6} spellCheck={false}
           className="w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-4 py-3 text-sm font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
@@ -290,18 +293,18 @@ function BootForm({ config, onChange }: { config: GeneralSettings; onChange: (c:
       </SettingsField>
 
       <div className="pt-4 border-t border-[var(--bg-border)]">
-        <h4 className="text-xs font-semibold text-[var(--text-primary)] mb-2">默认引导菜单</h4>
-        <p className="text-xs text-[var(--text-muted)] mb-3">引导项在「<a href="/profiles" className="text-blue-400 hover:text-blue-300">引导配置</a>」中管理。</p>
-        <SettingsField label="超时时间（秒）">
+        <h4 className="text-xs font-semibold text-[var(--text-primary)] mb-2">{t('settings.modalDefaultBootMenu')}</h4>
+        <p className="text-xs text-[var(--text-muted)] mb-3">{t('settings.modalBootMenuHelp')}</p>
+        <SettingsField label={t('settings.modalTimeout')}>
           <input className={inputCls} type="number" value={config.default_menu.timeout}
             onChange={e => onChange({...config, default_menu: {...config.default_menu, timeout: parseInt(e.target.value) || 0}})} />
         </SettingsField>
         <label className="flex items-center justify-between gap-4 py-2 border-b border-[var(--bg-border)]">
-          <span className="text-sm text-[var(--text-secondary)]">列出所有引导配置作为菜单项</span>
+          <span className="text-sm text-[var(--text-secondary)]">{t('settings.modalListAllProfiles')}</span>
           <Toggle checked={config.default_menu.list_all_profiles}
             onChange={v => onChange({...config, default_menu: {...config.default_menu, list_all_profiles: v}})} />
         </label>
-        <p className="text-xs text-[var(--text-muted)] mt-1">关闭时只显示默认引导配置的项，开启时列出所有引导配置，默认配置排第一。</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.modalListAllProfilesHelp')}</p>
       </div>
     </div>
   )
@@ -310,37 +313,38 @@ function BootForm({ config, onChange }: { config: GeneralSettings; onChange: (c:
 // ── Netboot ──
 
 function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: (d: NetbootSettingsData) => void }) {
+  const { t } = useTranslation()
   const inputCls = 'w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500'
   return (
     <div className="p-6 space-y-4">
-      <h3 className="text-sm font-semibold">Netboot 设置</h3>
-      <SettingsField label="启用 Netboot 引导菜单">
+      <h3 className="text-sm font-semibold">{t('settings.modalNetbootSettings')}</h3>
+      <SettingsField label={t('settings.modalEnableNetboot')}>
         <Toggle checked={data.enabled} onChange={v => onChange({...data, enabled: v})} />
       </SettingsField>
-      <p className="text-xs text-[var(--text-muted)] -mt-2">启用后，PXE 引导菜单将显示「[Netboot] 网络安装操作系统目录」选项。</p>
-      <SettingsField label="HTTPS 代理">
+      <p className="text-xs text-[var(--text-muted)] -mt-2">{t('settings.modalNetbootHelp')}</p>
+      <SettingsField label={t('settings.modalHttpsProxy')}>
         <Toggle checked={data.proxy_https} onChange={v => onChange({...data, proxy_https: v})} />
-        <p className="text-xs text-[var(--text-muted)] mt-1">开启后自动将 HTTPS 引导 URL 通过本地 HTTP 代理拉取，适用于不支持 HTTPS 的 iPXE 固件。</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.modalHttpsProxyHelp')}</p>
       </SettingsField>
-      <SettingsField label="菜单标题">
+      <SettingsField label={t('settings.modalMenuTitle')}>
         <input className={inputCls} value={data.catalog_display.title}
           onChange={e => onChange({...data, catalog_display: {...data.catalog_display, title: e.target.value}})} />
       </SettingsField>
 
       <div className="pt-4 border-t border-[var(--bg-border)]">
-        <h4 className="text-xs font-semibold text-[var(--text-primary)] mb-2">引导菜单跳转</h4>
-        <p className="text-xs text-[var(--text-muted)] mb-3">无匹配的 Profile 时自动跳转到 Netboot 引导菜单。</p>
-        <SettingsField label="启用跳转">
+        <h4 className="text-xs font-semibold text-[var(--text-primary)] mb-2">{t('settings.modalRedirectSection')}</h4>
+        <p className="text-xs text-[var(--text-muted)] mb-3">{t('settings.modalRedirectHelp')}</p>
+        <SettingsField label={t('settings.modalEnableRedirect')}>
           <Toggle checked={data.catalog_redirect?.enabled ?? false}
             onChange={v => onChange({...data, catalog_redirect: {...data.catalog_redirect, enabled: v}})} />
         </SettingsField>
-        <SettingsField label="目标 URL">
+        <SettingsField label={t('settings.modalTargetUrl')}>
           <div className="flex flex-col gap-2">
             <input className={`${inputCls} font-mono`} value={data.catalog_redirect.target_url}
               onChange={e => onChange({...data, catalog_redirect: {...data.catalog_redirect, target_url: e.target.value}})} />
             <div className="flex gap-2">
               {[
-                { label: '本地 Netboot', url: 'http://{{.URL}}/netboot/menu.ipxe?arch=${arch}&platform=${platform}' },
+                { label: t('settings.modalLocalNetboot'), url: 'http://{{.URL}}/netboot/menu.ipxe?arch=${arch}&platform=${platform}' },
                 { label: 'netboot.xyz', url: 'http://boot.netboot.xyz/menu.ipxe' },
               ].map(p => (
                 <button key={p.label}
@@ -355,15 +359,15 @@ function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: 
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-[var(--text-muted)]">支持 <code className="text-[10px] bg-[var(--bg-card)] px-1 py-0.5 rounded font-mono">{`{{.URL}}`}</code> 变量替换。iPXE 不支持 HTTPS。</p>
+            <p className="text-[11px] text-[var(--text-muted)]">{t('settings.modalRedirectUrlHelp')}</p>
           </div>
         </SettingsField>
-        <SettingsField label="前置脚本">
+        <SettingsField label={t('settings.modalPreamble')}>
           <textarea rows={3} spellCheck={false}
             className="w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
             value={data.catalog_redirect.preamble}
             onChange={e => onChange({...data, catalog_redirect: {...data.catalog_redirect, preamble: e.target.value}})}
-            placeholder="# 可选：在跳转前执行 dhcp、设置变量等" />
+            placeholder={t('settings.modalPreamblePlaceholder')} />
         </SettingsField>
       </div>
     </div>
@@ -373,6 +377,7 @@ function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: 
 // ── Service Auto-Start ──
 
 function ServicesForm({ services, onReload }: { services: ServiceInfo[]; onReload: () => Promise<void> }) {
+  const { t } = useTranslation()
   const [operating, setOperating] = useState<Set<string>>(new Set())
 
   const toggleAutoStart = async (name: string, enabled: boolean) => {
@@ -386,8 +391,8 @@ function ServicesForm({ services, onReload }: { services: ServiceInfo[]; onReloa
 
   return (
     <div className="p-6 space-y-4">
-      <h3 className="text-sm font-semibold text-[var(--text-primary)]">服务自动启动</h3>
-      <p className="text-xs text-[var(--text-muted)]">开启后，对应服务将在 PxeGo 下次启动时自动运行（不影响当前运行状态）。</p>
+      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('settings.modalServiceAutoStart')}</h3>
+      <p className="text-xs text-[var(--text-muted)]">{t('settings.modalServiceAutoStartHelp')}</p>
 
       {/* 全局服务 */}
       {['http','tftp','dns'].filter(k => services.some(s => s.name === k)).map(k => {
@@ -399,7 +404,7 @@ function ServicesForm({ services, onReload }: { services: ServiceInfo[]; onReloa
       {['dhcp/','proxy/'].filter(prefix => services.some(s => s.name.startsWith(prefix))).length > 0 && (
         <>
           <div className="pt-2 pb-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">接口级服务（每个网卡独立配置）</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">{t('settings.modalInterfaceServices')}</span>
           </div>
           {services.filter(s => s.name.startsWith('dhcp/') || s.name.startsWith('proxy/')).map(svc => (
             <ServiceAutoStartRow key={svc.name} svc={svc} operating={operating} onToggle={toggleAutoStart} />
@@ -411,6 +416,7 @@ function ServicesForm({ services, onReload }: { services: ServiceInfo[]; onReloa
 }
 
 function ServiceAutoStartRow({ svc, operating, onToggle }: { svc: ServiceInfo; operating: Set<string>; onToggle: (name: string, enabled: boolean) => Promise<void> }) {
+  const { t } = useTranslation()
   const isOperating = operating.has(svc.name)
   return (
     <label className="flex items-center justify-between gap-4 py-2.5 border-b border-[var(--bg-border)]">
@@ -423,15 +429,13 @@ function ServiceAutoStartRow({ svc, operating, onToggle }: { svc: ServiceInfo; o
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <span className={`text-xs ${svc.auto_start ? 'text-green-400' : 'text-[var(--text-muted)]'}`}>
-          {svc.auto_start ? '已开启' : '已关闭'}
+          {svc.auto_start ? t('settings.modalEnabled') : t('settings.modalDisabled')}
         </span>
-        <button
-          onClick={() => onToggle(svc.name, !svc.auto_start)}
+        <Toggle
+          checked={svc.auto_start}
+          onChange={() => onToggle(svc.name, !svc.auto_start)}
           disabled={isOperating || svc.protected}
-          className={`relative w-10 h-5 rounded-full transition-colors ${isOperating ? 'opacity-50' : ''} ${svc.protected ? 'cursor-not-allowed opacity-60' : ''} ${svc.auto_start ? 'bg-blue-500' : 'bg-gray-500/30'}`}
-        >
-          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${svc.auto_start ? 'translate-x-5' : 'translate-x-0'}`} />
-        </button>
+        />
       </div>
     </label>
   )

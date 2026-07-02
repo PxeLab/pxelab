@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Power, PowerOff, RefreshCw, Activity, Zap, HardDrive } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { Modal } from '../components/ui/Modal'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Tag } from '../components/ui/Tag'
 import { StatusDot } from '../components/ui/StatusDot'
 import { useToast } from '../components/ui/Toast'
@@ -30,6 +32,8 @@ export default function HostDetail() {
   })
   const [taskSaving, setTaskSaving] = useState(false)
   const [taskError, setTaskError] = useState('')
+  const [confirmPower, setConfirmPower] = useState<string | null>(null)
+  const [confirmDeleteTask, setConfirmDeleteTask] = useState<InstallTask | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -60,7 +64,10 @@ export default function HostDetail() {
 
   async function handlePower(action: string) {
     if (!host) return
-    if (action !== 'status' && !confirm(`${t('hosts.detail.power' + action)}?`)) return
+    if (action !== 'status') {
+      setConfirmPower(action)
+      return
+    }
     setPowerLoading(action)
     try {
       const res = await api.powerHost(host.id, action)
@@ -72,15 +79,29 @@ export default function HostDetail() {
     }
   }
 
+  async function doPower() {
+    if (!host || !confirmPower) return
+    setPowerLoading(confirmPower)
+    try {
+      const res = await api.powerHost(host.id, confirmPower)
+      success( `${t('hosts.detail.power' + confirmPower)}: ${(res.data as any).status}`)
+    } catch (err: any) {
+      showError(err.message)
+    } finally {
+      setPowerLoading(null)
+      setConfirmPower(null)
+    }
+  }
+
   if (loading) {
     return <div className="space-y-6">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-5 animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[var(--bg-card)] via-[var(--bg-hover)] to-[var(--bg-card)] bg-[length:200%_100%] h-32" />
+        <div key={i} className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-5 animate-shimmer h-32" />
       ))}
     </div>
   }
 
-  if (!host) return <p className="text-[var(--text-muted)]">{t('common.notFound', '未找到')}</p>
+  if (!host) return <p className="text-[var(--text-muted)]">{t('common.notFound')}</p>
 
   const hostEvents = events.filter(e => e.mac === host.mac)
 
@@ -90,10 +111,10 @@ export default function HostDetail() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" onClick={() => navigate('/hosts')}>
-            <ArrowLeft size={16} /> {t('common.back', '返回')}
+            <ArrowLeft size={16} /> {t('common.back')}
           </Button>
           <StatusDot color={host.last_online ? 'green' : 'red'} />
-          <span className="text-lg font-bold">{host.name || t('common.unnamed', '未命名主机')}</span>
+          <span className="text-lg font-bold">{host.name || t('common.unnamed')}</span>
           <Tag color={host.last_online ? 'green' : 'red'}>{host.last_online ? 'online' : 'offline'}</Tag>
         </div>
         <div className="flex gap-2">
@@ -115,8 +136,8 @@ export default function HostDetail() {
               { label: 'IP', value: host.ip, mono: true },
               { label: t('hosts.columns.bootCount'), value: String(host.boot_count) },
               { label: t('hosts.columns.lastOnline'), value: host.last_online ? new Date(host.last_online).toLocaleString() : '—', mono: true },
-              { label: 'Profile', value: host.profile_id || t('common.default', '默认') },
-              { label: t('common.created', '创建时间'), value: new Date(host.created_at).toLocaleString(), mono: true },
+              { label: 'Profile', value: host.profile_id || t('common.default') },
+              { label: t('common.created'), value: new Date(host.created_at).toLocaleString(), mono: true },
             ].map((item, i) => (
               <div key={i}>
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">{item.label}</div>
@@ -131,7 +152,7 @@ export default function HostDetail() {
           <div className="flex items-center gap-3 mb-4 px-3.5 py-2.5 bg-[var(--bg-input)] rounded-lg border border-[var(--bg-border)] text-sm">
             <StatusDot color={host.bmc_addr ? 'green' : 'yellow'} />
             <span className="text-[var(--text-secondary)]">BMC</span>
-            <span className="font-mono text-xs text-[var(--text-muted)]">{host.bmc_addr || t('common.notConfigured', '未配置')}</span>
+            <span className="font-mono text-xs text-[var(--text-muted)]">{host.bmc_addr || t('common.notConfigured')}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[
@@ -196,39 +217,40 @@ export default function HostDetail() {
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
               <HardDrive size={16} />
-              <span>安装任务</span>
+              <span>{t('hosts.detail.installTasks')}</span>
             </div>
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => {
                 setShowCreateTask(true)
                 setNewTask({ distro_name: '', version_codename: '', extra_cmdline: '' })
               }}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors"
             >
-              + 分配任务
-            </button>
+              + {t('hosts.detail.assignTask')}
+            </Button>
           </div>
         }>
           {taskLoading ? (
-            <div className="py-8 text-center text-sm text-[var(--text-muted)]">加载中...</div>
+            <div className="py-8 text-center text-sm text-[var(--text-muted)]">{t('common.loading')}</div>
           ) : hostTasks.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)] text-center py-4">暂无安装任务</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('hosts.detail.noTasks')}</p>
           ) : (
             <div className="overflow-x-auto -mx-5">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">发行版</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">版本</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">状态</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">额外参数</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">创建时间</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">操作</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.distro')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.version')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.status')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.extraParams')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.createdAt')}</th>
+                    <th className="text-right px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {hostTasks.map(task => (
-                    <tr key={task.id} className="hover:bg-white/[0.02]">
+                    <tr key={task.id} className="hover:bg-[var(--bg-hover)]/50">
                       <td className="px-4 py-3 border-b border-[var(--bg-border)] text-sm text-[var(--text-primary)]">{task.distro_name}</td>
                       <td className="px-4 py-3 border-b border-[var(--bg-border)] text-xs text-[var(--text-muted)]">{task.version_codename}</td>
                       <td className="px-4 py-3 border-b border-[var(--bg-border)]">
@@ -240,22 +262,16 @@ export default function HostDetail() {
                       <td className="px-4 py-3 border-b border-[var(--bg-border)] text-xs text-[var(--text-muted)]">{new Date(task.created_at!).toLocaleString()}</td>
                       <td className="px-4 py-3 border-b border-[var(--bg-border)] text-right">
                         {task.status === 'pending' && (
-                          <button
-                            onClick={async () => {
-                              if (!confirm('确定删除此任务？')) return
-                              try {
-                                await api.deleteInstallTask(task.id!)
-                                setHostTasks(prev => prev.filter(t => t.id !== task.id))
-                                success('任务已删除')
-                              } catch { showError('删除失败') }
-                            }}
-                            className="px-2 py-1 text-xs font-medium rounded bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => setConfirmDeleteTask(task)}
                           >
-                            删除
-                          </button>
+                            {t('common.delete')}
+                          </Button>
                         )}
                         {task.status === 'failed' && task.error_msg && (
-                          <span className="text-[10px] text-red-400/60" title={task.error_msg}>失败</span>
+                          <span className="text-[10px] text-red-400/60" title={task.error_msg}>{t('common.error')}</span>
                         )}
                       </td>
                     </tr>
@@ -268,126 +284,139 @@ export default function HostDetail() {
       </div>
 
       {/* Create Task Modal */}
-      {showCreateTask && host && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCreateTask(false)}>
-          <div className="max-w-lg w-full mx-4 rounded-xl bg-[var(--bg-card)] border border-[var(--bg-border)] p-5" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">分配安装任务</h3>
+      <Modal
+        open={showCreateTask && !!host}
+        onClose={() => setShowCreateTask(false)}
+        title={t('hosts.detail.assignTaskTitle')}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setShowCreateTask(false)}>{t('common.cancel')}</Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={async () => {
+                if (!host || !newTask.distro_name || !newTask.version_codename) {
+                  setTaskError(t('hosts.detail.selectDistro'))
+                  return
+                }
+                setTaskSaving(true)
+                setTaskError('')
+                try {
+                  const res = await api.createInstallTask({
+                    host_id: host.id,
+                    distro_name: newTask.distro_name,
+                    version_codename: newTask.version_codename,
+                    arch: newTask.arch,
+                    answer_template_id: newTask.answer_template_id || null,
+                    extra_cmdline: newTask.extra_cmdline || '',
+                  })
+                  setHostTasks(prev => [res.data, ...prev])
+                  setShowCreateTask(false)
+                  success(t('hosts.detail.taskCreated'))
+                } catch (err: any) {
+                  setTaskError(err.message || t('hosts.detail.taskCreateFailed'))
+                } finally {
+                  setTaskSaving(false)
+                }
+              }}
+              disabled={taskSaving || !newTask.distro_name || !newTask.version_codename}
+            >
+              {taskSaving ? t('hosts.detail.creating') : t('hosts.detail.createTask')}
+            </Button>
+          </>
+        }
+      >
+        {taskError && (
+          <div className="mb-4 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">{taskError}</div>
+        )}
 
-            {taskError && (
-              <div className="mb-4 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">{taskError}</div>
-            )}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('hosts.detail.distro')}</label>
+            <select
+              value={newTask.distro_name || ''}
+              onChange={e => setNewTask({ ...newTask, distro_name: e.target.value, version_codename: '' })}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+            >
+              <option value="">{t('hosts.detail.selectDistro')}</option>
+              {distros.filter(d => d.enabled).map(d => (
+                <option key={d.name} value={d.name}>{d.name}</option>
+              ))}
+            </select>
+          </div>
 
-            <div className="space-y-4">
-              {/* Distro select */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">发行版</label>
-                <select
-                  value={newTask.distro_name || ''}
-                  onChange={e => {
-                    setNewTask({ ...newTask, distro_name: e.target.value, version_codename: '' })
-                  }}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
-                >
-                  <option value="">请选择发行版</option>
-                  {distros.filter(d => d.enabled).map(d => (
-                    <option key={d.name} value={d.name}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('hosts.detail.version')}</label>
+            <select
+              value={newTask.version_codename || ''}
+              onChange={e => {
+                const codename = e.target.value
+                const distro = distros.find(d => d.name === newTask.distro_name)
+                const ver = distro?.versions.find(v => v.codename === codename)
+                setNewTask({ ...newTask, version_codename: codename, arch: ver?.arch || '' })
+              }}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+            >
+              <option value="">{t('hosts.detail.selectVersion')}</option>
+              {distros
+                .filter(d => d.name === newTask.distro_name)
+                .flatMap(d => d.versions)
+                .filter(v => v.enabled)
+                .map(v => (
+                  <option key={v.codename} value={v.codename}>{v.name} ({v.arch})</option>
+                ))
+              }
+            </select>
+          </div>
 
-              {/* Version select */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">版本</label>
-                <select
-                  value={newTask.version_codename || ''}
-                  onChange={e => {
-                    const codename = e.target.value
-                    // Look up arch from selected distro's versions
-                    const distro = distros.find(d => d.name === newTask.distro_name)
-                    const ver = distro?.versions.find(v => v.codename === codename)
-                    setNewTask({ ...newTask, version_codename: codename, arch: ver?.arch || '' })
-                  }}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
-                >
-                  <option value="">请选择版本</option>
-                  {distros
-                    .filter(d => d.name === newTask.distro_name)
-                    .flatMap(d => d.versions)
-                    .filter(v => v.enabled)
-                    .map(v => (
-                      <option key={v.codename} value={v.codename}>{v.name} ({v.arch})</option>
-                    ))
-                  }
-                </select>
-              </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('hosts.detail.answerTemplate')}</label>
+            <select
+              value={newTask.answer_template_id || ''}
+              onChange={e => setNewTask({ ...newTask, answer_template_id: e.target.value ? Number(e.target.value) : null })}
+              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+            >
+              <option value="">{t('hosts.detail.none')}</option>
+              {templates.map(t => (
+                <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
+              ))}
+            </select>
+          </div>
 
-              {/* Answer template select */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">应答模板（可选）</label>
-                <select
-                  value={newTask.answer_template_id || ''}
-                  onChange={e => setNewTask({ ...newTask, answer_template_id: e.target.value ? Number(e.target.value) : null })}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
-                >
-                  <option value="">无</option>
-                  {templates.map(t => (
-                    <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Extra cmdline */}
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">额外 Kernel 参数</label>
-                <input
-                  type="text"
-                  value={newTask.extra_cmdline || ''}
-                  onChange={e => setNewTask({ ...newTask, extra_cmdline: e.target.value })}
-                  placeholder="net.ifnames=0 biosdevname=0"
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setShowCreateTask(false)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--bg-hover)] text-[var(--text-secondary)]">
-                取消
-              </button>
-              <button
-                onClick={async () => {
-                  if (!newTask.distro_name || !newTask.version_codename) {
-                    setTaskError('请选择发行版和版本')
-                    return
-                  }
-                  setTaskSaving(true)
-                  setTaskError('')
-                  try {
-                    const res = await api.createInstallTask({
-                      host_id: host.id,
-                      distro_name: newTask.distro_name,
-                      version_codename: newTask.version_codename,
-                      arch: newTask.arch,
-                      answer_template_id: newTask.answer_template_id || null,
-                      extra_cmdline: newTask.extra_cmdline || '',
-                    })
-                    setHostTasks(prev => [res.data, ...prev])
-                    setShowCreateTask(false)
-                    success('安装任务已创建')
-                  } catch (err: any) {
-                    setTaskError(err.message || '创建失败')
-                  } finally {
-                    setTaskSaving(false)
-                  }
-                }}
-                disabled={taskSaving || !newTask.distro_name || !newTask.version_codename}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 disabled:opacity-40 transition-colors"
-              >
-                {taskSaving ? '创建中...' : '创建任务'}
-              </button>
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('hosts.detail.extraKernelParams')}</label>
+            <input
+              type="text"
+              value={newTask.extra_cmdline || ''}
+              onChange={e => setNewTask({ ...newTask, extra_cmdline: e.target.value })}
+              placeholder="net.ifnames=0 biosdevname=0"
+              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+            />
           </div>
         </div>
-      )}
+      </Modal>
+      <ConfirmDialog
+        open={!!confirmPower}
+        onClose={() => setConfirmPower(null)}
+        onConfirm={doPower}
+        title={t('hosts.detail.powerConfirm')}
+        message={`${t('hosts.detail.power' + confirmPower)}?`}
+      />
+      <ConfirmDialog
+        open={!!confirmDeleteTask}
+        onClose={() => setConfirmDeleteTask(null)}
+        onConfirm={async () => {
+          if (!confirmDeleteTask) return
+          try {
+            await api.deleteInstallTask(confirmDeleteTask.id!)
+            setHostTasks(prev => prev.filter(t => t.id !== confirmDeleteTask.id))
+            success(t('hosts.detail.taskDeleted'))
+          } catch { showError(t('hosts.detail.taskDeleteFailed')) }
+          setConfirmDeleteTask(null)
+        }}
+        title={t('hosts.detail.deleteTaskConfirm')}
+        message={t('hosts.detail.deleteTaskMessage')}
+      />
     </div>
   )
 }

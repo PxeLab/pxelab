@@ -7,6 +7,7 @@ import { DataTable, type Column } from '../components/ui/DataTable'
 import { Pagination } from '../components/ui/Pagination'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { api, type Host } from '../api/client'
 import { useUIConfig } from '../contexts/UIConfigContext'
@@ -22,6 +23,7 @@ export default function Hosts() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [newHost, setNewHost] = useState({ name: '', mac: '', ip: '', profile_id: '' })
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const { pageSize } = useUIConfig()
 
@@ -36,7 +38,7 @@ export default function Hosts() {
       setHosts(res.data.hosts)
       setTotal(res.data.meta.total)
     } catch (err: any) {
-      error(err.message || '加载失败')
+      error(err.message || t('hosts.loadError'))
     } finally {
       setLoading(false)
     }
@@ -45,7 +47,7 @@ export default function Hosts() {
   async function handleCreate() {
     try {
       await api.createHost(newHost)
-      success('主机已创建')
+      success(t('hosts.created'))
       setShowModal(false)
       setNewHost({ name: '', mac: '', ip: '', profile_id: '' })
       loadHosts()
@@ -55,13 +57,19 @@ export default function Hosts() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(t('hosts.deleteConfirm'))) return
+    setConfirmDelete(id)
+  }
+
+  async function doDelete() {
+    if (!confirmDelete) return
     try {
-      await api.deleteHost(id)
-      success('主机已删除')
+      await api.deleteHost(confirmDelete)
+      success(t('hosts.deleted'))
       loadHosts()
     } catch (err: any) {
       error(err.message)
+    } finally {
+      setConfirmDelete(null)
     }
   }
 
@@ -81,7 +89,7 @@ export default function Hosts() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">主机</h1>
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('hosts.title')}</h1>
         <div className="flex items-center gap-2">
           <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
             <Plus size={14} /> {t('hosts.addHost')}
@@ -93,7 +101,7 @@ export default function Hosts() {
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
-              className="w-[280px] bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10 transition-all"
+              className="w-[280px] bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg py-2 pl-9 pr-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
               placeholder={t('hosts.search', '搜索 MAC / 主机名 / IP ...')}
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1) }}
@@ -130,24 +138,31 @@ export default function Hosts() {
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">MAC {t('hosts.columns.mac')}</label>
-            <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10" placeholder="00:11:22:33:44:55" value={newHost.mac} onChange={e => setNewHost({...newHost, mac: e.target.value})} />
+            <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="00:11:22:33:44:55" value={newHost.mac} onChange={e => setNewHost({...newHost, mac: e.target.value})} />
           </div>
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.hostname')}</label>
-            <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10" placeholder="node-01" value={newHost.name} onChange={e => setNewHost({...newHost, name: e.target.value})} />
+            <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="node-01" value={newHost.name} onChange={e => setNewHost({...newHost, name: e.target.value})} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">IP {t('hosts.columns.ip')}</label>
-              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10" placeholder="192.168.1.100" value={newHost.ip} onChange={e => setNewHost({...newHost, ip: e.target.value})} />
+              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="192.168.1.100" value={newHost.ip} onChange={e => setNewHost({...newHost, ip: e.target.value})} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('profiles.title')}</label>
-              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/10" placeholder="profile-id" value={newHost.profile_id} onChange={e => setNewHost({...newHost, profile_id: e.target.value})} />
+              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="profile-id" value={newHost.profile_id} onChange={e => setNewHost({...newHost, profile_id: e.target.value})} />
             </div>
           </div>
         </div>
       </Modal>
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={doDelete}
+        title={t('hosts.deleteTitle')}
+        message={t('hosts.deleteConfirm')}
+      />
     </div>
   )
 }

@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
+import { Modal } from '../components/ui/Modal'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { api, type AnswerTemplate, type AnswerTemplateVersion } from '../api/client'
 
 const TEMPLATE_TYPES = ['kickstart', 'preseed', 'subiquity', 'autoyast', 'autounattend']
@@ -32,6 +36,7 @@ const WINDOWS_VARS = [
 ]
 
 export default function AnswerTemplates() {
+  const { t } = useTranslation()
   const [templates, setTemplates] = useState<AnswerTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -47,18 +52,19 @@ export default function AnswerTemplates() {
   const [versionsLoading, setVersionsLoading] = useState(false)
   const [diffVerA, setDiffVerA] = useState<number | ''>('')
   const [diffVerB, setDiffVerB] = useState<number | ''>('')
-
+  const [confirmBatchDelete, setConfirmBatchDelete] = useState(false)
+  const [confirmRollback, setConfirmRollback] = useState<number | null>(null)
   const load = useCallback(async () => {
     try {
       const res = await api.getAnswerTemplates()
       setTemplates(res.data.templates)
       setError('')
     } catch (err: any) {
-      setError(err.message || '加载失败')
+      setError(err.message || t('answerTemplates.loadFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => { load() }, [load])
 
@@ -74,7 +80,7 @@ export default function AnswerTemplates() {
       setEditing(null)
       await load()
     } catch (err: any) {
-      setError(err.message || '保存失败')
+      setError(err.message || t('answerTemplates.saveFailed'))
     }
   }
 
@@ -84,17 +90,21 @@ export default function AnswerTemplates() {
       setSelected(prev => { const next = new Set(prev); next.delete(id); return next })
       await load()
     } catch (err: any) {
-      setError(err.message || '删除失败')
+      setError(err.message || t('answerTemplates.deleteFailed'))
     }
   }
 
   const removeBatch = async () => {
     if (selected.size === 0) return
-    if (!confirm(`确定删除选中的 ${selected.size} 个模板？`)) return
+    setConfirmBatchDelete(true)
+  }
+
+  const doBatchDelete = async () => {
     for (const id of selected) {
       try { await api.deleteAnswerTemplate(id) } catch {}
     }
     setSelected(new Set())
+    setConfirmBatchDelete(false)
     await load()
   }
 
@@ -132,13 +142,19 @@ export default function AnswerTemplates() {
 
   const handleRollback = async (version: number) => {
     if (!versionTemplateId) return
-    if (!confirm(`确定回滚到版本 ${version}？当前内容将被保存为新版本。`)) return
+    setConfirmRollback(version)
+  }
+
+  const doRollback = async () => {
+    if (!versionTemplateId || confirmRollback === null) return
     try {
-      await api.rollbackAnswerTemplate(versionTemplateId, version)
+      await api.rollbackAnswerTemplate(versionTemplateId, confirmRollback)
       setShowVersions(false)
+      setConfirmRollback(null)
       await load()
     } catch (err: any) {
-      setError(err.message || '回滚失败')
+      setError(err.message || t('answerTemplates.rollbackFailed'))
+      setConfirmRollback(null)
     }
   }
 
@@ -192,7 +208,7 @@ export default function AnswerTemplates() {
     if (selected.size === templates.length) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(templates.filter(t => t.id).map(t => t.id!)))
+      setSelected(new Set(templates.filter(tp => tp.id).map(tp => tp.id!)))
     }
   }
 
@@ -209,7 +225,7 @@ export default function AnswerTemplates() {
 
   const exportBatch = () => {
     if (selected.size === 0) return
-    const items = templates.filter(t => t.id && selected.has(t.id))
+    const items = templates.filter(tp => tp.id && selected.has(tp.id))
     const json = JSON.stringify(items, null, 2)
     const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -248,7 +264,7 @@ export default function AnswerTemplates() {
             setError('')
           }
         } catch {
-          setError('JSON 格式错误，导入失败')
+          setError(t('answerTemplates.importJsonError'))
         }
         return
       }
@@ -264,19 +280,13 @@ export default function AnswerTemplates() {
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-lg font-bold text-[var(--text-primary)]">应答模板管理</h1>
+          <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('answerTemplates.title')}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={load} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">
-            刷新
-          </button>
+          <Button variant="secondary" size="sm" onClick={load}>{t('common.refresh')}</Button>
           <input ref={importRef} type="file" accept=".json,.cfg,.ks,.preseed,.xml,.yaml,.yml,.txt" onChange={handleImport} className="hidden" />
-          <button onClick={() => importRef.current?.click()} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors">
-            导入
-          </button>
-          <button onClick={openNew} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors">
-            + 新建模板
-          </button>
+          <Button variant="secondary" size="sm" onClick={() => importRef.current?.click()}>{t('answerTemplates.import')}</Button>
+          <Button variant="primary" size="sm" onClick={openNew}>+ {t('answerTemplates.newTemplate')}</Button>
         </div>
       </div>
 
@@ -290,32 +300,33 @@ export default function AnswerTemplates() {
       {/* Selection toolbar */}
       {selected.size > 0 && (
         <div className="mb-3 px-4 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-between">
-          <span className="text-xs text-blue-400">已选择 {selected.size} 项</span>
+          <span className="text-xs text-blue-400">{t('answerTemplates.selectedCount', { count: selected.size })}</span>
           <div className="flex gap-2">
-            <button onClick={exportBatch} className="px-3 py-1 text-xs font-medium rounded bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-colors">
-              导出选中
-            </button>
-            <button onClick={removeBatch} className="px-3 py-1 text-xs font-medium rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
-              删除选中
-            </button>
-            <button onClick={() => setSelected(new Set())} className="px-3 py-1 text-xs font-medium rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-              取消选择
-            </button>
+            <Button variant="ghost" size="sm" onClick={exportBatch}>{t('answerTemplates.exportSelected')}</Button>
+            <Button variant="danger" size="sm" onClick={removeBatch}>{t('answerTemplates.deleteSelected')}</Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>{t('answerTemplates.deselect')}</Button>
           </div>
         </div>
       )}
 
       {/* Template editor modal */}
-      {showEditor && editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowEditor(false)}>
-          <div className="max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto rounded-xl bg-[var(--bg-card)] border border-[var(--bg-border)] p-5" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">
-              {editing.id ? '编辑模板' : '新建模板'}
-            </h3>
-
+      <Modal
+        open={showEditor && !!editing}
+        onClose={() => setShowEditor(false)}
+        title={editing?.id ? t('answerTemplates.editTemplate') : t('answerTemplates.newTemplate')}
+        width="720px"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setShowEditor(false)}>{t('common.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={save} disabled={!editing?.name || !editing?.content}>{t('common.save')}</Button>
+          </>
+        }
+      >
+        {editing && (
+          <>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">名称</label>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.name')}</label>
                 <input
                   type="text" value={editing.name}
                   onChange={e => setEditing({ ...editing, name: e.target.value })}
@@ -323,21 +334,21 @@ export default function AnswerTemplates() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">类型</label>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.type')}</label>
                 <select
                   value={editing.type}
                   onChange={e => setEditing({ ...editing, type: e.target.value })}
                   className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
                 >
-                  {TEMPLATE_TYPES.map(t => (
-                    <option key={t} value={t}>{TYPE_LABELS[t] || t}</option>
+                  {TEMPLATE_TYPES.map(tp => (
+                    <option key={tp} value={tp}>{TYPE_LABELS[tp] || tp}</option>
                   ))}
                 </select>
               </div>
             </div>
 
             <div className="mb-4">
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">说明</label>
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.description')}</label>
               <input
                 type="text" value={editing.description || ''}
                 onChange={e => setEditing({ ...editing, description: e.target.value })}
@@ -346,7 +357,7 @@ export default function AnswerTemplates() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">模板内容</label>
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.content')}</label>
               <textarea
                 value={editing.content}
                 onChange={e => setEditing({ ...editing, content: e.target.value })}
@@ -357,7 +368,7 @@ export default function AnswerTemplates() {
 
             {/* Variable hints panel */}
             <div className="mb-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
-              <p className="text-xs font-medium text-blue-400 mb-2">可用变量（点击复制）</p>
+              <p className="text-xs font-medium text-blue-400 mb-2">{t('answerTemplates.availableVars')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {variablesForType(editing.type).map(v => (
                   <button
@@ -370,27 +381,18 @@ export default function AnswerTemplates() {
                 ))}
               </div>
             </div>
-
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowEditor(false)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--bg-hover)] text-[var(--text-secondary)]">
-                取消
-              </button>
-              <button onClick={save} disabled={!editing.name || !editing.content} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 disabled:opacity-40 transition-colors">
-                保存
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* Template list */}
-      <Card>
+      <Card padding={false}>
         {loading ? (
-          <div className="py-12 text-center text-sm text-[var(--text-muted)]">加载中...</div>
+          <div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('common.loading')}</div>
         ) : templates.length === 0 ? (
-          <div className="py-12 text-center text-sm text-[var(--text-muted)]">暂无模板，点击"新建模板"创建</div>
+          <div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('answerTemplates.empty')}</div>
         ) : (
-          <div className="overflow-x-auto -mx-5">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr>
@@ -402,16 +404,16 @@ export default function AnswerTemplates() {
                       className="accent-blue-500"
                     />
                   </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">名称</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">类型</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">说明</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">更新时间</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">操作</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.name')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.type')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.description')}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.updatedAt')}</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {templates.map(tpl => (
-                  <tr key={tpl.id} className="hover:bg-white/[0.02] transition-colors">
+                  <tr key={tpl.id} className="hover:bg-[var(--bg-hover)]/50 transition-colors">
                     <td className="px-2 py-3 border-b border-[var(--bg-border)] text-center">
                       <input
                         type="checkbox"
@@ -440,18 +442,10 @@ export default function AnswerTemplates() {
                       <span className="text-xs text-[var(--text-muted)]">{tpl.updated_at ? new Date(tpl.updated_at).toLocaleString() : '-'}</span>
                     </td>
                     <td className="px-4 py-3 border-b border-[var(--bg-border)] text-right">
-                      <button onClick={() => openEdit(tpl)} className="px-2 py-1 text-xs font-medium rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] mr-1">
-                        编辑
-                      </button>
-                      <button onClick={() => exportSingle(tpl)} className="px-2 py-1 text-xs font-medium rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] mr-1">
-                        导出
-                      </button>
-                      <button onClick={() => tpl.id && openVersions(tpl.id)} className="px-2 py-1 text-xs font-medium rounded bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] mr-1">
-                        版本
-                      </button>
-                      <button onClick={() => tpl.id && remove(tpl.id)} className="px-2 py-1 text-xs font-medium rounded bg-red-500/10 text-red-400 hover:bg-red-500/20">
-                        删除
-                      </button>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(tpl)}>{t('common.edit')}</Button>
+                      <Button variant="ghost" size="sm" onClick={() => exportSingle(tpl)}>{t('answerTemplates.export')}</Button>
+                      <Button variant="ghost" size="sm" onClick={() => tpl.id && openVersions(tpl.id)}>{t('answerTemplates.versions')}</Button>
+                      <Button variant="danger" size="sm" onClick={() => tpl.id && remove(tpl.id)}>{t('common.delete')}</Button>
                     </td>
                   </tr>
                 ))}
@@ -462,103 +456,111 @@ export default function AnswerTemplates() {
       </Card>
 
       {/* Version History Modal */}
-      {showVersions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowVersions(false)}>
-          <div className="max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto rounded-xl bg-[var(--bg-card)] border border-[var(--bg-border)] p-5" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-[var(--text-primary)] mb-4">版本历史</h3>
-
-            {versionsLoading ? (
-              <div className="py-8 text-center text-sm text-[var(--text-muted)]">加载中...</div>
-            ) : versions.length === 0 ? (
-              <div className="py-8 text-center text-sm text-[var(--text-muted)]">暂无版本记录</div>
-            ) : (
-              <div className="space-y-2">
-                {versions.map(v => (
-                  <div key={v.id} className="flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)]">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                        v{v.version}
-                      </span>
-                      <span className="text-xs text-[var(--text-muted)]">{v.description || '-'}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[11px] text-[var(--text-muted)] font-mono">
-                        {new Date(v.created_at).toLocaleString()}
-                      </span>
-                      <button
-                        onClick={() => handleRollback(v.version)}
-                        className="px-2 py-1 text-[11px] font-medium rounded bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors"
-                      >
-                        回滚
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Diff comparison */}
-            {versions.length >= 2 && (
-              <div className="mt-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-xs font-medium text-[var(--text-muted)]">对比</span>
-                  <select
-                    value={diffVerA}
-                    onChange={e => setDiffVerA(e.target.value ? Number(e.target.value) : '')}
-                    className="px-2 py-1 text-xs rounded border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
-                  >
-                    <option value="">旧版本</option>
-                    {versions.filter(v => v.version !== diffVerB).map(v => (
-                      <option key={v.version} value={v.version}>v{v.version}</option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-[var(--text-muted)]">→</span>
-                  <select
-                    value={diffVerB}
-                    onChange={e => setDiffVerB(e.target.value ? Number(e.target.value) : '')}
-                    className="px-2 py-1 text-xs rounded border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
-                  >
-                    <option value="">新版本</option>
-                    {versions.filter(v => v.version !== diffVerA).map(v => (
-                      <option key={v.version} value={v.version}>v{v.version}</option>
-                    ))}
-                  </select>
+      <Modal
+        open={showVersions}
+        onClose={() => setShowVersions(false)}
+        title={t('answerTemplates.versionHistory')}
+        width="640px"
+        footer={<Button variant="secondary" size="sm" onClick={() => setShowVersions(false)}>{t('common.close')}</Button>}
+      >
+        {versionsLoading ? (
+          <div className="py-8 text-center text-sm text-[var(--text-muted)]">{t('common.loading')}</div>
+        ) : versions.length === 0 ? (
+          <div className="py-8 text-center text-sm text-[var(--text-muted)]">{t('answerTemplates.noVersions')}</div>
+        ) : (
+          <div className="space-y-2">
+            {versions.map(v => (
+              <div key={v.id} className="flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)]">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                    v{v.version}
+                  </span>
+                  <span className="text-xs text-[var(--text-muted)]">{v.description || '-'}</span>
                 </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-[var(--text-muted)] font-mono">
+                    {new Date(v.created_at).toLocaleString()}
+                  </span>
+                  <button
+                    onClick={() => handleRollback(v.version)}
+                    className="px-2 py-1 text-[11px] font-medium rounded bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors"
+                  >
+                    {t('answerTemplates.rollback')}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-                {diffVerA !== '' && diffVerB !== '' && (
-                  <div className="rounded-lg border border-[var(--bg-border)] overflow-hidden">
-                    <div className="max-h-80 overflow-y-auto font-mono text-[11px] leading-5">
-                      {(() => {
-                        const contentA = getVersionContent(diffVerA)
-                        const contentB = getVersionContent(diffVerB)
-                        const diff = computeDiff(contentA, contentB)
-                        return diff.map((d, idx) => (
-                          <div
-                            key={idx}
-                            className={`px-3 whitespace-pre-wrap ${
-                              d.type === 'add' ? 'bg-green-500/10 text-green-300 border-l-2 border-green-500' :
-                              d.type === 'remove' ? 'bg-red-500/10 text-red-300 border-l-2 border-red-500' :
-                              'text-[var(--text-muted)] border-l-2 border-transparent'
-                            }`}
-                          >
-                            {d.type === 'add' ? '+ ' : d.type === 'remove' ? '- ' : '  '}{d.line}
-                          </div>
-                        ))
-                      })()}
-                    </div>
-                  </div>
-                )}
+        {/* Diff comparison */}
+        {versions.length >= 2 && (
+          <div className="mt-4">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-xs font-medium text-[var(--text-muted)]">{t('answerTemplates.compare')}</span>
+              <select
+                value={diffVerA}
+                onChange={e => setDiffVerA(e.target.value ? Number(e.target.value) : '')}
+                className="px-2 py-1 text-xs rounded border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+              >
+                <option value="">{t('answerTemplates.oldVersion')}</option>
+                {versions.filter(v => v.version !== diffVerB).map(v => (
+                  <option key={v.version} value={v.version}>v{v.version}</option>
+                ))}
+              </select>
+              <span className="text-[10px] text-[var(--text-muted)]">→</span>
+              <select
+                value={diffVerB}
+                onChange={e => setDiffVerB(e.target.value ? Number(e.target.value) : '')}
+                className="px-2 py-1 text-xs rounded border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+              >
+                <option value="">{t('answerTemplates.newVersion')}</option>
+                {versions.filter(v => v.version !== diffVerA).map(v => (
+                  <option key={v.version} value={v.version}>v{v.version}</option>
+                ))}
+              </select>
+            </div>
+
+            {diffVerA !== '' && diffVerB !== '' && (
+              <div className="rounded-lg border border-[var(--bg-border)] overflow-hidden">
+                <div className="max-h-80 overflow-y-auto font-mono text-[11px] leading-5">
+                  {(() => {
+                    const contentA = getVersionContent(diffVerA)
+                    const contentB = getVersionContent(diffVerB)
+                    const diff = computeDiff(contentA, contentB)
+                    return diff.map((d, idx) => (
+                      <div
+                        key={idx}
+                        className={`px-3 whitespace-pre-wrap ${
+                          d.type === 'add' ? 'bg-green-500/10 text-green-300 border-l-2 border-green-500' :
+                          d.type === 'remove' ? 'bg-red-500/10 text-red-300 border-l-2 border-red-500' :
+                          'text-[var(--text-muted)] border-l-2 border-transparent'
+                        }`}
+                      >
+                        {d.type === 'add' ? '+ ' : d.type === 'remove' ? '- ' : '  '}{d.line}
+                      </div>
+                    ))
+                  })()}
+                </div>
               </div>
             )}
-
-            <div className="flex justify-end mt-4">
-              <button onClick={() => setShowVersions(false)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--bg-hover)] text-[var(--text-secondary)]">
-                关闭
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+      <ConfirmDialog
+        open={confirmBatchDelete}
+        onClose={() => setConfirmBatchDelete(false)}
+        onConfirm={doBatchDelete}
+        title={t('answerTemplates.batchDelete')}
+        message={t('answerTemplates.batchDeleteConfirm', { count: selected.size })}
+      />
+      <ConfirmDialog
+        open={confirmRollback !== null}
+        onClose={() => setConfirmRollback(null)}
+        onConfirm={doRollback}
+        title={t('answerTemplates.rollbackVersion')}
+        message={t('answerTemplates.rollbackConfirm', { version: confirmRollback })}
+      />
     </div>
   )
 }

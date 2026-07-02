@@ -51,7 +51,7 @@ export default function Events() {
       const res = await api.getEvents(params)
       setEvents(res.data.events)
       setTotal(res.data.meta.total)
-    } catch { toastError('加载事件失败') }
+    } catch { toastError(t('events.loadFailed')) }
     finally { setLoading(false) }
   }
 
@@ -100,21 +100,18 @@ export default function Events() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">事件</h1>
-        <div className="flex gap-2">
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('events.title')}</h1>
+        <div className="flex items-center gap-3">
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-mono font-semibold ${!paused ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+            <StatusDot color={!paused ? 'green' : 'yellow'} pulse={!paused} />
+            {!paused ? t('events.live') : t('events.paused')}
+            <span className="text-[var(--text-muted)] font-normal mx-0.5">·</span>
+            <span className="text-[var(--text-muted)] font-normal">{total}+</span>
+          </span>
           <Button variant={paused ? 'primary' : 'secondary'} size="sm" onClick={togglePause}>
             {paused ? <Play size={14} /> : <Pause size={14} />}
-            {paused ? t('events.resume', '继续') : t('events.pause', '暂停')}
+            {paused ? t('events.resume') : t('events.pause')}
           </Button>
-        </div>
-      </div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-semibold ${!paused ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
-            <StatusDot color={!paused ? 'green' : 'yellow'} pulse={!paused} />
-            {!paused ? t('events.live', '实时') : t('events.paused', '已暂停')}
-          </span>
-          <span className="text-xs text-[var(--text-muted)]">{t('common.total', '共')} {total}+ {t('common.items', '条')}</span>
         </div>
       </div>
 
@@ -127,7 +124,7 @@ export default function Events() {
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
               filter === chip.key
                 ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                : 'border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[#2e3245]'
+                : 'border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
             }`}
           >
             <StatusDot color={chip.color} />
@@ -142,42 +139,46 @@ export default function Events() {
           {loading ? (
             <div className="p-5 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-12 bg-[var(--bg-card)] rounded animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[var(--bg-card)] via-[var(--bg-hover)] to-[var(--bg-card)] bg-[length:200%_100%]" />
+                <div key={i} className="h-12 bg-[var(--bg-card)] rounded animate-shimmer" />
               ))}
             </div>
           ) : events.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)] text-center py-12">{t('events.noEvents')}</p>
           ) : (
-            <div className="divide-y divide-[#232738]">
-              {events.map((e, i) => {
-                const ic = eventIcon(e.type)
-                return (
-                  <div key={e.id || i} className="flex items-start gap-3 px-5 py-3 hover:bg-white/[0.01] transition-colors">
-                    <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 ${
-                      ic.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
-                      ic.color === 'orange' ? 'bg-orange-500/10 text-orange-400' :
-                      ic.color === 'purple' ? 'bg-purple-500/10 text-purple-400' :
-                      ic.color === 'green' ? 'bg-green-500/10 text-green-400' :
-                      ic.color === 'yellow' ? 'bg-yellow-500/10 text-yellow-400' :
-                      'bg-blue-500/10 text-blue-400'
-                    }`}>{ic.label}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-xs font-semibold text-[var(--text-primary)]">{e.type}</span>
-                        <Tag color={ic.color}>{ic.label}</Tag>
-                        <span className="text-[11px] text-[var(--text-muted)] font-mono ml-auto shrink-0">
-                          {new Date(e.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        {e.message}
-                        {e.mac && <> — <strong className="text-[var(--text-secondary)] font-semibold">{e.mac}</strong></>}
-                        {e.ip && <> · {e.ip}</>}
-                      </p>
+            <div className="overflow-x-auto">
+              {/* Header */}
+              <div className="flex items-center gap-3 px-5 py-2 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider border-b border-[var(--bg-border)] whitespace-nowrap">
+                <span className="w-7 shrink-0" />
+                <span className="w-14 shrink-0">{t('events.type', 'Type')}</span>
+                <span className="w-36 shrink-0">{t('events.time', 'Time')}</span>
+                <span className="w-12 shrink-0 text-center">{t('events.tag', 'Tag')}</span>
+                <span className="flex-1 min-w-0">{t('events.message', 'Message')}</span>
+                <span className="w-44 shrink-0">{t('events.mac', 'MAC')}</span>
+                <span className="w-32 shrink-0">{t('events.ip', 'IP')}</span>
+              </div>
+              <div className="divide-y divide-[var(--bg-border)]">
+                {events.map((e, i) => {
+                  const ic = eventIcon(e.type)
+                  return (
+                    <div key={e.id || i} className="flex items-center gap-3 px-5 py-2 hover:bg-[var(--bg-hover)]/50 transition-colors text-xs whitespace-nowrap">
+                      <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                        ic.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
+                        ic.color === 'orange' ? 'bg-orange-500/10 text-orange-400' :
+                        ic.color === 'purple' ? 'bg-purple-500/10 text-purple-400' :
+                        ic.color === 'green' ? 'bg-green-500/10 text-green-400' :
+                        ic.color === 'yellow' ? 'bg-yellow-500/10 text-yellow-400' :
+                        'bg-blue-500/10 text-blue-400'
+                      }`}>{ic.label}</div>
+                      <span className="w-14 shrink-0 font-semibold text-[var(--text-primary)]">{e.type}</span>
+                      <span className="w-36 shrink-0 text-[var(--text-muted)] font-mono">{new Date(e.timestamp).toLocaleString()}</span>
+                      <Tag color={ic.color}>{ic.label}</Tag>
+                      <span className="flex-1 min-w-0 text-[var(--text-muted)] truncate">{e.message}</span>
+                      <span className="w-44 shrink-0 text-[var(--text-secondary)] font-mono truncate">{e.mac || '-'}</span>
+                      <span className="w-32 shrink-0 text-[var(--text-secondary)] font-mono truncate">{e.ip || '-'}</span>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           )}
           <div className="px-5 py-3 border-t border-[var(--bg-border)]">

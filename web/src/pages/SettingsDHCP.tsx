@@ -79,20 +79,21 @@ function InterfaceEditModal({
   onSave: () => void; saving: boolean
   availableIfaces: InterfaceInfo[]
 }) {
+  const { t } = useTranslation()
   return (
-    <Modal open={open} onClose={onClose} title="接口配置" width="640px" disableBackdropClose
+    <Modal open={open} onClose={onClose} title={t('settings.interfaceConfig')} width="640px" disableBackdropClose
       footer={
         <>
-          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>取消</Button>
-          <Button variant="primary" size="sm" onClick={onSave} disabled={saving}>{saving ? '保存中...' : '保存'}</Button>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>{t('common.cancel')}</Button>
+          <Button variant="primary" size="sm" onClick={onSave} disabled={saving}>{saving ? t('settings.saving') : t('common.save')}</Button>
         </>
       }
     >
       <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
         <div className="grid grid-cols-2 gap-4">
-          <SettingsField label="接口名称">
+          <SettingsField label={t('settings.interfaceName')}>
             <select
-              className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
+              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
               value={form.name}
               onChange={e => {
                 const sel = availableIfaces.find(x => x.name === e.target.value)
@@ -104,24 +105,24 @@ function InterfaceEditModal({
                 setForm({...form, name: e.target.value, ip: pool, subnets})
               }}
             >
-              <option value="">-- 选择网卡 --</option>
+              <option value="">{t('settings.selectNic')}</option>
               {availableIfaces.map(ai => (
                 <option key={ai.name} value={ai.name}>
-                  {ai.name} {ai.ipv4?.length ? `(${ai.ipv4[0]})` : ''} {!ai.up ? '[未连接]' : ''}
+                  {ai.name} {ai.ipv4?.length ? `(${ai.ipv4[0]})` : ''} {!ai.up ? `[${t('settings.disconnected')}]` : ''}
                 </option>
               ))}
             </select>
           </SettingsField>
-          <SettingsField label="IP 地址">
+          <SettingsField label={t('settings.ipAddress')}>
             <SettingsInput value={form.ip} onChange={v => setForm({...form, ip: v})} placeholder="192.168.1.100" />
           </SettingsField>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <SettingsField label="引导加载器">
-            <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
+          <SettingsField label={t('settings.bootloader')}>
+            <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
               value={form.bootloader} onChange={e => setForm({...form, bootloader: e.target.value})}>
-              <option value="ipxe">iPXE（全驱动）</option>
-              <option value="undionly">iPXE（UNDI）</option>
+              <option value="ipxe">{t('settings.ipxeFull')}</option>
+              <option value="undionly">{t('settings.ipxeUndi')}</option>
               <option value="pxelinux">PXELinux</option>
               <option value="grub2">GRUB2</option>
             </select>
@@ -136,44 +137,44 @@ function InterfaceEditModal({
           return (
             <div key={si} className="border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-[var(--text-primary)]">子网 #{si + 1}</span>
+                <span className="text-sm font-medium text-[var(--text-primary)]">{t('settings.subnetNumber', { num: si + 1 })}</span>
                 {form.subnets.length > 1 && (
                   <button onClick={() => setForm({...form, subnets: form.subnets.filter((_, j) => j !== si)})}
-                    className="text-xs text-red-400 hover:text-red-300 transition-colors">移除</button>
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors">{t('settings.subnetRemove')}</button>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <SettingsField label="子网 CIDR">
+                <SettingsField label={t('settings.subnetCidr')}>
                   <SettingsInput value={s.cidr} onChange={v => {
                     const sn = [...form.subnets]; sn[si] = {...sn[si], cidr: v}; setForm({...form, subnets: sn})
                   }} placeholder="192.168.1.0/24" />
                 </SettingsField>
-                <SettingsField label="DHCP 模式">
-                  <select className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
+                <SettingsField label={t('settings.dhcpMode')}>
+                  <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
                     value={s.dhcpMode} onChange={e => {
                       const sn = [...form.subnets]; sn[si] = {...sn[si], dhcpMode: e.target.value}; setForm({...form, subnets: sn})
                     }}>
-                    <option value="full">full（完整 DHCP）</option>
-                    <option value="proxy">proxy（代理 DHCP）</option>
-                    <option value="off">off（关闭）</option>
+                    <option value="full">{t('settings.dhcpModeFull')}</option>
+                    <option value="proxy">{t('settings.dhcpModeProxy')}</option>
+                    <option value="off">{t('settings.dhcpModeOff')}</option>
                   </select>
                 </SettingsField>
               </div>
               {disableFields ? (
                 <p className="text-xs text-[var(--text-muted)] italic">
-                  {isOffSubnet ? 'DHCP 已关闭，无需配置地址池等信息。' : '代理 DHCP 不分配 IP，地址池/网关等无需配置。'}
+                  {isOffSubnet ? t('settings.dhcpOffHelp') : t('settings.dhcpProxyHelp')}
                 </p>
               ) : (
                 <>
                   <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-[var(--text-secondary)]">地址池</label>
+                    <label className="block text-xs font-semibold text-[var(--text-secondary)]">{t('settings.addressPool')}</label>
                     {s.pools.map((pool, pi) => (
                       <div key={pi} className="flex items-center gap-2">
                         <input type="text" value={pool} onChange={e => {
                           const sn = [...form.subnets]; const pools = [...sn[si].pools]; pools[pi] = e.target.value
                           sn[si] = {...sn[si], pools}; setForm({...form, subnets: sn})
                         }} placeholder="192.168.1.100-192.168.1.200"
-                          className="flex-1 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 placeholder-[var(--text-muted)]" />
+                          className="flex-1 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 placeholder-[var(--text-muted)]" />
                         <button onClick={() => {
                           const sn = [...form.subnets]; sn[si] = {...sn[si], pools: sn[si].pools.filter((_, j) => j !== pi)}
                           setForm({...form, subnets: sn})
@@ -183,39 +184,39 @@ function InterfaceEditModal({
                     <button onClick={() => {
                       const sn = [...form.subnets]; sn[si] = {...sn[si], pools: [...sn[si].pools, '']}
                       setForm({...form, subnets: sn})
-                    }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">+ 添加地址范围</button>
+                    }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{t('settings.addAddressRange')}</button>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <SettingsField label="网关">
+                    <SettingsField label={t('settings.gateway')}>
                       <SettingsInput value={s.gateway} onChange={v => {
                         const sn = [...form.subnets]; sn[si] = {...sn[si], gateway: v}; setForm({...form, subnets: sn})
                       }} placeholder="192.168.1.1" />
                     </SettingsField>
-                    <SettingsField label="DNS 服务器">
+                    <SettingsField label={t('settings.dnsServer')}>
                       <SettingsInput value={s.dnsServers} onChange={v => {
                         const sn = [...form.subnets]; sn[si] = {...sn[si], dnsServers: v}; setForm({...form, subnets: sn})
-                      }} placeholder={form.ip || '留空则使用接口 IP'} />
+                      }} placeholder={form.ip || t('settings.dnsServerPlaceholder')} />
                     </SettingsField>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <SettingsField label="租约时间（秒）">
+                    <SettingsField label={t('settings.leaseTimeSeconds')}>
                       <SettingsInput value={s.leaseTime} onChange={v => {
                         const sn = [...form.subnets]; sn[si] = {...sn[si], leaseTime: v}; setForm({...form, subnets: sn})
                       }} />
                     </SettingsField>
-                    <SettingsField label="Next Server">
+                    <SettingsField label={t('settings.nextServer')}>
                       <SettingsInput value={s.nextServer} onChange={v => {
                         const sn = [...form.subnets]; sn[si] = {...sn[si], nextServer: v}; setForm({...form, subnets: sn})
-                      }} placeholder="同 IP 地址时留空" />
+                      }} placeholder={t('settings.nextServerPlaceholder')} />
                     </SettingsField>
                   </div>
                   <label className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)] cursor-pointer pt-1">
                     <input type="checkbox" checked={s.chainToIPXE} onChange={e => {
                       const sn = [...form.subnets]; sn[si] = {...sn[si], chainToIPXE: e.target.checked}; setForm({...form, subnets: sn})
                     }} disabled={form.bootloader !== 'pxelinux' && form.bootloader !== 'grub2'} className="rounded border-[var(--bg-border)] w-4 h-4" />
-                    <span className={form.bootloader !== 'pxelinux' && form.bootloader !== 'grub2' ? 'opacity-40' : ''}>链式加载到 iPXE</span>
+                    <span className={form.bootloader !== 'pxelinux' && form.bootloader !== 'grub2' ? 'opacity-40' : ''}>{t('settings.chainToIpxe')}</span>
                     {(form.bootloader === 'pxelinux' || form.bootloader === 'grub2') && s.chainToIPXE && (
-                      <span className="text-xs text-blue-400">iPXE 将接管后续引导</span>
+                      <span className="text-xs text-blue-400">{t('settings.chainToIpxeHint')}</span>
                     )}
                   </label>
                 </>
@@ -224,7 +225,7 @@ function InterfaceEditModal({
           )
         })}
         <Button variant="secondary" size="sm" onClick={() => setForm({...form, subnets: [...form.subnets, { cidr: '', dhcpMode: 'full', pools: [''], gateway: '', dnsServers: form.ip || '', leaseTime: '3600', nextServer: form.ip || '', chainToIPXE: false }]})}>
-          + 添加子网
+          {t('settings.addSubnet')}
         </Button>
 
 
@@ -236,6 +237,7 @@ function InterfaceEditModal({
 // ── DHCP Settings Tab ──
 
 function DHCPConfigTab() {
+  const { t } = useTranslation()
   const { success, error: showError } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -282,7 +284,7 @@ function DHCPConfigTab() {
         }))
       }
     } catch (err: any) {
-      showError(err.message || '加载接口配置失败')
+      showError(err.message || t('settings.loadInterfaceFailed'))
     } finally {
       setLoading(false)
     }
@@ -322,8 +324,8 @@ function DHCPConfigTab() {
         next_server: iface.subnets[0]?.nextServer || '',
       }))
       await api.updateInterfaceSettings({ interfaces: payload })
-      success('已保存')
-    } catch (err: any) { showError(err.message || '保存失败') }
+      success(t('settings.saved'))
+    } catch (err: any) { showError(err.message || t('settings.saveFailed')) }
     finally { setModalSaving(false); setSaving(false) }
   }
 
@@ -344,8 +346,8 @@ function DHCPConfigTab() {
         next_server: iface.subnets[0]?.nextServer || '',
       }))
       await api.updateInterfaceSettings({ interfaces: payload })
-      success('已删除')
-    } catch (err: any) { showError(err.message || '删除失败') }
+      success(t('settings.deleted'))
+    } catch (err: any) { showError(err.message || t('settings.deleteFailed')) }
     finally { setSaving(false) }
   }
 
@@ -355,21 +357,21 @@ function DHCPConfigTab() {
       const s = iface.subnets[si]
       const mode = s.dhcpMode || 'full'
       if (mode === 'full') {
-        if (s.cidr && !validateCIDR(s.cidr)) errs.push(`子网 #${si + 1}: CIDR 格式无效（如 192.168.1.0/24）`)
+        if (s.cidr && !validateCIDR(s.cidr)) errs.push(`${t('settings.subnetNumberLabel')} #${si + 1}: ${t('settings.cidrInvalid')}`)
         for (let pi = 0; pi < s.pools.length; pi++) {
           const pool = s.pools[pi]
           if (!pool) continue
           const parts = pool.split('-')
           if (parts.length !== 2 || !validateIP(parts[0].trim()) || !validateIP(parts[1].trim())) {
-            errs.push(`子网 #${si + 1}: 地址池 #${pi + 1} 格式无效`); continue
+            errs.push(`${t('settings.subnetNumberLabel')} #${si + 1}: ${t('settings.addressPoolInvalid')}`); continue
           }
           if (s.cidr) {
             const startIP = parts[0].trim(), endIP = parts[1].trim()
-            if (!ipInCIDR(startIP, s.cidr)) errs.push(`子网 #${si + 1}: 地址池起始 ${startIP} 不属于 ${s.cidr}`)
-            if (!ipInCIDR(endIP, s.cidr)) errs.push(`子网 #${si + 1}: 地址池结束 ${endIP} 不属于 ${s.cidr}`)
+            if (!ipInCIDR(startIP, s.cidr)) errs.push(`${t('settings.subnetNumberLabel')} #${si + 1}: ${t('settings.addressPoolStartInvalid', { ip: startIP, cidr: s.cidr })}`)
+            if (!ipInCIDR(endIP, s.cidr)) errs.push(`${t('settings.subnetNumberLabel')} #${si + 1}: ${t('settings.addressPoolEndInvalid', { ip: endIP, cidr: s.cidr })}`)
           }
         }
-        if (s.gateway && !validateIP(s.gateway)) errs.push(`子网 #${si + 1}: 网关地址格式无效`)
+        if (s.gateway && !validateIP(s.gateway)) errs.push(`${t('settings.subnetNumberLabel')} #${si + 1}: ${t('settings.gatewayInvalid')}`)
       }
     }
     return errs
@@ -381,10 +383,10 @@ function DHCPConfigTab() {
 
   const columns: Column<{ idx: number; iface: InterfaceConfig }>[] = [
     { key: 'idx', label: '#', width: '40px', render: (r) => <span className="text-xs text-[var(--text-muted)]">{r.idx + 1}</span> },
-    { key: 'name', label: '接口名称', render: (r) => <span className="font-medium text-[var(--text-primary)] text-sm">{r.iface.name || <span className="text-[var(--text-muted)] italic">未配置</span>}</span> },
-    { key: 'bootloader', label: '引导类型', render: (r) => <span className="text-xs">{bootloaderLabel[r.iface.bootloader] || r.iface.bootloader}</span> },
+    { key: 'name', label: t('settings.interfaceName'), render: (r) => <span className="font-medium text-[var(--text-primary)] text-sm">{r.iface.name || <span className="text-[var(--text-muted)] italic">{t('common.notConfigured')}</span>}</span> },
+    { key: 'bootloader', label: t('settings.bootloader'), render: (r) => <span className="text-xs">{bootloaderLabel[r.iface.bootloader] || r.iface.bootloader}</span> },
     { key: 'ip', label: 'IP', render: (r) => <span className="font-mono text-xs">{r.iface.ip || '—'}</span> },
-    { key: 'subnets', label: '子网配置', render: (r) => (
+    { key: 'subnets', label: t('settings.subnet'), render: (r) => (
       r.iface.subnets.length > 0
         ? <div className="space-y-1">
             {r.iface.subnets.map((s, i) => (
@@ -398,13 +400,13 @@ function DHCPConfigTab() {
           </div>
         : <span className="text-xs text-[var(--text-muted)]">—</span>
     )},
-    { key: 'chainToIPXE', label: 'iPXE链式加载', render: (r) => (
+    { key: 'chainToIPXE', label: t('settings.chainToIpxe'), render: (r) => (
       r.iface.subnets.length > 0
         ? <div className="space-y-1">
             {r.iface.subnets.map((s, i) => (
               <div key={i} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
                 <span className="font-mono text-[var(--text-muted)]">{s.cidr || '—'}</span>
-                <Tag color={s.chainToIPXE ? 'green' : 'red'}>{s.chainToIPXE ? '是' : '否'}</Tag>
+                <Tag color={s.chainToIPXE ? 'green' : 'red'}>{s.chainToIPXE ? t('common.yes') : t('common.no')}</Tag>
               </div>
             ))}
           </div>
@@ -422,33 +424,33 @@ function DHCPConfigTab() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          {saving && <span className="text-xs text-[var(--text-muted)] animate-pulse">保存中...</span>}
+          {saving && <span className="text-xs text-[var(--text-muted)] animate-pulse">{t('settings.saving')}</span>}
         </div>
         <Button variant="primary" size="sm" onClick={openCreate}>
-          <Plus size={14} /> 新增接口
+          <Plus size={14} /> {t('settings.newInterface')}
         </Button>
       </div>
 
       <Card padding={false}>
         <DataTable columns={columns} data={interfaces.map((iface, i) => ({ idx: i, iface }))}
           loading={loading} onRowClick={(r) => openEdit(r.idx)}
-          emptyText="暂无接口配置，点击右上角「新增接口」添加" rowKey={(r) => r.iface.name || String(r.idx)} />
+          emptyText={t('settings.dhcpEmpty')} rowKey={(r) => r.iface.name || String(r.idx)} />
       </Card>
 
       <InterfaceEditModal open={showModal} onClose={() => setShowModal(false)}
         form={editForm} setForm={setEditForm} onSave={handleModalSave} saving={modalSaving} availableIfaces={availableIfaces}
       />
 
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="确认删除" width="400px" disableBackdropClose
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={t('settings.confirmDeleteTitle')} width="400px" disableBackdropClose
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>取消</Button>
-            <Button variant="primary" onClick={() => deleteTarget !== null && handleDelete(deleteTarget)}>删除</Button>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={() => deleteTarget !== null && handleDelete(deleteTarget)}>{t('common.delete')}</Button>
           </>
         }
       >
         <p className="text-sm text-[var(--text-secondary)]">
-          确定要删除接口 <span className="font-semibold text-[var(--text-primary)]">{deleteTarget !== null ? interfaces[deleteTarget]?.name || `#${deleteTarget + 1}` : ''}</span> 的配置吗？
+          {t('settings.deleteInterfaceConfirm', { name: deleteTarget !== null ? interfaces[deleteTarget]?.name || `#${deleteTarget + 1}` : '' })}
         </p>
       </Modal>
     </div>
@@ -709,7 +711,7 @@ function LeasesTab() {
               onChange={toggleSelectAll}
               className="w-4 h-4 rounded border-[var(--bg-border)] bg-[var(--bg-input)] accent-blue-500"
             />
-            {t('common.selectAll', '全选')}
+            {t('common.selectAll')}
           </label>
         </div>
       )}
@@ -879,8 +881,8 @@ function ReservationTab() {
     )
     if (dupRes) {
       const detail = dupRes.mac
-        ? `已被预留（MAC: ${dupRes.mac}）`
-        : '已被预留（仅 IP 预留）'
+        ? t('settings.ipConflictReservation', { mac: dupRes.mac })
+        : t('settings.ipConflictReservationOnly')
       return { type: 'reservation', detail }
     }
 
@@ -890,11 +892,11 @@ function ReservationTab() {
       new Date(l.expires_at) > new Date()
     )
     if (activeLease) {
-      return { type: 'lease', detail: `当前有活跃租约（MAC: ${activeLease.mac}）` }
+      return { type: 'lease', detail: t('settings.ipConflictLease', { mac: activeLease.mac }) }
     }
 
     return { type: null, detail: '' }
-  }, [form.subnet_cidr, form.ip, reservations, leases, editId])
+  }, [form.subnet_cidr, form.ip, reservations, leases, editId, t])
 
   useEffect(() => { load() }, [load])
 
@@ -924,10 +926,10 @@ function ReservationTab() {
     try {
       if (editId !== null) {
         await api.updateDHCPReservation(editId, form)
-        success('已保存')
+        success(t('settings.saved'))
       } else {
         await api.createDHCPReservation(form)
-        success('已创建')
+        success(t('settings.saved'))
       }
       setShowModal(false)
       load()
@@ -943,7 +945,7 @@ function ReservationTab() {
     if (r.id == null) return
     try {
       await api.deleteDHCPReservation(r.id)
-      success('已删除')
+      success(t('settings.deleted'))
       load()
     } catch (err: any) {
       error(err.message)
@@ -970,7 +972,7 @@ function ReservationTab() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <select
-            className="bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none cursor-pointer"
+            className="bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none cursor-pointer"
             value={filterSubnet}
             onChange={e => setFilterSubnet(e.target.value)}
           >
@@ -997,7 +999,7 @@ function ReservationTab() {
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setShowModal(false)} disabled={modalSaving}>{t('common.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={handleSave} disabled={modalSaving}>{modalSaving ? '保存中...' : t('common.save')}</Button>
+            <Button variant="primary" size="sm" onClick={handleSave} disabled={modalSaving}>{modalSaving ? t('settings.saving') : t('common.save')}</Button>
           </>
         }
       >
@@ -1005,7 +1007,7 @@ function ReservationTab() {
           <div className="grid grid-cols-2 gap-4">
             <SettingsField label={t('reservations.interface')}>
               <select
-                className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
+                className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
                 value={form.interface_name || ''}
                 onChange={e => {
                   const iface = ifaceSettings.find(i => i.name === e.target.value)
@@ -1013,7 +1015,7 @@ function ReservationTab() {
                   setForm({...form, interface_name: e.target.value, subnet_cidr: fullSubnet?.cidr || ''})
                 }}
               >
-                <option value="">--</option>
+                <option value="">{t('settings.selectSubnet')}</option>
                 {availableIfaces.filter(i => i.up).map(ai => (
                   <option key={ai.name} value={ai.name}>{ai.name}</option>
                 ))}
@@ -1021,25 +1023,25 @@ function ReservationTab() {
             </SettingsField>
             <SettingsField label={t('reservations.subnet')}>
               <select
-                className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
+                className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
                 value={form.subnet_cidr || ''}
                 onChange={e => setForm({...form, subnet_cidr: e.target.value})}
               >
-                <option value="">--</option>
+                <option value="">{t('settings.selectSubnet')}</option>
                 {ifaceSettings
                   .filter(i => i.name === form.interface_name)
                   .flatMap(i => i.subnets)
                   .filter(sn => sn.cidr && sn.dhcpMode === 'full')
                   .map(sn => (
                     <option key={sn.cidr} value={sn.cidr}>
-                      {sn.cidr}（full）
+                      {sn.cidr}{t('settings.subnetFull')}
                     </option>
                   ))
                 }
               </select>
               {selectedPools.length > 0 && (
                 <div className="mt-1.5 text-[11px] text-[var(--text-muted)] leading-relaxed">
-                  <span className="font-medium text-[var(--text-secondary)]">地址池：</span>
+                  <span className="font-medium text-[var(--text-secondary)]">{t('settings.addressPoolLabel')}</span>
                   {selectedPools.map((pool, i) => (
                     <span key={i} className="font-mono">{i > 0 ? '、' : ''}{pool}</span>
                   ))}
@@ -1049,7 +1051,7 @@ function ReservationTab() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <SettingsField label={t('reservations.mac')}>
-              <SettingsInput value={form.mac || ''} onChange={v => setForm({...form, mac: v})} placeholder="00:11:22:33:44:55（可选）" />
+              <SettingsInput value={form.mac || ''} onChange={v => setForm({...form, mac: v})} placeholder={`00:11:22:33:44:55 (${t('settings.optional')})`} />
             </SettingsField>
             <SettingsField label={t('reservations.ip')}>
               <SettingsInput value={form.ip || ''} onChange={v => setForm({...form, ip: v})} placeholder="192.168.1.100" />
@@ -1057,11 +1059,11 @@ function ReservationTab() {
                 <div className="mt-1.5 text-[11px] leading-relaxed">
                   {ipConflict.type ? (
                     <span className="text-red-400">
-                      <span className="font-medium">⚠ IP 冲突：</span>
+                      <span className="font-medium">{t('settings.ipConflict')}</span>
                       {ipConflict.detail}
                     </span>
                   ) : (
-                    <span className="text-green-500">✓ IP 可用</span>
+                    <span className="text-green-500">{t('settings.ipAvailable')}</span>
                   )}
                 </div>
               )}
@@ -1069,10 +1071,10 @@ function ReservationTab() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <SettingsField label={t('reservations.hostname')}>
-              <SettingsInput value={form.hostname || ''} onChange={v => setForm({...form, hostname: v})} placeholder="（可选）" />
+              <SettingsInput value={form.hostname || ''} onChange={v => setForm({...form, hostname: v})} placeholder={`(${t('settings.optional')})`} />
             </SettingsField>
             <SettingsField label={t('reservations.description')}>
-              <SettingsInput value={form.description || ''} onChange={v => setForm({...form, description: v})} placeholder="（可选）" />
+              <SettingsInput value={form.description || ''} onChange={v => setForm({...form, description: v})} placeholder={`(${t('settings.optional')})`} />
             </SettingsField>
           </div>
         </div>
@@ -1102,19 +1104,20 @@ function ReservationTab() {
 }
 
 export default function SettingsInterfaces() {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = (searchParams.get('tab') as 'dhcp' | 'leases' | 'reservations') || 'dhcp'
 
   const tabs = [
-    { key: 'dhcp' as const, label: '子网管理' },
-    { key: 'leases' as const, label: '租约管理' },
-    { key: 'reservations' as const, label: '预留管理' },
+    { key: 'dhcp' as const, label: t('settings.dhcpInterfaces') },
+    { key: 'leases' as const, label: t('settings.dhcpLeases') },
+    { key: 'reservations' as const, label: t('settings.dhcpReservations') },
   ]
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">DHCP 设置</h1>
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('settings.dhcpTitle')}</h1>
       </div>
       <div className="flex gap-1 mb-6 border-b border-[var(--bg-border)]">
         {tabs.map(tab => (

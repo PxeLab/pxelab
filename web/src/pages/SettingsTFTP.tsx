@@ -46,7 +46,7 @@ const bootloaderGroups: Record<BootloaderKey, BootloaderGroup> = {
   },
   grub2: {
     label: 'GRUB2',
-    note: 'BIOS 架构不支持 GRUB2',
+    note: 'GRUB2_BIOS_NOTE',
     rows: [
       { arch: 'BIOS x86', code: '00000', file: '—' },
       { arch: 'UEFI x64', code: '00007', file: 'grubx64.efi' },
@@ -98,7 +98,7 @@ export default function SettingsTFTP() {
       })
       setExistingBootFiles(fileRes.data ? fileRes.data.map((f: any) => f.name) : [])
     } catch (err: any) {
-      showError(err.message || '加载失败')
+      showError(err.message || t('settings.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -108,9 +108,9 @@ export default function SettingsTFTP() {
     setSaving(true)
     try {
       await api.updateTFTPSettings({ ...config, enabled: true, port: 69 })
-      success('设置已保存')
+      success(t('settings.saved'))
     } catch (err: any) {
-      showError(err.message || '保存失败')
+      showError(err.message || t('settings.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -120,13 +120,13 @@ export default function SettingsTFTP() {
 
   return (
     <div>
-      <h1 className="text-lg font-bold text-[var(--text-primary)] mb-6">TFTP 设置</h1>
+      <h1 className="text-lg font-bold text-[var(--text-primary)] mb-6">{t('settings.tftpTitle')}</h1>
 
       {/* 页面页签 + 操作按钮 */}
       <div className="flex gap-1 mb-6 border-b border-[var(--bg-border)]">
         {([
-          { key: 'settings' as PageTab, label: '基本设置' },
-          { key: 'files' as PageTab, label: '文件管理' },
+          { key: 'settings' as PageTab, label: t('settings.tftpBasicSettings') },
+          { key: 'files' as PageTab, label: t('settings.tftpFiles') },
         ]).map(tab => (
           <button key={tab.key}
             onClick={() => setSearchParams({ tab: tab.key })}
@@ -143,10 +143,10 @@ export default function SettingsTFTP() {
         {pageTab === 'settings' && (
           <div className="flex gap-2 pb-2.5">
             <Button variant="secondary" size="sm" disabled={loading} onClick={loadSettings}>
-              <RefreshCw size={14} /> 刷新
+              <RefreshCw size={14} /> {t('settings.refresh')}
             </Button>
             <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
-              <Save size={14} /> {saving ? '保存中...' : t('settings.save')}
+              <Save size={14} /> {saving ? t('settings.saving') : t('settings.save')}
             </Button>
           </div>
         )}
@@ -157,7 +157,7 @@ export default function SettingsTFTP() {
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
-              <span className="ml-3 text-sm text-[var(--text-muted)]">加载中...</span>
+              <span className="ml-3 text-sm text-[var(--text-muted)]">{t('settings.loading')}</span>
             </div>
           ) : (
             <div className="space-y-4">
@@ -165,18 +165,18 @@ export default function SettingsTFTP() {
                 <SettingsField label={t('settings.tftpRoot', '根目录')}>
                   <SettingsInput value={config.root} onChange={v => setConfig({...config, root: v})} />
                 </SettingsField>
-                <SettingsField label="PXE 配置文件路径" help="客户端请求 PXELinux 配置的路径">
+                <SettingsField label={t('settings.pxeConfigPath')} help={t('settings.pxeConfigHelp')}>
                   <SettingsInput value={config.pxe_config_file} onChange={v => setConfig({...config, pxe_config_file: v})} placeholder="pxelinux.cfg/default" />
                 </SettingsField>
-                <SettingsField label="GRUB2 配置文件路径" help="客户端请求 GRUB2 配置的路径">
+                <SettingsField label={t('settings.grub2ConfigPath')} help={t('settings.grub2ConfigHelp')}>
                   <SettingsInput value={config.grub_config_file} onChange={v => setConfig({...config, grub_config_file: v})} placeholder="grub2/grub.cfg" />
                 </SettingsField>
               </div>
 
               {/* 架构引导文件映射 */}
               <div className="pt-4 border-t border-[var(--bg-border)]">
-                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">客户端架构 → 引导文件映射（只读）</h3>
-                <p className="text-xs text-[var(--text-muted)] mb-4">DHCP 根据客户端架构（Option 93 / Option 60 VCI）自动分配对应的 NBP 引导文件。在「网络接口」页签可切换每个接口的引导加载器。</p>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">{t('settings.archMapping')}</h3>
+                <p className="text-xs text-[var(--text-muted)] mb-4">{t('settings.archMappingHelp')}</p>
 
                 <div className="flex gap-1 mb-4">
                   {bootloaderTabs.map(tab => {
@@ -200,11 +200,11 @@ export default function SettingsTFTP() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-[var(--bg-card)] border-b border-[var(--bg-border)]">
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">架构</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">代码</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] hidden sm:table-cell">VCI 特征</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">引导文件</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] w-14">状态</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">{t('settings.arch')}</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">{t('settings.code')}</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] hidden sm:table-cell">{t('settings.vciFeature')}</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">{t('settings.bootFile')}</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] w-14">{t('settings.status')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -220,7 +220,7 @@ export default function SettingsTFTP() {
                             </td>
                             <td className="px-3 py-2">
                               {row.file === '—'
-                                ? <span className="text-xs text-[var(--text-muted)]">不支持</span>
+                                ? <span className="text-xs text-[var(--text-muted)]">{t('settings.notSupported')}</span>
                                 : <code className="text-[10px] bg-[var(--bg-card)] px-1 py-0.5 rounded text-[var(--text-primary)] font-mono">{row.file}</code>
                               }
                             </td>
@@ -238,9 +238,9 @@ export default function SettingsTFTP() {
                 </div>
 
                 {group.note && (
-                  <p className="text-xs text-[var(--text-muted)] mt-2">{group.note}</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-2">{group.note === 'GRUB2_BIOS_NOTE' ? t('settings.grub2BiosNote') : group.note}</p>
                 )}
-                <p className="text-xs text-[var(--text-muted)] mt-2">可在「文件管理」页签上传缺失的引导文件到 {config.root || '启动目录'}。</p>
+                <p className="text-xs text-[var(--text-muted)] mt-2">{t('settings.uploadBootFiles', { dir: config.root || t('settings.bootDirectory') })}</p>
               </div>
             </div>
           )}

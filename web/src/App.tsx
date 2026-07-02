@@ -71,7 +71,8 @@ function AppContent() {
     <UIConfigProvider>
     <AppShell>
       <Suspense fallback={<LoadingFallback />}>
-        <Routes>
+        <div className="animate-fade-in">
+          <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/hosts" element={<Hosts />} />
           <Route path="/hosts/:id" element={<HostDetail />} />
@@ -92,6 +93,7 @@ function AppContent() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </div>
       </Suspense>
     </AppShell>
     </UIConfigProvider>

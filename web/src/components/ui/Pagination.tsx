@@ -31,7 +31,7 @@ export const Pagination: FC<PaginationProps> = ({ page, total, size, onChange })
         <button
           onClick={() => onChange(page - 1)}
           disabled={page <= 1}
-          className="w-7 h-7 flex items-center justify-center rounded border border-[var(--bg-border)] bg-transparent text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--bg-card)] transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--bg-border)] bg-transparent text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--bg-hover)] hover:border-[var(--text-muted)] transition-all"
         >
           <ChevronLeft size={14} />
         </button>
@@ -39,10 +39,10 @@ export const Pagination: FC<PaginationProps> = ({ page, total, size, onChange })
           <button
             key={p}
             onClick={() => onChange(p)}
-            className={`w-7 h-7 flex items-center justify-center rounded border text-xs font-mono transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center rounded-lg border text-xs font-mono transition-all duration-200 ${
               p === page
-                ? 'bg-blue-500 border-blue-500 text-white'
-                : 'border-[var(--bg-border)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-card)]'
+                ? 'bg-blue-500 border-blue-500 text-white shadow-[var(--glow-blue)]'
+                : 'border-[var(--bg-border)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:border-[var(--text-muted)]'
             }`}
           >
             {p}
@@ -51,7 +51,7 @@ export const Pagination: FC<PaginationProps> = ({ page, total, size, onChange })
         <button
           onClick={() => onChange(page + 1)}
           disabled={page >= totalPages}
-          className="w-7 h-7 flex items-center justify-center rounded border border-[var(--bg-border)] bg-transparent text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--bg-card)] transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--bg-border)] bg-transparent text-[var(--text-secondary)] disabled:opacity-40 hover:bg-[var(--bg-hover)] hover:border-[var(--text-muted)] transition-all"
         >
           <ChevronRight size={14} />
         </button>

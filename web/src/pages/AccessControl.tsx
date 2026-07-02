@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Plus, Trash2, ShieldPlus, ShieldX, AlertTriangle, RefreshCw } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -34,6 +35,7 @@ function parseMACs(input: string): string[] {
 }
 
 export default function AccessControl() {
+  const { t } = useTranslation()
   const { success, error: showError } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTab = (searchParams.get('tab') as Tab) || 'all'
@@ -77,7 +79,6 @@ export default function AccessControl() {
       setWhitelist(wlRes.data)
       setUnauthorized(uaRes.data)
       setWhitelistEnabled(settingsRes.data.whitelist_enabled)
-      // Extract unique subnets for the CIDR dropdown
       const subnets = new Set<string>()
       for (const iface of settingsRes.data.interfaces || []) {
         for (const sn of iface.subnets || []) {
@@ -86,7 +87,7 @@ export default function AccessControl() {
       }
       setSubnetOptions(Array.from(subnets).sort())
     } catch (err: any) {
-      showError(err.message || '加载失败')
+      showError(err.message || t('accessControl.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -110,13 +111,13 @@ export default function AccessControl() {
   async function handleAdd() {
     const macs = parseMACs(addInput)
     if (macs.length === 0) {
-      showError('请至少输入一个 MAC 地址')
+      showError(t('accessControl.macAtLeastOne'))
       return
     }
 
     const invalid = macs.filter(m => !MAC_RE.test(m))
     if (invalid.length > 0) {
-      showError(`以下 MAC 地址格式无效：\n${invalid.join('\n')}`)
+      showError(t('accessControl.macInvalidFormat', { list: invalid.join('\n') }))
       return
     }
 
@@ -135,73 +136,76 @@ export default function AccessControl() {
         }
         added++
       }
-      success(`成功添加 ${added} 条${addType === 'blacklist' ? '黑名单' : '白名单'}条目`)
+      success(t('accessControl.addCountSuccess', {
+        count: added,
+        type: addType === 'blacklist' ? t('accessControl.typeBlacklist') : t('accessControl.typeWhitelist'),
+      }))
       setShowAddModal(false)
       loadAll()
     } catch (err: any) {
-      showError(err.message || '添加失败')
+      showError(err.message || t('accessControl.addFailed'))
     } finally {
       setAdding(false)
     }
   }
 
   async function handleDeleteBlacklist(id: number) {
-    confirm('确认删除', '确定要从黑名单移除该条目吗？', async () => {
+    confirm(t('accessControl.confirmDeleteBlacklist'), t('accessControl.confirmDeleteBlacklistMsg'), async () => {
       try {
         await api.deleteBlacklistEntry(id)
-        success('已从黑名单移除')
+        success(t('accessControl.removedFromBlacklist'))
         loadAll()
       } catch (err: any) {
-        showError(err.message || '删除失败')
+        showError(err.message || t('accessControl.deleteFailed'))
       }
     })
   }
 
   async function handleDeleteWhitelist(id: number) {
-    confirm('确认删除', '确定要从白名单移除该条目吗？', async () => {
+    confirm(t('accessControl.confirmDeleteBlacklist'), t('accessControl.confirmDeleteWhitelistMsg'), async () => {
       try {
         await api.deleteWhitelistEntry(id)
-        success('已从白名单移除')
+        success(t('accessControl.removedFromWhitelist'))
         loadAll()
       } catch (err: any) {
-        showError(err.message || '删除失败')
+        showError(err.message || t('accessControl.deleteFailed'))
       }
     })
   }
 
   async function handleDeleteUnauthorized(id: number) {
-    confirm('确认删除', '确定要忽略该未授权设备记录吗？', async () => {
+    confirm(t('accessControl.confirmDeleteBlacklist'), t('accessControl.confirmDeleteUnauthorizedMsg'), async () => {
       try {
         await api.deleteUnauthorizedDevice(id)
-        success('已忽略')
+        success(t('accessControl.ignored'))
         setSelected(prev => { const s = new Set(prev); s.delete(id); return s })
         loadAll()
       } catch (err: any) {
-        showError(err.message || '删除失败')
+        showError(err.message || t('accessControl.deleteFailed'))
       }
     })
   }
 
   async function handleAddToWhitelist(mac: string, subnetCIDR: string) {
-    confirm('添加到白名单', `确定将 ${mac} 添加到白名单（子网 ${subnetCIDR}）吗？`, async () => {
+    confirm(t('accessControl.confirmAddToWhitelist'), t('accessControl.confirmAddToWhitelistMsg', { mac, subnet: subnetCIDR }), async () => {
       try {
         await api.addUnauthorizedToWhitelist(mac, subnetCIDR)
-        success('已添加到白名单')
+        success(t('accessControl.addedToWhitelist'))
         loadAll()
       } catch (err: any) {
-        showError(err.message || '添加失败')
+        showError(err.message || t('accessControl.addFailed'))
       }
     })
   }
 
   async function handleAddToBlacklist(mac: string, subnetCIDR: string) {
-    confirm('加入黑名单', `确定将 ${mac} 加入黑名单吗？加入后该设备将无法进行 PXE 引导。`, async () => {
+    confirm(t('accessControl.confirmAddToBlacklist'), t('accessControl.confirmAddToBlacklistMsg', { mac }), async () => {
       try {
         await api.addUnauthorizedToBlacklist(mac, subnetCIDR)
-        success('已加入黑名单')
+        success(t('accessControl.addedToBlacklist'))
         loadAll()
       } catch (err: any) {
-        showError(err.message || '添加失败')
+        showError(err.message || t('accessControl.addFailed'))
       }
     })
   }
@@ -218,8 +222,8 @@ export default function AccessControl() {
 
   async function batchAddToWhitelist() {
     const items = unauthorized.filter(e => selected.has(e.id))
-    confirm('批量加入白名单',
-      `确定将 ${items.length} 台设备加入白名单吗？`,
+    confirm(t('accessControl.confirmBatchAddWhitelist'),
+      t('accessControl.confirmBatchAddWhitelistMsg', { count: items.length }),
     async () => {
       setBatchProcessing(true)
       let ok = 0
@@ -231,15 +235,15 @@ export default function AccessControl() {
       }
       setBatchProcessing(false)
       setSelected(new Set())
-      success(`已将 ${ok}/${items.length} 台设备加入白名单`)
+      success(t('accessControl.batchWhitelistResult', { ok, total: items.length }))
       loadAll()
     })
   }
 
   async function batchAddToBlacklist() {
     const items = unauthorized.filter(e => selected.has(e.id))
-    confirm('批量加入黑名单',
-      `确定将 ${items.length} 台设备加入黑名单吗？加入后这些设备将无法进行 PXE 引导。`,
+    confirm(t('accessControl.confirmBatchAddBlacklist'),
+      t('accessControl.confirmBatchAddBlacklistMsg', { count: items.length }),
     async () => {
       setBatchProcessing(true)
       let ok = 0
@@ -251,15 +255,15 @@ export default function AccessControl() {
       }
       setBatchProcessing(false)
       setSelected(new Set())
-      success(`已将 ${ok}/${items.length} 台设备加入黑名单`)
+      success(t('accessControl.batchBlacklistResult', { ok, total: items.length }))
       loadAll()
     })
   }
 
   async function batchDeleteUnauthorized() {
     const items = unauthorized.filter(e => selected.has(e.id))
-    confirm('批量忽略',
-      `确定忽略 ${items.length} 条未授权设备记录吗？`,
+    confirm(t('accessControl.confirmBatchIgnore'),
+      t('accessControl.confirmBatchIgnoreMsg', { count: items.length }),
     async () => {
       for (const item of items) {
         try { await api.deleteUnauthorizedDevice(item.id) } catch { /* skip */ }
@@ -279,10 +283,10 @@ export default function AccessControl() {
   }
 
   const tabs: { key: Tab; label: string; count?: number; badge?: string }[] = [
-    { key: 'all', label: '全部', count: blacklist.length + whitelist.length },
-    { key: 'whitelist', label: '白名单', count: whitelist.length },
-    { key: 'blacklist', label: '黑名单', count: blacklist.length },
-    { key: 'unauthorized', label: '未授权设备', count: unauthorized.length, badge: unauthorized.length > 0 ? undefined : whitelistEnabled ? undefined : '未开启' },
+    { key: 'all', label: t('accessControl.tabAll'), count: blacklist.length + whitelist.length },
+    { key: 'whitelist', label: t('accessControl.tabWhitelist'), count: whitelist.length },
+    { key: 'blacklist', label: t('accessControl.tabBlacklist'), count: blacklist.length },
+    { key: 'unauthorized', label: t('accessControl.tabUnauthorized'), count: unauthorized.length, badge: unauthorized.length > 0 ? undefined : whitelistEnabled ? undefined : t('accessControl.tabDisabled') },
   ]
 
   const parsedMACs = parseMACs(addInput)
@@ -293,7 +297,7 @@ export default function AccessControl() {
       <div className="flex items-center justify-center py-16">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
-          <span className="text-sm text-[var(--text-muted)]">加载中...</span>
+          <span className="text-sm text-[var(--text-muted)]">{t('accessControl.loading')}</span>
         </div>
       </div>
     )
@@ -304,7 +308,7 @@ export default function AccessControl() {
       {/* ── Page Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-[var(--text-primary)]">访问控制</h1>
+          <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('accessControl.title')}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={loadAll}>
@@ -312,11 +316,11 @@ export default function AccessControl() {
           </Button>
           <Button variant="danger" size="sm" onClick={() => openAddModal('blacklist')}>
             <Plus size={14} />
-            黑名单
+            {t('accessControl.btnBlacklist')}
           </Button>
           <Button variant="primary" size="sm" onClick={() => openAddModal('whitelist')}>
             <Plus size={14} />
-            白名单
+            {t('accessControl.btnWhitelist')}
           </Button>
         </div>
       </div>
@@ -354,7 +358,7 @@ export default function AccessControl() {
       <Card padding={false}>
         {activeTab === 'all' && (
           <AccessTable
-            columns={['MAC 地址', '类型', '子网', '备注', '创建时间', '操作']}
+            columns={[t('accessControl.colMac'), t('accessControl.colType'), t('accessControl.colSubnet'), t('accessControl.colReason'), t('accessControl.colCreatedAt'), t('accessControl.colActions')]}
             rows={combinedList().map(entry => ({
               key: entry.id,
               cells: [
@@ -364,7 +368,7 @@ export default function AccessControl() {
                     ? 'bg-red-500/10 text-red-400'
                     : 'bg-green-500/10 text-green-400'
                 }`}>
-                  {entry.type === 'blacklist' ? '黑名单' : '白名单'}
+                  {entry.type === 'blacklist' ? t('accessControl.typeBlacklist') : t('accessControl.typeWhitelist')}
                 </span>,
                 <span key="cidr" className="font-mono text-xs text-blue-400">{entry.subnet_cidr || '-'}</span>,
                 <span key="reason" className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>,
@@ -376,44 +380,44 @@ export default function AccessControl() {
                       : handleDeleteWhitelist(Number(entry.id.replace('wl-', '')))
                     }
                     className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                    title="删除"
+                    title={t('accessControl.titleDelete')}
                   >
                     <Trash2 size={14} />
                   </button>
                 </div>,
               ],
             }))}
-            emptyMessage="暂无访问控制条目，点击上方按钮添加"
+            emptyMessage={t('accessControl.emptyAll')}
           />
         )}
 
         {activeTab === 'whitelist' && (
           <AccessTable
-            columns={['MAC 地址', '子网', '备注', '创建时间', '操作']}
+            columns={[t('accessControl.colMac'), t('accessControl.colSubnet'), t('accessControl.colReason'), t('accessControl.colCreatedAt'), t('accessControl.colActions')]}
             rows={whitelist.map(entry => ({
               key: `wl-${entry.id}`,
               cells: [
                 <span key="mac" className="font-mono text-sm">{entry.mac}</span>,
-                <span key="cidr" className="font-mono text-xs text-blue-400">{entry.subnet_cidr || '全部子网'}</span>,
+                <span key="cidr" className="font-mono text-xs text-blue-400">{entry.subnet_cidr || t('accessControl.allSubnets')}</span>,
                 <span key="reason" className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>,
                 <span key="time" className="text-xs text-[var(--text-muted)]">{formatTime(entry.created_at)}</span>,
                 <button
                   key="del"
                   onClick={() => handleDeleteWhitelist(entry.id)}
                   className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  title="删除"
+                  title={t('accessControl.titleDelete')}
                 >
                   <Trash2 size={14} />
                 </button>,
               ],
             }))}
-            emptyMessage="暂无白名单条目，点击上方「+ 白名单」添加"
+            emptyMessage={t('accessControl.emptyWhitelist')}
           />
         )}
 
         {activeTab === 'blacklist' && (
           <AccessTable
-            columns={['MAC 地址', '备注', '创建时间', '操作']}
+            columns={[t('accessControl.colMac'), t('accessControl.colReason'), t('accessControl.colCreatedAt'), t('accessControl.colActions')]}
             rows={blacklist.map(entry => ({
               key: `bl-${entry.id}`,
               cells: [
@@ -424,13 +428,13 @@ export default function AccessControl() {
                   key="del"
                   onClick={() => handleDeleteBlacklist(entry.id)}
                   className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  title="删除"
+                  title={t('accessControl.titleDelete')}
                 >
                   <Trash2 size={14} />
                 </button>,
               ],
             }))}
-            emptyMessage="暂无黑名单条目，点击上方「+ 黑名单」添加"
+            emptyMessage={t('accessControl.emptyBlacklist')}
           />
         )}
 
@@ -440,7 +444,7 @@ export default function AccessControl() {
             {selected.size > 0 && (
               <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--bg-border)] bg-amber-500/5">
                 <span className="text-xs text-[var(--text-muted)]">
-                  已选择 {selected.size} 项
+                  {t('accessControl.selectedCount', { count: selected.size })}
                 </span>
                 <div className="flex-1" />
                 <Button
@@ -450,7 +454,7 @@ export default function AccessControl() {
                   disabled={batchProcessing}
                 >
                   <ShieldPlus size={12} />
-                  加入白名单
+                  {t('accessControl.btnAddToWhitelist')}
                 </Button>
                 <Button
                   variant="danger"
@@ -459,7 +463,7 @@ export default function AccessControl() {
                   disabled={batchProcessing}
                 >
                   <ShieldX size={12} />
-                  加入黑名单
+                  {t('accessControl.btnAddToBlacklist')}
                 </Button>
                 <Button
                   variant="ghost"
@@ -468,12 +472,12 @@ export default function AccessControl() {
                   disabled={batchProcessing}
                 >
                   <Trash2 size={12} />
-                  忽略
+                  {t('accessControl.btnIgnore')}
                 </Button>
               </div>
             )}
             <AccessTable
-              columns={['', 'MAC 地址', '子网', '拒绝原因', '请求次数', '最后请求', '操作']}
+              columns={['', t('accessControl.colMac'), t('accessControl.colSubnet'), t('accessControl.colRejectReason'), t('accessControl.colRequestCount'), t('accessControl.colLastRequest'), t('accessControl.colActions')]}
               rows={unauthorized.map(entry => ({
                 key: `ua-${entry.id}`,
                 cells: [
@@ -493,28 +497,28 @@ export default function AccessControl() {
                     <button
                       onClick={() => handleAddToWhitelist(entry.mac, entry.subnet_cidr)}
                       className="p-1 rounded hover:bg-green-500/10 text-[var(--text-muted)] hover:text-green-400 transition-colors"
-                      title="添加到白名单"
+                      title={t('accessControl.titleAddToWhitelist')}
                     >
                       <ShieldPlus size={14} />
                     </button>
                     <button
                       onClick={() => handleAddToBlacklist(entry.mac, entry.subnet_cidr)}
                       className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                      title="加入黑名单"
+                      title={t('accessControl.titleAddToBlacklist')}
                     >
                       <ShieldX size={14} />
                     </button>
                     <button
                       onClick={() => handleDeleteUnauthorized(entry.id)}
                       className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                      title="忽略"
+                      title={t('accessControl.titleIgnore')}
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>,
                 ],
               }))}
-              emptyMessage={whitelistEnabled ? '暂无未授权设备记录 — 白名单已开启，新设备被拒绝时会自动记录在此' : '白名单未开启，不会记录未授权设备 — 请前往「设置」开启全局白名单'}
+              emptyMessage={whitelistEnabled ? t('accessControl.emptyUnauthorizedEnabled') : t('accessControl.emptyUnauthorizedDisabled')}
             />
           </>
         )}
@@ -529,7 +533,7 @@ export default function AccessControl() {
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setConfirmOpen(false)}>
-              取消
+              {t('accessControl.btnCancel')}
             </Button>
             <Button
               variant="primary"
@@ -539,7 +543,7 @@ export default function AccessControl() {
                 await confirmAction()
               }}
             >
-              确认
+              {t('accessControl.btnConfirm')}
             </Button>
           </>
         }
@@ -551,12 +555,12 @@ export default function AccessControl() {
       <Modal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title={`批量添加${addType === 'blacklist' ? '黑名单' : '白名单'}`}
+        title={t('accessControl.addModalTitle', { type: addType === 'blacklist' ? t('accessControl.typeBlacklist') : t('accessControl.typeWhitelist') })}
         width="560px"
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setShowAddModal(false)}>
-              取消
+              {t('accessControl.btnCancel')}
             </Button>
             <Button
               variant={addType === 'blacklist' ? 'danger' : 'primary'}
@@ -564,7 +568,7 @@ export default function AccessControl() {
               onClick={handleAdd}
               disabled={adding || !macsValid}
             >
-              {adding ? '添加中...' : `添加 ${parsedMACs.length > 0 ? parsedMACs.length : ''} 条`}
+              {adding ? t('accessControl.btnAdding') : t('accessControl.btnAddCount', { count: parsedMACs.length > 0 ? parsedMACs.length : 0 })}
             </Button>
           </>
         }
@@ -572,8 +576,8 @@ export default function AccessControl() {
         <div className="space-y-5">
           {/* Type toggle */}
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">类型</label>
-            <div className="flex bg-[var(--bg-base)] rounded-lg border border-[var(--bg-border)] p-0.5 w-fit">
+            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">{t('accessControl.labelType')}</label>
+            <div className="flex bg-[var(--bg-input)] rounded-lg border border-[var(--bg-border)] p-0.5 w-fit">
               <button
                 onClick={() => setAddType('blacklist')}
                 className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
@@ -582,7 +586,7 @@ export default function AccessControl() {
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
-                黑名单
+                {t('accessControl.typeBlacklist')}
               </button>
               <button
                 onClick={() => setAddType('whitelist')}
@@ -592,7 +596,7 @@ export default function AccessControl() {
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
-                白名单
+                {t('accessControl.typeWhitelist')}
               </button>
             </div>
           </div>
@@ -600,9 +604,9 @@ export default function AccessControl() {
           {/* MAC input */}
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
-              MAC 地址
+              {t('accessControl.labelMacAddress')}
               <span className="ml-2 font-normal text-[var(--text-muted)] opacity-60">
-                支持批量粘贴，每行一个或用逗号/分号分隔
+                {t('accessControl.macHint')}
               </span>
             </label>
             <textarea
@@ -610,14 +614,14 @@ export default function AccessControl() {
               onChange={e => setAddInput(e.target.value)}
               placeholder={`00:11:22:33:44:55\nAA:BB:CC:DD:EE:FF`}
               rows={5}
-              className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono placeholder-[var(--text-muted)] resize-none"
+              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono placeholder-[var(--text-muted)] resize-none"
             />
             {addInput.trim() && (
               <div className="mt-2 flex items-center gap-2">
                 <span className={`text-xs ${macsValid ? 'text-green-400' : 'text-red-400'}`}>
                   {macsValid
-                    ? `✓ ${parsedMACs.length} 个有效 MAC 地址`
-                    : `✗ 存在无效的 MAC 地址格式（共 ${parsedMACs.length} 个）`}
+                    ? t('accessControl.macValid', { count: parsedMACs.length })
+                    : t('accessControl.macInvalid', { count: parsedMACs.length })}
                 </span>
                 {macsValid && (
                   <div className="flex flex-wrap gap-1">
@@ -635,13 +639,13 @@ export default function AccessControl() {
           {/* CIDR (whitelist only) */}
           {addType === 'whitelist' && (
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">子网 CIDR</label>
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">{t('accessControl.labelSubnetCidr')}</label>
               <select
                 value={addCIDR}
                 onChange={e => setAddCIDR(e.target.value)}
-                className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
+                className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
               >
-                <option value="">全部子网 — 该 MAC 在所有子网均可 PXE 引导</option>
+                <option value="">{t('accessControl.subnetAllOption')}</option>
                 {subnetOptions.map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
@@ -652,15 +656,15 @@ export default function AccessControl() {
           {/* Reason */}
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">
-              备注
-              <span className="ml-2 font-normal text-[var(--text-muted)] opacity-60">可选</span>
+              {t('accessControl.labelReason')}
+              <span className="ml-2 font-normal text-[var(--text-muted)] opacity-60">{t('accessControl.reasonOptional')}</span>
             </label>
             <input
               type="text"
               value={addReason}
               onChange={e => setAddReason(e.target.value)}
-              placeholder="所有条目共享此备注"
-              className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 placeholder-[var(--text-muted)]"
+              placeholder={t('accessControl.reasonPlaceholder')}
+              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 placeholder-[var(--text-muted)]"
             />
           </div>
         </div>
@@ -678,14 +682,6 @@ interface TableProps {
 }
 
 function AccessTable({ columns, rows, emptyMessage }: TableProps) {
-  if (rows.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <p className="text-sm text-[var(--text-muted)]">{emptyMessage}</p>
-      </div>
-    )
-  }
-
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -699,15 +695,23 @@ function AccessTable({ columns, rows, emptyMessage }: TableProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(row => (
-            <tr key={row.key} className="border-b border-[var(--bg-border)] last:border-0 hover:bg-[var(--bg-card)]/50 transition-colors">
-              {row.cells.map((cell, i) => (
-                <td key={i} className="px-4 py-3">
-                  {cell}
-                </td>
-              ))}
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} className="text-center py-12 text-sm text-[var(--text-muted)]">
+                {emptyMessage}
+              </td>
             </tr>
-          ))}
+          ) : (
+            rows.map(row => (
+              <tr key={row.key} className="border-b border-[var(--bg-border)] last:border-0 hover:bg-[var(--bg-card)]/50 transition-colors">
+                {row.cells.map((cell, i) => (
+                  <td key={i} className="px-4 py-3">
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

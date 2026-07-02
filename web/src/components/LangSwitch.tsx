@@ -21,7 +21,7 @@ export function LangSwitch() {
   return (
     <button
       onClick={cycleLang}
-      className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-100 transition-colors"
+      className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-colors"
     >
       <Languages size={16} />
       <span>{languages.find(l => l.code === current)?.label}</span>

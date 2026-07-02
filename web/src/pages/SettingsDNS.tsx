@@ -56,7 +56,7 @@ export default function SettingsDNS() {
         default_record: d.default_record ?? false,
       })
     } catch (err: any) {
-      error(err.message || '加载失败')
+      error(err.message || t('settings.loadFailed'))
     } finally {
       setSettingsLoading(false)
     }
@@ -68,7 +68,7 @@ export default function SettingsDNS() {
       const res = await api.getDNSRecords()
       setRecords(res.data?.records || [])
       if (res.data?.local_domain) setLocalDomain(res.data.local_domain)
-    } catch { error('加载记录失败') }
+    } catch { error(t('settings.recordsLoadFailed')) }
     finally { setRecordsLoading(false) }
   }
 
@@ -89,9 +89,9 @@ export default function SettingsDNS() {
     setSaving(true)
     try {
       await api.updateDNSSettings({ ...config, enabled: true, port: 53 })
-      success('设置已保存')
+      success(t('settings.saved'))
     } catch (err: any) {
-      error(err.message || '保存失败')
+      error(err.message || t('settings.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -111,17 +111,17 @@ export default function SettingsDNS() {
 
   async function handleFormSave() {
     if (!form.name.trim() || !form.value.trim()) {
-      error('名称和值不能为空')
+      error(t('settings.nameAndValueRequired'))
       return
     }
     setFormSaving(true)
     try {
       if (editing && editing.id) {
         await api.updateDNSRecord(editing.id, form)
-        success('已更新')
+        success(t('settings.saved'))
       } else {
         await api.createDNSRecord(form)
-        success('已创建')
+        success(t('settings.saved'))
       }
       setShowModal(false)
       loadRecords()
@@ -131,7 +131,7 @@ export default function SettingsDNS() {
 
   async function handleDelete(id: number) {
     setDeleteTarget(null)
-    try { await api.deleteDNSRecord(id); success('已删除'); loadRecords() }
+    try { await api.deleteDNSRecord(id); success(t('settings.deleted')); loadRecords() }
     catch (err: any) { error(err.message) }
   }
 
@@ -143,17 +143,17 @@ export default function SettingsDNS() {
   }
 
   const columns: Column<DNSRecord>[] = [
-    { key: 'name', label: '名称', render: (r) => (
+    { key: 'name', label: t('settings.name'), render: (r) => (
       <div>
         <span className="font-medium text-[var(--text-primary)]">{r.name === '@' ? localDomain : r.name}</span>
         {localDomain && r.name !== '@' && <span className="text-[10px] text-[var(--text-muted)] ml-1">.{localDomain}</span>}
       </div>
     ) },
-    { key: 'type', label: '类型', render: (r) => <Tag color={typeColors[r.type] || 'blue'}>{r.type}</Tag> },
-    { key: 'value', label: '值', render: (r) => <span className="font-mono text-xs text-[var(--text-primary)]">{r.value}</span> },
-    { key: 'ttl', label: 'TTL', render: (r) => <span className="font-mono text-xs text-[var(--text-muted)]">{r.ttl}s</span> },
-    { key: 'subnet', label: '子网', render: (r) => <span className="text-xs text-[var(--text-muted)]">{r.subnet || '全部'}</span> },
-    { key: 'enabled', label: '启用', render: (r) => <Toggle checked={r.enabled} onChange={() => toggleEnabled(r)} /> },
+    { key: 'type', label: t('settings.type'), render: (r) => <Tag color={typeColors[r.type] || 'blue'}>{r.type}</Tag> },
+    { key: 'value', label: t('settings.value'), render: (r) => <span className="font-mono text-xs text-[var(--text-primary)]">{r.value}</span> },
+    { key: 'ttl', label: t('settings.ttl'), render: (r) => <span className="font-mono text-xs text-[var(--text-muted)]">{r.ttl}s</span> },
+    { key: 'subnet', label: t('settings.subnet'), render: (r) => <span className="text-xs text-[var(--text-muted)]">{r.subnet || t('common.none')}</span> },
+    { key: 'enabled', label: t('settings.enabled'), render: (r) => <Toggle checked={r.enabled} onChange={() => toggleEnabled(r)} /> },
     { key: 'actions', label: '', render: (r) => (
       <div className="flex gap-1">
         <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Eye size={13} /></Button>
@@ -165,13 +165,13 @@ export default function SettingsDNS() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">DNS 设置</h1>
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('settings.dnsTitle')}</h1>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" disabled={settingsLoading} onClick={loadSettings}>
             <RefreshCw size={14} /> {t('common.reload', '重载配置')}
           </Button>
           <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
-            <Save size={14} /> {saving ? '保存中...' : t('settings.save')}
+            <Save size={14} /> {saving ? t('settings.saving') : t('settings.save')}
           </Button>
         </div>
       </div>
@@ -180,53 +180,53 @@ export default function SettingsDNS() {
         {settingsLoading ? (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
-            <span className="ml-3 text-sm text-[var(--text-muted)]">加载中...</span>
+            <span className="ml-3 text-sm text-[var(--text-muted)]">{t('settings.loading')}</span>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <SettingsField label="本地域名" help={`DNS 记录中的主机名会以此域名后缀进行本地解析。例如 pxe-server → pxe-server.${config.local_domain || 'pxego.local'}`}>
+              <SettingsField label={t('settings.localDomain')} help={t('settings.localDomainHelp', { domain: config.local_domain || 'pxego.local' })}>
                 <SettingsInput value={config.local_domain || ''} onChange={v => setConfig({...config, local_domain: v})} />
               </SettingsField>
-              <SettingsField label={t('settings.dnsUpstream', '上游 DNS')} help="支持格式: 8.8.8.8:53 或 8.8.8.8:53 1.1.1.1:53（空格或逗号分隔多个地址，按顺序重试）">
+              <SettingsField label={t('settings.dnsUpstream')} help={t('settings.upstreamDnsHelp')}>
                 <SettingsInput value={config.upstream} onChange={v => setConfig({...config, upstream: v})} placeholder="8.8.8.8:53 1.1.1.1:53" />
               </SettingsField>
             </div>
-            <Toggle checked={config.default_record ?? false} onChange={v => setConfig({...config, default_record: v})} label="泛域名解析" />
-            <p className="text-xs text-[var(--text-muted)] -mt-2">启用后，本地域内未匹配的 A 记录查询自动解析到服务器 IP。</p>
+            <Toggle checked={config.default_record ?? false} onChange={v => setConfig({...config, default_record: v})} label={t('settings.wildcardResolve')} />
+            <p className="text-xs text-[var(--text-muted)] -mt-2">{t('settings.wildcardResolveHelp')}</p>
           </div>
         )}
       </Card>
 
       {/* DNS Records */}
       <div className="flex items-center justify-between mt-8 mb-4">
-        <h2 className="text-sm font-semibold text-[var(--text-primary)]">DNS 解析</h2>
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">{t('settings.dnsRecords')}</h2>
         <Button variant="primary" size="sm" onClick={openCreate}>
-          <Plus size={14} /> 添加记录
+          <Plus size={14} /> {t('settings.addRecord')}
         </Button>
       </div>
 
       <Card padding={false}>
-        <DataTable columns={columns} data={records} loading={recordsLoading} emptyText="暂无 DNS 记录" />
+        <DataTable columns={columns} data={records} loading={recordsLoading} emptyText={t('settings.dnsEmpty')} />
       </Card>
 
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title={editing ? '编辑 DNS 记录' : '添加 DNS 记录'}
+        title={editing ? t('settings.editDnsRecord') : t('settings.addDnsRecord')}
         width="500px"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowModal(false)} disabled={formSaving}>取消</Button>
-            <Button variant="primary" onClick={handleFormSave} disabled={formSaving}>{formSaving ? '保存中...' : '保存'}</Button>
+            <Button variant="secondary" onClick={() => setShowModal(false)} disabled={formSaving}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={handleFormSave} disabled={formSaving}>{formSaving ? t('settings.saving') : t('common.save')}</Button>
           </>
         }
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">名称</label>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.name')}</label>
             <div className="flex items-center gap-2">
-              <input className="flex-1 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="例如: pxe-server" />
+              <input className="flex-1 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder={t('settings.namePlaceholder')} />
               {localDomain && (
                 <span className="text-sm text-[var(--text-muted)] font-mono whitespace-nowrap">.{localDomain}</span>
               )}
@@ -234,7 +234,7 @@ export default function SettingsDNS() {
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">类型</label>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.type')}</label>
               <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
                 <option value="A">A</option>
                 <option value="AAAA">AAAA</option>
@@ -244,18 +244,18 @@ export default function SettingsDNS() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">TTL</label>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.ttl')}</label>
               <input type="number" className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.ttl} onChange={e => setForm({...form, ttl: parseInt(e.target.value) || 300})} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">子网</label>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.subnet')}</label>
               <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={form.subnet || ''} onChange={e => setForm({...form, subnet: e.target.value})}>
-                <option value="">全部</option>
+                <option value="">{t('common.none')}</option>
                 {subnetOptions.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">值</label>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.value')}</label>
               <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.value} onChange={e => setForm({...form, value: e.target.value})} placeholder={form.type === 'A' ? '192.168.1.100' : ''} />
             </div>
           </div>
@@ -264,7 +264,7 @@ export default function SettingsDNS() {
               className={`relative w-10 h-5.5 rounded-full transition-colors ${form.enabled ? 'bg-blue-500' : 'bg-[var(--bg-border)]'}`}>
               <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform ${form.enabled ? 'translate-x-4.5' : ''}`} />
             </button>
-            <span className="text-sm text-[var(--text-secondary)]">启用</span>
+            <span className="text-sm text-[var(--text-secondary)]">{t('settings.enabled')}</span>
           </label>
         </div>
       </Modal>
@@ -272,17 +272,17 @@ export default function SettingsDNS() {
       <Modal
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        title="确认删除"
+        title={t('settings.confirmDelete')}
         width="400px"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>取消</Button>
-            <Button variant="primary" onClick={() => deleteTarget?.id && handleDelete(deleteTarget.id)}>确定删除</Button>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={() => deleteTarget?.id && handleDelete(deleteTarget.id)}>{t('settings.confirmDeleteAction')}</Button>
           </>
         }
       >
         <p className="text-sm text-[var(--text-secondary)]">
-          确定要删除 DNS 记录 <span className="font-semibold text-[var(--text-primary)]">{deleteTarget?.name}</span>（{deleteTarget?.type}）吗？此操作不可撤销。
+          {t('settings.deleteDnsConfirm', { name: deleteTarget?.name, type: deleteTarget?.type })}
         </p>
       </Modal>
     </div>

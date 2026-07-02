@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Monitor, Loader2, Search, ExternalLink } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -17,15 +18,15 @@ const PROTOCOL_OPTIONS = [
 ]
 
 export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Props) {
+  const { t } = useTranslation()
   const isEdit = !!editConfig
 
   const [host, setHost] = useState(editConfig?.host || '')
   const [protocol, setProtocol] = useState(editConfig?.protocol || 'ipmi')
   const [port, setPort] = useState(editConfig?.port || 623)
 
-  // Auto-set port when protocol changes (user can still override)
   useEffect(() => {
-    if (editConfig) return // don't override port in edit mode
+    if (editConfig) return
     setPort(protocol === 'redfish' ? 443 : 623)
   }, [protocol, editConfig])
   const [username, setUsername] = useState(editConfig?.username || '')
@@ -47,7 +48,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
 
   async function handleProbe() {
     if (!host || !username || !password) {
-      setProbeError('请先填写 BMC 地址、用户名和密码')
+      setProbeError(t('bmc.probeError'))
       return
     }
     setProbeLoading(true)
@@ -58,7 +59,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
       const res = await api.probeBMC({ host, port, username, password, protocol })
       setProbeResult(res.data)
     } catch (err: any) {
-      setProbeError(err.message || '探测失败')
+      setProbeError(err.message || t('bmc.probeFailed'))
     } finally {
       setProbeLoading(false)
     }
@@ -71,11 +72,11 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
 
   async function handleSave() {
     if (!host || !username) {
-      setError('BMC 地址和用户名不能为空')
+      setError(t('bmc.addrUserRequired'))
       return
     }
     if (!isEdit && !password) {
-      setError('新建配置必须填写密码')
+      setError(t('bmc.passwordRequired'))
       return
     }
     setSaving(true)
@@ -97,7 +98,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
       onSaved()
       onClose()
     } catch (err: any) {
-      setError(err.message || '保存失败')
+      setError(err.message || t('bmc.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -107,35 +108,33 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
     <Modal
       open={open}
       onClose={onClose}
-      title={isEdit ? '编辑 BMC 配置' : '新建 BMC 配置'}
+      title={isEdit ? t('bmc.editConfig') : t('bmc.newConfigForm')}
       width="520px"
       footer={
         <>
-          <Button variant="secondary" size="sm" onClick={onClose}>取消</Button>
+          <Button variant="secondary" size="sm" onClick={onClose}>{t('bmc.cancel')}</Button>
           <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-            {saving ? '保存中...' : '保存'}
+            {saving ? t('bmc.saving') : t('bmc.save')}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        {/* ── BMC 地址 ── */}
         <div>
-          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">BMC 地址 *</label>
+          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">{t('bmc.addr')} *</label>
           <input
             type="text" value={host} onChange={e => setHost(e.target.value)}
             placeholder="10.0.0.1"
-            className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
+            className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
           />
         </div>
 
-        {/* ── 协议 + 端口 ── */}
         <div className="grid grid-cols-[1fr_120px] gap-3">
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">协议</label>
+            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">{t('bmc.protocol')}</label>
             <select
               value={protocol} onChange={e => setProtocol(e.target.value)}
-              className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
+              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
             >
               {PROTOCOL_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -143,31 +142,31 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">端口</label>
+            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">{t('bmc.port')}</label>
             <input
               type="number" value={port} onChange={e => setPort(Number(e.target.value))}
-              className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
+              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">用户名 *</label>
+            <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">{t('bmc.username')} *</label>
             <input
               type="text" value={username} onChange={e => setUsername(e.target.value)}
               placeholder="admin"
-              className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
+              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-              密码{isEdit ? '' : ' *'}
+              {t('bmc.password')}{isEdit ? '' : ' *'}
             </label>
             <input
               type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder={isEdit ? '留空则不修改' : ''}
-              className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
+              placeholder={isEdit ? t('bmc.editPasswordHint') : ''}
+              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
             />
           </div>
         </div>
@@ -176,13 +175,13 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={handleProbe} disabled={probeLoading}>
               {probeLoading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-              {probeLoading ? '探测中...' : '检测设备'}
+              {probeLoading ? t('bmc.probing') : t('bmc.detectDevice')}
             </Button>
             <button
               onClick={skipProbe}
               className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] underline"
             >
-              跳过检测
+              {t('bmc.skipProbe')}
             </button>
           </div>
         )}
@@ -191,7 +190,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
           <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/5 border border-red-500/10">
             <span className="text-xs text-red-400 flex-1">{probeError}</span>
             <button onClick={() => { setProbeError(''); skipProbe() }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] underline shrink-0">
-              跳过检测
+              {t('bmc.skipProbe')}
             </button>
           </div>
         )}
@@ -200,31 +199,31 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
           <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10 space-y-2">
             <div className="flex items-center gap-2 text-xs font-semibold text-blue-400">
               <Monitor size={14} />
-              设备信息（自动探测）
+              {t('bmc.deviceInfo')}
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <span className="text-[var(--text-muted)]">设备名</span>
+                <span className="text-[var(--text-muted)]">{t('bmc.deviceName')}</span>
                 <input
                   type="text" value={probeResult?.name || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, name: e.target.value } : { name: e.target.value, vendor: '', model: '', serial: '', mac: '' })}
-                  className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
                 />
               </div>
               <div>
-                <span className="text-[var(--text-muted)]">品牌</span>
+                <span className="text-[var(--text-muted)]">{t('bmc.brand')}</span>
                 <input
                   type="text" value={probeResult?.vendor || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, vendor: e.target.value } : null)}
-                  className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
                 />
               </div>
               <div>
-                <span className="text-[var(--text-muted)]">型号</span>
+                <span className="text-[var(--text-muted)]">{t('bmc.model')}</span>
                 <input
                   type="text" value={probeResult?.model || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, model: e.target.value } : null)}
-                  className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
                 />
               </div>
               <div>
@@ -232,7 +231,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
                 <input
                   type="text" value={probeResult?.serial || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, serial: e.target.value } : null)}
-                  className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
                 />
               </div>
               <div className="col-span-2">
@@ -240,7 +239,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
                 <input
                   type="text" value={probeResult?.mac || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, mac: e.target.value } : null)}
-                  className="w-full bg-[var(--bg-base)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1 font-mono"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1 font-mono"
                 />
               </div>
             </div>
@@ -250,7 +249,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
         {host && (
           <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
             <ExternalLink size={12} />
-            BMC Web 界面：
+            {t('bmc.webInterface')}：
             <a
               href={`https://${host}`}
               target="_blank"

@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface Column<T> {
   key: string
@@ -22,8 +23,11 @@ interface Props<T> {
 }
 
 export function DataTable<T extends Record<string, any>>({
-  columns, data, loading, onRowClick, sortField, sortDir, onSort, emptyText = '暂无数据', rowKey,
+  columns, data, loading, onRowClick, sortField, sortDir, onSort, emptyText, rowKey,
 }: Props<T>) {
+  const { t } = useTranslation()
+  const displayEmpty = emptyText || t('common.noData')
+
   if (loading) {
     return (
       <div className="overflow-x-auto">
@@ -42,7 +46,7 @@ export function DataTable<T extends Record<string, any>>({
               <tr key={i}>
                 {columns.map(col => (
                   <td key={col.key} className="px-4 py-3 border-b border-[var(--bg-border)]">
-                    <div className="h-4 bg-[var(--bg-card)] rounded animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-[var(--bg-card)] via-[var(--bg-hover)] to-[var(--bg-card)] bg-[length:200%_100%]" />
+                    <div className="h-4 bg-[var(--bg-card)] rounded animate-shimmer" />
                   </td>
                 ))}
               </tr>
@@ -69,7 +73,7 @@ export function DataTable<T extends Record<string, any>>({
           <tbody>
             <tr>
               <td colSpan={columns.length} className="text-center py-12 text-[var(--text-muted)]">
-                <p className="text-sm">{emptyText}</p>
+                <p className="text-sm">{displayEmpty}</p>
               </td>
             </tr>
           </tbody>
@@ -104,7 +108,7 @@ export function DataTable<T extends Record<string, any>>({
           {data.map((item, i) => (
             <tr
               key={rowKey?.(item) ?? i}
-              className={`${onRowClick ? 'cursor-pointer' : ''} hover:bg-white/[0.02]`}
+              className={`${onRowClick ? 'cursor-pointer' : ''} hover:bg-[var(--bg-hover)]/60 hover:shadow-[inset_3px_0_0_var(--bg-border)] transition-all duration-150`}
               onClick={() => onRowClick?.(item)}
             >
               {columns.map(col => (

@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Tag } from '../components/ui/Tag'
 import { useToast } from '../components/ui/Toast'
 import { api, getNetbootCatalog, type Profile, type MenuEntry, type NetbootDistro } from '../api/client'
@@ -24,6 +25,7 @@ export default function Profiles() {
   const [nameError, setNameError] = useState(false)
   const [previewProfile, setPreviewProfile] = useState<Profile | null>(null)
   const [osCatalog, setOSCatalog] = useState<NetbootDistro[]>([])
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => { loadProfiles() }, [])
   useEffect(() => {
@@ -35,7 +37,7 @@ export default function Profiles() {
     try {
       const res = await api.getProfiles()
       setProfiles(res.data)
-    } catch { error('加载失败') }
+    } catch { error(t('profiles.loadFailed')) }
     finally { setLoading(false) }
   }
 
@@ -86,7 +88,7 @@ export default function Profiles() {
     setNameError(false)
     setSaving(true)
     try {
-      const label = form.name || '未命名'
+      const label = form.name || t('common.unnamed')
       const entryData: Partial<MenuEntry> = { label, ...form.entry }
       const data = {
         name: form.name,
@@ -97,10 +99,10 @@ export default function Profiles() {
       }
       if (editing) {
         await api.updateProfile(editing.id, data)
-        success('配置已更新')
+        success(t('profiles.updated'))
       } else {
         await api.createProfile(data)
-        success('配置已创建')
+        success(t('profiles.created'))
       }
       setShowVars(false)
       setShowScriptPreview(false)
@@ -111,9 +113,14 @@ export default function Profiles() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(t('profiles.deleteConfirm'))) return
-    try { await api.deleteProfile(id); success('已删除'); loadProfiles() }
+    setConfirmDeleteId(id)
+  }
+
+  async function doDelete() {
+    if (!confirmDeleteId) return
+    try { await api.deleteProfile(confirmDeleteId); success(t('common.deleted')); loadProfiles() }
     catch (err: any) { error(err.message) }
+    setConfirmDeleteId(null)
   }
 
 
@@ -165,10 +172,10 @@ boot`
         break
       case 'custom':
         script = `#!ipxe
-${e.script || '<空脚本>'}`
+${e.script || t('profiles.emptyScriptPlaceholder')}`
         break
       default:
-        script = '# 未知类型'
+        script = t('profiles.unknownTypeComment')
     }
     return replaceServerVars(script)
   }
@@ -214,21 +221,21 @@ ${e.script || '<空脚本>'}`
       return <div className="flex gap-1">{types.map(t => <Tag key={t} children={t} />)}</div>
     }},
     { key: 'arch', label: t('profiles.arch'), render: (p) => <span className="font-mono text-xs">{p.arch || '*'}</span> },
-    { key: 'is_default', label: t('profiles.isDefault'), render: (p) => p.is_default ? <Tag color="green">默认</Tag> : null },
+    { key: 'is_default', label: t('profiles.isDefault'), render: (p) => p.is_default ? <Tag color="green">{t('profiles.default')}</Tag> : null },
     { key: 'actions', label: '', render: (p) => (
-      <div className="flex gap-1">
+      <div className="flex gap-1 whitespace-nowrap">
         <Button variant="ghost" size="sm" onClick={() => openPreview(p)}><Eye size={13} /></Button>
         <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>{t('common.edit')}</Button>
         <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}>{t('common.delete')}</Button>
       </div>
-    ), width: '130px' },
+    ), width: '160px' },
   ]
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">启动配置</h1>
-        <Button variant="primary" onClick={openCreate}>
+        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('profiles.title')}</h1>
+        <Button variant="primary" size="sm" onClick={openCreate}>
           <Plus size={14} /> {t('profiles.addProfile')}
         </Button>
       </div>
@@ -236,12 +243,12 @@ ${e.script || '<空脚本>'}`
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t('profiles.total', '总配置数')}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t('profiles.total')}</div>
           <div className="text-[28px] font-bold tracking-tight">{profiles.length}</div>
         </div>
         <div className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-4">
           <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t('profiles.isDefault')}</div>
-          <div className="text-base font-bold">{defaultProfile?.name || '无'}</div>
+          <div className="text-base font-bold">{defaultProfile?.name || t('profiles.noDefault')}</div>
         </div>
         <div className="bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl p-4">
           <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">iPXE</div>
@@ -254,7 +261,7 @@ ${e.script || '<空脚本>'}`
       </div>
 
       <Card padding={false}>
-        <DataTable columns={columns} data={profiles} loading={loading} emptyText={t('profiles.empty', '暂无配置')} />
+        <DataTable columns={columns} data={profiles} loading={loading} emptyText={t('profiles.empty')} />
       </Card>
 
       <Modal
@@ -264,26 +271,26 @@ ${e.script || '<空脚本>'}`
         width="600px"
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setShowScriptPreview(!showScriptPreview)} disabled={saving}>{showScriptPreview ? '隐藏预览' : '预览'}</Button>
+            <Button variant="ghost" size="sm" onClick={() => setShowScriptPreview(!showScriptPreview)} disabled={saving}>{showScriptPreview ? t('profiles.hidePreview') : t('profiles.previewBtn')}</Button>
             <Button variant="secondary" onClick={() => { setNameError(false); setShowVars(false); setShowScriptPreview(false); setShowModal(false) }} disabled={saving}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? '保存中...' : t('common.save')}</Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? t('profiles.saving') : t('common.save')}</Button>
           </>
         }
       >
         <div className="space-y-5">
           {/* 基本信息 */}
           <div>
-            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">基本信息</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t('profiles.basicInfo')}</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.name')}</label>
-                <input className={`w-full bg-[var(--bg-input)] border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors ${nameError ? 'border-red-500 focus:border-red-500' : 'border-[var(--bg-border)] focus:border-blue-500'}`} value={form.name} onChange={e => { setNameError(false); setForm({...form, name: e.target.value}) }} placeholder="例: BootOS" />
-                {nameError && <p className="text-xs text-red-400 mt-1">请输入配置名称</p>}
+                <input className={`w-full bg-[var(--bg-input)] border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors ${nameError ? 'border-red-500 focus:border-red-500' : 'border-[var(--bg-border)] focus:border-blue-500'}`} value={form.name} onChange={e => { setNameError(false); setForm({...form, name: e.target.value}) }} placeholder={t('profiles.namePlaceholder')} />
+                {nameError && <p className="text-xs text-red-400 mt-1">{t('profiles.nameRequired')}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.arch')} <span className="text-[var(--text-muted)] font-normal">（如使用变量可留空）</span></label>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.arch')} <span className="text-[var(--text-muted)] font-normal">{t('profiles.archHint')}</span></label>
                 <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={form.arch} onChange={e => setForm({...form, arch: e.target.value})}>
-                  <option value="">自动</option>
+                  <option value="">{t('profiles.auto')}</option>
                   <option>x86_64</option>
                   <option>arm64</option>
                   <option>i386</option>
@@ -304,56 +311,56 @@ ${e.script || '<空脚本>'}`
 
           {/* 引导项 */}
           <div>
-            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">引导项</h3>
-            <div className="bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t('profiles.bootEntry')}</h3>
+            <div className="bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.entryType')}</label>
-                <select className="w-56 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={form.entry.type} onChange={e => updateEntry('type', e.target.value)}>
-                  <option value="direct">direct — 内核+initrd 引导</option>
-                  <option value="chain">chain — 链式加载另一个 NBP</option>
-                  <option value="local">local — 本地硬盘启动</option>
-                  <option value="sanboot">sanboot — SAN 存储启动</option>
-                  <option value="wds">wds — WIM 文件启动</option>
-                  <option value="custom">custom — 原始 iPXE 脚本</option>
+                <select className="w-56 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={form.entry.type} onChange={e => updateEntry('type', e.target.value)}>
+                  <option value="direct">{t('profiles.typeDirect')}</option>
+                  <option value="chain">{t('profiles.typeChain')}</option>
+                  <option value="local">{t('profiles.typeLocal')}</option>
+                  <option value="sanboot">{t('profiles.typeSanboot')}</option>
+                  <option value="wds">{t('profiles.typeWds')}</option>
+                  <option value="custom">{t('profiles.typeCustom')}</option>
                 </select>
               </div>
               {form.entry.type === 'direct' && (
                 <>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.kernel')}</label>
-                    <textarea className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.kernel || ''} onChange={e => updateEntry('kernel', e.target.value)} placeholder="vmlinuz 或 bootos/${arch}/vmlinuz" />
+                    <textarea className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.kernel || ''} onChange={e => updateEntry('kernel', e.target.value)} placeholder={t('profiles.kernelPlaceholder')} />
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.initrd')}</label>
-                    <textarea className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.initrd || ''} onChange={e => updateEntry('initrd', e.target.value)} placeholder="initrd.img 或 bootos/${arch}/initrd" />
+                    <textarea className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.initrd || ''} onChange={e => updateEntry('initrd', e.target.value)} placeholder={t('profiles.initrdPlaceholder')} />
                   </div>
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
-                    <textarea className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} placeholder="例: console=tty0 quiet" />
+                    <textarea className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} placeholder={t('profiles.cmdlinePlaceholder')} />
                   </div>
                 </>
               )}
               {form.entry.type === 'chain' && (
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.url')}</label>
-                  <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder="http://server/ipxe.efi 或 ${next-server}/bootmgr.efi" />
+                  <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder={t('profiles.chainUrlPlaceholder')} />
                 </div>
               )}
               {form.entry.type === 'sanboot' && (
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">操作类型</label>
-                    <select className="w-56 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={form.entry.san_action || 'boot'} onChange={e => updateEntry('san_action', e.target.value === 'boot' ? undefined : e.target.value)}>
-                      <option value="boot">sanboot — 从 SAN 启动</option>
-                      <option value="hook">sanhook — 注册 SAN 盘</option>
-                      <option value="zap">sanzboot — 清除后启动</option>
-                      <option value="unhook">sanhook — 断开 SAN 连接</option>
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.sanAction')}</label>
+                    <select className="w-56 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={form.entry.san_action || 'boot'} onChange={e => updateEntry('san_action', e.target.value === 'boot' ? undefined : e.target.value)}>
+                      <option value="boot">{t('profiles.sanBoot')}</option>
+                      <option value="hook">{t('profiles.sanHook')}</option>
+                      <option value="zap">{t('profiles.sanZap')}</option>
+                      <option value="unhook">{t('profiles.sanUnhook')}</option>
                     </select>
                   </div>
                   {form.entry.san_action !== 'unhook' && (
                     <div>
-                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">目标 URL</label>
-                      <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder="iscsi://server/iqn 或 http://server/centos7.iso" />
+                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.targetUrl')}</label>
+                      <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder={t('profiles.sanUrlPlaceholder')} />
                     </div>
                   )}
                   <div className="flex gap-4">
@@ -370,22 +377,22 @@ ${e.script || '<空脚本>'}`
                   </div>
                   {(!form.entry.san_action || form.entry.san_action === 'boot') && (
                     <div>
-                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">--drive（可选）</label>
-                      <input className="w-32 bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.san_drive || ''} onChange={e => updateEntry('san_drive', e.target.value)} placeholder="0x80" />
+                      <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.driveOptional')}</label>
+                      <input className="w-32 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.san_drive || ''} onChange={e => updateEntry('san_drive', e.target.value)} placeholder="0x80" />
                     </div>
                   )}
                 </div>
               )}
               {form.entry.type === 'custom' && (
                 <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-0.5">iPXE 脚本 <span className="text-[var(--text-muted)] font-normal">{'（支持所有 iPXE 变量：${net0/mac}、${net0/next-server}、${arch} 等；服务端变量：{{.URL}}、{{.MAC}}）'}</span></label>
-                  <textarea className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-y" rows={6} value={form.entry.script || ''} onChange={e => updateEntry('script', e.target.value)} placeholder={"set keep-san 1\\nsanboot --drive 0x80 http://${next-server}/winpe.iso"} />
+                  <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.ipxeScript')} <span className="text-[var(--text-muted)] font-normal">{t('profiles.scriptHint')}</span></label>
+                  <textarea className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-y" rows={6} value={form.entry.script || ''} onChange={e => updateEntry('script', e.target.value)} placeholder={"set keep-san 1\\nsanboot --drive 0x80 http://${next-server}/winpe.iso"} />
                 </div>
               )}
               {form.entry.type === 'wds' && (
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wim')}</label>
-                  <input className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} />
+                  <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} />
                 </div>
               )}
 
@@ -395,7 +402,7 @@ ${e.script || '<空脚本>'}`
                   onClick={() => setShowOSPicker(true)}
                   className="text-xs text-blue-500 hover:text-blue-400"
                 >
-                  从 OS 目录选择
+                  {t('profiles.selectFromOs')}
                 </button>
               </div>
             </div>
@@ -410,48 +417,48 @@ ${e.script || '<空脚本>'}`
             >
               <Info size={12} />
               {showVars ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              iPXE 变量参考 — 路径和参数中可使用以下变量，运行时自动替换
+              {t('profiles.varsReference')}
             </button>
             {showVars && (
               <div className="mt-2 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-xs leading-relaxed">
                 <div className="grid grid-cols-[1fr_2px_1.8fr] gap-x-3 gap-y-1.5 text-[var(--text-secondary)]">
-                  <span className="font-mono text-[var(--text-primary)]">${'{arch}'}</span><span></span><span>CPU 架构 — x86_64 / x86 / arm64</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{buildarch}'}</span><span></span><span>iPXE 编译目标架构</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{platform}'}</span><span></span><span>平台类型 — efi / pc (BIOS)</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{net0/mac}'}</span><span></span><span>客户端 MAC 地址</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{net0/ip}'}</span><span></span><span>客户端 IP 地址（DHCP 分配）</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{net0/gateway}'}</span><span></span><span>网关地址</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{net0/dns}'}</span><span></span><span>DNS 服务器</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{net0/next-server}'}</span><span></span><span>DHCP next-server（TFTP 地址）</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{uuid}'}</span><span></span><span>主机 SMBIOS UUID</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{serial}'}</span><span></span><span>主机序列号</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{manufacturer}'}</span><span></span><span>硬件厂商</span>
-                  <span className="font-mono text-[var(--text-primary)]">${'{product}'}</span><span></span><span>硬件型号</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{arch}'}</span><span></span><span>{t('profiles.varArchDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{buildarch}'}</span><span></span><span>{t('profiles.varBuildarchDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{platform}'}</span><span></span><span>{t('profiles.varPlatformDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/mac}'}</span><span></span><span>{t('profiles.varMacDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/ip}'}</span><span></span><span>{t('profiles.varIpDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/gateway}'}</span><span></span><span>{t('profiles.varGatewayDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/dns}'}</span><span></span><span>{t('profiles.varDnsDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{net0/next-server}'}</span><span></span><span>{t('profiles.varNextServerDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{uuid}'}</span><span></span><span>{t('profiles.varUuidDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{serial}'}</span><span></span><span>{t('profiles.varSerialDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{manufacturer}'}</span><span></span><span>{t('profiles.varManufacturerDesc')}</span>
+                  <span className="font-mono text-[var(--text-primary)]">${'{product}'}</span><span></span><span>{t('profiles.varProductDesc')}</span>
                 </div>
                 <div className="mt-3 pt-3 border-t border-[var(--bg-border)]">
-                  <div className="text-[var(--text-muted)] mb-2">服务端变量 — 由服务端在生成 iPXE 脚本时自动替换（预览时显示模拟值）</div>
+                  <div className="text-[var(--text-muted)] mb-2">{t('profiles.serverVarsDesc')}</div>
                   <div className="grid grid-cols-[1fr_2px_1.8fr] gap-x-3 gap-y-1.5 text-[var(--text-secondary)]">
-                    <span className="font-mono text-[var(--text-primary)]">{'{{.URL}}'}</span><span></span><span>服务器基地址 — http://server:port</span>
-                    <span className="font-mono text-[var(--text-primary)]">{'{{.NextServer}}'}</span><span></span><span>DHCP next-server 地址</span>
-                    <span className="font-mono text-[var(--text-primary)]">{'{{.MAC}}'}</span><span></span><span>客户端 MAC 地址</span>
-                    <span className="font-mono text-[var(--text-primary)]">{'{{.IP}}'}</span><span></span><span>客户端 IP 地址</span>
-                    <span className="font-mono text-[var(--text-primary)]">{'{{.Hostname}}'}</span><span></span><span>客户端主机名</span>
+                    <span className="font-mono text-[var(--text-primary)]">{'{{.URL}}'}</span><span></span><span>{t('profiles.varServerUrlDesc')}</span>
+                    <span className="font-mono text-[var(--text-primary)]">{'{{.NextServer}}'}</span><span></span><span>{t('profiles.varServerNextServerDesc')}</span>
+                    <span className="font-mono text-[var(--text-primary)]">{'{{.MAC}}'}</span><span></span><span>{t('profiles.varServerMacDesc')}</span>
+                    <span className="font-mono text-[var(--text-primary)]">{'{{.IP}}'}</span><span></span><span>{t('profiles.varServerIpDesc')}</span>
+                    <span className="font-mono text-[var(--text-primary)]">{'{{.Hostname}}'}</span><span></span><span>{t('profiles.varServerHostnameDesc')}</span>
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-[var(--bg-border)] text-[var(--text-muted)]">
-                  路径中的变量由客户端 iPXE 在运行时替换，示例：<span className="font-mono text-[var(--text-primary)]">bootos/${'{arch}'}/vmlinuz</span> 会根据客户端架构自动加载对应文件
+                  {t('profiles.varsNote')}<span className="font-mono text-[var(--text-primary)]">bootos/${'{arch}'}/vmlinuz</span>{t('profiles.varsNoteSuffix')}
                 </div>
               </div>
             )}
           </div>
           {showScriptPreview && (
             <div>
-              <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">生成的 iPXE 脚本</h3>
+              <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">{t('profiles.generatedScript')}</h3>
               <pre className="p-3 bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg text-[var(--text-primary)] font-mono text-xs whitespace-pre-wrap break-all max-h-64 overflow-y-auto">{generatePreview()}</pre>
             </div>
           )}
         </div>{showOSPicker && (
-          <Modal open={showOSPicker} onClose={() => setShowOSPicker(false)} title="选择操作系统" width="500px">
+          <Modal open={showOSPicker} onClose={() => setShowOSPicker(false)} title={t('profiles.selectOs')} width="500px">
             <div className="max-h-80 overflow-y-auto space-y-1">
               {osCatalog.filter(d => d.enabled).map(distro => (
                 <div key={distro.name}>
@@ -476,7 +483,7 @@ ${e.script || '<空脚本>'}`
                             case 'sanboot':
                               return { ...prev, entry: { ...base, type: 'sanboot' as const, url: ver.remote?.kernel || '', san_action: undefined } }
                             default:
-                              return { ...prev, entry: { ...base, type: 'custom' as const, script: `# ${bt} — 请手动配置引导参数` } }
+                              return { ...prev, entry: { ...base, type: 'custom' as const, script: `# ${bt} — ${t('profiles.pleaseConfigure')}` } }
                           }
                         })
                         setShowOSPicker(false)
@@ -492,13 +499,13 @@ ${e.script || '<空脚本>'}`
                           'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                         }`}>{ver.boot_type}</span>
                       )}
-                      {ver.local && <span className="text-green-500 ml-2 text-xs">本地</span>}
+                      {ver.local && <span className="text-green-500 ml-2 text-xs">{t('profiles.local')}</span>}
                     </button>
                   ))}
                 </div>
               ))}
               {osCatalog.length === 0 && (
-                <div className="text-center py-8 text-[var(--text-muted)] text-sm">暂无可用操作系统</div>
+                <div className="text-center py-8 text-[var(--text-muted)] text-sm">{t('profiles.noOsAvailable')}</div>
               )}
             </div>
           </Modal>
@@ -506,10 +513,10 @@ ${e.script || '<空脚本>'}`
       </Modal>
 
       {/* 预览 */}
-      <Modal open={!!previewProfile} onClose={() => setPreviewProfile(null)} title={t('profiles.preview', '查看配置')} width="620px">
+      <Modal open={!!previewProfile} onClose={() => setPreviewProfile(null)} title={t('profiles.preview')} width="620px">
         {previewProfile && (() => {
           const entry = previewProfile.menu?.entries?.[0]
-          const entryLabels: Record<string, string> = { direct: 'direct — 内核+initrd 引导', chain: 'chain — 链式加载 NBP', local: 'local — 本地硬盘启动', sanboot: 'sanboot — SAN 存储启动', wds: 'wds — WIM 文件启动', custom: 'custom — 自定义脚本' }
+          const entryLabels: Record<string, string> = { direct: t('profiles.typeDirect'), chain: t('profiles.typeChain'), local: t('profiles.typeLocal'), sanboot: t('profiles.typeSanboot'), wds: t('profiles.typeWds'), custom: t('profiles.typeCustom') }
           return (
             <div className="space-y-4">
               {/* 基本信息 — 紧凑一行 */}
@@ -520,7 +527,7 @@ ${e.script || '<空脚本>'}`
                 </div>
                 <div>
                   <span className="text-[var(--text-muted)] text-xs">{t('profiles.arch')}</span>
-                  <p className="font-mono text-[var(--text-primary)]">{previewProfile.arch || '自动'}</p>
+                  <p className="font-mono text-[var(--text-primary)]">{previewProfile.arch || t('profiles.auto')}</p>
                 </div>
                 {previewProfile.description && (
                   <div>
@@ -530,7 +537,7 @@ ${e.script || '<空脚本>'}`
                 )}
                 <div>
                   <span className="text-[var(--text-muted)] text-xs">{t('profiles.isDefault')}</span>
-                  <p>{previewProfile.is_default ? <Tag color="green">默认</Tag> : '否'}</p>
+                  <p>{previewProfile.is_default ? <Tag color="green">{t('profiles.default')}</Tag> : t('profiles.no')}</p>
                 </div>
                 {previewProfile.created_at && !previewProfile.created_at.startsWith("0001-") && (
                   <p className="font-mono text-[var(--text-primary)]">{previewProfile.created_at.replace("T", " ").slice(0, 19)}</p>
@@ -540,8 +547,8 @@ ${e.script || '<空脚本>'}`
               {/* 引导项 */}
               {entry && (
                 <div>
-                  <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">引导项</h3>
-                  <div className="bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
+                  <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">{t('profiles.bootEntry')}</h3>
+            <div className="bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
                     <div>
                       <span className="text-[var(--text-muted)] text-xs">{t('profiles.entryType')}</span>
                       <p className="text-[var(--text-primary)] mt-0.5 font-medium">{entryLabels[entry.type] || entry.type}</p>
@@ -549,7 +556,7 @@ ${e.script || '<空脚本>'}`
 
                     {entry.label && (
                       <div>
-                        <span className="text-[var(--text-muted)] text-xs">标签</span>
+                        <span className="text-[var(--text-muted)] text-xs">{t('profiles.entryLabel')}</span>
                         <p className="text-[var(--text-primary)] mt-0.5 font-mono text-xs">{entry.label}</p>
                       </div>
                     )}
@@ -582,7 +589,7 @@ ${e.script || '<空脚本>'}`
                     {entry.type === 'sanboot' && (
                       <div className="space-y-1.5">
                         <div>
-                          <span className="text-[var(--text-muted)] text-xs">操作</span>
+                          <span className="text-[var(--text-muted)] text-xs">{t('profiles.operation')}</span>
                           <p className="text-[var(--text-primary)] mt-0.5 font-mono text-xs">{entry.san_action || 'boot'}</p>
                         </div>
                         {entry.san_action !== 'unhook' && (
@@ -621,7 +628,7 @@ ${e.script || '<空脚本>'}`
 
                     {entry.type === 'custom' && (
                       <div>
-                        <span className="text-[var(--text-muted)] text-xs">脚本内容</span>
+                        <span className="text-[var(--text-muted)] text-xs">{t('profiles.scriptContent')}</span>
                         <pre className="text-[var(--text-primary)] mt-1 font-mono text-xs whitespace-pre-wrap break-all bg-[var(--bg-card)] border border-[var(--bg-border)] rounded p-2 max-h-48 overflow-auto">{entry.script || '-'}</pre>
                       </div>
                     )}
@@ -632,6 +639,13 @@ ${e.script || '<空脚本>'}`
           )
         })()}
       </Modal>
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={doDelete}
+        title={t('profiles.deleteTitle')}
+        message={t('profiles.deleteConfirm')}
+      />
     </div>
   )
 }

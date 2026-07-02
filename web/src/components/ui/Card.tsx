@@ -10,7 +10,13 @@ interface Props {
 }
 
 export const Card: FC<Props> = ({ title, children, className = '', hover = false, footer, padding = true }) => (
-  <div className={`bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl overflow-hidden transition-all duration-200 ${hover ? 'hover:border-[#2e3245] hover:shadow-[0_1px_3px_rgba(0,0,0,0.3)]' : ''} ${className}`}>
+  <div
+    className={`group bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl overflow-hidden transition-all duration-300 ${
+      hover
+        ? 'shadow-sm hover:shadow-lg hover:border-blue-500/20 hover:-translate-y-0.5'
+        : 'shadow-sm'
+    } ${className}`}
+  >
     {title && (
       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--bg-border)]">
         <span className="text-sm font-bold text-[var(--text-primary)] tracking-tight">{title}</span>
