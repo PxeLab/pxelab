@@ -10,7 +10,8 @@ import {
   getGeneralSettings, updateGeneralSettings,
   getNetbootSettings, updateNetbootSettings,
   getInterfaces, getServices, updateAutoStart,
-  type GeneralSettings, type NetbootSettingsData, type InterfaceInfo, type ServiceInfo,
+  getCacheStats,
+  type GeneralSettings, type NetbootSettingsData, type InterfaceInfo, type ServiceInfo, type CacheStats,
 } from '../../api/client'
 
 interface Props {
@@ -315,6 +316,28 @@ function BootForm({ config, onChange }: { config: GeneralSettings; onChange: (c:
 function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: (d: NetbootSettingsData) => void }) {
   const { t } = useTranslation()
   const inputCls = 'w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500'
+  const [cacheStats, setCacheStats] = useState<CacheStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+
+  const fetchCacheStats = useCallback(async () => {
+    if (!data.cache_enabled) { setCacheStats(null); return }
+    setStatsLoading(true)
+    try {
+      const res = await getCacheStats()
+      setCacheStats(res.data as unknown as CacheStats)
+    } catch { setCacheStats(null) }
+    setStatsLoading(false)
+  }, [data.cache_enabled])
+
+  useEffect(() => { fetchCacheStats() }, [fetchCacheStats])
+
+  const fmtBytes = (b: number) => {
+    if (b === 0) return '0 B'
+    const u = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(b) / Math.log(1024))
+    return (b / Math.pow(1024, i)).toFixed(1) + ' ' + u[i]
+  }
+
   return (
     <div className="p-6 space-y-4">
       <h3 className="text-sm font-semibold">{t('settings.modalNetbootSettings')}</h3>
@@ -325,6 +348,25 @@ function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: 
       <SettingsField label={t('settings.modalHttpsProxy')}>
         <Toggle checked={data.proxy_https} onChange={v => onChange({...data, proxy_https: v})} />
         <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.modalHttpsProxyHelp')}</p>
+      </SettingsField>
+      <SettingsField label={t('settings.modalCache')}>
+        <div className="flex flex-col gap-1">
+          <Toggle checked={data.cache_enabled} onChange={v => onChange({...data, cache_enabled: v})} />
+          <p className="text-xs text-[var(--text-muted)]">{t('settings.modalCacheHelp')}</p>
+          {data.cache_enabled && cacheStats && (
+            <div className="mt-1 space-y-0.5">
+              <div className="text-xs text-[var(--text-muted)]">
+                {t('settings.cachePath')}: <code className="text-[var(--text-secondary)]">{cacheStats.path}</code>
+              </div>
+              <div className="text-xs text-[var(--text-muted)]">
+                {t('settings.cacheStats')}: {cacheStats.file_count} {t('settings.cacheFiles')} · {fmtBytes(cacheStats.size_bytes)}
+              </div>
+            </div>
+          )}
+          {data.cache_enabled && statsLoading && (
+            <span className="text-xs text-[var(--text-muted)]">{t('settings.loading')}</span>
+          )}
+        </div>
       </SettingsField>
       <SettingsField label={t('settings.modalMenuTitle')}>
         <input className={inputCls} value={data.catalog_display.title}

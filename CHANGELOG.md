@@ -3,6 +3,17 @@
 ## [Unreleased]
 
 ### Added
+- Settings → Netboot 新增「本地缓存」开关（默认启用），缓存下载的引导文件到磁盘，加快重复引导速度
+- 缓存统计 API（GET /api/v1/netboot/cache-stats），显示缓存路径、文件数、磁盘占用
+- Netboot 设置弹窗中缓存开启时实时显示缓存路径和磁盘占用信息
+- DNS 服务启动时重新读取配置，上游 DNS 变更不再需要重启进程
+
+### Changed
+- Netboot 默认启用 HTTPS 代理（ProxyHTTPS）和本地缓存（CacheEnabled）
+
+### Fixed
+- GParted 引导失败：替换 live_endpoint 为本地 HTTP 代理地址，禁用签名校验
+- 保存 netboot 设置时丢失 CatalogDisplay.Groups 配置
 - 文件管理表格显示修改时间、MD5 列，带表头展示
 - 后端文件列表 API 返回 MD5 哈希
 - data_dir 路径校验（创建 + 可写测试）

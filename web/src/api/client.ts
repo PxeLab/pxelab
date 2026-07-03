@@ -472,8 +472,19 @@ export interface DNSSettingsData {
 export interface NetbootSettingsData {
   enabled: boolean
   proxy_https: boolean
+  cache_enabled: boolean
   catalog_redirect: BootSettings['catalog_redirect']
   catalog_display: BootSettings['catalog_display']
+}
+
+export interface CacheStats {
+  path: string
+  size_bytes: number
+  file_count: number
+}
+
+export function getCacheStats(): Promise<ApiResponse<CacheStats>> {
+  return request<CacheStats>('GET', '/netboot/cache-stats')
 }
 
 export function getGeneralSettings(): Promise<ApiResponse<GeneralSettings>> {

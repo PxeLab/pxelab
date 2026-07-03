@@ -16,6 +16,9 @@ type Server struct {
 	port    int
 	handler *Handler
 	dnsSrv  *dns.Server
+	cfg     *config.Config
+	store   store.Interface
+	bus     *eventbus.Bus
 }
 
 func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Server {
@@ -23,12 +26,17 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Serve
 		name:    "DNS",
 		port:    cfg.DNS.Port,
 		handler: NewHandler(cfg, st, bus),
+		cfg:     cfg,
+		store:   st,
+		bus:     bus,
 	}
 }
 
 func (s *Server) Name() string { return s.name }
 
 func (s *Server) Start(ctx context.Context) error {
+	// Re-create handler with fresh config so upstream changes take effect
+	s.handler = NewHandler(s.cfg, s.store, s.bus)
 	mux := dns.NewServeMux()
 	mux.Handle(".", s.handler)
 

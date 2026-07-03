@@ -204,6 +204,7 @@ type DNSSettingsResponse struct {
 type NetbootSettingsResponse struct {
 	Enabled         bool                    `json:"enabled"`
 	ProxyHTTPS      bool                    `json:"proxy_https"`
+	CacheEnabled    bool                    `json:"cache_enabled"`
 	CatalogRedirect CatalogRedirectSettings `json:"catalog_redirect"`
 	CatalogDisplay  CatalogDisplaySettings  `json:"catalog_display"`
 }
@@ -533,7 +534,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			Preamble:   req.Netboot.Boot.CatalogRedirect.Preamble,
 		},
 		CatalogDisplay: config.CatalogDisplayConfig{
-			Title:  req.Netboot.Boot.CatalogDisplay.Title,
+			Title: req.Netboot.Boot.CatalogDisplay.Title,
 			Groups: h.cfg.Netboot.Boot.CatalogDisplay.Groups,
 		},
 	}
@@ -1056,6 +1057,7 @@ func (h *SettingsHandler) GetNetboot(w http.ResponseWriter, r *http.Request) {
 	OK(w, NetbootSettingsResponse{
 		Enabled: cfg.Netboot.Enabled,
 		ProxyHTTPS: cfg.Netboot.ProxyHTTPS,
+		CacheEnabled: cfg.Netboot.CacheEnabled,
 		CatalogRedirect: CatalogRedirectSettings{
 			Enabled:    cfg.Netboot.Boot.CatalogRedirect.Enabled,
 			TargetURL:  cfg.Netboot.Boot.CatalogRedirect.TargetURL,
@@ -1079,6 +1081,7 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	h.mu.Lock()
 	h.cfg.Netboot.Enabled = req.Enabled
 	h.cfg.Netboot.ProxyHTTPS = req.ProxyHTTPS
+	h.cfg.Netboot.CacheEnabled = req.CacheEnabled
 	h.cfg.Netboot.Boot.CatalogRedirect = config.CatalogRedirectConfig{
 		Enabled:    req.CatalogRedirect.Enabled,
 		TargetURL:  req.CatalogRedirect.TargetURL,
@@ -1097,6 +1100,39 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	}
 
 	OK(w, map[string]string{"status": "saved"})
+}
+
+type CacheStatsResponse struct {
+	Path      string `json:"path"`
+	SizeBytes int64  `json:"size_bytes"`
+	FileCount int    `json:"file_count"`
+}
+
+func (h *SettingsHandler) GetCacheStats(w http.ResponseWriter, r *http.Request) {
+	dd := h.cfg.Global.DataDir
+	if dd == "" {
+		dd = ".pxego"
+	}
+	cacheDir := filepath.Join(dd, "cache", "netboot")
+
+	var size int64
+	var count int
+	filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // skip inaccessible files
+		}
+		if !info.IsDir() {
+			size += info.Size()
+			count++
+		}
+		return nil
+	})
+
+	OK(w, CacheStatsResponse{
+		Path:      cacheDir,
+		SizeBytes: size,
+		FileCount: count,
+	})
 }
 
 func convertMenuEntriesToAPI(entries []config.MenuEntry) []MenuEntrySettings {

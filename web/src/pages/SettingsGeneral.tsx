@@ -22,6 +22,7 @@ export default function SettingsGeneral() {
   const [netbootConfig, setNetbootConfig] = useState<NetbootSettingsData>({
     enabled: false,
     proxy_https: true,
+    cache_enabled: true,
     catalog_redirect: { enabled: true, target_url: '', detect_arch: true, preamble: '' },
     catalog_display: { title: '' },
   })
@@ -80,6 +81,7 @@ export default function SettingsGeneral() {
       setNetbootConfig({
         enabled: nd.enabled ?? false,
         proxy_https: nd.proxy_https ?? true,
+        cache_enabled: nd.cache_enabled ?? true,
         catalog_redirect: {
           enabled: nd.catalog_redirect?.enabled ?? true,
           target_url: nd.catalog_redirect?.target_url || 'http://{{.URL}}/netboot/menu.ipxe?arch=${arch}&platform=${platform}',

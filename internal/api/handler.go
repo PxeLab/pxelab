@@ -129,6 +129,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/services/dns", h.Settings.UpdateDNS)
 		r.Get("/settings/netboot", h.Settings.GetNetboot)
 		r.Put("/settings/netboot", h.Settings.UpdateNetboot)
+		r.Get("/netboot/cache-stats", h.Settings.GetCacheStats)
 		// Keep monolithic endpoint for backward compat
 		r.Get("/settings", h.Settings.Get)
 		r.Put("/settings", h.Settings.Update)

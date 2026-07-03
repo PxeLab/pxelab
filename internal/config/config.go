@@ -82,6 +82,7 @@ type NetbootConfig struct {
 	ScriptTemplate string            `yaml:"script_template" mapstructure:"script_template"`
 	FailsafePrompt bool              `yaml:"failsafe_prompt" mapstructure:"failsafe_prompt"`
 	ProxyHTTPS     bool              `yaml:"proxy_https" mapstructure:"proxy_https"`
+	CacheEnabled   bool              `yaml:"cache_enabled" mapstructure:"cache_enabled"`
 	Boot           BootConfig        `yaml:"boot" mapstructure:"boot"`
 	Sync           NetbootSyncConfig `yaml:"sync" mapstructure:"sync"`
 	Paths          NetbootPathConfig `yaml:"paths" mapstructure:"paths"`

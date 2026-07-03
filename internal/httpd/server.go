@@ -3,7 +3,9 @@ package httpd
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/fs"
@@ -26,6 +28,9 @@ import (
 	"github.com/pxego/pxego/internal/netboot/menus"
 	"github.com/pxego/pxego/internal/session"
 	"github.com/pxego/pxego/internal/store"
+	"os"
+	"path/filepath"
+	"time"
 )
 
 type Server struct {
@@ -184,6 +189,12 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 				s := strings.Replace(string(data),
 					"set boot_domain boot.netboot.xyz/3.0.2",
 					"set boot_domain "+r.Host+"/netboot/menu", 1)
+				s = strings.Replace(s,
+					"set sigs_enabled true",
+					"set sigs_enabled false", 1)
+				s = strings.Replace(s,
+					"isset ${live_endpoint} || set live_endpoint https://github.com/netbootxyz",
+					"set live_endpoint http://"+r.Host+"/boot/netboot/proxy/https/github.com/netbootxyz", 1)
 				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 				w.Write([]byte(s))
 				return
@@ -193,6 +204,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		})
 
 		// Proxy GitHub HTTPS assets to HTTP for iPXE (which lacks HTTPS support)
+		// Caches downloaded files to disk for subsequent requests.
 		r.Get("/boot/netboot/proxy/*", func(w http.ResponseWriter, r *http.Request) {
 			proxyPath := chi.URLParam(r, "*")
 			var targetURL string
@@ -205,6 +217,23 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 				http.Error(w, "unsupported proxy scheme", http.StatusBadRequest)
 				return
 			}
+
+			cacheDir := netbootCacheDir(cfg)
+			cacheFile := cachedFilePath(cacheDir, targetURL)
+
+			// Return cached file if available
+			if cfg.Netboot.CacheEnabled {
+				if f, err := os.Open(cacheFile); err == nil {
+					defer f.Close()
+					st, _ := f.Stat()
+					w.Header().Set("Content-Type", "application/octet-stream")
+					http.ServeContent(w, r, "", st.ModTime(), f)
+					slog.Debug("netboot cache hit", "service", "HTTP", "url", targetURL)
+					return
+				}
+			}
+
+			// Download upstream
 			resp, err := http.Get(targetURL)
 			if err != nil {
 				slog.Error("netboot proxy fetch failed", "service", "HTTP", "url", targetURL, "error", err)
@@ -212,13 +241,43 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 				return
 			}
 			defer resp.Body.Close()
-			w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
-			if resp.ContentLength > 0 {
+
+			// Stream to client, optionally saving to disk cache
+			if cfg.Netboot.CacheEnabled {
+				os.MkdirAll(cacheDir, 0755)
+				tmpPath := cacheFile + "." + strconv.FormatInt(time.Now().UnixNano(), 36) + ".tmp"
+				cacheOut, err := os.Create(tmpPath)
+				if err != nil {
+					slog.Warn("netboot cache write failed, falling back to passthrough", "service", "HTTP", "error", err)
+				}
+
+				var src io.Reader = resp.Body
+				if cacheOut != nil {
+					defer cacheOut.Close()
+					src = io.TeeReader(resp.Body, cacheOut)
+				}
+
+				w.Header().Set("Content-Type", "application/octet-stream")
 				w.Header().Set("Content-Length", strconv.FormatInt(resp.ContentLength, 10))
-			}
-			w.WriteHeader(resp.StatusCode)
-			if _, err := io.Copy(w, resp.Body); err != nil {
-				slog.Error("netboot proxy copy error", "service", "HTTP", "error", err)
+				w.WriteHeader(resp.StatusCode)
+
+				_, copyErr := io.Copy(w, src)
+
+				if cacheOut != nil {
+					if copyErr != nil {
+						os.Remove(tmpPath)
+					} else {
+						os.Rename(tmpPath, cacheFile)
+					}
+				}
+				if copyErr != nil {
+					slog.Error("netboot proxy copy error", "service", "HTTP", "error", copyErr)
+				}
+			} else {
+				w.Header().Set("Content-Type", "application/octet-stream")
+				w.Header().Set("Content-Length", strconv.FormatInt(resp.ContentLength, 10))
+				w.WriteHeader(resp.StatusCode)
+				io.Copy(w, resp.Body)
 			}
 		})
 	}
@@ -625,4 +684,19 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) Stop(ctx context.Context) error {
 	slog.Info("HTTP 服务关闭", "service", "HTTP")
 	return s.srv.Shutdown(ctx)
+}
+
+// netbootCacheDir returns the disk cache directory for netboot proxy assets.
+func netbootCacheDir(cfg *config.Config) string {
+	dd := cfg.Global.DataDir
+	if dd == "" {
+		dd = ".pxego"
+	}
+	return filepath.Join(dd, "cache", "netboot")
+}
+
+// cachedFilePath returns the local cache file path for a given target URL.
+func cachedFilePath(cacheDir, targetURL string) string {
+	h := sha256.Sum256([]byte(targetURL))
+	return filepath.Join(cacheDir, hex.EncodeToString(h[:]))
 }
