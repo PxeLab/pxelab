@@ -535,7 +535,6 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		},
 		CatalogDisplay: config.CatalogDisplayConfig{
 			Title: req.Netboot.Boot.CatalogDisplay.Title,
-			Groups: h.cfg.Netboot.Boot.CatalogDisplay.Groups,
 		},
 	}
 
@@ -1090,7 +1089,6 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	}
 	h.cfg.Netboot.Boot.CatalogDisplay = config.CatalogDisplayConfig{
 		Title:  req.CatalogDisplay.Title,
-		Groups: h.cfg.Netboot.Boot.CatalogDisplay.Groups,
 	}
 	h.mu.Unlock()
 
