@@ -73,7 +73,7 @@ function createPanel(id: number, defaultService = ''): PanelConfig {
 }
 
 // 多面板布局时各面板默认选中的服务（面板 0 起依次分配）
-const LAYOUT_SERVICES = ['DHCP', 'TFTP', 'HTTP', 'DNS', 'IPMI']
+const LAYOUT_SERVICES = ['HTTP', 'TFTP', 'DHCP', 'DNS']
 
 export default function Logs() {
   const { t } = useTranslation()
@@ -84,19 +84,9 @@ export default function Logs() {
   const [sseKey, setSseKey] = useState(0) // 递增后重连 SSE
   const eventSourceRef = useRef<EventSource | null>(null)
   const bottomRefs = useRef<(HTMLDivElement | null)[]>([])
-  const autoScrollRef = useRef<(boolean)[]>([])
+  const containerRefs = useRef<(HTMLDivElement | null)[]>([])
 
-  autoScrollRef.current = panels.map((_, i) => autoScrollRef.current[i] ?? true)
   allPausedRef.current = allPaused // 同步到 ref，供 SSE 回调中读取
-  const scrollRafRef = useRef<number | null>(null)
-
-  const handleScroll = useCallback((idx: number) => (e: React.UIEvent<HTMLDivElement>) => {
-    if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current)
-    scrollRafRef.current = requestAnimationFrame(() => {
-      const el = e.currentTarget
-      autoScrollRef.current[idx] = el.scrollHeight - el.scrollTop - el.clientHeight < 50
-    })
-  }, [])
 
   // 连接 SSE（带过滤参数）
   useEffect(() => {
@@ -152,9 +142,14 @@ export default function Logs() {
 
   // 自动滚动
   useEffect(() => {
+    if (allPausedRef.current) return
     panels.forEach((_, i) => {
-      if (autoScrollRef.current[i] && bottomRefs.current[i]) {
-        bottomRefs.current[i]!.scrollIntoView({ behavior: 'smooth' })
+      const container = containerRefs.current[i]
+      const bottom = bottomRefs.current[i]
+      if (!container || !bottom) return
+      // 只有用户已经在底部时才自动滚动
+      if (container.scrollHeight - container.scrollTop - container.clientHeight < 50) {
+        bottom.scrollIntoView({ behavior: 'smooth' })
       }
     })
   })
@@ -287,8 +282,8 @@ export default function Logs() {
 
             {/* Log Lines */}
             <div
+              ref={el => { containerRefs.current[idx] = el }}
               className="flex-1 overflow-y-auto overflow-x-auto rounded-b-xl border border-[var(--bg-border)] bg-[var(--bg-card)] font-mono text-xs leading-relaxed"
-              onScroll={handleScroll(idx)}
             >
               {panel.logs.length === 0 ? (
                 <div className="flex items-center justify-center h-full min-h-[100px] text-[var(--text-muted)] italic text-xs">
