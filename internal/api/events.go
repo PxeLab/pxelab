@@ -127,6 +127,9 @@ func NewEventHandler(st store.Interface, bus *eventbus.Bus) *EventHandler {
 	bus.Subscribe("event", func(e eventbus.Event) {
 		if evt, ok := e.Payload.(models.Event); ok {
 			evt.ID = nextEventID()
+			if evt.Timestamp.IsZero() {
+				evt.Timestamp = time.Now()
+			}
 			h.ring.Push(evt)
 			// WARN/ERROR 级别持久化到数据库
 			if evt.Level == models.EventWarn || evt.Level == models.EventError {
