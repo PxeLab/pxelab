@@ -13,9 +13,9 @@ export const SettingsField: FC<Props> = ({ label, children, help, disabled }) =>
       <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
         {label}
         {help && (
-          <span className="group relative inline-flex items-center ml-1.5 align-middle">
+          <span className="group/help relative inline-flex items-center ml-1.5 align-middle">
             <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--text-muted)] text-[10px] text-[var(--text-muted)] cursor-help leading-none select-none">?</span>
-            <span className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity absolute top-full left-0 mt-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--bg-border)] text-[11px] text-[var(--text-secondary)] whitespace-nowrap max-w-[320px] z-10 shadow-lg pointer-events-none">
+            <span className="invisible group-hover/help:visible opacity-0 group-hover/help:opacity-100 transition-opacity absolute top-full left-0 mt-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--bg-border)] text-[11px] text-[var(--text-secondary)] whitespace-nowrap max-w-[320px] z-10 shadow-lg pointer-events-none">
               {help}
             </span>
           </span>
