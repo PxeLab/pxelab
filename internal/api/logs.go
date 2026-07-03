@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -33,6 +34,8 @@ func (h *LogStreamHandler) Stream(w http.ResponseWriter, r *http.Request) {
 
 	service := r.URL.Query().Get("service")
 	level := r.URL.Query().Get("level")
+
+	slog.Debug("SSE logs stream connected", "service", service, "level", level, "remote", r.RemoteAddr)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

@@ -156,6 +156,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	isPXE := IsPXEClient(pkt) || isIPXE
 
 	slog.Info("DHCP 请求",
+		"service", "DHCP",
 		"mac", mac,
 		"type", mt.String(),
 		"isPXE", isPXE,
@@ -343,10 +344,10 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 
 	// Proxy subnet: skip non-PXE clients
 	if dhcpMode == "proxy" && !isPXE {
-		slog.Debug("Proxy skip non-PXE client", "mac", mac)
+		slog.Debug("Proxy skip non-PXE client", "service", "DHCP", "mac", mac)
 		return
 	}
-	slog.Info("DHCP 模式", "mode", dhcpMode, "mac", mac)
+	slog.Info("DHCP 模式", "service", "DHCP", "mode", dhcpMode, "mac", mac)
 
 	var reply *dhcpv4.DHCPv4
 	switch mt {
@@ -362,9 +363,10 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 			dst = &net.UDPAddr{IP: net.IPv4bcast, Port: peer.(*net.UDPAddr).Port}
 		}
 		if _, err := conn.WriteTo(reply.ToBytes(), dst); err != nil {
-			slog.Error("发送 DHCP 响应失败", "error", err)
+			slog.Error("发送 DHCP 响应失败", "service", "DHCP", "error", err)
 		} else {
 			slog.Info("DHCP 响应已发送",
+				"service", "DHCP",
 				"mac", mac,
 				"yiaddr", reply.YourIPAddr,
 				"type", mt.String(),
@@ -498,7 +500,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 			reply.BootFileName = boot.NBPFilename(arch, bootloader)
 		}
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-		slog.Info("DHCP Offer", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
+		slog.Info("DHCP Offer", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
 	}
 
 	return reply
@@ -520,7 +522,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 			scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 			reply.BootFileName = scriptURL
 			reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-			slog.Info("iPXE ProxyDHCP Ack", "mac", pkt.ClientHWAddr.String(), "ns", nextServer)
+			slog.Info("iPXE ProxyDHCP Ack", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "ns", nextServer)
 			return reply
 		}
 		// PXE ROM 首次 ACK：只提供 PXE 选项 + 标记已引导
@@ -530,7 +532,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		}
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-		slog.Info("ProxyDHCP ACK", "mac", pkt.ClientHWAddr.String(), "bootfile", reply.BootFileName)
+		slog.Info("ProxyDHCP ACK", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "bootfile", reply.BootFileName)
 		return reply
 	}
 
@@ -554,7 +556,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	}
 
-	slog.Info("DHCP Ack", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
+	slog.Info("DHCP Ack", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
 	return reply
 }
 
