@@ -7,6 +7,7 @@ const (
 	DefaultPortDHCP4011 = 4011
 	DefaultPortTFTP     = 69
 	DefaultPortDNS      = 53
+	DefaultPortNFS      = 2049
 	DefaultPortHTTP     = 8080
 	DefaultLeaseTime    = 3600
 	DefaultLogLevel     = "info"
@@ -47,6 +48,11 @@ func DefaultConfig() *Config {
 		},
 		Store: StoreConfig{
 			DSN: filepath.Join(dataDir, "pxego.db"),
+		},
+		NFS: NFSConfig{
+			Port:     DefaultPortNFS,
+			RootDir:  filepath.Join(dataDir, "boot", "isos"),
+			ReadOnly: true,
 		},
 		DNS: DNSConfig{
 			Port:        DefaultPortDNS,

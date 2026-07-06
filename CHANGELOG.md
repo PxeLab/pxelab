@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Added
+- NFSv3 服务器（基于 go-nfs），默认端口 2049/TCP，只读导出 `~/.pxego/boot/isos`
+- 内嵌 rpcbind（端口 111/UDP+TCP），自动注册 NFSv3/MOUNT 端口映射
+- 版本感知 TCP 监听器：拦截 NFSv4 连接并回复 PROG_MISMATCH（low=3, high=3），强制 Linux 客户端自动回退到 v3
+- NFS 设置页面（Web UI：根目录、端口、只读开关）
+- NFS 服务自动启动持久化（config.yaml `service_auto_start.nfs`）
+- `{{.NextServer}}` 模板变量，展开为服务器 IP（不含端口）
+- NFS 日志过滤和颜色标签（Logs 页面）
 - Settings → Netboot 新增「本地缓存」开关（默认启用），缓存下载的引导文件到磁盘，加快重复引导速度
 - 缓存统计 API（GET /api/v1/netboot/cache-stats），显示缓存路径、文件数、磁盘占用
 - Netboot 设置弹窗中缓存开启时实时显示缓存路径和磁盘占用信息

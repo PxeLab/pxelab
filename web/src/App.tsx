@@ -18,6 +18,7 @@ const SettingsLayout = lazy(() => import('./pages/SettingsLayout'))
 const SettingsDHCP = lazy(() => import('./pages/SettingsDHCP'))
 const SettingsTFTP = lazy(() => import('./pages/SettingsTFTP'))
 const SettingsDNS = lazy(() => import('./pages/SettingsDNS'))
+const SettingsNFS = lazy(() => import('./pages/SettingsNFS'))
 const NetbootCatalog = lazy(() => import('./pages/NetbootCatalog'))
 const AnswerTemplates = lazy(() => import('./pages/AnswerTemplates'))
 const AccessControl = lazy(() => import('./pages/AccessControl'))
@@ -90,6 +91,7 @@ function AppContent() {
             <Route path="dhcp" element={<SettingsDHCP />} />
             <Route path="tftp" element={<SettingsTFTP />} />
             <Route path="dns" element={<SettingsDNS />} />
+            <Route path="nfs" element={<SettingsNFS />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

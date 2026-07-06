@@ -12,6 +12,7 @@ type Config struct {
 	Interfaces       []InterfaceConfig       `yaml:"interfaces" mapstructure:"interfaces"`
 	Auth             AuthConfig              `yaml:"auth" mapstructure:"auth"`
 	DNS              DNSConfig               `yaml:"dns" mapstructure:"dns"`
+	NFS              NFSConfig               `yaml:"nfs" mapstructure:"nfs"`
 	Boot             BootConfig              `yaml:"boot" mapstructure:"boot"`
 	Netboot          NetbootConfig           `yaml:"netboot" mapstructure:"netboot"`
 	Store            StoreConfig             `yaml:"store" mapstructure:"store"`
@@ -25,6 +26,7 @@ type ServiceAutoStartConfig struct {
 	TFTP bool `yaml:"tftp" mapstructure:"tftp"`
 	HTTP bool `yaml:"http" mapstructure:"http"` // default true
 	DNS  bool `yaml:"dns" mapstructure:"dns"`
+	NFS  bool `yaml:"nfs" mapstructure:"nfs"`
 }
 
 type GlobalConfig struct {
@@ -72,6 +74,13 @@ type DNSConfig struct {
 	DefaultRecord bool   `yaml:"default_record" mapstructure:"default_record"`
 	// DefaultRecordIP 由保存设置时自动填充第一个接口 IP，前端不直接编辑
 	DefaultRecordIP string `yaml:"default_record_ip" mapstructure:"default_record_ip"`
+}
+
+type NFSConfig struct {
+	Enabled  bool   `yaml:"enabled" mapstructure:"enabled"`
+	Port     int    `yaml:"port" mapstructure:"port"`
+	RootDir  string `yaml:"root_dir" mapstructure:"root_dir"`
+	ReadOnly bool   `yaml:"read_only" mapstructure:"read_only"`
 }
 
 type NetbootConfig struct {

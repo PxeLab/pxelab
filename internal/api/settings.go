@@ -201,6 +201,13 @@ type DNSSettingsResponse struct {
 	DefaultRecord bool   `json:"default_record"`
 }
 
+type NFSSettingsResponse struct {
+	Enabled  bool   `json:"enabled"`
+	Port     int    `json:"port"`
+	RootDir  string `json:"root_dir"`
+	ReadOnly bool   `json:"read_only"`
+}
+
 type NetbootSettingsResponse struct {
 	Enabled         bool                    `json:"enabled"`
 	ProxyHTTPS      bool                    `json:"proxy_https"`
@@ -1039,6 +1046,44 @@ func (h *SettingsHandler) UpdateDNS(w http.ResponseWriter, r *http.Request) {
 	if !h.cfg.DNS.DefaultRecord {
 		h.cfg.DNS.DefaultRecordIP = ""
 	}
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	OK(w, map[string]string{"status": "saved"})
+}
+
+// ── NFS ──
+
+func (h *SettingsHandler) GetNFS(w http.ResponseWriter, r *http.Request) {
+	cfg := h.cfg
+	OK(w, NFSSettingsResponse{
+		Enabled:  cfg.NFS.Enabled,
+		Port:     cfg.NFS.Port,
+		RootDir:  cfg.NFS.RootDir,
+		ReadOnly: cfg.NFS.ReadOnly,
+	})
+}
+
+func (h *SettingsHandler) UpdateNFS(w http.ResponseWriter, r *http.Request) {
+	var req NFSSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	h.mu.Lock()
+	h.cfg.NFS.Enabled = req.Enabled
+	if req.Port > 0 {
+		h.cfg.NFS.Port = req.Port
+	}
+	if req.RootDir != "" {
+		h.cfg.NFS.RootDir = req.RootDir
+	}
+	h.cfg.NFS.ReadOnly = req.ReadOnly
 	h.mu.Unlock()
 
 	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {

@@ -38,6 +38,12 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	v.SetDefault("service_auto_start.http", true)
 	v.SetDefault("service_auto_start.tftp", false)
 	v.SetDefault("service_auto_start.dns", false)
+	v.SetDefault("service_auto_start.nfs", false)
+
+	// nfs defaults
+	v.SetDefault("nfs.port", DefaultPortNFS)
+	v.SetDefault("nfs.root_dir", "")
+	v.SetDefault("nfs.read_only", true)
 
 	// dns defaults
 	v.SetDefault("dns.port", DefaultPortDNS)
@@ -83,6 +89,9 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	}
 	if cfg.Boot.RootDir == "" && dd != "" {
 		cfg.Boot.RootDir = filepath.Join(dd, "boot")
+	}
+	if cfg.NFS.RootDir == "" && dd != "" {
+		cfg.NFS.RootDir = filepath.Join(dd, "boot", "isos")
 	}
 
 	if err := cfg.Validate(); err != nil {

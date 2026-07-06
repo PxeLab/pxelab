@@ -499,14 +499,23 @@ func urlJoin(serverAddr string, path string) string {
 	return "http://" + serverAddr + "/boot/" + path
 }
 
-// replaceBootVars replaces {{.URL}} and {{.MAC}} template vars with actual values.
+// replaceBootVars replaces {{.URL}}, {{.MAC}}, {{.NextServer}} template vars with actual values.
 func replaceBootVars(s, serverAddr, mac string) string {
 	if s == "" {
 		return s
 	}
 	s = strings.ReplaceAll(s, "{{.URL}}", "http://"+serverAddr)
 	s = strings.ReplaceAll(s, "{{.MAC}}", mac)
+	s = strings.ReplaceAll(s, "{{.NextServer}}", stripPort(serverAddr))
 	return s
+}
+
+// stripPort removes port number from host:port string.
+func stripPort(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		return h
+	}
+	return host
 }
 
 func ptrStr(s *string) string {

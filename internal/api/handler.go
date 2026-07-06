@@ -127,6 +127,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/services/dhcp", h.Settings.UpdateDHCP)
 		r.Get("/services/dns", h.Settings.GetDNS)
 		r.Put("/services/dns", h.Settings.UpdateDNS)
+		r.Get("/services/nfs", h.Settings.GetNFS)
+		r.Put("/services/nfs", h.Settings.UpdateNFS)
 		r.Get("/settings/netboot", h.Settings.GetNetboot)
 		r.Put("/settings/netboot", h.Settings.UpdateNetboot)
 		r.Get("/netboot/cache-stats", h.Settings.GetCacheStats)

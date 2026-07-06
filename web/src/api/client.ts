@@ -469,6 +469,13 @@ export interface DNSSettingsData {
   default_record?: boolean
 }
 
+export interface NFSSettingsData {
+  enabled: boolean
+  port: number
+  root_dir: string
+  read_only: boolean
+}
+
 export interface NetbootSettingsData {
   enabled: boolean
   proxy_https: boolean
@@ -525,6 +532,14 @@ export function getDNSSettings(): Promise<ApiResponse<DNSSettingsData>> {
 
 export function updateDNSSettings(data: DNSSettingsData): Promise<ApiResponse<unknown>> {
   return request<unknown>('PUT', '/services/dns', data)
+}
+
+export function getNFSSettings(): Promise<ApiResponse<NFSSettingsData>> {
+  return request<NFSSettingsData>('GET', '/services/nfs')
+}
+
+export function updateNFSSettings(data: NFSSettingsData): Promise<ApiResponse<unknown>> {
+  return request<unknown>('PUT', '/services/nfs', data)
 }
 
 export function getNetbootSettings(): Promise<ApiResponse<NetbootSettingsData>> {
@@ -1053,6 +1068,8 @@ export const api = {
   updateTFTPSettings,
   getDNSSettings,
   updateDNSSettings,
+  getNFSSettings,
+  updateNFSSettings,
   getNetbootSettings,
   updateNetbootSettings,
   getBMCConfigs,

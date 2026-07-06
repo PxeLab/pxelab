@@ -31,6 +31,7 @@ const SERVICES = [
   { value: 'TFTP', label: 'TFTP' },
   { value: 'HTTP', label: 'HTTP' },
   { value: 'DNS', label: 'DNS' },
+  { value: 'NFS', label: 'NFS' },
   { value: 'IPMI', label: 'IPMI' },
   { value: 'BOOT', label: 'BOOT' },
 ]
@@ -55,6 +56,7 @@ const SERVICE_COLORS: Record<string, string> = {
   TFTP: 'bg-cyan-500/20 text-cyan-400',
   HTTP: 'bg-green-500/20 text-green-400',
   DNS: 'bg-orange-500/20 text-orange-400',
+  NFS: 'bg-blue-500/20 text-blue-400',
   IPMI: 'bg-pink-500/20 text-pink-400',
   BOOT: 'bg-yellow-500/20 text-yellow-400',
 }

@@ -437,7 +437,7 @@ function ServicesForm({ services, onReload }: { services: ServiceInfo[]; onReloa
       <p className="text-xs text-[var(--text-muted)]">{t('settings.modalServiceAutoStartHelp')}</p>
 
       {/* 全局服务 */}
-      {['http','tftp','dns'].filter(k => services.some(s => s.name === k)).map(k => {
+      {['http','tftp','dns','nfs'].filter(k => services.some(s => s.name === k)).map(k => {
         const svc = services.find(s => s.name === k)!
         return <ServiceAutoStartRow key={svc.name} svc={svc} operating={operating} onToggle={toggleAutoStart} />
       })}

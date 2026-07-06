@@ -19,6 +19,7 @@ import (
 	"github.com/pxego/pxego/internal/eventbus"
 	"github.com/pxego/pxego/internal/httpd"
 	"github.com/pxego/pxego/internal/models"
+	pxegonfs "github.com/pxego/pxego/internal/nfs"
 	"github.com/pxego/pxego/internal/netboot"
 	"github.com/pxego/pxego/internal/netboot/menus"
 	"github.com/pxego/pxego/internal/logbus"
@@ -324,6 +325,9 @@ func run(cmd *cobra.Command) error {
 
 	dnsServer := dns.NewServer(cfg, st, bus)
 	svcMgr.Register("dns", "DNS", dnsServer, cfg.ServiceAutoStart.DNS, false, cfg.DNS.Port, "UDP")
+
+	nfsServer := pxegonfs.NewServer(cfg.NFS.Port, cfg.NFS.RootDir, cfg.NFS.ReadOnly)
+	svcMgr.Register("nfs", "NFS", nfsServer, cfg.ServiceAutoStart.NFS, false, cfg.NFS.Port, "TCP")
 
 	return svcMgr.Run(context.Background())
 }

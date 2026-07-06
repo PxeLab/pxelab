@@ -53,6 +53,7 @@ const navSections = [
       { path: '/services/dhcp', label: 'nav.settings.dhcp', icon: Network },
       { path: '/services/tftp', label: 'nav.settings.tftp', icon: Monitor },
       { path: '/services/dns', label: 'nav.settings.dns', icon: Monitor },
+      { path: '/services/nfs', label: 'nav.settings.nfs', icon: HardDrive },
       { path: '/netboot-catalog', label: 'nav.netboot', icon: Monitor },
     ] as NavItem[],
   },
