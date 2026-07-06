@@ -284,7 +284,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.name')}</label>
-                <input className={`w-full bg-[var(--bg-input)] border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors ${nameError ? 'border-red-500 focus:border-red-500' : 'border-[var(--bg-border)] focus:border-blue-500'}`} value={form.name} onChange={e => { setNameError(false); setForm({...form, name: e.target.value}) }} placeholder={t('profiles.namePlaceholder')} />
+                <input autoFocus className={`w-full bg-[var(--bg-input)] border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors ${nameError ? 'border-red-500 focus:border-red-500' : 'border-[var(--bg-border)] focus:border-blue-500'}`} value={form.name} onChange={e => { setNameError(false); setForm({...form, name: e.target.value}) }} placeholder={t('profiles.namePlaceholder')} />
                 {nameError && <p className="text-xs text-red-400 mt-1">{t('profiles.nameRequired')}</p>}
               </div>
               <div>

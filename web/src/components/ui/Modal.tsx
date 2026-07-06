@@ -1,4 +1,4 @@
-import { type FC, type ReactNode, useEffect, useCallback, useRef } from 'react'
+import { type FC, type ReactNode, useLayoutEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
@@ -16,9 +16,19 @@ const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), in
 
 export const Modal: FC<Props> = ({ open, onClose, title, children, footer, width = '480px', disableBackdropClose }) => {
   const contentRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+
+  // Keep onClose ref in sync without putting side effects in the render phase
+  useLayoutEffect(() => { onCloseRef.current = onClose })
+
+  // Stable callback ref — tracks the content element for the focus trap.
+  // Does NOT auto-focus; let each page opt in via autoFocus on the desired field.
+  const setContentRef = useCallback((node: HTMLDivElement | null) => {
+    contentRef.current = node
+  }, [])
 
   const handleKey = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') { onClose(); return }
+    if (e.key === 'Escape') { onCloseRef.current(); return }
     if (e.key === 'Tab' && contentRef.current) {
       const els = contentRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)
       if (els.length === 0) return
@@ -30,12 +40,14 @@ export const Modal: FC<Props> = ({ open, onClose, title, children, footer, width
         if (document.activeElement === last) { e.preventDefault(); first.focus() }
       }
     }
-  }, [onClose])
+  }, [])
 
-  useEffect(() => {
-    if (!open) return
+  useLayoutEffect(() => {
+    if (!open) {
+      document.removeEventListener('keydown', handleKey)
+      return
+    }
     document.addEventListener('keydown', handleKey)
-    contentRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
     return () => document.removeEventListener('keydown', handleKey)
   }, [open, handleKey])
 
@@ -47,7 +59,7 @@ export const Modal: FC<Props> = ({ open, onClose, title, children, footer, width
       onClick={(e) => { if (!disableBackdropClose && e.target === e.currentTarget) onClose() }}
     >
       <div
-        ref={contentRef}
+        ref={setContentRef}
         className="bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded-2xl shadow-xl max-h-[80vh] overflow-y-auto animate-modal-in"
         style={{ width, maxWidth: '90vw' }}
       >
