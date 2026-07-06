@@ -340,8 +340,8 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 						entry := ipxe.MenuEntryData{
 							Label: e.Label,
 							Type:  ipxe.BootType(e.Type),
-							Kernel:  replaceBootVars(urlJoin(serverAddr, e.Kernel), serverAddr, mac),
-							Initrd:  replaceBootVars(urlJoin(serverAddr, e.Initrd), serverAddr, mac),
+							Kernel:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Kernel), serverAddr, mac)),
+							Initrd:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Initrd), serverAddr, mac)),
 							Cmdline: replaceBootVars(ptrStr(e.Cmdline), serverAddr, mac),
 							URL:     replaceBootVars(ptrStr(e.URL), serverAddr, mac),
 							WIM:     ptrStr(e.WIM),
@@ -405,8 +405,8 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 				return ipxe.MenuEntryData{
 					Label:   label,
 					Type:    ipxe.BootType(e.Type),
-					Kernel:  replaceBootVars(urlJoin(serverAddr, e.Kernel), serverAddr, mac),
-					Initrd:  replaceBootVars(urlJoin(serverAddr, e.Initrd), serverAddr, mac),
+					Kernel:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Kernel), serverAddr, mac)),
+					Initrd:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Initrd), serverAddr, mac)),
 					Cmdline: replaceBootVars(ptrStr(e.Cmdline), serverAddr, mac),
 					URL:     replaceBootVars(ptrStr(e.URL), serverAddr, mac),
 					WIM:     ptrStr(e.WIM),
@@ -488,15 +488,15 @@ func renderTemplate(tmpl, serverAddr, mac string) (string, error) {
 	return buf.String(), nil
 }
 
-func urlJoin(serverAddr string, ptr *string) string {
-	if ptr == nil || *ptr == "" {
+func urlJoin(serverAddr string, path string) string {
+	if path == "" {
 		return ""
 	}
 	// absolute URL (http/https) passes through unchanged
-	if strings.HasPrefix(*ptr, "http://") || strings.HasPrefix(*ptr, "https://") {
-		return *ptr
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return path
 	}
-	return "http://" + serverAddr + "/boot/" + *ptr
+	return "http://" + serverAddr + "/boot/" + path
 }
 
 // replaceBootVars replaces {{.URL}} and {{.MAC}} template vars with actual values.
