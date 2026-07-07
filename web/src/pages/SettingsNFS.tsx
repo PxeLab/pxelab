@@ -14,7 +14,7 @@ export default function SettingsNFS() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [config, setConfig] = useState<NFSSettingsData>({
-    enabled: false, port: 2049, root_dir: '', read_only: true,
+    enabled: false, port: 2049, root_dir: '', read_only: true, allow_ips: [],
   })
 
   useEffect(() => { loadSettings() }, [])
@@ -29,6 +29,7 @@ export default function SettingsNFS() {
         port: 2049,
         root_dir: d.root_dir || '',
         read_only: d.read_only ?? true,
+        allow_ips: d.allow_ips || [],
       })
     } catch (err: any) {
       showError(err.message || t('settings.loadFailed'))
@@ -81,6 +82,15 @@ export default function SettingsNFS() {
             </div>
             <Toggle checked={config.read_only} onChange={v => setConfig({...config, read_only: v})} label={t('settings.nfsReadOnly')} />
             <p className="text-xs text-[var(--text-muted)] -mt-2">{t('settings.nfsReadOnlyHelp')}</p>
+            <SettingsField label={t('settings.nfsAllowIPs')} help={t('settings.nfsAllowIPsHelp')}>
+              <textarea
+                className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-y"
+                rows={4}
+                value={(config.allow_ips || []).join('\n')}
+                onChange={e => setConfig({...config, allow_ips: e.target.value.split('\n').map(s => s.trim()).filter(Boolean)})}
+                placeholder={t('settings.nfsAllowIPsPlaceholder')}
+              />
+            </SettingsField>
           </div>
         )}
       </Card>

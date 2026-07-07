@@ -202,10 +202,11 @@ type DNSSettingsResponse struct {
 }
 
 type NFSSettingsResponse struct {
-	Enabled  bool   `json:"enabled"`
-	Port     int    `json:"port"`
-	RootDir  string `json:"root_dir"`
-	ReadOnly bool   `json:"read_only"`
+	Enabled  bool     `json:"enabled"`
+	Port     int      `json:"port"`
+	RootDir  string   `json:"root_dir"`
+	ReadOnly bool     `json:"read_only"`
+	AllowIPs []string `json:"allow_ips"`
 }
 
 type NetbootSettingsResponse struct {
@@ -1065,6 +1066,7 @@ func (h *SettingsHandler) GetNFS(w http.ResponseWriter, r *http.Request) {
 		Port:     cfg.NFS.Port,
 		RootDir:  cfg.NFS.RootDir,
 		ReadOnly: cfg.NFS.ReadOnly,
+		AllowIPs: cfg.NFS.AllowIPs,
 	})
 }
 
@@ -1084,6 +1086,7 @@ func (h *SettingsHandler) UpdateNFS(w http.ResponseWriter, r *http.Request) {
 		h.cfg.NFS.RootDir = req.RootDir
 	}
 	h.cfg.NFS.ReadOnly = req.ReadOnly
+	h.cfg.NFS.AllowIPs = req.AllowIPs
 	h.mu.Unlock()
 
 	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {

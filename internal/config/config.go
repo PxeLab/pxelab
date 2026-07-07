@@ -77,10 +77,11 @@ type DNSConfig struct {
 }
 
 type NFSConfig struct {
-	Enabled  bool   `yaml:"enabled" mapstructure:"enabled"`
-	Port     int    `yaml:"port" mapstructure:"port"`
-	RootDir  string `yaml:"root_dir" mapstructure:"root_dir"`
-	ReadOnly bool   `yaml:"read_only" mapstructure:"read_only"`
+	Enabled  bool     `yaml:"enabled" mapstructure:"enabled"`
+	Port     int      `yaml:"port" mapstructure:"port"`
+	RootDir  string   `yaml:"root_dir" mapstructure:"root_dir"`
+	ReadOnly bool     `yaml:"read_only" mapstructure:"read_only"`
+	AllowIPs []string `yaml:"allow_ips" mapstructure:"allow_ips"`
 }
 
 type NetbootConfig struct {

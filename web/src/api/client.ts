@@ -474,6 +474,7 @@ export interface NFSSettingsData {
   port: number
   root_dir: string
   read_only: boolean
+  allow_ips: string[]
 }
 
 export interface NetbootSettingsData {

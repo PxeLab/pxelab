@@ -326,7 +326,7 @@ func run(cmd *cobra.Command) error {
 	dnsServer := dns.NewServer(cfg, st, bus)
 	svcMgr.Register("dns", "DNS", dnsServer, cfg.ServiceAutoStart.DNS, false, cfg.DNS.Port, "UDP")
 
-	nfsServer := pxegonfs.NewServer(cfg.NFS.Port, cfg.NFS.RootDir, cfg.NFS.ReadOnly)
+	nfsServer := pxegonfs.NewServer(cfg.NFS.Port, cfg.NFS.RootDir, cfg.NFS.ReadOnly, cfg.NFS.AllowIPs)
 	svcMgr.Register("nfs", "NFS", nfsServer, cfg.ServiceAutoStart.NFS, false, cfg.NFS.Port, "TCP")
 
 	return svcMgr.Run(context.Background())

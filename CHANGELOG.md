@@ -4,6 +4,7 @@
 
 ### Added
 - NFSv3 服务器（基于 go-nfs），默认端口 2049/TCP，只读导出 `~/.pxego/boot/isos`
+- NFS IP 访问控制：支持按 IP 或 CIDR 网段限制挂载（`allow_ips`），空列表不限制
 - 内嵌 rpcbind（端口 111/UDP+TCP），自动注册 NFSv3/MOUNT 端口映射
 - 版本感知 TCP 监听器：拦截 NFSv4 连接并回复 PROG_MISMATCH（low=3, high=3），强制 Linux 客户端自动回退到 v3
 - NFS 设置页面（Web UI：根目录、端口、只读开关）

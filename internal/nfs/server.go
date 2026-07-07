@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
@@ -21,17 +22,19 @@ type Server struct {
 	port       int
 	rootDir    string
 	readOnly   bool
+	allowIPs   []string
 	listener   net.Listener
 	rpcbind    *rpcbindServer
 	cancel     context.CancelFunc
 }
 
-func NewServer(port int, rootDir string, readOnly bool) *Server {
+func NewServer(port int, rootDir string, readOnly bool, allowIPs []string) *Server {
 	return &Server{
 		name:     "NFS",
 		port:     port,
 		rootDir:  rootDir,
 		readOnly: readOnly,
+		allowIPs: allowIPs,
 	}
 }
 
@@ -46,7 +49,30 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	fs := osfs.New(s.rootDir)
-	handler := &nfsHandler{fs: fs, readOnly: s.readOnly}
+
+	var allowNets []*net.IPNet
+	for _, s := range s.allowIPs {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		_, cidr, err := net.ParseCIDR(s)
+		if err != nil {
+			ip := net.ParseIP(s)
+			if ip == nil {
+				slog.Warn("NFS 允许列表解析失败，跳过", "service", "nfs", "value", s)
+				continue
+			}
+			bits := 32
+			if ip.To4() == nil {
+				bits = 128
+			}
+			cidr = &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)}
+		}
+		allowNets = append(allowNets, cidr)
+	}
+
+	handler := &nfsHandler{fs: fs, readOnly: s.readOnly, allowNets: allowNets}
 	cachingHandler := helpers.NewCachingHandler(handler, 1000)
 
 	addr := fmt.Sprintf(":%d", s.port)
@@ -95,12 +121,33 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 
 type nfsHandler struct {
-	fs       billy.Filesystem
-	readOnly bool
+	fs        billy.Filesystem
+	readOnly  bool
+	allowNets []*net.IPNet
 }
 
 func (h *nfsHandler) Mount(ctx context.Context, conn net.Conn, req gonfs.MountRequest) (gonfs.MountStatus, billy.Filesystem, []gonfs.AuthFlavor) {
+	if !h.isAllowed(conn.RemoteAddr()) {
+		slog.Warn("NFS 挂载被拒绝", "service", "nfs", "client", conn.RemoteAddr().String())
+		return gonfs.MountStatusErrAcces, nil, nil
+	}
 	return gonfs.MountStatusOk, h.fs, []gonfs.AuthFlavor{gonfs.AuthFlavorNull}
+}
+
+func (h *nfsHandler) isAllowed(addr net.Addr) bool {
+	if len(h.allowNets) == 0 {
+		return true
+	}
+	tcpAddr, ok := addr.(*net.TCPAddr)
+	if !ok {
+		return false
+	}
+	for _, n := range h.allowNets {
+		if n.Contains(tcpAddr.IP) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *nfsHandler) Change(fs billy.Filesystem) billy.Change {
