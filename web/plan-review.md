@@ -1,4 +1,4 @@
-# PxeGo 实施计划评审报告
+﻿# PxeLab 实施计划评审报告
 
 评审日期：2026-06-15
 评审范围：`C:\Users\darre\.claude\plans\flickering-dazzling-pillow.md`
@@ -16,7 +16,7 @@
 
 | # | 问题 | 建议 |
 |---|------|------|
-| 1 | **`internal/pxego/` vs `internal/app/`** | 包名 `pxego` 和项目名重合，在 `internal/pxego/app.go` 中 import 会写成 `pxego "pxego/internal/pxego"` 显得冗余。建议改名为 `internal/app/` |
+| 1 | **`internal/PxeLab/` vs `internal/app/`** | 包名 `PxeLab` 和项目名重合，在 `internal/PxeLab/app.go` 中 import 会写成 `PxeLab "PxeLab/internal/PxeLab"` 显得冗余。建议改名为 `internal/app/` |
 | 2 | **models 和 store 的职责重叠** | `internal/models/` 定义了 `Host` 等 domain struct，`internal/store/models.go` 又定义 GORM model structs。如果没有区别不如合并到 `store/` 中 |
 | 3 | **HTTP 服务名 `httpd`** | `internal/httpd/` 和 `net/http` 容易搞混。建议改为 `internal/server/http/` 或 `internal/web/` |
 
@@ -137,10 +137,10 @@ DNS 代码量小（`miekg/dns` 约 100 行就能跑起来），放在 Phase 7 �
 - **SIP** 可能阻止某些端口绑定
 
 ### 建议
-在 `cmd/pxego/` 下为每个平台提供专门的 service 文件，平台检测通过 Go build tags 实现：
+在 `cmd/PxeLab/` 下为每个平台提供专门的 service 文件，平台检测通过 Go build tags 实现：
 
 ```
-cmd/pxego/
+cmd/PxeLab/
 ├── main.go                    # 通用入口
 ├── service_windows.go         //go:build windows
 ├── service_linux.go           //go:build linux

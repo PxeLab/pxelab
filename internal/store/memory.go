@@ -1,4 +1,4 @@
-package store
+﻿package store
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pxego/pxego/internal/models"
+	"github.com/pxelab/pxelab/internal/models"
 )
 
 var ErrNotFound = errors.New("record not found")
@@ -42,6 +42,10 @@ type memoryStore struct {
 	tmplVerIdx       uint
 	dnsRecIdx        uint
 	tmplVerMu        sync.RWMutex
+	wolHistory       []models.WOLHistory
+	wolSchedules     map[uint]*models.WOLSchedule
+	wolHistIdx       uint
+	wolSchedIdx      uint
 }
 
 func NewMemory() Interface {
@@ -60,6 +64,8 @@ func NewMemory() Interface {
 		unauthDevices:    make(map[string]*models.UnauthorizedDevice),
 		bmcConfigs:       make(map[int64]*models.BMCConfig),
 		dhcpReservations: make(map[uint]*models.DHCPReservation),
+		wolHistory:       make([]models.WOLHistory, 0),
+		wolSchedules:     make(map[uint]*models.WOLSchedule),
 	}
 }
 
@@ -986,5 +992,117 @@ func (s *memoryStore) DeleteDHCPReservation(_ context.Context, id uint) error {
 		return ErrNotFound
 	}
 	delete(s.dhcpReservations, id)
+	return nil
+}
+
+// ── WOL History ──
+
+func (s *memoryStore) ListWOLHistory(_ context.Context, page, size int) ([]models.WOLHistory, int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	total := int64(len(s.wolHistory))
+	start := (page - 1) * size
+	if start >= len(s.wolHistory) {
+		return nil, total, nil
+	}
+	end := start + size
+	if end > len(s.wolHistory) {
+		end = len(s.wolHistory)
+	}
+	out := make([]models.WOLHistory, end-start)
+	for i, h := range s.wolHistory[start:end] {
+		out[len(out)-1-i] = h
+	}
+	return out, total, nil
+}
+
+func (s *memoryStore) ListWOLHistoryByMAC(_ context.Context, mac string, limit int) ([]models.WOLHistory, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var results []models.WOLHistory
+	for i := len(s.wolHistory) - 1; i >= 0 && len(results) < limit; i-- {
+		if s.wolHistory[i].MAC == mac {
+			results = append(results, s.wolHistory[i])
+		}
+	}
+	return results, nil
+}
+
+func (s *memoryStore) CreateWOLHistory(_ context.Context, h *models.WOLHistory) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.wolHistIdx++
+	h.ID = s.wolHistIdx
+	if h.CreatedAt.IsZero() {
+		h.CreatedAt = time.Now()
+	}
+	s.wolHistory = append(s.wolHistory, *h)
+	return nil
+}
+
+func (s *memoryStore) PruneWOLHistory(_ context.Context, before time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var kept []models.WOLHistory
+	for _, h := range s.wolHistory {
+		if h.CreatedAt.After(before) {
+			kept = append(kept, h)
+		}
+	}
+	s.wolHistory = kept
+	return nil
+}
+
+func (s *memoryStore) ListWOLSchedules(_ context.Context) ([]models.WOLSchedule, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out []models.WOLSchedule
+	for _, sc := range s.wolSchedules {
+		out = append(out, *sc)
+	}
+	return out, nil
+}
+
+func (s *memoryStore) GetWOLSchedule(_ context.Context, id uint) (*models.WOLSchedule, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	sc, ok := s.wolSchedules[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return sc, nil
+}
+
+func (s *memoryStore) CreateWOLSchedule(_ context.Context, sc *models.WOLSchedule) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.wolSchedIdx++
+	sc.ID = s.wolSchedIdx
+	sc.CreatedAt = time.Now()
+	sc.UpdatedAt = time.Now()
+	s.wolSchedules[sc.ID] = sc
+	return nil
+}
+
+func (s *memoryStore) UpdateWOLSchedule(_ context.Context, sc *models.WOLSchedule) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	existing, ok := s.wolSchedules[sc.ID]
+	if !ok {
+		return ErrNotFound
+	}
+	sc.CreatedAt = existing.CreatedAt
+	sc.UpdatedAt = time.Now()
+	s.wolSchedules[sc.ID] = sc
+	return nil
+}
+
+func (s *memoryStore) DeleteWOLSchedule(_ context.Context, id uint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.wolSchedules[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.wolSchedules, id)
 	return nil
 }

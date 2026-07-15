@@ -1,0 +1,48 @@
+#!ipxe
+
+goto ${menu} ||
+
+:live_menu
+set os Grml
+set os_arch ${arch}
+iseq ${os_arch} x86_64 && set os_arch amd64 ||
+iseq ${os_arch} arm64 && set os_arch arm64 ||
+menu ${os} - Current Arch [ ${arch} ]
+item --gap ${os} Versions
+iseq ${os_arch} amd64 && item 2026.04-full-amd64 ${space} ${os} 2026.04 full - amd64 ||
+iseq ${os_arch} arm64 && item 2026.04-full-arm64 ${space} ${os} 2026.04 full - arm64 ||
+iseq ${os_arch} amd64 && item 2026.04-small-amd64 ${space} ${os} 2026.04 small - amd64 ||
+iseq ${os_arch} arm64 && item 2026.04-small-arm64 ${space} ${os} 2026.04 small - arm64 ||
+choose live_version || goto live_exit
+goto ${live_version}
+
+:2026.04-full-amd64
+set squash_url ${live_endpoint}/debian-squash/releases/download/2026.04-23b18cd7/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/2026.04-23b18cd7/
+goto boot
+
+:2026.04-full-arm64
+set squash_url ${live_endpoint}/debian-squash/releases/download/2026.04-af8f6d6d/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/2026.04-af8f6d6d/
+goto boot
+
+:2026.04-small-amd64
+set squash_url ${live_endpoint}/debian-squash/releases/download/2026.04-410a8803/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/2026.04-410a8803/
+goto boot
+
+:2026.04-small-arm64
+set squash_url ${live_endpoint}/debian-squash/releases/download/2026.04-2d6e1a2a/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/2026.04-2d6e1a2a/
+goto boot
+
+
+:boot
+imgfree
+kernel ${kernel_url}vmlinuz boot=live fetch=${squash_url} initrd=initrd.magic ${cmdline}
+initrd ${kernel_url}initrd
+boot
+
+:live_exit
+clear menu
+exit 0

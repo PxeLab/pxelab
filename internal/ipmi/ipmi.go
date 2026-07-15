@@ -1,4 +1,4 @@
-package ipmi
+﻿package ipmi
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/bougou/go-ipmi"
-	"github.com/pxego/pxego/internal/models"
+	"github.com/pxelab/pxelab/internal/models"
 )
 
 type Client struct{}

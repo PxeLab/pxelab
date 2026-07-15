@@ -1,9 +1,10 @@
-package store
+﻿package store
 
 import (
 	"context"
+	"time"
 
-	"github.com/pxego/pxego/internal/models"
+	"github.com/pxelab/pxelab/internal/models"
 )
 
 type Interface interface {
@@ -20,9 +21,22 @@ type Interface interface {
 	UnauthorizedDeviceStore
 	BMCConfigStore
 	DHCPReservationStore
+	WOLStore
 	Close() error
 	Migrate() error
 	Seed() error
+}
+
+type WOLStore interface {
+	ListWOLHistory(ctx context.Context, page, size int) ([]models.WOLHistory, int64, error)
+	ListWOLHistoryByMAC(ctx context.Context, mac string, limit int) ([]models.WOLHistory, error)
+	CreateWOLHistory(ctx context.Context, h *models.WOLHistory) error
+	PruneWOLHistory(ctx context.Context, before time.Time) error
+	ListWOLSchedules(ctx context.Context) ([]models.WOLSchedule, error)
+	GetWOLSchedule(ctx context.Context, id uint) (*models.WOLSchedule, error)
+	CreateWOLSchedule(ctx context.Context, s *models.WOLSchedule) error
+	UpdateWOLSchedule(ctx context.Context, s *models.WOLSchedule) error
+	DeleteWOLSchedule(ctx context.Context, id uint) error
 }
 
 type HostStore interface {

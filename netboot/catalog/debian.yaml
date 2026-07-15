@@ -1,0 +1,39 @@
+name: Debian
+enabled: true
+menu_group: linux
+mirror: http://deb.debian.org
+archive_mirror: http://archive.debian.org
+local_base: netboot/debian
+versions:
+    - codename: trixie
+      name: 13.0 (trixie)
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://deb.debian.org/debian/trixie/amd64/linux
+        initrd: http://deb.debian.org/debian/trixie/amd64/initrd.gz
+      install_type: legacy
+    - codename: bookworm
+      name: 12.0 (bookworm)
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://deb.debian.org/debian/bookworm/amd64/linux
+        initrd: http://deb.debian.org/debian/bookworm/amd64/initrd.gz
+      install_type: legacy
+    - codename: forky
+      name: forky (testing)
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://deb.debian.org/debian/forky/amd64/linux
+        initrd: http://deb.debian.org/debian/forky/amd64/initrd.gz
+      install_type: legacy
+    - codename: sid
+      name: sid (unstable)
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://deb.debian.org/debian/sid/amd64/linux
+        initrd: http://deb.debian.org/debian/sid/amd64/initrd.gz
+      install_type: legacy

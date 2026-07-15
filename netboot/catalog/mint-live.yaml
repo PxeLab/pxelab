@@ -1,0 +1,84 @@
+name: Linux Mint Live
+enabled: true
+menu_group: live
+versions:
+  - codename: "22-cinnamon"
+    name: "22 Cinnamon"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/22-14b93ac4/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/22-14b93ac4/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/22-14b93ac4/filesystem.squashfs initrd=initrd"
+  - codename: "22-xfce"
+    name: "22 XFCE"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/22-e45bc094/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/22-e45bc094/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/22-e45bc094/filesystem.squashfs initrd=initrd"
+  - codename: "22-mate"
+    name: "22 MATE"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/22-482b71dc/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/22-482b71dc/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/22-482b71dc/filesystem.squashfs initrd=initrd"
+  - codename: "21-cinnamon"
+    name: "21 Cinnamon"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/21-32bd7a0e/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/21-32bd7a0e/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/21-32bd7a0e/filesystem.squashfs initrd=initrd"
+  - codename: "21-xfce"
+    name: "21 XFCE"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/21-48716442/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/21-48716442/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/21-48716442/filesystem.squashfs initrd=initrd"
+  - codename: "21-mate"
+    name: "21 MATE"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/21-f0dbd590/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/21-f0dbd590/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/21-f0dbd590/filesystem.squashfs initrd=initrd"
+  - codename: "20.3-cinnamon"
+    name: "20.3 Cinnamon"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/20.3-33df4cad/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/20.3-33df4cad/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/20.3-33df4cad/filesystem.squashfs initrd=initrd"
+  - codename: "20.3-xfce"
+    name: "20.3 XFCE"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/20.3-af4b8d97/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/20.3-af4b8d97/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/20.3-af4b8d97/filesystem.squashfs initrd=initrd"
+  - codename: "20.3-mate"
+    name: "20.3 MATE"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/20.3-7b17290c/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/20.3-7b17290c/initrd
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/20.3-7b17290c/filesystem.squashfs initrd=initrd"
+  - codename: "lmde-6-cinnamon"
+    name: "LMDE 6 Cinnamon"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-squash/releases/download/6-1834227b/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-squash/releases/download/6-1834227b/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/6-1834227b/filesystem.squashfs initrd=initrd"

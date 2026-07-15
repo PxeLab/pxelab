@@ -82,6 +82,9 @@ export default function SettingsNFS() {
             </div>
             <Toggle checked={config.read_only} onChange={v => setConfig({...config, read_only: v})} label={t('settings.nfsReadOnly')} />
             <p className="text-xs text-[var(--text-muted)] -mt-2">{t('settings.nfsReadOnlyHelp')}</p>
+            <div className="bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-3 py-2 text-xs text-[var(--text-muted)] leading-relaxed">
+              <span className="font-semibold text-[var(--text-primary)]">rpcbind</span> — {t('settings.nfsRpcbindPort')}
+            </div>
             <SettingsField label={t('settings.nfsAllowIPs')} help={t('settings.nfsAllowIPsHelp')}>
               <textarea
                 className="w-full bg-[var(--bg-elevated)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-y"
@@ -90,6 +93,7 @@ export default function SettingsNFS() {
                 onChange={e => setConfig({...config, allow_ips: e.target.value.split('\n').map(s => s.trim()).filter(Boolean)})}
                 placeholder={t('settings.nfsAllowIPsPlaceholder')}
               />
+              <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.nfsAllowRestartHint')}</p>
             </SettingsField>
           </div>
         )}

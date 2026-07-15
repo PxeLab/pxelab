@@ -1,0 +1,10 @@
+name: ZFSBootMenu
+enabled: true
+menu_group: tools
+versions:
+  - codename: "3.1.0"
+    name: "ZFSBootMenu 3.1.0"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/3.1.0-1620b6a3/zfsbootmenu-recovery-x86_64.efi

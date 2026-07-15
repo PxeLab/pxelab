@@ -1,10 +1,10 @@
-# PxeGo netboot.xyz Integration Implementation Plan
+﻿# pxelab netboot.xyz Integration Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Integrate netboot.xyz's full OS boot catalog into PxeGo as a local component with online/offline dual-mode operation.
+**Goal:** Integrate netboot.xyz's full OS boot catalog into PxeLab as a local component with online/offline dual-mode operation.
 
-**Architecture:** New `internal/netboot/` package handles distro catalog YAML parsing, iPXE script generation, and upstream sync. Existing `internal/boot/ipxe/` templates gain a `netboot-menu` type. Web UI gets a catalog browser and Profile integration. CLI adds `pxego netboot` subcommands.
+**Architecture:** New `internal/netboot/` package handles distro catalog YAML parsing, iPXE script generation, and upstream sync. Existing `internal/boot/ipxe/` templates gain a `netboot-menu` type. Web UI gets a catalog browser and Profile integration. CLI adds `pxelab netboot` subcommands.
 
 **Tech Stack:** Go (yaml.v3, text/template), chi router, React/TypeScript, embedded seed data
 
@@ -82,7 +82,7 @@ func TestCatalogGroups(t *testing.T) {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /d/NewCB/PxeGo && go test ./internal/netboot/ -run "TestDistroDefaults|TestVersionLocalPriority|TestCatalogGroups" -v`
+Run: `cd /d/NewCB/PxeLab && go test ./internal/netboot/ -run "TestDistroDefaults|TestVersionLocalPriority|TestCatalogGroups" -v`
 Expected: FAIL with package not found
 
 - [ ] **Step 3: Write minimal implementation**
@@ -182,7 +182,7 @@ func (c *Catalog) Groups() []Group {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /d/NewCB/PxeGo && go test ./internal/netboot/ -run "TestDistroDefaults|TestVersionLocalPriority|TestCatalogGroups" -v`
+Run: `cd /d/NewCB/PxeLab && go test ./internal/netboot/ -run "TestDistroDefaults|TestVersionLocalPriority|TestCatalogGroups" -v`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -325,7 +325,7 @@ func TestSaveDistro(t *testing.T) {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /d/NewCB/PxeGo && go test ./internal/netboot/ -run "TestLoadDistro|TestLoadCatalog|TestSaveDistro" -v`
+Run: `cd /d/NewCB/PxeLab && go test ./internal/netboot/ -run "TestLoadDistro|TestLoadCatalog|TestSaveDistro" -v`
 Expected: FAIL (compilation errors - no catalog.go)
 
 - [ ] **Step 3: Write minimal implementation**
@@ -398,7 +398,7 @@ func LoadCatalog(dir string) (*Catalog, error) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /d/NewCB/PxeGo && go test ./internal/netboot/ -run "TestLoadDistro|TestLoadCatalog|TestSaveDistro" -v`
+Run: `cd /d/NewCB/PxeLab && go test ./internal/netboot/ -run "TestLoadDistro|TestLoadCatalog|TestSaveDistro" -v`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -486,7 +486,7 @@ func TestManagerGroups(t *testing.T) {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /d/NewCB/PxeGo && go test ./internal/netboot/ -run "TestNewManager|TestManagerGetDistro|TestManagerGroups" -v`
+Run: `cd /d/NewCB/PxeLab && go test ./internal/netboot/ -run "TestNewManager|TestManagerGetDistro|TestManagerGroups" -v`
 Expected: FAIL (compilation - no manager.go)
 
 - [ ] **Step 3: Write implementation**
@@ -556,7 +556,7 @@ func (m *Manager) Reload(c *Catalog) {
 package netboot
 
 // DefaultCatalog returns a minimal built-in catalog for first-run usage
-// Full catalog is populated via `pxego netboot sync`
+// Full catalog is populated via `pxelab netboot sync`
 func DefaultCatalog() *Catalog {
 	return &Catalog{
 		Distros: []*Distro{
@@ -605,7 +605,7 @@ func DefaultCatalog() *Catalog {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /d/NewCB/PxeGo && go test ./internal/netboot/ -run "TestNewManager|TestManagerGetDistro|TestManagerGroups" -v`
+Run: `cd /d/NewCB/PxeLab && go test ./internal/netboot/ -run "TestNewManager|TestManagerGetDistro|TestManagerGroups" -v`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -751,7 +751,7 @@ func TestGenerateBootLineRemoteFallback(t *testing.T) {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /d/NewCB/PxeGo && go test ./internal/netboot/ -run "TestGenerateNetbootScript|TestGenerateDistroScript|TestGenerateBootLine" -v`
+Run: `cd /d/NewCB/PxeLab && go test ./internal/netboot/ -run "TestGenerateNetbootScript|TestGenerateDistroScript|TestGenerateBootLine" -v`
 Expected: FAIL
 
 - [ ] **Step 3: Write implementation**
@@ -909,7 +909,7 @@ func groupTitle(name string) string {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd /d/NewCB/PxeGo && go test ./internal/netboot/ -run "TestGenerateNetbootScript|TestGenerateDistroScript|TestGenerateBootLine" -v`
+Run: `cd /d/NewCB/PxeLab && go test ./internal/netboot/ -run "TestGenerateNetbootScript|TestGenerateDistroScript|TestGenerateBootLine" -v`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -969,7 +969,7 @@ type TemplateData struct {
 
 - [ ] **Step 4: Verify compilation**
 
-Run: `cd /d/NewCB/PxeGo && go build ./internal/boot/ipxe/`
+Run: `cd /d/NewCB/PxeLab && go build ./internal/boot/ipxe/`
 Expected: no errors
 
 - [ ] **Step 5: Commit**
@@ -998,12 +998,12 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/pxego/pxego/internal/netboot"
+	"github.com/pxelab/pxelab/internal/netboot"
 )
 
 type NetbootHandler struct {
 	manager *netboot.Manager
-	server  string // PxeGo server address
+	server  string // PxeLab server address
 }
 
 func NewNetbootHandler(manager *netboot.Manager, serverAddr string) *NetbootHandler {
@@ -1084,7 +1084,7 @@ r.Get("/netboot/check-files", h.Netboot.CheckFiles)
 
 - [ ] **Step 4: Verify compilation**
 
-Run: `cd /d/NewCB/PxeGo && go build ./internal/api/ ./internal/httpd/`
+Run: `cd /d/NewCB/PxeLab && go build ./internal/api/ ./internal/httpd/`
 Expected: no errors
 
 - [ ] **Step 5: Commit**
@@ -1164,7 +1164,7 @@ r.Get("/netboot/menu.ipxe", func(w http.ResponseWriter, r *http.Request) {
 })
 ```
 
-- [ ] **Step 4: Update cmd/pxego/main.go to create and pass netbootManager**
+- [ ] **Step 4: Update cmd/pxelab/main.go to create and pass netbootManager**
 
 ```go
 // After bootFS creation, before httpd.NewServer:
@@ -1182,13 +1182,13 @@ httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, n
 
 - [ ] **Step 5: Verify compilation**
 
-Run: `cd /d/NewCB/PxeGo && go build ./...`
+Run: `cd /d/NewCB/PxeLab && go build ./...`
 Expected: no errors
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add internal/httpd/server.go cmd/pxego/main.go
+git add internal/httpd/server.go cmd/pxelab/main.go
 git commit -m "feat(netboot): integrate netboot menu into boot script generation"
 ```
 
@@ -1251,7 +1251,7 @@ Netboot: NetbootConfig{
 
 - [ ] **Step 3: Verify compilation**
 
-Run: `cd /d/NewCB/PxeGo && go build ./internal/config/`
+Run: `cd /d/NewCB/PxeLab && go build ./internal/config/`
 Expected: no errors
 
 - [ ] **Step 4: Commit**
@@ -1263,16 +1263,16 @@ git commit -m "feat(config): add netboot configuration section"
 
 ---
 
-### Task 9: CLI Commands (pxego netboot)
+### Task 9: CLI Commands (pxelab netboot)
 
 **Files:**
-- Create: `cmd/pxego/cmd_netboot.go`
-- Modify: `cmd/pxego/main.go`
+- Create: `cmd/pxelab/cmd_netboot.go`
+- Modify: `cmd/pxelab/main.go`
 
 - [ ] **Step 1: Write the command**
 
 ```go
-// cmd/pxego/cmd_netboot.go
+// cmd/pxelab/cmd_netboot.go
 package main
 
 import (
@@ -1280,8 +1280,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/netboot"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/spf13/cobra"
 )
 
@@ -1388,19 +1388,19 @@ func init() {
 
 - [ ] **Step 3: Verify compilation**
 
-Run: `cd /d/NewCB/PxeGo && go build ./cmd/pxego/`
+Run: `cd /d/NewCB/PxeLab && go build ./cmd/pxelab/`
 Expected: no errors
 
 - [ ] **Step 4: Test the CLI**
 
-Run: `cd /d/NewCB/PxeGo && go run ./cmd/pxego/ netboot list`
+Run: `cd /d/NewCB/PxeLab && go run ./cmd/pxelab/ netboot list`
 Expected: Shows default distro list (Ubuntu, Debian, Clonezilla, SystemRescue, MemTest86, GParted)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add cmd/pxego/cmd_netboot.go
-git commit -m "feat(cli): add pxego netboot list/info/sync commands"
+git add cmd/pxelab/cmd_netboot.go
+git commit -m "feat(cli): add pxelab netboot list/info/sync commands"
 ```
 
 ---
@@ -1411,7 +1411,7 @@ git commit -m "feat(cli): add pxego netboot list/info/sync commands"
 - Create: `internal/netboot/sync.go`
 - Create: `internal/netboot/sync_test.go`
 - Create: `contrib/netboot.xyz/README.md`
-- Modify: `cmd/pxego/cmd_netboot.go` (complete sync implementation)
+- Modify: `cmd/pxelab/cmd_netboot.go` (complete sync implementation)
 
 - [ ] **Step 1: Write sync implementation**
 
@@ -1687,7 +1687,7 @@ func TestInferInstallType(t *testing.T) {
 ```markdown
 # contrib/netboot.xyz
 
-本目录用于存放 netboot.xyz 的 fork 仓库，作为 `pxego netboot sync` 命令的数据源。
+本目录用于存放 netboot.xyz 的 fork 仓库，作为 `pxelab netboot sync` 命令的数据源。
 
 ## 首次设置
 
@@ -1704,18 +1704,18 @@ cd contrib/netboot.xyz
 git pull upstream master
 ```
 
-然后运行 `pxego netboot sync` 将更新同步到本地 catalog。
+然后运行 `pxelab netboot sync` 将更新同步到本地 catalog。
 ```
 
 - [ ] **Step 6: Verify compilation and run tests**
 
-Run: `cd /d/NewCB/PxeGo && go test ./internal/netboot/ -run "TestMapAnsibleMenu|TestInferInstallType" -v`
+Run: `cd /d/NewCB/PxeLab && go test ./internal/netboot/ -run "TestMapAnsibleMenu|TestInferInstallType" -v`
 Expected: PASS
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add internal/netboot/sync.go internal/netboot/sync_test.go contrib/netboot.xyz/README.md cmd/pxego/cmd_netboot.go
+git add internal/netboot/sync.go internal/netboot/sync_test.go contrib/netboot.xyz/README.md cmd/pxelab/cmd_netboot.go
 git commit -m "feat(netboot): add upstream sync mechanism with CLI integration"
 ```
 
@@ -1797,7 +1797,7 @@ export const api = {
 
 - [ ] **Step 3: Verify frontend builds**
 
-Run: `cd /d/NewCB/PxeGo/web && npx tsc --noEmit` (or similar)
+Run: `cd /d/NewCB/PxeLab/web && npx tsc --noEmit` (or similar)
 Expected: TypeScript compilation passes
 
 - [ ] **Step 4: Commit**
@@ -1813,7 +1813,7 @@ git commit -m "feat(web): add netboot catalog API client types"
 
 **Files:**
 - Create: `web/src/pages/NetbootCatalog.tsx`
-- Modify: `cmd/pxego/webdist/index.html` (if new route needed) or existing router
+- Modify: `cmd/pxelab/webdist/index.html` (if new route needed) or existing router
 
 - [ ] **Step 1: First check how routing works**
 
@@ -1992,7 +1992,7 @@ Read the router configuration to know where to add. Based on previous exploratio
 
 - [ ] **Step 4: Build frontend**
 
-Run: `cd /d/NewCB/PxeGo/web && npm run build`
+Run: `cd /d/NewCB/PxeLab/web && npm run build`
 Expected: Build succeeds without errors
 
 - [ ] **Step 5: Commit**
@@ -2075,7 +2075,7 @@ useEffect(() => {
 
 - [ ] **Step 3: Build frontend**
 
-Run: `cd /d/NewCB/PxeGo/web && npm run build`
+Run: `cd /d/NewCB/PxeLab/web && npm run build`
 Expected: Build succeeds
 
 - [ ] **Step 4: Commit**
@@ -2102,7 +2102,7 @@ Add a link/menu item pointing to `/netboot-catalog` in the sidebar.
 
 - [ ] **Step 3: Build frontend**
 
-Run: `cd /d/NewCB/PxeGo/web && npm run build`
+Run: `cd /d/NewCB/PxeLab/web && npm run build`
 Expected: Build succeeds
 
 - [ ] **Step 4: Commit**

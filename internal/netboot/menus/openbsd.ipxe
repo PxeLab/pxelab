@@ -1,0 +1,40 @@
+#!ipxe
+
+# OpenBSD Operating System
+# http://www.openbsd.org
+
+:openbsd_menu
+set os OpenBSD
+set os_arch ${arch}
+iseq ${os_arch} x86_64 && set os_arch amd64 ||
+iseq ${os_arch} i386 && set os_arch i386 ||
+menu ${os}
+item snapshots ${space} ${os} Latest Snapshot
+item 7.9 ${space} ${os} 7.9
+item 7.8 ${space} ${os} 7.8
+choose ver || goto openbsd_exit
+iseq ${ver} snapshots && set image_ver 79 ||
+iseq ${ver} 7.9 && set image_ver 79 ||
+iseq ${ver} 7.8 && set image_ver 78 ||
+goto boot_openbsd
+
+:boot_openbsd
+iseq ${platform} pcbios && goto pcbios_boot ||
+iseq ${platform} efi && goto efi_boot ||
+
+:pcbios_boot
+set src ${openbsd_mirror}/${openbsd_base_dir}/${ver}/${os_arch}/cd${image_ver}.iso
+imgfree
+initrd ${src}
+chain ${memdisk} iso raw
+goto openbsd_menu
+
+:efi_boot
+set src ${openbsd_mirror}/${openbsd_base_dir}/${ver}/${os_arch}/miniroot${image_ver}.img
+imgfree
+sanboot ${src}
+goto openbsd_menu
+
+:openbsd_exit
+clear menu
+exit 0

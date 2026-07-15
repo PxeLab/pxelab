@@ -1,0 +1,14 @@
+name: Kali Linux
+enabled: true
+menu_group: linux
+mirror: http://http.kali.org
+local_base: netboot/kali
+versions:
+    - codename: rolling
+      name: Rolling Edition
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://http.kali.org/kali/rolling/amd64/linux
+        initrd: http://http.kali.org/kali/rolling/amd64/initrd.gz
+      install_type: legacy

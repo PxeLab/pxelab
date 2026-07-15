@@ -1,4 +1,4 @@
-package config
+﻿package config
 
 import (
 	"fmt"
@@ -186,9 +186,9 @@ func (c *Config) Validate() error {
 func DefaultDataDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
-		return ".pxego"
+		return ".pxelab"
 	}
-	return filepath.Join(home, ".pxego")
+	return filepath.Join(home, ".pxelab")
 }
 
 // MACEntry represents a MAC address with optional reason, used for seed entries in config.

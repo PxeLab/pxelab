@@ -1,12 +1,12 @@
-# DHCP 模式说明
+﻿# DHCP 模式说明
 
-PxeGo 支持 4 种 DHCP 模式，在接口配置中通过 `dhcp` 字段设置。
+PxeLab 支持 4 种 DHCP 模式，在接口配置中通过 `dhcp` 字段设置。
 
 ## 快速对照
 
 | 模式 | 分配 IP | 提供 PXE 选项 | 非 PXE 客户端 | 适用场景 |
 |------|---------|---------------|---------------|----------|
-| **full** | ✅ | ✅ | ✅ 正常分配 | PxeGo 作为唯一 DHCP 服务器 |
+| **full** | ✅ | ✅ | ✅ 正常分配 | PxeLab 作为唯一 DHCP 服务器 |
 | **proxy** | ❌ 全程 yiaddr=0 | ✅ | ❌ 忽略 | 叠加到现有 DHCP 环境 |
 | **hybrid** | ✅ | ✅（仅 PXE 客户端） | ✅ 仅分配 IP，不含 PXE 选项 | 默认模式，兼顾两方 |
 | **off** | ❌ | ❌ | ❌ 忽略 | 完全关闭 DHCP 功能 |
@@ -17,12 +17,12 @@ PxeGo 支持 4 种 DHCP 模式，在接口配置中通过 `dhcp` 字段设置。
 
 ### full（完整 DHCP）
 
-PxeGo 作为该网络的**唯一 DHCP 服务器**，对所有客户端（无论是否 PXE 请求）响应。
+PxeLab 作为该网络的**唯一 DHCP 服务器**，对所有客户端（无论是否 PXE 请求）响应。
 
 **行为：**
 
 ```
-DHCP Discover ──► PxeGo
+DHCP Discover ──► PxeLab
     │
     ├─ PXE/BIOS 客户端 ──► Offer：IP 地址 + 子网掩码 + 网关 + DNS + 启动文件 + PXE 选项
     │                      ├─ Option 54 (Server Identifier)
@@ -45,7 +45,7 @@ DHCP Discover ──► PxeGo
 - 非 PXE 客户端获得标准 DHCP 响应，正常上网
 
 **适用场景：**
-- 新建网络，PxeGo 作为网络中的唯一 DHCP 服务
+- 新建网络，PxeLab 作为网络中的唯一 DHCP 服务
 - 实验/测试环境，不需要保留现有 DHCP 基础架构
 - 隔离网络（无上行 DHCP 服务器）
 
@@ -53,17 +53,17 @@ DHCP Discover ──► PxeGo
 
 ### proxy（代理 DHCP）
 
-PxeGo **仅提供 PXE 相关选项**，IP 地址由网络中现有的 DHCP 服务器分配。
+PxeLab **仅提供 PXE 相关选项**，IP 地址由网络中现有的 DHCP 服务器分配。
 
 **行为：**
 
 ```
-DHCP Discover ──► 现有 DHCP + PxeGo
+DHCP Discover ──► 现有 DHCP + PxeLab
     │
     ├─ PXE 客户端（Legacy + UEFI）：
     │   ├─ 现有 DHCP ──► Offer：IP 地址（标准 DHCP）
-    │   └─ PxeGo ──► Offer：yiaddr=0.0.0.0 + 启动文件 + PXE 选项
-    │                  ├─ siaddr = PxeGo IP
+    │   └─ PxeLab ──► Offer：yiaddr=0.0.0.0 + 启动文件 + PXE 选项
+    │                  ├─ siaddr = PxeLab IP
     │                  ├─ Option 54 (Server Identifier)
     │                  ├─ Option 60 = "PXEClient"（UEFI 识别 ProxyDHCP 的关键）
     │                  ├─ Option 66 (TFTP Server Name)
@@ -80,7 +80,7 @@ DHCP Discover ──► 现有 DHCP + PxeGo
 
 - **yiaddr=0.0.0.0** — 全程保持。iPXE `dhcp_offer()` 以此为关键判据识别 ProxyDHCP
 - **Option 60 = "PXEClient"** — UEFI PXE Base Code 要求在响应中回写此选项才承认 PXE OFFER
-- **siaddr** — 指向 PxeGo 自身（作为 TFTP/HTTP 服务器），iPXE 将其存入 `proxydhcp/next-server`
+- **siaddr** — 指向 PxeLab 自身（作为 TFTP/HTTP 服务器），iPXE 将其存入 `proxydhcp/next-server`
 - 不发送网关、DNS、租期 — 严格遵循 ProxyDHCP 语义
 
 **特点：**
@@ -97,12 +97,12 @@ DHCP Discover ──► 现有 DHCP + PxeGo
 
 ### hybrid（混合）
 
-PxeGo **对 PXE 客户端以 proxy 模式响应，对其他客户端以 full 模式响应**。这是默认模式。
+PxeLab **对 PXE 客户端以 proxy 模式响应，对其他客户端以 full 模式响应**。这是默认模式。
 
 **行为：**
 
 ```
-DHCP Discover ──► PxeGo
+DHCP Discover ──► PxeLab
     │
     ├─ PXE 客户端（检测到 Option 60 "PXEClient" 等）：
     │   └─ 以 proxy 模式处理：yiaddr=0.0.0.0 + PXE 选项
@@ -130,7 +130,7 @@ detect PXE client? → proxy 模式
 - PXE 客户端获得引导选项但不影响 IP 分配
 
 **适用场景：**
-- 小型网络，PxeGo 承担 DHCP 服务但同时要叠加 PXE
+- 小型网络，PxeLab 承担 DHCP 服务但同时要叠加 PXE
 - 不想架设两台 DHCP 服务器的场景
 - **推荐默认模式**，兼顾各方需求
 
@@ -138,7 +138,7 @@ detect PXE client? → proxy 模式
 
 ### off（关闭）
 
-PxeGo 在该接口上**完全关闭 DHCP 功能**，不处理任何 DHCP 请求。
+PxeLab 在该接口上**完全关闭 DHCP 功能**，不处理任何 DHCP 请求。
 
 **特点：**
 - 接口如同 DHCP 不存在一样
@@ -154,7 +154,7 @@ PxeGo 在该接口上**完全关闭 DHCP 功能**，不处理任何 DHCP 请求�
 
 ## 决策流程
 
-当收到 DHCP 请求时，PxeGo 按以下流程确定模式：
+当收到 DHCP 请求时，PxeLab 按以下流程确定模式：
 
 ```
 收到 DHCP 请求
@@ -180,7 +180,7 @@ PxeGo 在该接口上**完全关闭 DHCP 功能**，不处理任何 DHCP 请求�
 ### 示例 1：有公司 DHCP 服务器，叠加 PXE
 
 ```
-    公司 DHCP          PxeGo
+    公司 DHCP          PxeLab
   192.168.1.1      192.168.1.100
        │                 │
        │                 │  dhcp: proxy
@@ -189,13 +189,13 @@ PxeGo 在该接口上**完全关闭 DHCP 功能**，不处理任何 DHCP 请求�
        │                 └── PXE 客户端提供引导选项
        │
        └── 所有客户端获得 IP
-           非 PXE 客户端不受 PxeGo 影响
+           非 PXE 客户端不受 PxeLab 影响
 ```
 
-### 示例 2：新网络，PxeGo 一机包办
+### 示例 2：新网络，PxeLab 一机包办
 
 ```
-    PxeGo (192.168.1.100)
+    PxeLab (192.168.1.100)
        │
        │  dhcp: full
        │  bootloader: ipxe
@@ -208,7 +208,7 @@ PxeGo 在该接口上**完全关闭 DHCP 功能**，不处理任何 DHCP 请求�
 ### 示例 3：hybrid 默认模式
 
 ```
-    PxeGo (192.168.1.100)
+    PxeLab (192.168.1.100)
        │
        │  dhcp: hybrid（默认）
        │
@@ -249,6 +249,6 @@ interfaces:
 
 ## Web 界面配置
 
-PxeGo 界面上对每个接口可以独立设置 DHCP 模式：「设置 → 接口」，每个接口的「DHCP 模式」下拉框。
+PxeLab 界面上对每个接口可以独立设置 DHCP 模式：「设置 → 接口」，每个接口的「DHCP 模式」下拉框。
 
 > **注意：** 同接口下的子网共享该接口的 DHCP 模式。如需要多个不同行为，通过多接口配置实现。

@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PxeGo - PXE Server Dashboard</title>
+<title>PxeLab - PXE Server Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -706,7 +706,7 @@ function updateTopbar(page) {
     hostDetail: ['node-01.example.com', '00:1a:2b:3c:4d:01'],
     events: ['Event Log', 'Real-time SSE stream'],
   };
-  const t = titles[page] || ['PxeGo', ''];
+  const t = titles[page] || ['PxeLab', ''];
   document.getElementById('pageTitle').textContent = t[0];
   document.getElementById('pageChip').innerHTML = `<span class="chip-dot green"></span> ${t[1]}`;
 }

@@ -1,8 +1,8 @@
-# iPXE 编译指南
+﻿# iPXE 编译指南
 
 ## 概述
 
-PxeGo 使用自定义编译的 iPXE 二进制文件实现两阶段网络引导。每个二进制文件内嵌同一份 iPXE 脚本，执行 DHCP 后通过 HTTP 加载引导菜单，避免了 PXE BIOS/UEFI 缓存 DHCP 数据导致的链式加载循环。
+PxeLab 使用自定义编译的 iPXE 二进制文件实现两阶段网络引导。每个二进制文件内嵌同一份 iPXE 脚本，执行 DHCP 后通过 HTTP 加载引导菜单，避免了 PXE BIOS/UEFI 缓存 DHCP 数据导致的链式加载循环。
 
 ## 编译环境
 
@@ -16,7 +16,7 @@ PxeGo 使用自定义编译的 iPXE 二进制文件实现两阶段网络引导�
 
 ## 内嵌脚本
 
-所有 PxeGo 的 iPXE 二进制文件内嵌同一份脚本：
+所有 PxeLab 的 iPXE 二进制文件内嵌同一份脚本：
 
 ```bash
 #!ipxe
@@ -46,8 +46,8 @@ shell
 
 1. **DHCP 优先** — 执行 `dhcp` 获取 IP，同时接收 ProxyDHCP OFFER（如存在）
 2. **isset proxydhcp/next-server** — 检测 ProxyDHCP 数据是否存在（注意：`isset` 参数是设置名，不要用 `${}` 包裹）
-3. **Proxy 模式** — `proxydhcp/next-server` 存在 → 使用它作为 PxeGo 地址（即 ProxyDHCP 的 siaddr 字段）
-4. **Full/Server 模式** — 无 proxy 数据 → 使用 `${dhcp-server}`（PxeGo 本身就是 DHCP 服务器）
+3. **Proxy 模式** — `proxydhcp/next-server` 存在 → 使用它作为 PxeLab 地址（即 ProxyDHCP 的 siaddr 字段）
+4. **Full/Server 模式** — 无 proxy 数据 → 使用 `${dhcp-server}`（PxeLab 本身就是 DHCP 服务器）
 5. **TFTP 兜底** — HTTP 链式加载失败时尝试 TFTP
 6. **DHCP 失败** — 进入 iPXE shell 以便手动排查
 
@@ -64,7 +64,7 @@ iPXE 的 `dhcp_offer()` 将 OFFER 识别为 ProxyDHCP 的两个必要条件：
 1. **`yiaddr == 0.0.0.0`** — 关键判据，表示「不分配 IP」
 2. **Option 60 = `"PXEClient"`** — UEFI PXE Base Code 要求 OFFER 中必须回写此选项
 
-PxeGo 的 `appendProxyPXEOptions()` 函数确保两者同时满足，并一并设置 siaddr、Option 54、Option 66、Option 43。
+PxeLab 的 `appendProxyPXEOptions()` 函数确保两者同时满足，并一并设置 siaddr、Option 54、Option 66、Option 43。
 
 ## 编译命令
 
@@ -136,7 +136,7 @@ make bin-arm64-efi/ipxe.efi EMBED=embedd.ipxe CROSS=aarch64-linux-gnu-
 
 ## 输出文件
 
-| 编译产物 | 架构 | PxeGo 文件名 | 大小 |
+| 编译产物 | 架构 | PxeLab 文件名 | 大小 |
 |---------|------|-------------|------|
 | `bin/undionly.kpxe` | BIOS x86（UNDI） | `undionly.kpxe` | ~71KB |
 | `bin/ipxe.pxe` | BIOS x86（全驱动） | `ipxe.pxe` | ~392KB |
@@ -144,27 +144,27 @@ make bin-arm64-efi/ipxe.efi EMBED=embedd.ipxe CROSS=aarch64-linux-gnu-
 | `bin-i386-efi/ipxe.efi` | UEFI IA32 | `ipxe32.efi` | ~1.0MB |
 | `bin-arm64-efi/ipxe.efi` | UEFI ARM64 | `ipxe-arm64.efi` | ~1.2MB |
 
-## 集成到 PxeGo
+## 集成到 PxeLab
 
 编译产物需复制到两个位置：
 
 ```bash
 # 运行时引导目录
-cp bin/undionly.kpxe /path/to/pxego/boot/
-cp bin-x86_64-efi/ipxe.efi /path/to/pxego/boot/
+cp bin/undionly.kpxe /path/to/PxeLab/boot/
+cp bin-x86_64-efi/ipxe.efi /path/to/PxeLab/boot/
 # ... 以此类推
 
 # 内嵌 bootdist（首次运行时释放）
-cp bin/undionly.kpxe /path/to/pxego/cmd/pxego/bootdist/
-cp bin-x86_64-efi/ipxe.efi /path/to/pxego/cmd/pxego/bootdist/
+cp bin/undionly.kpxe /path/to/PxeLab/cmd/pxelab/bootdist/
+cp bin-x86_64-efi/ipxe.efi /path/to/PxeLab/cmd/pxelab/bootdist/
 # ... 以此类推
 ```
 
-然后重新编译 PxeGo：
+然后重新编译 PxeLab：
 
 ```bash
-cd /path/to/pxego
-go build ./cmd/pxego/
+cd /path/to/PxeLab
+go build ./cmd/pxelab/
 ```
 
 ## 架构映射

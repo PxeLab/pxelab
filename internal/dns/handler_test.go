@@ -1,11 +1,11 @@
-package dns
+﻿package dns
 
 import (
 	"testing"
 
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 func TestParseUpstreams(t *testing.T) {

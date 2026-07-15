@@ -1,12 +1,12 @@
-package api
+﻿package api
 
 import (
 	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/pxego/pxego/internal/ipmi"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/ipmi"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 type IPMIHandler struct {

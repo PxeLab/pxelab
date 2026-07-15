@@ -1,4 +1,4 @@
-package logbus
+﻿package logbus
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pxego/pxego/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/eventbus"
 )
 
 type LogEntry struct {

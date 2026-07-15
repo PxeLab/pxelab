@@ -1,0 +1,19 @@
+name: ShredOS
+enabled: true
+menu_group: tools
+logo: shredos
+versions:
+  - codename: "0.41"
+    name: "ShredOS 0.41 (x86_64)"
+    arch: amd64
+    enabled: true
+    type: memtest
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/2025.11_30_x86-64_0.41-bf7a6bdf/shredos
+  - codename: "0.34"
+    name: "ShredOS 0.34 (i686)"
+    arch: i386
+    enabled: true
+    type: memtest
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/0.34_32-bit_20221231-c4450e3a/shredos

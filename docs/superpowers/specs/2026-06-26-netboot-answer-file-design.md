@@ -1,4 +1,4 @@
-# Netboot 自动化应答与个性化覆盖设计
+﻿# Netboot 自动化应答与个性化覆盖设计
 
 ## 概述
 
@@ -298,7 +298,7 @@ boot
    - iPXE 脚本包含 Ubuntu Noble 菜单项
 
 5. 用户选择 Ubuntu Noble（或自动选）：
-   - PxeGo 检测该主机有 install_task
+   - PxeLab 检测该主机有 install_task
    - 渲染应答模板 → 存储到临时路径
    - kernel 行注入 cmdline: "autoinstall ds=nocloud-net;s=http://server/api/v1/netboot/answer/task_xxx"
    - 启动安装程序

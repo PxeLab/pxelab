@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 
 export type Palette = 'ocean' | 'forest' | 'sunset' | 'violet' | 'rose' | 'midnight'
 
-const STORAGE_KEY = 'pxego-palette'
+const STORAGE_KEY = 'PxeLab-palette'
 
 function getInitialPalette(): Palette {
   if (typeof window === 'undefined') return 'ocean'

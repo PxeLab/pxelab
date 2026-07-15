@@ -1,11 +1,11 @@
-package api
+﻿package api
 
 import (
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/pxego/pxego/internal/servicemanager"
+	"github.com/pxelab/pxelab/internal/servicemanager"
 )
 
 var startTime = time.Now()

@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"encoding/json"
@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 type LeaseHandler struct {

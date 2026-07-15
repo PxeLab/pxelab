@@ -1,0 +1,28 @@
+#!ipxe
+
+goto ${menu} ||
+
+:live_menu
+set os Live Raizo
+menu ${os}
+item --gap ${os} Versions
+item current ${space} ${os} current
+choose live_version || goto live_exit
+goto ${live_version}
+
+
+:current
+set squash_url ${live_endpoint}/debian-squash/releases/download/v17.26.04.26i-5c171de0/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/v17.26.04.26i-5c171de0/
+goto boot
+
+
+:boot
+imgfree
+kernel ${kernel_url}vmlinuz boot=live fetch=${squash_url} initrd=initrd.magic ${cmdline}
+initrd ${kernel_url}initrd
+boot
+
+:live_exit
+clear menu
+exit 0

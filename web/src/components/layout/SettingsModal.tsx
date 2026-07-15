@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X, Save, Copy, Check, RotateCw, Settings as SettingsIcon, Monitor, FileCode, Activity } from 'lucide-react'
@@ -177,11 +177,19 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
   const inputCls = 'w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500'
   const selectCls = 'w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none cursor-pointer'
 
+  const serverNameValid = useMemo(() => {
+    const v = config.server_name
+    return v === '' || /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(v)
+  }, [config.server_name])
+
   return (
     <div className="p-6 space-y-4">
       <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('settings.modalBasicSettings')}</h3>
       <SettingsField label={t('common.serverName', '服务器名称')}>
         <input className={inputCls} value={config.server_name} onChange={e => onChange({...config, server_name: e.target.value})} />
+        {!serverNameValid && (
+          <p className="text-xs text-amber-400 mt-1">{t('common.serverNameHint')}</p>
+        )}
       </SettingsField>
       <SettingsField label={t('common.logLevel', '日志级别')}>
         <select className={selectCls} value={config.log_level} onChange={e => onChange({...config, log_level: e.target.value})}>
@@ -290,7 +298,7 @@ function BootForm({ config, onChange }: { config: GeneralSettings; onChange: (c:
         <textarea value={config.script_template} onChange={e => onChange({...config, script_template: e.target.value})}
           rows={6} spellCheck={false}
           className="w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-4 py-3 text-sm font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
-          placeholder={'#!ipxe\nmenu PxeGo Boot Menu\nitem shell iPXE Shell\nitem local Boot Local Disk\n\nchoose selected || shell\ngoto ${selected}'} />
+          placeholder={'#!ipxe\nmenu PxeLab Boot Menu\nitem shell iPXE Shell\nitem local Boot Local Disk\n\nchoose selected || shell\ngoto ${selected}'} />
       </SettingsField>
 
       <div className="pt-4 border-t border-[var(--bg-border)]">

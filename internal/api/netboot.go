@@ -1,9 +1,9 @@
-package api
+﻿package api
 
 import (
 	"net/http"
 
-	"github.com/pxego/pxego/internal/netboot"
+	"github.com/pxelab/pxelab/internal/netboot"
 )
 
 type NetbootHandler struct {

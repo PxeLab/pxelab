@@ -1,4 +1,4 @@
-package dns
+﻿package dns
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"log/slog"
 
 	"github.com/miekg/dns"
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 type Server struct {

@@ -1,0 +1,10 @@
+name: UEFI Shell
+enabled: true
+menu_group: tools
+versions:
+  - codename: edk2-stable202002
+    name: "UEFI Shell (edk2-stable202002)"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/edk2-stable202002-a6917535/uefi-shell-x64.efi

@@ -1,4 +1,4 @@
-package store
+﻿package store
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"github.com/google/uuid"
-	"github.com/pxego/pxego/internal/models"
+	"github.com/pxelab/pxelab/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -64,6 +64,8 @@ func (s *sqliteStore) Migrate() error {
 		&models.UnauthorizedDevice{},
 		&models.BMCConfig{},
 		&models.DHCPReservation{},
+		&models.WOLHistory{},
+		&models.WOLSchedule{},
 	)
 }
 
@@ -560,4 +562,62 @@ func (s *sqliteStore) UpdateDHCPReservation(ctx context.Context, r *models.DHCPR
 
 func (s *sqliteStore) DeleteDHCPReservation(ctx context.Context, id uint) error {
 	return s.db.WithContext(ctx).Delete(&models.DHCPReservation{}, id).Error
+}
+
+// ── WOL History ──
+
+func (s *sqliteStore) ListWOLHistory(ctx context.Context, page, size int) ([]models.WOLHistory, int64, error) {
+	var records []models.WOLHistory
+	var total int64
+	s.db.WithContext(ctx).Model(&models.WOLHistory{}).Count(&total)
+	if err := s.db.WithContext(ctx).Order("created_at DESC").Offset((page - 1) * size).Limit(size).Find(&records).Error; err != nil {
+		return nil, 0, err
+	}
+	return records, total, nil
+}
+
+func (s *sqliteStore) ListWOLHistoryByMAC(ctx context.Context, mac string, limit int) ([]models.WOLHistory, error) {
+	var records []models.WOLHistory
+	if err := s.db.WithContext(ctx).Where("mac = ?", mac).Order("created_at DESC").Limit(limit).Find(&records).Error; err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+func (s *sqliteStore) CreateWOLHistory(ctx context.Context, h *models.WOLHistory) error {
+	return s.db.WithContext(ctx).Create(h).Error
+}
+
+func (s *sqliteStore) PruneWOLHistory(ctx context.Context, before time.Time) error {
+	return s.db.WithContext(ctx).Where("created_at < ?", before).Delete(&models.WOLHistory{}).Error
+}
+
+// ── WOL Schedule ──
+
+func (s *sqliteStore) ListWOLSchedules(ctx context.Context) ([]models.WOLSchedule, error) {
+	var schedules []models.WOLSchedule
+	if err := s.db.WithContext(ctx).Order("schedule_at ASC").Find(&schedules).Error; err != nil {
+		return nil, err
+	}
+	return schedules, nil
+}
+
+func (s *sqliteStore) GetWOLSchedule(ctx context.Context, id uint) (*models.WOLSchedule, error) {
+	var schedule models.WOLSchedule
+	if err := s.db.WithContext(ctx).First(&schedule, id).Error; err != nil {
+		return nil, err
+	}
+	return &schedule, nil
+}
+
+func (s *sqliteStore) CreateWOLSchedule(ctx context.Context, schedule *models.WOLSchedule) error {
+	return s.db.WithContext(ctx).Create(schedule).Error
+}
+
+func (s *sqliteStore) UpdateWOLSchedule(ctx context.Context, schedule *models.WOLSchedule) error {
+	return s.db.WithContext(ctx).Save(schedule).Error
+}
+
+func (s *sqliteStore) DeleteWOLSchedule(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.WOLSchedule{}, id).Error
 }

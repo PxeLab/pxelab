@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"crypto/sha256"
@@ -13,8 +13,8 @@ import (
 
 	"strings"
 
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/session"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/session"
 )
 
 type loginRateLimiter struct {

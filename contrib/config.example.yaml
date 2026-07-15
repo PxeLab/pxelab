@@ -1,5 +1,5 @@
 global:
-  data_dir: ~/.pxego
+  data_dir: ~/.pxelab
   app_mode: false
 
 interfaces:
@@ -18,13 +18,13 @@ interfaces:
         lease_time: 3600
 
 boot:
-  root_dir: /etc/pxego/boot
+  root_dir: /etc/pxelab/boot
 
 auth:
   token: ""
 
 store:
-  dsn: pxego.db
+  dsn: pxelab.db
 
 log:
   level: info

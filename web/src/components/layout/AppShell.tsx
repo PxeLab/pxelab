@@ -1,4 +1,4 @@
-import { type FC, type ReactNode, useState, useEffect, useCallback, useRef } from 'react'
+﻿import { type FC, type ReactNode, useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../../hooks/useTheme'
@@ -11,7 +11,7 @@ import SettingsModal from './SettingsModal'
 import {
   LayoutDashboard, Server, FileCode, Activity, Settings,
   Monitor, ShieldCheck, Network, Menu, ChevronRight, ChevronLeft,
-  HardDrive, Cpu,
+  HardDrive, Cpu, Wifi,
 } from 'lucide-react'
 
 interface NavItem {
@@ -38,6 +38,7 @@ const navSections = [
       { path: '/access-control', label: 'nav.accessControl', icon: ShieldCheck },
       { path: '/install-tasks', label: 'nav.installTasks', icon: HardDrive },
       { path: '/bmc', label: 'nav.bmc', icon: Cpu },
+      { path: '/wol', label: 'nav.wol', icon: Wifi },
     ] as NavItem[],
   },
   {
@@ -201,6 +202,7 @@ export const AppShell: FC<Props> = ({ children }) => {
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
   const { palette, setPalette } = usePalette()
+  const [macosCards, setMacosCards] = useState(() => localStorage.getItem('PxeLab-macos-cards') === 'true')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
@@ -215,6 +217,11 @@ export const AppShell: FC<Props> = ({ children }) => {
     }
     return initial
   })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('theme-macos', macosCards)
+    localStorage.setItem('PxeLab-macos-cards', String(macosCards))
+  }, [macosCards])
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
@@ -237,12 +244,14 @@ export const AppShell: FC<Props> = ({ children }) => {
   }
 
   return (
-    <div className="flex min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)]">
+    <div className={`flex min-h-screen text-[var(--text-primary)] ${macosCards ? '' : 'bg-[var(--bg-base)]'}`}>
       {/* Sidebar */}
       <aside
         className={`${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 fixed top-0 left-0 bottom-0 bg-[var(--bg-elevated)]/80 backdrop-blur-2xl border-r border-[var(--bg-border)] z-50 flex flex-col overflow-hidden transition-all duration-300 ${
+        } lg:translate-x-0 fixed top-0 left-0 bottom-0 z-50 flex flex-col overflow-hidden transition-all duration-300 ${
+          macosCards ? 'bg-[var(--bg-elevated)]/70 backdrop-blur-[40px] saturate-[1.5] border-r border-[var(--bg-border)]' : 'bg-[var(--bg-elevated)]/80 backdrop-blur-2xl border-r border-[var(--bg-border)]'
+        } ${
           sidebarCollapsed ? 'w-[64px]' : 'w-[200px]'
         }`}
       >
@@ -404,7 +413,7 @@ export const AppShell: FC<Props> = ({ children }) => {
           <div className="flex items-center gap-3">
             <ServiceDropdown />
             <LangSwitch />
-            <ThemeSwitcher theme={theme} palette={palette} onToggleTheme={toggleTheme} onChangePalette={setPalette} />
+            <ThemeSwitcher theme={theme} palette={palette} onToggleTheme={toggleTheme} onChangePalette={setPalette} macosCards={macosCards} onToggleMacOS={() => setMacosCards(v => !v)} />
           </div>
         </header>
 

@@ -1,4 +1,4 @@
-package config
+﻿package config
 
 import (
 	"path/filepath"
@@ -23,7 +23,7 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	v.SetConfigType("yaml")
 	v.AddConfigPath(".")
 	v.AddConfigPath(DefaultDataDir())
-	v.AddConfigPath("/etc/pxego")
+	v.AddConfigPath("/etc/pxelab")
 
 	if cfgPath != "" {
 		v.SetConfigFile(cfgPath)
@@ -48,7 +48,7 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	// dns defaults
 	v.SetDefault("dns.port", DefaultPortDNS)
 	v.SetDefault("dns.upstream", "")
-	v.SetDefault("dns.local_domain", "pxego.local")
+	v.SetDefault("dns.local_domain", "pxelab.local")
 
 	// netboot defaults
 	v.SetDefault("netboot.enabled", true)
@@ -85,7 +85,7 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	// 根据 data_dir 派生默认值
 	dd := cfg.Global.DataDir
 	if cfg.Store.DSN == "" && dd != "" {
-		cfg.Store.DSN = filepath.Join(dd, "pxego.db")
+		cfg.Store.DSN = filepath.Join(dd, "pxelab.db")
 	}
 	if cfg.Boot.RootDir == "" && dd != "" {
 		cfg.Boot.RootDir = filepath.Join(dd, "boot")

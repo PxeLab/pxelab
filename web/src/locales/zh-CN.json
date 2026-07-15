@@ -1,6 +1,6 @@
-{
+﻿{
   "app": {
-    "name": "PxeGo",
+    "name": "PxeLab",
     "tagline": "一体化 PXE 服务器"
   },
   "login": {
@@ -43,7 +43,8 @@
     "installTasks": "安装任务",
     "bmc": "带外管理",
     "answerTemplates": "应答模板",
-    "accessControl": "访问控制"
+    "accessControl": "访问控制",
+    "wol": "唤醒管理"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -107,7 +108,13 @@
       "taskDeleteFailed": "删除失败",
       "powerConfirm": "电源操作",
       "deleteTaskConfirm": "删除任务",
-      "deleteTaskMessage": "确定删除此任务？"
+      "deleteTaskMessage": "确定删除此任务？",
+      "wolWake": "WOL 唤醒",
+      "wolSent": "已发送 WOL 数据包至 {{mac}}",
+      "wolFailed": "WOL 唤醒失败",
+      "wolHistory": "WOL 唤醒记录",
+      "loadWOLHistory": "加载 WOL 记录",
+      "noWOLHistory": "暂无 WOL 唤醒记录"
     },
     "deleteConfirm": "确定要删除该主机吗？",
     "created": "主机已创建",
@@ -221,6 +228,7 @@
     "cmdlinePlaceholder": "例: console=tty0 quiet",
     "kernelPlaceholder": "vmlinuz 或 bootos/${arch}/vmlinuz",
     "initrdPlaceholder": "initrd.img 或 bootos/${arch}/initrd",
+    "uefiInitrdHint": "UEFI 注意：iPXE UEFI 版本缺少 bzImage 特性，可能导致 initrd 无法传递。如果启动卡死，请在命令行末尾添加 initrd=<文件名>（如 initrd=initrd.img）。",
     "chainUrlPlaceholder": "http://server/ipxe.efi 或 ${next-server}/bootmgr.efi",
     "sanUrlPlaceholder": "iscsi://server/iqn 或 http://server/centos7.iso",
     "ipxeScript": "iPXE 脚本"
@@ -381,12 +389,14 @@
     "nfsTitle": "NFS 设置",
     "nfsRoot": "NFS 根目录",
     "nfsRootHelp": "通过 NFS 导出的目录。将 ISO 文件放入此目录后，客户端 NFS 挂载即可访问。",
-    "nfsRootPlaceholder": "例如 ~/.pxego/isos",
+    "nfsRootPlaceholder": "例如 ~/.PxeLab/isos",
     "nfsReadOnly": "只读导出",
     "nfsReadOnlyHelp": "启用后客户端无法写入 NFS 共享，推荐用于 ISO 安装场景。",
     "nfsAllowIPs": "允许的 IP / 网段",
     "nfsAllowIPsHelp": "限制允许挂载 NFS 的客户端 IP 或 CIDR 范围，每行一个。留空表示不限制。",
     "nfsAllowIPsPlaceholder": "例如 192.168.1.0/24\n10.0.0.5",
+    "nfsAllowRestartHint": "更改允许的 IP 网段后需要重启 NFS 服务才能生效。",
+    "nfsRpcbindPort": "端口 111/UDP+TCP — Linux NFSv3 客户端需通过 rpcbind 发现 NFS 服务端口，Windows 上需要管理员权限。",
     "dnsTitle": "DNS 设置",
     "localDomain": "本地域名",
     "localDomainHelp": "DNS 记录中的主机名会以此域名后缀进行本地解析。例如 pxe-server → pxe-server.{domain}",
@@ -511,7 +521,7 @@
     "modalListAllProfiles": "列出所有引导配置作为菜单项",
     "modalListAllProfilesHelp": "关闭时只显示默认引导配置的项，开启时列出所有引导配置，默认配置排第一。",
     "modalServiceAutoStart": "服务自动启动",
-    "modalServiceAutoStartHelp": "开启后，对应服务将在 PxeGo 下次启动时自动运行（不影响当前运行状态）。",
+    "modalServiceAutoStartHelp": "开启后，对应服务将在 PxeLab 下次启动时自动运行（不影响当前运行状态）。",
     "modalInterfaceServices": "接口级服务（每个网卡独立配置）",
     "modalEnabled": "已开启",
     "modalDisabled": "已关闭"
@@ -571,6 +581,7 @@
     "items": "条",
     "viewAll": "查看全部",
     "serverName": "服务器名称",
+    "serverNameHint": "仅支持小写字母、数字和连字符，不能以连字符开头或结尾",
     "logLevel": "日志级别",
     "mode": "运行模式",
     "yes": "是",
@@ -861,5 +872,46 @@
     "palette_violet": "紫罗兰",
     "palette_rose": "玫瑰红",
     "palette_midnight": "午夜深蓝"
+  },
+  "wol": {
+    "title": "Wake-on-LAN",
+    "description": "远程唤醒网络设备",
+    "quickWake": "快速唤醒",
+    "macAddress": "MAC 地址",
+    "interface": "网卡接口",
+    "auto": "自动",
+    "wake": "唤醒",
+    "availableInterfaces": "可用网卡",
+    "noInterfaces": "没有可用网卡",
+    "history": "唤醒记录",
+    "schedules": "定时唤醒",
+    "newSchedule": "新建定时",
+    "mac": "MAC",
+    "host": "主机",
+    "broadcast": "广播地址",
+    "source": "源 IP",
+    "status": "状态",
+    "time": "时间",
+    "success": "成功",
+    "failed": "失败",
+    "noHistory": "暂无唤醒记录",
+    "pageInfo": "第 {{page}} 页 — 共 {{total}} 条",
+    "scheduleAt": "计划时间",
+    "repeat": "重复",
+    "lastRun": "上次执行",
+    "enabled": "已启用",
+    "disabled": "已停用",
+    "noSchedules": "暂无定时唤醒",
+    "once": "单次",
+    "daily": "每天",
+    "weekly": "每周",
+    "weekday": "工作日",
+    "invalidMac": "请输入有效的 MAC 地址",
+    "wakeSuccess": "已发送唤醒包至 {{mac}}",
+    "wakeFailed": "发送唤醒包失败",
+    "invalidSchedule": "请输入 MAC 地址和计划时间",
+    "scheduleCreated": "定时任务已创建",
+    "scheduleFailed": "创建定时任务失败",
+    "scheduleDeleted": "定时任务已删除"
   }
 }

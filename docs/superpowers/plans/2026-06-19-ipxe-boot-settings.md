@@ -1,4 +1,4 @@
-# iPXE 引导行为可视化管理 — 实施计划
+﻿# iPXE 引导行为可视化管理 — 实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -685,7 +685,7 @@ func generateIPXEScript(cfg *config.Config, st store.Interface, mac, serverAddr 
 	dm := cfg.Netboot.Boot.DefaultMenu
 	if len(dm.Entries) == 0 {
 		// backward-compat: minimal menu
-		dm.Title = "PxeGo Boot Menu"
+		dm.Title = "PxeLab Boot Menu"
 		dm.Timeout = 0
 		dm.Default = 0
 		dm.Entries = []config.MenuEntry{{Label: "Boot from local disk", Type: "local"}}
@@ -881,7 +881,7 @@ git commit -m "feat(web): add BootSettings type definition"
 
 ```typescript
 boot: {
-  default_menu: { title: 'PxeGo Boot Menu', timeout: 5000, default: 0, entries: [] as MenuEntry[] },
+  default_menu: { title: 'PxeLab Boot Menu', timeout: 5000, default: 0, entries: [] as MenuEntry[] },
   profile_behavior: { append_local: true, append_netboot: true, append_position: 'last' as const },
   catalog_redirect: { enabled: true, target_url: 'http://{{.URL}}/netboot/menu.ipxe?arch=${arch}&platform=${platform}', detect_arch: true, preamble: '' },
   catalog_display: {

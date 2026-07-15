@@ -1,0 +1,37 @@
+name: Clonezilla
+enabled: true
+menu_group: tools
+logo: clonezilla
+versions:
+  - codename: debian-stable
+    name: "Debian Stable"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-squash/releases/download/3.3.2-31-1a41a72c/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-squash/releases/download/3.3.2-31-1a41a72c/initrd
+    cmdline: "boot=live username=user union=overlay config components noswap edd=on nomodeset ocs_live_run=ocs-live-general ocs_live_batch=no net.ifnames=0 nosplash noprompt fetch=https://github.com/netbootxyz/debian-squash/releases/download/3.3.2-31-1a41a72c/filesystem.squashfs initrd=initrd"
+  - codename: ubuntu-stable
+    name: "Ubuntu Stable"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/20260525-resolute-b835723b/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/20260525-resolute-b835723b/initrd
+    cmdline: "boot=live username=user union=overlay config components noswap edd=on nomodeset ocs_live_run=ocs-live-general ocs_live_batch=no net.ifnames=0 nosplash noprompt fetch=https://github.com/netbootxyz/ubuntu-squash/releases/download/20260525-resolute-b835723b/filesystem.squashfs initrd=initrd"
+  - codename: debian-testing
+    name: "Debian Testing"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-squash/releases/download/3.3.2-30-8db01622/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-squash/releases/download/3.3.2-30-8db01622/initrd
+    cmdline: "boot=live username=user union=overlay config components noswap edd=on nomodeset ocs_live_run=ocs-live-general ocs_live_batch=no net.ifnames=0 nosplash noprompt fetch=https://github.com/netbootxyz/debian-squash/releases/download/3.3.2-30-8db01622/filesystem.squashfs initrd=initrd"
+  - codename: ubuntu-testing
+    name: "Ubuntu Testing"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/20260616-stonking-bea81d96/vmlinuz
+      initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/20260616-stonking-bea81d96/initrd
+    cmdline: "boot=live username=user union=overlay config components noswap edd=on nomodeset ocs_live_run=ocs-live-general ocs_live_batch=no net.ifnames=0 nosplash noprompt fetch=https://github.com/netbootxyz/ubuntu-squash/releases/download/20260616-stonking-bea81d96/filesystem.squashfs initrd=initrd"

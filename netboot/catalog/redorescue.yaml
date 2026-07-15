@@ -1,0 +1,12 @@
+name: RedoRescue
+enabled: true
+menu_group: tools
+versions:
+  - codename: "4.0.0"
+    name: "RedoRescue 4.0.0"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/4.0.0-000d2575/vmlinuz
+      initrd: https://github.com/netbootxyz/asset-mirror/releases/download/4.0.0-000d2575/initrd
+    cmdline: "boot=live noprompt nocomponents setkmap=us fetch=https://github.com/netbootxyz/asset-mirror/releases/download/4.0.0-000d2575/filesystem.squashfs initrd=initrd"

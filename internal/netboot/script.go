@@ -1,4 +1,4 @@
-package netboot
+﻿package netboot
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pxego/pxego/internal/config"
+	"github.com/pxelab/pxelab/internal/config"
 )
 
 var reLabelChars = regexp.MustCompile(`[^a-z0-9_]+`)
@@ -330,7 +330,7 @@ func sanitizeLabel(s string) string {
 	return reLabelChars.ReplaceAllString(strings.ToLower(s), "_")
 }
 
-// proxyRemoteURL rewrites HTTPS URLs to go through PxeGo's HTTP proxy,
+// proxyRemoteURL rewrites HTTPS URLs to go through PxeLab's HTTP proxy,
 // so that iPXE firmware without HTTPS support can fetch them.
 // When proxyHTTPS is false, the original URL is returned unchanged.
 func proxyRemoteURL(serverAddr, bootPrefix, remoteURL string, proxyHTTPS bool) string {

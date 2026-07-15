@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 
 type Theme = 'dark' | 'light'
 
-const STORAGE_KEY = 'pxego-theme'
+const STORAGE_KEY = 'PxeLab-theme'
 
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'dark'

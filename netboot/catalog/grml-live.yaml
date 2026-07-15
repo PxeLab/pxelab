@@ -1,0 +1,20 @@
+name: Grml Live
+enabled: true
+menu_group: live
+versions:
+  - codename: "2026.04-full"
+    name: "2026.04 Full"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-squash/releases/download/2026.04-23b18cd7/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-squash/releases/download/2026.04-23b18cd7/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/2026.04-23b18cd7/filesystem.squashfs initrd=initrd"
+  - codename: "2026.04-small"
+    name: "2026.04 Small"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-squash/releases/download/2026.04-410a8803/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-squash/releases/download/2026.04-410a8803/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/2026.04-410a8803/filesystem.squashfs initrd=initrd"

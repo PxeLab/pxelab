@@ -1,8 +1,8 @@
-# Access Control — 黑白名单实现计划
+﻿# Access Control — 黑白名单实现计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add MAC-based blacklist (global) and whitelist (subnet-level) filtering to PxeGo's DHCP handler, with full CRUD API and web UI.
+**Goal:** Add MAC-based blacklist (global) and whitelist (subnet-level) filtering to PxeLab's DHCP handler, with full CRUD API and web UI.
 
 **Architecture:** Config YAML holds toggle switches + seed MAC entries; SQLite stores runtime entries; DHCP handler queries DB on every request (real-time). Two new DB tables, one new API handler, one new frontend page.
 
@@ -211,7 +211,7 @@ package store
 import (
     "context"
 
-    "github.com/pxego/pxego/internal/models"
+    "github.com/pxelab/pxelab/internal/models"
 )
 
 // ── Blacklist ──
@@ -421,8 +421,8 @@ import (
     "strconv"
 
     "github.com/go-chi/chi/v5"
-    "github.com/pxego/pxego/internal/models"
-    "github.com/pxego/pxego/internal/store"
+    "github.com/pxelab/pxelab/internal/models"
+    "github.com/pxelab/pxelab/internal/store"
 )
 
 type AccessHandler struct {
@@ -656,7 +656,7 @@ git commit -m "feat: expose whitelist_enabled toggle through settings API"
 ### Task 8: Seed import at startup
 
 **Files:**
-- Modify: `cmd/pxego/main.go`
+- Modify: `cmd/pxelab/main.go`
 
 - [ ] **Step 1: Add seed import after st.Seed() in run()**
 
@@ -713,7 +713,7 @@ Insert after `st.Seed()` but before `defer st.Close()`:
 
 - [ ] **Step 2: Add models import if not already present**
 
-Check the imports at top of `cmd/pxego/main.go` — `models` should already be imported via other uses. If not, add it.
+Check the imports at top of `cmd/pxelab/main.go` — `models` should already be imported via other uses. If not, add it.
 
 - [ ] **Step 3: Build and verify**
 
@@ -723,7 +723,7 @@ Expected: no errors
 - [ ] **Step 4: Commit**
 
 ```bash
-git add cmd/pxego/main.go
+git add cmd/pxelab/main.go
 git commit -m "feat: import blacklist/whitelist seed entries from config at startup"
 ```
 

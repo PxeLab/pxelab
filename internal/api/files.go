@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"crypto/md5"
@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pxego/pxego/internal/boot"
+	"github.com/pxelab/pxelab/internal/boot"
 )
 
 type FileHandler struct {

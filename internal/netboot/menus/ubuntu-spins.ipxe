@@ -1,0 +1,27 @@
+#!ipxe
+
+goto ${menu} ||
+
+:live_menu
+set os Ubuntu Spins
+menu ${os}
+item --gap ${os} Versions
+item spins_0.0.5 ${space} ${os} 0.0.5
+choose ubuntu_spins || goto live_exit
+menu ${os}
+item --gap ${os} Flavors
+goto ${ubuntu_spins}
+
+:spins_0.0.5
+set kernel_url ${live_endpoint}/asset-mirror/releases/download/0.0.5-d0cf8373/
+goto boot
+
+:boot
+imgfree
+kernel ${kernel_url}vmlinuz iso-chooser-menu boot=casper ip=dhcp initrd=initrd.magic ${cmdline}
+initrd ${kernel_url}initrd
+boot
+
+:live_exit
+clear menu
+exit 0

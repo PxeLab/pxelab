@@ -1,4 +1,4 @@
-# iPXE 引导行为可视化管理设计
+﻿# iPXE 引导行为可视化管理设计
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this spec task-by-task.
 
@@ -19,7 +19,7 @@ netboot:
   script_template: ""          # 非空时完全覆盖所有引导逻辑（逃生口）
   boot:
     default_menu:
-      title: "PxeGo Boot Menu"
+      title: "PxeLab Boot Menu"
       timeout: 5000
       default: 0
       entries:

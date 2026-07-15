@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"encoding/json"
@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/pxego/pxego/internal/models"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 type DHCPReservationHandler struct {

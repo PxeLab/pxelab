@@ -1,4 +1,4 @@
-package httpd
+﻿package httpd
 
 import (
 	"bytes"
@@ -18,16 +18,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
-	"github.com/pxego/pxego/internal/api"
-	"github.com/pxego/pxego/internal/boot"
-	"github.com/pxego/pxego/internal/boot/ipxe"
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/models"
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/netboot"
-	"github.com/pxego/pxego/internal/netboot/menus"
-	"github.com/pxego/pxego/internal/session"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/api"
+	"github.com/pxelab/pxelab/internal/boot"
+	"github.com/pxelab/pxelab/internal/boot/ipxe"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/netboot"
+	"github.com/pxelab/pxelab/internal/netboot/menus"
+	"github.com/pxelab/pxelab/internal/session"
+	"github.com/pxelab/pxelab/internal/store"
 	"os"
 	"path/filepath"
 	"time"
@@ -45,7 +45,7 @@ type Server struct {
 	sessions   *session.Store
 }
 
-func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager, clientInfo func(ip string) (arch, platform string, ok bool), svcController api.ServiceController, sessions *session.Store) *Server {
+func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager, clientInfo func(ip string) (arch, platform string, ok bool), svcController api.ServiceController, sessions *session.Store, setNFSAllowIPs func(ips []string)) *Server {
 	r := chi.NewRouter()
 	r.Use(slogMiddleware)
 	r.Use(chimw.Recoverer)
@@ -57,7 +57,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader, netbootMgr, svcController, sessions)
+	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader, netbootMgr, svcController, sessions, setNFSAllowIPs)
 	apiHandler.RegisterRoutes(r)
 
 	// iPXE 引导脚本端点（配置驱动决策树）
@@ -164,7 +164,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			fmt.Fprintf(w, "#!ipxe\n")
 			fmt.Fprintf(w, "set boot_domain %s/netboot/menu\n", r.Host)
-			fmt.Fprintf(w, "set site_name PxeGo Netboot\n")
+			fmt.Fprintf(w, "set site_name PxeLab Netboot\n")
 			fmt.Fprintf(w, "chain http://${boot_domain}/menu.ipxe\n")
 		})
 
@@ -396,7 +396,7 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 
 	// 4. 默认引导菜单
 	var ipxeEntries []ipxe.MenuEntryData
-	menuTitle := "PxeGo Boot Menu"
+	menuTitle := "PxeLab Boot Menu"
 
 	if defProfile, err := st.GetDefaultProfile(ctx); err == nil && defProfile != nil {
 		if bootMenu, err := defProfile.GetMenu(); err == nil && len(bootMenu.Entries) > 0 {
@@ -419,7 +419,7 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 
 			if cfg.Netboot.Boot.DefaultMenu.ListAllProfiles {
 				// 全部展示模式：列出所有 Profile，默认 Profile 排第一
-				menuTitle = "PxeGo Boot Menu"
+				menuTitle = "PxeLab Boot Menu"
 				ipxeEntries = append(ipxeEntries, makeEntry(defProfile.Name, entry))
 				if allProfiles, err := st.ListProfiles(ctx); err == nil {
 					for _, p := range allProfiles {
@@ -583,7 +583,7 @@ func generateFailsafeScript(serverAddr, mac string) string {
 	chainURL := fmt.Sprintf("http://%s/boot/ipxe/menu?mac=%s", serverAddr, mac)
 	fmt.Fprintf(&b, "set chain-url %s\n", chainURL)
 	b.WriteString("\n:fs_failsafe\n")
-	b.WriteString("menu PxeGo Failsafe Menu\n")
+	b.WriteString("menu PxeLab Failsafe Menu\n")
 	b.WriteString("item --gap System Operations\n")
 	b.WriteString("item fs_localboot    Boot from local drive\n")
 	b.WriteString("item fs_netconfig    Manual network configuration\n")
@@ -699,7 +699,7 @@ func (s *Server) Stop(ctx context.Context) error {
 func netbootCacheDir(cfg *config.Config) string {
 	dd := cfg.Global.DataDir
 	if dd == "" {
-		dd = ".pxego"
+		dd = ".pxelab"
 	}
 	return filepath.Join(dd, "cache", "netboot")
 }

@@ -1,8 +1,8 @@
-# 访问控制 — 黑白名单设计
+﻿# 访问控制 — 黑白名单设计
 
 ## 概述
 
-在 PxeGo 的 DHCP handler 中增加基于 MAC 的黑名单（全局）和白名单（子网级）过滤。黑名单 MAC 在 DHCP 层面静默忽略；开启了白名单的子网只响应已知 MAC。
+在 PxeLab 的 DHCP handler 中增加基于 MAC 的黑名单（全局）和白名单（子网级）过滤。黑名单 MAC 在 DHCP 层面静默忽略；开启了白名单的子网只响应已知 MAC。
 
 ## Config 模型
 
@@ -92,7 +92,7 @@ type WhitelistStore interface {
 
 ## 启动时种子导入
 
-在 `cmd/pxego/main.go` 中，`st.Migrate()` 之后、服务启动之前：
+在 `cmd/pxelab/main.go` 中，`st.Migrate()` 之后、服务启动之前：
 
 ```go
 for _, entry := range cfg.BlacklistSeeds {
@@ -152,7 +152,7 @@ General tab 增加「全局白名单开关」toggle。
 | API | `internal/api/handler.go` | 路由注册 |
 | API | `internal/api/access.go` | 新文件 |
 | API | `internal/api/settings.go` | 白名单开关传递 |
-| 入口 | `cmd/pxego/main.go` | 种子导入 |
+| 入口 | `cmd/pxelab/main.go` | 种子导入 |
 | UI | `web/src/pages/AccessControl.tsx` | 新文件 |
 | UI | `web/src/App.tsx` | 路由 |
 | UI | `web/src/components/layout/AppShell.tsx` | 菜单项 |

@@ -1,9 +1,9 @@
-package netboot
+﻿package netboot
 
 import (
 	"strings"
 
-	"github.com/pxego/pxego/internal/models"
+	"github.com/pxelab/pxelab/internal/models"
 )
 
 // VersionOverrideApply applies overlay version overrides to a Version.

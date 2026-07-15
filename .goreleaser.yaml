@@ -7,9 +7,9 @@ before:
     - cd web && npm ci && npm run build
 
 builds:
-  - id: pxego
-    main: ./cmd/pxego
-    binary: pxego
+  - id: pxelab
+    main: ./cmd/pxelab
+    binary: pxelab
     env:
       - CGO_ENABLED=0
     goos:
@@ -40,8 +40,8 @@ archives:
       - LICENSE
       - README.md
       - contrib/config.example.yaml
-      - contrib/pxego.service
-      - contrib/com.pxego.plist
+      - contrib/pxelab.service
+      - contrib/com.pxelab.plist
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
@@ -70,48 +70,48 @@ changelog:
 
 release:
   github:
-    owner: pxego
-    name: pxego
+    owner: pxelab
+    name: pxelab
   draft: true
   prerelease: auto
 
 nfpms:
   - id: packages
-    package_name: pxego
+    package_name: pxelab
     file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    vendor: PxeGo
-    homepage: https://github.com/pxego/pxego
-    maintainer: PxeGo Team
+    vendor: PxeLab
+    homepage: https://github.com/pxelab/pxelab
+    maintainer: PxeLab Team
     description: All-in-one PXE server (DHCP/TFTP/DNS/HTTP)
     license: MIT
     formats:
       - deb
       - rpm
     contents:
-      - src: contrib/pxego.service
-        dst: /etc/systemd/system/pxego.service
+      - src: contrib/pxelab.service
+        dst: /etc/systemd/system/pxelab.service
         type: config
       - src: contrib/config.example.yaml
-        dst: /etc/pxego/config.yaml
+        dst: /etc/pxelab/config.yaml
         type: config
     scripts:
       postinstall: contrib/postinstall.sh
 
 brews:
-  - name: pxego
+  - name: pxelab
     repository:
-      owner: pxego
+      owner: pxelab
       name: homebrew-tap
-    homepage: https://github.com/pxego/pxego
+    homepage: https://github.com/pxelab/pxelab
     description: All-in-one PXE server
     license: MIT
     commit_author:
       name: goreleaserbot
-      email: bot@pxego.dev
+      email: bot@pxelab.com
     install: |
-      bin.install "pxego"
-      (etc/"pxego").install "contrib/config.example.yaml"
+      bin.install "pxelab"
+      (etc/"pxelab").install "contrib/config.example.yaml"
     service: |
-      run [opt_bin/"pxego"]
+      run [opt_bin/"pxelab"]
       keep_alive true
       run_at_load true

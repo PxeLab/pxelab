@@ -1,7 +1,8 @@
-package api
+﻿package api
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -15,7 +16,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pxego/pxego/internal/config"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/store"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,13 +28,15 @@ type SubnetReloader interface {
 }
 
 type SettingsHandler struct {
-	cfg      *config.Config
-	reloader SubnetReloader
-	mu       sync.Mutex
+	cfg           *config.Config
+	store         store.Interface
+	reloader      SubnetReloader
+	setNFSAllowIPs func(ips []string)
+	mu            sync.Mutex
 }
 
-func NewSettingsHandler(cfg *config.Config, reloader SubnetReloader) *SettingsHandler {
-	return &SettingsHandler{cfg: cfg, reloader: reloader}
+func NewSettingsHandler(cfg *config.Config, st store.Interface, reloader SubnetReloader, setNFSAllowIPs func(ips []string)) *SettingsHandler {
+	return &SettingsHandler{cfg: cfg, store: st, reloader: reloader, setNFSAllowIPs: setNFSAllowIPs}
 }
 
 type SettingsResponse struct {
@@ -253,7 +258,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if cfg.Global.ServerName == "" {
-		cfg.Global.ServerName = "pxego"
+		cfg.Global.ServerName = "PxeLab"
 	}
 	if cfg.Global.ListenAddr == "" {
 		cfg.Global.ListenAddr = ":8080"
@@ -622,7 +627,7 @@ func (h *SettingsHandler) GetGeneral(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if cfg.Global.ServerName == "" {
-		cfg.Global.ServerName = "pxego"
+		cfg.Global.ServerName = "PxeLab"
 	}
 	if cfg.Global.ListenAddr == "" {
 		cfg.Global.ListenAddr = ":8080"
@@ -660,6 +665,7 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 	}
 
 	oldDataDir := h.cfg.Global.DataDir
+	oldServerName := h.cfg.Global.ServerName
 
 	// 校验 data_dir 路径是否可用
 	if req.DataDir != "" {
@@ -668,7 +674,7 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 			Error(w, http.StatusBadRequest, "数据目录无法创建: "+err.Error())
 			return
 		}
-		testFile := filepath.Join(cleaned, ".pxego_write_test")
+		testFile := filepath.Join(cleaned, ".pxelab_write_test")
 		if err := os.WriteFile(testFile, []byte{}, 0644); err != nil {
 			Error(w, http.StatusBadRequest, "数据目录不可写: "+err.Error())
 			return
@@ -719,6 +725,36 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
 		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
 		return
+	}
+
+	// 服务器名称变更时同步 DNS 记录
+	if h.store != nil && h.cfg.DNS.LocalDomain != "" && oldServerName != req.ServerName {
+		if oldServerName != "" && oldServerName != "@" {
+			oldRecords, _ := h.store.FindDNSRecords(context.Background(), oldServerName, "A", "")
+			for _, rec := range oldRecords {
+				_ = h.store.DeleteDNSRecord(context.Background(), rec.ID)
+			}
+		}
+		if req.ServerName != "" && req.ServerName != "@" {
+			existing, _ := h.store.FindDNSRecords(context.Background(), req.ServerName, "A", "")
+			if len(existing) == 0 {
+				serverIP := "127.0.0.1"
+				for _, iface := range h.cfg.Interfaces {
+					ip := net.ParseIP(iface.IP)
+					if ip != nil && !ip.IsLoopback() {
+						serverIP = iface.IP
+						break
+					}
+				}
+				_ = h.store.CreateDNSRecord(context.Background(), &models.DNSRecord{
+					Name:    req.ServerName,
+					Type:    "A",
+					Value:   serverIP,
+					TTL:     300,
+					Enabled: true,
+				})
+			}
+		}
 	}
 
 	OK(w, map[string]string{"status": "saved"})
@@ -1089,6 +1125,10 @@ func (h *SettingsHandler) UpdateNFS(w http.ResponseWriter, r *http.Request) {
 	h.cfg.NFS.AllowIPs = req.AllowIPs
 	h.mu.Unlock()
 
+	if h.setNFSAllowIPs != nil {
+		h.setNFSAllowIPs(req.AllowIPs)
+	}
+
 	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
 		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
 		return
@@ -1157,7 +1197,7 @@ type CacheStatsResponse struct {
 func (h *SettingsHandler) GetCacheStats(w http.ResponseWriter, r *http.Request) {
 	dd := h.cfg.Global.DataDir
 	if dd == "" {
-		dd = ".pxego"
+		dd = ".pxelab"
 	}
 	cacheDir := filepath.Join(dd, "cache", "netboot")
 

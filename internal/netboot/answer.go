@@ -1,11 +1,11 @@
-package netboot
+﻿package netboot
 
 import (
 	"bytes"
 	"strings"
 	"text/template"
 
-	"github.com/pxego/pxego/internal/models"
+	"github.com/pxelab/pxelab/internal/models"
 )
 
 // AnswerData holds all variables available to answer templates.

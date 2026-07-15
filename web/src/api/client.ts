@@ -1,4 +1,4 @@
-export interface Host {
+﻿export interface Host {
   id: string
   name: string
   mac: string
@@ -104,7 +104,7 @@ let baseURL = ''
 
 function loadSession(): string | null {
   try {
-    return localStorage.getItem('pxego_session')
+    return localStorage.getItem('PxeLab_session')
   } catch {
     return null
   }
@@ -113,7 +113,7 @@ function loadSession(): string | null {
 function saveSession(token: string) {
   sessionToken = token
   try {
-    localStorage.setItem('pxego_session', token)
+    localStorage.setItem('PxeLab_session', token)
   } catch {}
 }
 
@@ -126,8 +126,8 @@ export function setSessionToken(token: string) {
 export function clearSession() {
   sessionToken = null
   try {
-    localStorage.removeItem('pxego_session')
-    localStorage.removeItem('pxego_auth_token')
+    localStorage.removeItem('PxeLab_session')
+    localStorage.removeItem('PxeLab_auth_token')
   } catch {}
 }
 
@@ -990,11 +990,139 @@ export function updateAutoStart(name: string, enabled: boolean): Promise<ApiResp
   return request<ServiceInfo>('PUT', `/services/${encodeURIComponent(name)}/auto-start`, { enabled })
 }
 
+// ── Metrics ──
+export interface TimeBucket {
+  t: number
+  v: number
+}
+
+export interface ServiceMetricSnapshot {
+  requests: number
+  errors: number
+  bytesIn: number
+  bytesOut: number
+  activeConns: number
+  rejected: number
+  requestRate: TimeBucket[]
+  errorRate: TimeBucket[]
+  bandwidth: TimeBucket[]
+  latencyMs: TimeBucket[]
+}
+
+export interface DHCPMetricExtra {
+  offers: number
+  acks: number
+  naks: number
+  declines: number
+  discovers: number
+  requests: number
+  unauthorized: number
+  activeLeases: number
+  archBreakdown: Record<string, number>
+  platformBreakdown: Record<string, number>
+}
+
+export interface HTTPMetricExtra {
+  status2xx: number
+  status3xx: number
+  status4xx: number
+  status5xx: number
+  duration: TimeBucket[]
+}
+
+export interface MetricServiceData {
+  metrics: ServiceMetricSnapshot
+  dhcp?: DHCPMetricExtra
+  http?: HTTPMetricExtra
+}
+
+export interface MetricsSnapshot {
+  services: Record<string, MetricServiceData>
+}
+
+// ── WOL ──
+export interface WOLHistoryRecord {
+  id: number
+  mac: string
+  host_name: string
+  broadcast: string
+  source_ip: string
+  success: boolean
+  error_msg?: string
+  created_at: string
+}
+
+export interface WOLSchedule {
+  id: number
+  mac: string
+  host_name: string
+  schedule_at: string
+  cron_expr?: string
+  repeat_type: string
+  enabled: boolean
+  last_run?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface WOLInterface {
+  name: string
+  ips: string[]
+}
+
+export interface BatchWakeResult {
+  mac: string
+  host_name: string
+  success: boolean
+  broadcast: string
+  error?: string
+}
+
+export function batchWakeHosts(req: { ids?: string[]; macs?: string[]; interface?: string }): Promise<ApiResponse<{ results: BatchWakeResult[]; success_count: number; total: number }>> {
+  return request('POST', '/hosts/batch/wake', req)
+}
+
+export function getWOLHistory(page = 1, size = 20): Promise<ApiResponse<{ records: WOLHistoryRecord[]; total: number; page: number; size: number }>> {
+  return request('GET', `/wol/history?page=${page}&size=${size}`)
+}
+
+export function getWOLHistoryByMAC(mac: string): Promise<ApiResponse<{ records: WOLHistoryRecord[] }>> {
+  return request('GET', `/wol/history/${encodeURIComponent(mac)}`)
+}
+
+export function createWOLSchedule(mac: string, scheduleAt: string, cronExpr?: string, repeatType = 'once'): Promise<ApiResponse<WOLSchedule>> {
+  return request('POST', '/wol/schedule', { mac, schedule_at: scheduleAt, cron_expr: cronExpr, repeat_type: repeatType })
+}
+
+export function getWOLSchedules(): Promise<ApiResponse<{ schedules: WOLSchedule[] }>> {
+  return request('GET', '/wol/schedules')
+}
+
+export function deleteWOLSchedule(id: number): Promise<ApiResponse<{ message: string }>> {
+  return request('DELETE', `/wol/schedule/${id}`)
+}
+
+export function getWOLInterfaces(): Promise<ApiResponse<WOLInterface[]>> {
+  return request('GET', '/wol/interfaces')
+}
+
+export function getMetrics(): Promise<ApiResponse<MetricsSnapshot>> {
+  return request<MetricsSnapshot>('GET', '/metrics')
+}
+
 // ── Convenience namespace (backward-compat) ──
 export const api = {
   getStatus,
+  getMetrics,
   getHosts,
   getHost,
+  batchWakeHosts,
+  getWOLHistory,
+  getWOLHistoryByMAC,
+  createWOLSchedule,
+  getWOLSchedules,
+  deleteWOLSchedule,
+  getWOLInterfaces,
   createHost,
   updateHost,
   deleteHost,

@@ -1,17 +1,17 @@
-package api
+﻿package api
 
 import (
 	"path/filepath"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/pxego/pxego/internal/boot"
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/ipmi"
-	"github.com/pxego/pxego/internal/netboot"
-	"github.com/pxego/pxego/internal/servicemanager"
-	"github.com/pxego/pxego/internal/session"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/boot"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/ipmi"
+	"github.com/pxelab/pxelab/internal/netboot"
+	"github.com/pxelab/pxelab/internal/servicemanager"
+	"github.com/pxelab/pxelab/internal/session"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 // ServiceController 服务生命周期管理接口
@@ -51,16 +51,16 @@ type Handler struct {
 	sessions        *session.Store
 }
 
-func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store) *Handler {
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store, setNFSAllowIPs func(ips []string)) *Handler {
 	h := &Handler{
 		Host:            &HostHandler{store: st},
 		Profile:         &ProfileHandler{store: st, netbootMgr: netbootMgr},
 		Event:           NewEventHandler(st, bus),
 		File:            &FileHandler{bootFS: bootFS},
-		WOL:             &WOLHandler{store: st},
+		WOL:             &WOLHandler{store: st, config: cfg, eventBus: bus},
 		IPMI:            &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
 		Lease:           &LeaseHandler{store: st, config: cfg},
-		Settings:        NewSettingsHandler(cfg, reloader),
+		Settings:        NewSettingsHandler(cfg, st, reloader, setNFSAllowIPs),
 		Logs:            NewLogStreamHandler(bus, logDir(cfg)),
 		Netboot:         NewNetbootHandler(netbootMgr),
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
@@ -81,6 +81,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/status", h.Status)
+		r.Get("/metrics", h.Metrics)
 
 		// Auth routes (public — login, session check)
 		r.Post("/auth/login", h.Auth.Login)
@@ -222,6 +223,15 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/dhcp/reservations/{id}", h.DHCPReservation.Update)
 		r.Delete("/dhcp/reservations/{id}", h.DHCPReservation.Delete)
 
+		// WOL
+		r.Post("/hosts/batch/wake", h.WOL.BatchWake)
+		r.Get("/wol/history", h.WOL.ListHistory)
+		r.Get("/wol/history/{mac}", h.WOL.ListHistoryByMAC)
+		r.Post("/wol/schedule", h.WOL.CreateSchedule)
+		r.Get("/wol/schedules", h.WOL.ListSchedules)
+		r.Delete("/wol/schedule/{id}", h.WOL.DeleteSchedule)
+		r.Get("/wol/interfaces", h.WOL.ListInterfaces)
+
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)
 		r.Get("/netboot/answer/{task_id}", h.InstallTask.GetAnswerFile)
@@ -231,7 +241,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 func logDir(cfg *config.Config) string {
 	dd := cfg.Global.DataDir
 	if dd == "" {
-		dd = ".pxego"
+		dd = ".pxelab"
 	}
 	if cfg.Log.File != "" {
 		return filepath.Dir(cfg.Log.File)

@@ -1,0 +1,72 @@
+#!ipxe
+
+goto ${menu} ||
+
+:live_menu
+set os Debian Live
+menu ${os}
+item --gap ${os} Versions
+item trixie ${space} ${os} 13 (trixie)
+choose live_version || goto live_exit
+menu ${os} ${live_version}
+item --gap ${os} Flavors
+goto ${live_version}
+
+:trixie
+item debian-13-cinnamon-squash ${space} Debian 13.4.0 Cinnamon
+item debian-13-default-squash ${space} Debian 13.4.0 Core
+item debian-13-gnome-squash ${space} Debian 13.4.0 Gnome
+item debian-13-kde-squash ${space} Debian 13.4.0 Kde
+item debian-13-lxde-squash ${space} Debian 13.4.0 Lxde
+item debian-13-lxqt-squash ${space} Debian 13.4.0 Lxqt
+item debian-13-mate-squash ${space} Debian 13.4.0 Mate
+item debian-13-xfce-squash ${space} Debian 13.4.0 Xfce
+goto flavor_select
+
+:flavor_select
+choose flavor || goto live_menu
+echo ${cls}
+goto ${flavor} ||
+
+:debian-13-cinnamon-squash
+set squash_url ${live_endpoint}/debian-squash/releases/download/13.4.0-bcf1dab7/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-core-13/releases/download/13.4.0-0a426450/
+goto boot
+:debian-13-default-squash
+set squash_url ${live_endpoint}/debian-squash/releases/download/13.4.0-9d9b777e/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-core-13/releases/download/13.4.0-0a426450/
+goto boot
+:debian-13-gnome-squash
+set squash_url ${live_endpoint}/debian-squash/releases/download/13.4.0-0aea8fe2/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-core-13/releases/download/13.4.0-0a426450/
+goto boot
+:debian-13-kde-squash
+set squash_url ${live_endpoint}/debian-squash/releases/download/13.4.0-c5f83616/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-core-13/releases/download/13.4.0-0a426450/
+goto boot
+:debian-13-lxde-squash
+set squash_url ${live_endpoint}/debian-squash/releases/download/13.4.0-98209c44/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-core-13/releases/download/13.4.0-0a426450/
+goto boot
+:debian-13-lxqt-squash
+set squash_url ${live_endpoint}/debian-squash/releases/download/13.4.0-6936b7a0/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-core-13/releases/download/13.4.0-0a426450/
+goto boot
+:debian-13-mate-squash
+set squash_url ${live_endpoint}/debian-squash/releases/download/13.4.0-f3c0e3ad/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-core-13/releases/download/13.4.0-0a426450/
+goto boot
+:debian-13-xfce-squash
+set squash_url ${live_endpoint}/debian-squash/releases/download/13.4.0-5048a26b/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-core-13/releases/download/13.4.0-0a426450/
+goto boot
+
+:boot
+imgfree
+kernel ${kernel_url}vmlinuz boot=live fetch=${squash_url} initrd=initrd.magic ${cmdline}
+initrd ${kernel_url}initrd
+boot
+
+:live_exit
+clear menu
+exit 0

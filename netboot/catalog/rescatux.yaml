@@ -1,0 +1,12 @@
+name: Rescatux
+enabled: true
+menu_group: tools
+versions:
+  - codename: current
+    name: "Rescatux"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/debian-squash/releases/download/0.72-beta8-2568400c/vmlinuz
+      initrd: https://github.com/netbootxyz/debian-squash/releases/download/0.72-beta8-2568400c/initrd
+    cmdline: "boot=live fetch=https://github.com/netbootxyz/debian-squash/releases/download/0.72-beta8-2568400c/filesystem.squashfs selinux=1 security=selinux enforcing=0 initrd=initrd"

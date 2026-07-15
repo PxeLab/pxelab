@@ -1,0 +1,22 @@
+name: FreeDOS
+enabled: true
+menu_group: dos
+mirror: http://www.ibiblio.org
+local_base: netboot/freedos
+versions:
+    - codename: FD14-FullUSB
+      name: 1.4 Full Installer
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/1.4/FD14-FullUSB/amd64/linux
+        initrd: http://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/1.4/FD14-FullUSB/amd64/initrd.gz
+      install_type: legacy
+    - codename: FD14-LiteUSB
+      name: 1.4 Lite Installer
+      arch: amd64
+      enabled: true
+      remote:
+        kernel: http://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/1.4/FD14-LiteUSB/amd64/linux
+        initrd: http://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/1.4/FD14-LiteUSB/amd64/initrd.gz
+      install_type: legacy

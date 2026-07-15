@@ -74,6 +74,7 @@ func TestVersionAwareListener_RejectsNFSv4(t *testing.T) {
 	binary.Write(&call, binary.BigEndian, uint32(2))      // rpcvers
 	binary.Write(&call, binary.BigEndian, uint32(100003)) // prog (NFS)
 	binary.Write(&call, binary.BigEndian, uint32(4))      // vers (v4)
+	binary.Write(&call, binary.BigEndian, uint32(0))      // proc (any)
 
 	callData := call.Bytes()
 	marker := make([]byte, 4)
@@ -141,6 +142,7 @@ func TestVersionAwareListener_PassesNFSv3(t *testing.T) {
 	binary.Write(&call, binary.BigEndian, uint32(2))      // rpcvers
 	binary.Write(&call, binary.BigEndian, uint32(100003)) // prog (NFS)
 	binary.Write(&call, binary.BigEndian, uint32(3))      // vers (v3)
+	binary.Write(&call, binary.BigEndian, uint32(0))      // proc (any)
 
 	callData := call.Bytes()
 	marker := make([]byte, 4)
@@ -152,8 +154,8 @@ func TestVersionAwareListener_PassesNFSv3(t *testing.T) {
 		if c == nil {
 			t.Fatal("nil connection accepted")
 		}
-		// Verify buffered data (24 bytes) is intact
-		buf := make([]byte, 24)
+		// Verify buffered data (28 bytes) is intact
+		buf := make([]byte, 28)
 		if _, err := c.Read(buf); err != nil {
 			t.Fatalf("reading buffered data: %v", err)
 		}

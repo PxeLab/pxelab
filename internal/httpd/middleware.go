@@ -1,4 +1,4 @@
-package httpd
+﻿package httpd
 
 import (
 	"crypto/sha256"
@@ -10,9 +10,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/session"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/metrics"
+	"github.com/pxelab/pxelab/internal/session"
 )
+
+var httpMetrics = metrics.DefaultRegistry.GetOrCreate("http")
+var httpTracker = metrics.NewHTTPTracker()
+
+func init() {
+	metrics.DefaultRegistry.SetHTTPTracker(httpTracker)
+}
 
 // responseWriter wraps http.ResponseWriter to capture status code and size.
 type responseWriter struct {
@@ -45,15 +53,21 @@ func slogMiddleware(next http.Handler) http.Handler {
 		wr := &responseWriter{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(wr, r)
 
+		dur := time.Since(start)
+		httpMetrics.RecordRequest()
+		httpMetrics.RecordBytes(int64(wr.size), true)
+		httpMetrics.RecordLatency(float64(dur.Milliseconds()))
+		httpTracker.RecordStatus(wr.status)
+		httpTracker.RecordDuration(float64(dur.Milliseconds()))
+
 		attrs := []any{
 			"service", "HTTP",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", wr.status,
 			"size", wr.size,
-			"duration", time.Since(start).String(),
+			"duration", dur.String(),
 		}
-		// Include client IP and MAC when present in query
 		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
 			attrs = append(attrs, "remote", host)
 		}
@@ -69,6 +83,7 @@ func slogMiddleware(next http.Handler) http.Handler {
 // 与 api/handler.go 中的路由注册保持同步。
 var publicAPIPaths = []string{
 	"/api/v1/status",
+	"/api/v1/metrics",
 	"/api/v1/events/stream",
 	"/api/v1/logs/stream",
 	"/api/v1/auth/",

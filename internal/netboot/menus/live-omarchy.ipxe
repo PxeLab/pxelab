@@ -1,0 +1,31 @@
+#!ipxe
+
+# Omarchy Operating System
+# https://omarchy.org
+
+goto ${menu} ||
+
+:live_menu
+set os Omarchy
+menu ${os}
+set ipparam BOOTIF=${netX/mac} ip=dhcp net.ifnames=0
+item --gap ${os} Versions
+item 3.6.0 ${space} ${os} 3.6.0
+choose live_version || goto live_exit
+goto ${live_version}
+
+:3.6.0
+set url ${live_endpoint}/asset-mirror/releases/download/3.6.0-3957667a/
+goto boot
+
+
+:boot
+imgfree
+kernel ${url}vmlinuz ${ipparam} archiso_http_srv=${url} cow_spacesize=10G copytoram=auto module_blacklist=nvidia,nvidia_modeset,nvidia_uvm,nvidia_drm,pcspkr nouveau.modeset=1 i915.modeset=1 radeon.modeset=1 nvme_load=yes initrd=initrd.magic console=tty1 initrd=initrd.magic ${cmdline}
+initrd ${url}initrd
+initrd ${url}archiso_pxe_http /hooks/archiso_pxe_http mode=755
+boot
+
+:live_exit
+clear menu
+exit 0

@@ -1,0 +1,66 @@
+#!ipxe
+
+# Red Hat Enterprise Linux CoreOS (RHCOS)
+# https://openshift.com
+# https://github.com/coreos/coreos-installer/blob/master/README.md#installing-from-pxe
+
+goto ${menu}
+
+:rhcos
+set os Red Hat Enterprise Linux CoreOS
+set os_arch ${arch}
+iseq ${os_arch} x86_64 && set os_arch x86_64 ||
+iseq ${os_arch} arm64 && set os_arch aarch64 ||
+isset ${install_device} || set install_device unset
+isset ${ignition_url} || set ignition_url skip
+menu ${os} - ${os_arch}
+item --gap ${os}:
+item 4.12 ${space} ${os} 4.12 [Extended Support]
+item 4.14 ${space} ${os} 4.14 [Extended Support]
+item 4.16 ${space} ${os} 4.16 [Extended Support]
+item 4.17 ${space} ${os} 4.17 [Maintenance Support]
+item 4.18 ${space} ${os} 4.18 [Maintenance Support]
+item 4.19 ${space} ${os} 4.19 [Maintenance Support]
+item 4.2 ${space} ${os} 4.20 [Full Support]
+item 4.21 ${space} ${os} 4.21 [Full Support]
+item install_dev ${space} Set install device: ${install_device}
+item ignition_config ${space} Set ignition config url: ${ignition_url}
+choose --default ${rhcos_version} rhcos_version || goto rhcos_exit
+echo ${cls}
+iseq ${rhcos_version} ignition_config && goto ignition_config ||
+iseq ${rhcos_version} install_dev && goto install_dev ||
+goto rhcos_boot ||
+goto rhcos_exit
+
+:rhcos_boot
+iseq ${rhcos_version} 4.12 && set rhcos_major_version 4 ||
+iseq ${rhcos_version} 4.14 && set rhcos_major_version 4 ||
+iseq ${rhcos_version} 4.16 && set rhcos_major_version 4 ||
+iseq ${rhcos_version} 4.17 && set rhcos_major_version 4 ||
+iseq ${rhcos_version} 4.18 && set rhcos_major_version 4 ||
+iseq ${rhcos_version} 4.19 && set rhcos_major_version 4 ||
+iseq ${rhcos_version} 4.2 && set rhcos_major_version 4 ||
+iseq ${rhcos_version} 4.21 && set rhcos_major_version 4 ||
+set base_url ${rhcos_mirror}/${rhcos_base_dir}${rhcos_major_version}/${os_arch}/dependencies/rhcos
+set build_version ${rhcos_version}
+imgfree
+kernel ${base_url}/${build_version}/latest/rhcos-live-kernel.${os_arch} ip=dhcp rd.neednet=1 coreos.inst.install_dev=${install_device} coreos.inst.ignition_url=${ignition_url} coreos.live.rootfs_url=${base_url}/${build_version}/latest/rhcos-live-rootfs.${os_arch}.img initrd=initrd.magic initrd=initrd.magic ${cmdline}
+initrd ${base_url}/${build_version}/latest/rhcos-live-initramfs.${os_arch}.img
+boot
+goto rhcos_exit
+
+:install_dev
+echo -n Selected install device will be overwritten,
+echo -n please ensure you know what you are doing...
+echo -n Please set desired install device:  && read install_device
+clear menu
+goto rhcos
+
+:ignition_config
+echo -n Please set Ignition Configuration URL:  && read ignition_url
+clear menu
+goto rhcos
+
+:rhcos_exit
+clear menu
+exit 0

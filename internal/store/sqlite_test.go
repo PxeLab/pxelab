@@ -1,11 +1,11 @@
-package store
+﻿package store
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/pxego/pxego/internal/models"
+	"github.com/pxelab/pxelab/internal/models"
 )
 
 func setupDB(t *testing.T) Interface {

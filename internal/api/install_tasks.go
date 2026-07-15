@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"encoding/json"
@@ -7,9 +7,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/pxego/pxego/internal/models"
-	"github.com/pxego/pxego/internal/netboot"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/netboot"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 type InstallTaskHandler struct {

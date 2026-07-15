@@ -1,6 +1,6 @@
-{
+﻿{
   "app": {
-    "name": "PxeGo",
+    "name": "PxeLab",
     "tagline": "All-in-One PXE Server"
   },
   "login": {
@@ -43,7 +43,8 @@
     "installTasks": "Install Tasks",
     "bmc": "OOB Control",
     "answerTemplates": "Answer Templates",
-    "accessControl": "Access Control"
+    "accessControl": "Access Control",
+    "wol": "Wake-on-LAN"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -107,7 +108,13 @@
       "taskDeleteFailed": "Failed to delete task",
       "powerConfirm": "Power Operation",
       "deleteTaskConfirm": "Delete Task",
-      "deleteTaskMessage": "Delete this task?"
+      "deleteTaskMessage": "Delete this task?",
+      "wolWake": "WOL Wake",
+      "wolSent": "WOL packet sent to {{mac}}",
+      "wolFailed": "WOL wake failed",
+      "wolHistory": "WOL History",
+      "loadWOLHistory": "Load WOL history",
+      "noWOLHistory": "No WOL history for this host"
     },
     "deleteConfirm": "Are you sure you want to delete this host?",
     "created": "Host created",
@@ -221,6 +228,7 @@
     "cmdlinePlaceholder": "e.g. console=tty0 quiet",
     "kernelPlaceholder": "vmlinuz or bootos/${arch}/vmlinuz",
     "initrdPlaceholder": "initrd.img or bootos/${arch}/initrd",
+    "uefiInitrdHint": "UEFI: iPXE UEFI builds lack the bzImage feature and may fail to pass the initrd. If the boot hangs, add initrd=<filename> (e.g. initrd=initrd.img) at the end of the command line.",
     "chainUrlPlaceholder": "http://server/ipxe.efi or ${next-server}/bootmgr.efi",
     "sanUrlPlaceholder": "iscsi://server/iqn or http://server/centos7.iso",
     "ipxeScript": "iPXE Script"
@@ -381,12 +389,14 @@
     "nfsTitle": "NFS Settings",
     "nfsRoot": "NFS Root Directory",
     "nfsRootHelp": "Directory exported via NFS. ISO files placed here will be accessible at mount point.",
-    "nfsRootPlaceholder": "e.g. ~/.pxego/isos",
+    "nfsRootPlaceholder": "e.g. ~/.PxeLab/isos",
     "nfsReadOnly": "Read-Only Export",
     "nfsReadOnlyHelp": "When enabled, clients cannot write to the NFS share. Recommended for ISO installation scenarios.",
     "nfsAllowIPs": "Allowed IPs / Networks",
     "nfsAllowIPsHelp": "Restrict NFS mount access to specific IPs or CIDR ranges. One per line. Leave empty to allow all.",
     "nfsAllowIPsPlaceholder": "e.g. 192.168.1.0/24\n10.0.0.5",
+    "nfsAllowRestartHint": "Changes to allowed IPs take effect after restarting the NFS service.",
+    "nfsRpcbindPort": "Port 111/UDP+TCP — required for Linux NFSv3 clients to discover the NFS service. Admin privileges required on Windows.",
     "dnsTitle": "DNS Settings",
     "localDomain": "Local Domain",
     "localDomainHelp": "Hostnames in DNS records are resolved locally with this domain suffix. e.g. pxe-server → pxe-server.{domain}",
@@ -511,7 +521,7 @@
     "modalListAllProfiles": "List all boot profiles as menu items",
     "modalListAllProfilesHelp": "When off, only shows default profile entries; when on, lists all profiles with default first.",
     "modalServiceAutoStart": "Service Auto-Start",
-    "modalServiceAutoStartHelp": "When enabled, the service will auto-start on next PxeGo launch (does not affect current state).",
+    "modalServiceAutoStartHelp": "When enabled, the service will auto-start on next PxeLab launch (does not affect current state).",
     "modalInterfaceServices": "Interface-level Services (configured per NIC)",
     "modalEnabled": "Enabled",
     "modalDisabled": "Disabled"
@@ -571,6 +581,7 @@
     "items": "items",
     "viewAll": "View All",
     "serverName": "Server Name",
+    "serverNameHint": "Only lowercase letters, digits, and hyphens allowed, must not start or end with a hyphen",
     "logLevel": "Log Level",
     "mode": "Mode",
     "yes": "Yes",
@@ -861,5 +872,46 @@
     "palette_violet": "Violet Purple",
     "palette_rose": "Rose Pink",
     "palette_midnight": "Midnight Blue"
+  },
+  "wol": {
+    "title": "Wake-on-LAN",
+    "description": "Remotely wake devices on your network",
+    "quickWake": "Quick Wake",
+    "macAddress": "MAC Address",
+    "interface": "Interface",
+    "auto": "Auto",
+    "wake": "Wake",
+    "availableInterfaces": "Available Interfaces",
+    "noInterfaces": "No network interfaces available",
+    "history": "Wake History",
+    "schedules": "Scheduled Wakes",
+    "newSchedule": "New Schedule",
+    "mac": "MAC",
+    "host": "Host",
+    "broadcast": "Broadcast",
+    "source": "Source IP",
+    "status": "Status",
+    "time": "Time",
+    "success": "Success",
+    "failed": "Failed",
+    "noHistory": "No wake history yet",
+    "pageInfo": "Page {{page}} — {{total}} records",
+    "scheduleAt": "Schedule Time",
+    "repeat": "Repeat",
+    "lastRun": "Last Run",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "noSchedules": "No scheduled wakes",
+    "once": "Once",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "weekday": "Weekdays",
+    "invalidMac": "Please enter a valid MAC address",
+    "wakeSuccess": "Wake packet sent to {{mac}}",
+    "wakeFailed": "Failed to send wake packet",
+    "invalidSchedule": "Please enter MAC address and schedule time",
+    "scheduleCreated": "Schedule created",
+    "scheduleFailed": "Failed to create schedule",
+    "scheduleDeleted": "Schedule deleted"
   }
 }

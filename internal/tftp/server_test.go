@@ -1,12 +1,12 @@
-package tftp
+﻿package tftp
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/pxego/pxego/internal/boot"
-	"github.com/pxego/pxego/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/boot"
+	"github.com/pxelab/pxelab/internal/eventbus"
 )
 
 func TestNewServer(t *testing.T) {

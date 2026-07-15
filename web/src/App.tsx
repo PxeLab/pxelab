@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy } from 'react'
+﻿import { useState, useEffect, Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { ToastProvider } from './components/ui/Toast'
@@ -24,6 +24,7 @@ const AnswerTemplates = lazy(() => import('./pages/AnswerTemplates'))
 const AccessControl = lazy(() => import('./pages/AccessControl'))
 const InstallTasks = lazy(() => import('./pages/InstallTasks'))
 const BmcView = lazy(() => import('./pages/BmcView'))
+const WolView = lazy(() => import('./pages/WolView'))
 
 function LoadingFallback() {
   return (
@@ -58,7 +59,7 @@ function AppContent() {
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg-base)]">
         <div className="flex flex-col items-center gap-3 text-[var(--text-muted)]">
           <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-          <span className="text-sm">PxeGo</span>
+          <span className="text-sm">PxeLab</span>
         </div>
       </div>
     )
@@ -83,6 +84,7 @@ function AppContent() {
           <Route path="/access-control" element={<AccessControl />} />
           <Route path="/install-tasks" element={<InstallTasks />} />
           <Route path="/bmc" element={<BmcView />} />
+          <Route path="/wol" element={<WolView />} />
           <Route path="/netboot-catalog" element={<NetbootCatalog />} />
           <Route path="/events" element={<Events />} />
           <Route path="/logs" element={<Logs />} />

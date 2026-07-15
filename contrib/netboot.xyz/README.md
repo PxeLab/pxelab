@@ -1,6 +1,6 @@
-# contrib/netboot.xyz
+﻿# contrib/netboot.xyz
 
-本目录用于存放 netboot.xyz 的 fork 仓库，作为 `pxego netboot sync` 命令的数据源。
+本目录用于存放 netboot.xyz 的 fork 仓库，作为 `pxelab netboot sync` 命令的数据源。
 
 ## 首次设置
 
@@ -17,4 +17,4 @@ cd contrib/netboot.xyz
 git pull upstream master
 ```
 
-然后运行 `pxego netboot sync` 将更新同步到本地 catalog。
+然后运行 `pxelab netboot sync` 将更新同步到本地 catalog。

@@ -1,0 +1,102 @@
+#!ipxe
+
+# openSUSE Operating System
+# http://opensuse.org
+
+isset ${dhcp-server} || goto static_ip
+set netsetup netsetup=dhcp
+goto goto_menu
+
+:static_ip
+# Need to convert netmask into prefix, because otherwise the installer
+# accepts it but configures the network with /32 prefix, which installs
+# fine but breaks connectivity to devices in the same network.
+set prefix 32
+
+iseq ${netmask} 0.0.0.0 && set prefix 0 ||
+
+iseq ${netmask} 128.0.0.0 && set prefix 1 ||
+iseq ${netmask} 192.0.0.0 && set prefix 2 ||
+iseq ${netmask} 224.0.0.0 && set prefix 3 ||
+iseq ${netmask} 240.0.0.0 && set prefix 4 ||
+iseq ${netmask} 248.0.0.0 && set prefix 5 ||
+iseq ${netmask} 252.0.0.0 && set prefix 6 ||
+iseq ${netmask} 254.0.0.0 && set prefix 7 ||
+iseq ${netmask} 255.0.0.0 && set prefix 8 ||
+
+iseq ${netmask} 255.128.0.0 && set prefix 9 ||
+iseq ${netmask} 255.192.0.0 && set prefix 10 ||
+iseq ${netmask} 255.224.0.0 && set prefix 11 ||
+iseq ${netmask} 255.240.0.0 && set prefix 12 ||
+iseq ${netmask} 255.248.0.0 && set prefix 13 ||
+iseq ${netmask} 255.252.0.0 && set prefix 14 ||
+iseq ${netmask} 255.254.0.0 && set prefix 15 ||
+iseq ${netmask} 255.255.0.0 && set prefix 16 ||
+
+iseq ${netmask} 255.255.128.0 && set prefix 17 ||
+iseq ${netmask} 255.255.192.0 && set prefix 18 ||
+iseq ${netmask} 255.255.224.0 && set prefix 19 ||
+iseq ${netmask} 255.255.240.0 && set prefix 20 ||
+iseq ${netmask} 255.255.248.0 && set prefix 21 ||
+iseq ${netmask} 255.255.252.0 && set prefix 22 ||
+iseq ${netmask} 255.255.254.0 && set prefix 23 ||
+iseq ${netmask} 255.255.255.0 && set prefix 24 ||
+
+iseq ${netmask} 255.255.255.128 && set prefix 25 ||
+iseq ${netmask} 255.255.255.192 && set prefix 26 ||
+iseq ${netmask} 255.255.255.224 && set prefix 27 ||
+iseq ${netmask} 255.255.255.240 && set prefix 28 ||
+iseq ${netmask} 255.255.255.248 && set prefix 29 ||
+iseq ${netmask} 255.255.255.252 && set prefix 30 ||
+iseq ${netmask} 255.255.255.254 && set prefix 31 ||
+iseq ${netmask} 255.255.255.255 && set prefix 32 ||
+
+set netsetup netsetup=hostip,gateway,nameserver hostip=${ip}/${prefix} gateway=${gateway} nameserver=${dns}
+
+:goto_menu
+set netsetup ${netsetup} BOOTIF=${netX/mac}
+
+set distro opensuse
+set os_arch ${arch}
+iseq ${os_arch} x86_64 && set os_arch x86_64 ||
+iseq ${os_arch} i386 && set os_arch i586 ||
+iseq ${os_arch} arm64 && set os_arch aarch64 ||
+menu openSUSE - ${os_arch}
+item 16.0 ${space} ${os} openSUSE Leap 16.0
+item 15.6 ${space} ${os} openSUSE Leap 15.6
+item tumbleweed ${space} ${os} openSUSE tumbleweed
+choose version || goto opensuse_exit
+set dir ${opensuse_base_dir}/${version}/repo/oss
+iseq ${version} tumbleweed && set dir ${version}/repo/oss ||
+
+# Tumbleweed ARM64 uses ports mirror
+iseq ${version} tumbleweed && iseq ${os_arch} aarch64 && set dir ports/aarch64/${version}/repo/oss ||
+
+# Check if version needs live ISO boot method (16.0 and later)
+iseq ${version} 16.0 && set dir distribution/leap/${version}/repo/oss && set iso_dir distribution/leap/${version}/offline && set use_live_iso true ||
+
+imgfree
+set kernel_url boot/${os_arch}/loader 
+iseq ${os_arch} aarch64 && set kernel_url boot/${os_arch} ||
+
+# Choose boot method based on version
+isset ${use_live_iso} && goto opensuse_live_boot || goto opensuse_standard_boot
+
+:opensuse_live_boot
+kernel ${opensuse_mirror}/${dir}/${kernel_url}/linux root=live:${opensuse_mirror}/${iso_dir}/Leap-${version}-online-installer-${os_arch}.install.iso ${netsetup} ${params} initrd=initrd.magic ${cmdline}
+initrd ${opensuse_mirror}/${dir}/${kernel_url}/initrd
+goto boot_os
+
+:opensuse_standard_boot
+kernel ${opensuse_mirror}/${dir}/${kernel_url}/linux ${netsetup} install=${opensuse_mirror}/${dir} ${params} initrd=initrd.magic ${cmdline}
+initrd ${opensuse_mirror}/${dir}/${kernel_url}/initrd
+goto boot_os
+
+:boot_os
+echo MD5sums:
+md5sum linux initrd
+boot
+
+:opensuse_exit
+clear menu
+exit 0

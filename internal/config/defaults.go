@@ -1,4 +1,4 @@
-package config
+﻿package config
 
 import "path/filepath"
 
@@ -18,7 +18,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Global: GlobalConfig{
 			DataDir:    dataDir,
-			ServerName: "pxego",
+			ServerName: "PxeLab",
 			ListenAddr: ":8080",
 			PageSize:   50,
 		},
@@ -47,7 +47,7 @@ func DefaultConfig() *Config {
 			},
 		},
 		Store: StoreConfig{
-			DSN: filepath.Join(dataDir, "pxego.db"),
+			DSN: filepath.Join(dataDir, "pxelab.db"),
 		},
 		NFS: NFSConfig{
 			Port:     DefaultPortNFS,
@@ -57,7 +57,7 @@ func DefaultConfig() *Config {
 		DNS: DNSConfig{
 			Port:        DefaultPortDNS,
 			Upstream:    "",
-			LocalDomain: "pxego.local",
+			LocalDomain: "pxelab.local",
 		},
 		Log: LogConfig{
 			Level: DefaultLogLevel,

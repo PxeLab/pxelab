@@ -1,4 +1,4 @@
-package dhcp
+﻿package dhcp
 
 import (
 	"context"
@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/pxego/pxego/internal/boot"
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/models"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/boot"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/metrics"
+	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 type Handler struct {
@@ -142,6 +143,13 @@ func (h *Handler) ReloadSubnets() {
 	h.InitSubnets()
 }
 
+var dhcpMetrics = metrics.DefaultRegistry.GetOrCreate("dhcp")
+var dhcpTracker = metrics.NewDHCPTracker()
+
+func init() {
+	metrics.DefaultRegistry.SetDHCPTracker(dhcpTracker)
+}
+
 func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr, pkt *dhcpv4.DHCPv4) {
 	if pkt == nil {
 		return
@@ -149,6 +157,13 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	mt := pkt.MessageType()
 	if mt != dhcpv4.MessageTypeDiscover && mt != dhcpv4.MessageTypeRequest {
 		return
+	}
+
+	dhcpMetrics.RecordRequest()
+	if mt == dhcpv4.MessageTypeDiscover {
+		dhcpTracker.IncDiscover()
+	} else {
+		dhcpTracker.IncRequest()
 	}
 
 	mac := pkt.ClientHWAddr.String()
@@ -271,6 +286,8 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 		return
 	}
 	if blacklisted {
+		dhcpMetrics.RecordRejected()
+		dhcpTracker.IncUnauthorized()
 		slog.Info("黑名单 MAC 已拒绝", "mac", mac, "cidr", subnetCfg.CIDR)
 		h.eventBus.Publish("event", models.Event{
 			Type:    models.EventDHCP,
@@ -289,7 +306,12 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 			return
 		}
 		if !whitelisted {
+			dhcpMetrics.RecordRejected()
+			dhcpTracker.IncUnauthorized()
 			slog.Info("全局白名单未命中，已拒绝", "mac", mac, "cidr", subnetCfg.CIDR)
+			if err := h.store.UpsertUnauthorizedDevice(ctx, mac, subnetCfg.CIDR, "全局白名单拒绝"); err != nil {
+				slog.Error("记录未授权设备失败", "mac", mac, "error", err)
+			}
 			h.eventBus.Publish("event", models.Event{
 				Type:    models.EventDHCP,
 				Level:   models.EventWarn,
@@ -308,7 +330,12 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 			return
 		}
 		if !whitelisted {
+			dhcpMetrics.RecordRejected()
+			dhcpTracker.IncUnauthorized()
 			slog.Info("子网白名单未命中，已拒绝", "mac", mac, "cidr", subnetCfg.CIDR)
+			if err := h.store.UpsertUnauthorizedDevice(ctx, mac, subnetCfg.CIDR, "子网白名单拒绝"); err != nil {
+				slog.Error("记录未授权设备失败", "mac", mac, "error", err)
+			}
 			h.eventBus.Publish("event", models.Event{
 				Type:    models.EventDHCP,
 				Level:   models.EventWarn,
@@ -448,6 +475,10 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	}
 	reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
 
+	archStr, platformStr := ArchAndPlatform(pkt)
+	dhcpTracker.RecordArch(archStr)
+	dhcpTracker.RecordPlatform(platformStr)
+
 	// iPXE 第二阶段：返回脚本 URL 而非启动文件
 	if isIPXE {
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
@@ -456,8 +487,8 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		if mode == "proxy" {
 				// yiaddr=0 → iPXE 识别为 ProxyDHCP，存入 proxydhcp scope
 				appendProxyPXEOptions(reply, serverIP, nextServer)
+				dhcpTracker.IncOffer()
 				} else {
-			archStr, platformStr := ArchAndPlatform(pkt)
 			ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
 			if err != nil {
 				slog.Warn("IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
@@ -465,6 +496,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 			}
 			reply.YourIPAddr = ip
 			appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
+			dhcpTracker.IncOffer()
 		}
 		slog.Info("iPXE 脚本 Offer", "mac", pkt.ClientHWAddr.String(), "url", scriptURL, "mode", mode)
 		return reply
@@ -481,14 +513,13 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		reply.BootFileName = boot.NBPFilename(arch, bootloader)
 	}
 	reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
-	// Subnet Mask — 部分 PXE 客户端需要此选项
+	dhcpTracker.IncOffer()
 	if subnetCfg.CIDR != "" {
 		if _, ipnet, err := net.ParseCIDR(subnetCfg.CIDR); err == nil {
 			reply.UpdateOption(dhcpv4.OptSubnetMask(ipnet.Mask))
 		}
 	}
 	case "full":
-		archStr, platformStr := ArchAndPlatform(pkt)
 		ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
 		if err != nil {
 			slog.Warn("IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)
@@ -500,6 +531,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 			reply.BootFileName = boot.NBPFilename(arch, bootloader)
 		}
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		dhcpTracker.IncOffer()
 		slog.Info("DHCP Offer", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
 	}
 
@@ -516,22 +548,21 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 	// Proxy 模式
 	if mode == "proxy" {
 		if isIPXE {
-			// iPXE 二次 DHCP ACK：yiaddr=0, ProxyDHCP 选项
-				// yiaddr=0 → iPXE 识别为 ProxyDHCP，存入 proxydhcp scope
-				appendProxyPXEOptions(reply, serverIP, nextServer)
+			appendProxyPXEOptions(reply, serverIP, nextServer)
 			scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 			reply.BootFileName = scriptURL
 			reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+			dhcpTracker.IncAck()
 			slog.Info("iPXE ProxyDHCP Ack", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "ns", nextServer)
 			return reply
 		}
-		// PXE ROM 首次 ACK：只提供 PXE 选项 + 标记已引导
 		appendProxyPXEOptions(reply, serverIP, nextServer)
 		if arch, ok := DetectClientArch(pkt); ok {
 			reply.BootFileName = boot.NBPFilename(arch, bootloader)
 		}
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		dhcpTracker.IncAck()
 		slog.Info("ProxyDHCP ACK", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "bootfile", reply.BootFileName)
 		return reply
 	}
@@ -556,6 +587,7 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	}
 
+	dhcpTracker.IncAck()
 	slog.Info("DHCP Ack", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
 	return reply
 }

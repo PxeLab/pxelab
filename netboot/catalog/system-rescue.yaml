@@ -1,0 +1,12 @@
+name: System Rescue CD
+enabled: true
+menu_group: live
+versions:
+  - codename: "13.01"
+    name: "13.01"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/13.01-d20a63ac/vmlinuz
+      initrd: https://github.com/netbootxyz/asset-mirror/releases/download/13.01-d20a63ac/initrd
+    cmdline: "archiso_http_srv=https://github.com/netbootxyz/asset-mirror/releases/download/13.01-d20a63ac/ initrd=initrd"

@@ -17,9 +17,11 @@ interface ThemeSwitcherProps {
   palette: PaletteType
   onToggleTheme: () => void
   onChangePalette: (p: PaletteType) => void
+  macosCards?: boolean
+  onToggleMacOS?: () => void
 }
 
-export function ThemeSwitcher({ theme, palette, onToggleTheme, onChangePalette }: ThemeSwitcherProps) {
+export function ThemeSwitcher({ theme, palette, onToggleTheme, onChangePalette, macosCards, onToggleMacOS }: ThemeSwitcherProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -42,7 +44,7 @@ export function ThemeSwitcher({ theme, palette, onToggleTheme, onChangePalette }
         <Palette size={18} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-[230px] z-50 rounded-xl bg-[var(--bg-elevated)] border border-[var(--bg-border)] shadow-xl overflow-hidden animate-fade-in">
+        <div className="absolute right-0 top-full mt-2 w-[240px] z-50 rounded-xl bg-[var(--bg-elevated)] border border-[var(--bg-border)] shadow-xl overflow-hidden animate-fade-in">
           {/* Palette grid */}
           <div className="px-3 py-3 border-b border-[var(--bg-border)]">
             <div className="text-[11px] font-semibold text-[var(--text-secondary)] mb-2.5">{t('themeSwitcher.palette')}</div>
@@ -61,7 +63,7 @@ export function ThemeSwitcher({ theme, palette, onToggleTheme, onChangePalette }
             </div>
           </div>
           {/* Dark/light toggle */}
-          <div className="px-3 py-2.5">
+          <div className="px-3 py-2.5 border-b border-[var(--bg-border)]">
             <button
               onClick={() => { onToggleTheme(); setOpen(false) }}
               className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
@@ -73,6 +75,22 @@ export function ThemeSwitcher({ theme, palette, onToggleTheme, onChangePalette }
                 ) : (
                   <><Moon size={14} /> {t('themeSwitcher.dark')}</>
                 )}
+              </span>
+            </button>
+          </div>
+          {/* macOS Card toggle */}
+          <div className="px-3 py-2.5">
+            <button
+              onClick={() => { onToggleMacOS?.(); setOpen(false) }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                macosCards ? 'bg-blue-500/10 text-blue-400' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <span className="text-xs font-medium">macOS Cards</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                macosCards ? 'bg-blue-500/20 text-blue-400' : 'bg-[var(--bg-input)] text-[var(--text-muted)]'
+              }`}>
+                {macosCards ? 'ON' : 'OFF'}
               </span>
             </button>
           </div>

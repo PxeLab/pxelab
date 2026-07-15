@@ -1,6 +1,6 @@
-# BMC/IPMI 带外管理设计
+﻿# BMC/IPMI 带外管理设计
 
-> PxeGo 独立带外管理系统：支持 BMC/IPMI 远程电源管理、引导设备控制、CSV 批量导入。
+> PxeLab 独立带外管理系统：支持 BMC/IPMI 远程电源管理、引导设备控制、CSV 批量导入。
 > 独立于主机管理，可管理不在 Host 列表中的设备。
 
 ---
@@ -284,7 +284,7 @@ host,port,username,password,protocol
 
 ### 4.2 与 PXE/DHCP 联动（待定）
 
-当前 PxeGo 的 DHCP 处理器通过 `boot.NBPFilename(arch, bootloader)` 根据客户端架构选择引导文件。后续迭代中将 BMC 的 `boot_mode` 注入 DHCP 响应逻辑。本期只做 CRUD 和页面设置，不做 DHCP 联动。
+当前 PxeLab 的 DHCP 处理器通过 `boot.NBPFilename(arch, bootloader)` 根据客户端架构选择引导文件。后续迭代中将 BMC 的 `boot_mode` 注入 DHCP 响应逻辑。本期只做 CRUD 和页面设置，不做 DHCP 联动。
 
 ---
 

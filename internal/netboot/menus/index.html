@@ -1,0 +1,306 @@
+#!ipxe
+####       boot.netboot.xyz/3.0.2 initial loader        ####
+#### see https://netboot.xyz for more information ####
+set conn_type https
+chain --autofree https://boot.netboot.xyz/3.0.2/menu.ipxe || echo HTTPS failed... attempting HTTP...
+set conn_type http
+chain --autofree http://boot.netboot.xyz/3.0.2/menu.ipxe || echo HTTP failed, localbooting...
+exit
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>netboot.xyz BootLoaders - Powered by netboot.xyz</title>
+    <meta name='description' content='Download links for available netboot.xyz bootloaders.'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      table, th, td {
+      padding: 5px;
+      border: 1px solid black; 
+      }
+    </style>
+  </head>
+  <body>
+  <div style="font-family: monospace, fixed; font-weight: bold;">
+    <span style="">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;_&#160;&#160;&#160;_&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;_&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</span><br />
+<span style="">&#160;_&#160;__&#160;&#160;&#160;___|&#160;|_|&#160;|__&#160;&#160;&#160;___&#160;&#160;&#160;___&#160;|&#160;|_&#160;&#160;__&#160;&#160;___&#160;&#160;&#160;_&#160;____</span><br />
+<span style="">|&#160;&#39;_&#160;\&#160;/&#160;_&#160;\&#160;__|&#160;&#39;_&#160;\&#160;/&#160;_&#160;\&#160;/&#160;_&#160;\|&#160;__|&#160;\&#160;\/&#160;/&#160;|&#160;|&#160;|_&#160;&#160;/</span><br />
+<span style="">|&#160;|&#160;|&#160;|&#160;&#160;__/&#160;|_|&#160;|_)&#160;|&#160;(_)&#160;|&#160;(_)&#160;|&#160;|_&#160;_&#160;&gt;&#160;&#160;&lt;|&#160;|_|&#160;|/&#160;/&#160;</span><br />
+<span style="">|_|&#160;|_|\___|\__|_.__/&#160;\___/&#160;\___/&#160;\__(_)_/\_\\__,&#160;/___|</span><br />
+<span style="">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;|___/&#160;&#160;&#160;&#160;&#160;</span><br />
+    <p>
+  Version: 3.0.2<br>
+  Powered by <a href=https://netboot.xyz>netboot.xyz</a>
+  </p>
+
+  <p>x86_64 Legacy and EFI Combined iPXE Bootloaders</p>
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> ISO </td>
+       <td> <a href="ipxe/netboot.xyz.iso">netboot.xyz.iso</a> </td>
+       <td> Used for CD/DVD, Virtual CDs, DRAC/iLO, VMware, Virtual Box </td>
+    </tr>
+        <tr>
+       <td> IMG </td>
+       <td> <a href="ipxe/netboot.xyz.img">netboot.xyz.img</a> </td>
+       <td> Used for creation of USB Keys </td>
+    </tr>
+      </table>
+  <p>Multi-arch (x86_64 and arm64) Legacy and EFI Combined iPXE Bootloaders</p>
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> ISO </td>
+       <td> <a href="ipxe/netboot.xyz-multiarch.iso">netboot.xyz-multiarch.iso</a> </td>
+       <td> Used for CD/DVD, Virtual CDs, DRAC/iLO, VMware, Virtual Box </td>
+    </tr>
+        <tr>
+       <td> IMG </td>
+       <td> <a href="ipxe/netboot.xyz-multiarch.img">netboot.xyz-multiarch.img</a> </td>
+       <td> Used for creation of USB Keys </td>
+    </tr>
+      </table>
+
+  <p>x86_64 Legacy and EFI Combined iPXE Bootloaders (excludes USB NIC drivers for USB keyboard compatibility)</p>
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> ISO </td>
+       <td> <a href="ipxe/netboot.xyz-legacy.iso">netboot.xyz-legacy.iso</a> </td>
+       <td> Legacy USB ISO for CD/DVD, Virtual CDs (no USB NIC drivers, preserves USB keyboard) </td>
+    </tr>
+        <tr>
+       <td> IMG </td>
+       <td> <a href="ipxe/netboot.xyz-legacy.img">netboot.xyz-legacy.img</a> </td>
+       <td> Legacy USB IMG for USB Keys (no USB NIC drivers, preserves USB keyboard) </td>
+    </tr>
+      </table>
+
+  <p>x86_64 Legacy (PCBIOS) iPXE Bootloaders</p>
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> Kernel </td>
+       <td> <a href="ipxe/netboot.xyz.lkrn">netboot.xyz.lkrn</a> </td>
+       <td> Used for booting from GRUB/EXTLINUX </td>
+    </tr>
+        <tr>
+       <td> Floppy </td>
+       <td> <a href="ipxe/netboot.xyz.dsk">netboot.xyz.dsk</a> </td>
+       <td> Virtual floppy disk for DRAC/iLO, VMware, Virtual Box, etc </td>
+    </tr>
+        <tr>
+       <td> Floppy </td>
+       <td> <a href="ipxe/netboot.xyz.pdsk">netboot.xyz.pdsk</a> </td>
+       <td> Padded Virtual floppy disk for DRAC/iLO, VMware, Virtual Box, etc </td>
+    </tr>
+        <tr>
+       <td> DHCP </td>
+       <td> <a href="ipxe/netboot.xyz.kpxe">netboot.xyz.kpxe</a> </td>
+       <td> DHCP boot image file, uses built-in iPXE NIC drivers </td>
+    </tr>
+        <tr>
+       <td> DHCP-undionly </td>
+       <td> <a href="ipxe/netboot.xyz-undionly.kpxe">netboot.xyz-undionly.kpxe</a> </td>
+       <td> DHCP boot image file, use if you have NIC issues </td>
+    </tr>
+      </table>
+
+  <p>x86_64 Legacy (PCBIOS) iPXE Bootloaders (excludes USB NIC drivers for USB keyboard compatibility)</p>
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> Kernel </td>
+       <td> <a href="ipxe/netboot.xyz-legacy.lkrn">netboot.xyz-legacy.lkrn</a> </td>
+       <td> Legacy Kernel for booting from GRUB/EXTLINUX (no USB NIC drivers, preserves USB keyboard) </td>
+    </tr>
+        <tr>
+       <td> Floppy </td>
+       <td> <a href="ipxe/netboot.xyz-legacy.dsk">netboot.xyz-legacy.dsk</a> </td>
+       <td> Legacy Virtual floppy disk (no USB NIC drivers, preserves USB keyboard) </td>
+    </tr>
+        <tr>
+       <td> Floppy </td>
+       <td> <a href="ipxe/netboot.xyz-legacy.pdsk">netboot.xyz-legacy.pdsk</a> </td>
+       <td> Legacy Padded Virtual floppy disk (no USB NIC drivers, preserves USB keyboard) </td>
+    </tr>
+        <tr>
+       <td> DHCP </td>
+       <td> <a href="ipxe/netboot.xyz-legacy.kpxe">netboot.xyz-legacy.kpxe</a> </td>
+       <td> Legacy DHCP boot image file (no USB NIC drivers, preserves USB keyboard) </td>
+    </tr>
+      </table>
+
+  <p>x86_64 UEFI iPXE Bootloaders</p>
+
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> DHCP </td>
+       <td> <a href="ipxe/netboot.xyz.efi">netboot.xyz.efi</a> </td>
+       <td> DHCP EFI boot image file, uses built-in iPXE NIC drivers </td>
+    </tr>
+        <tr>
+       <td> DHCP-snp </td>
+       <td> <a href="ipxe/netboot.xyz-snp.efi">netboot.xyz-snp.efi</a> </td>
+       <td> EFI w/ Simple Network Protocol, attempts to boot all net devices </td>
+    </tr>
+        <tr>
+       <td> DHCP-snponly </td>
+       <td> <a href="ipxe/netboot.xyz-snponly.efi">netboot.xyz-snponly.efi</a> </td>
+       <td> EFI w/ Simple Network Protocol, only boots from device chained from </td>
+    </tr>
+        <tr>
+       <td> Floppy </td>
+       <td> <a href="ipxe/netboot.xyz.efi.dsk">netboot.xyz.efi.dsk</a> </td>
+       <td> DHCP EFI Floppy boot image file, uses built-in iPXE NIC drivers </td>
+    </tr>
+        <tr>
+       <td> Floppy-snp </td>
+       <td> <a href="ipxe/netboot.xyz-snp.efi.dsk">netboot.xyz-snp.efi.dsk</a> </td>
+       <td> EFI Floppy image w/ Simple Network Protocol, attempts to boot all net devices </td>
+    </tr>
+      </table>
+
+  <p>x86_64 UEFI iPXE Bootloaders (excludes USB NIC drivers for USB keyboard compatibility)</p>
+
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> DHCP </td>
+       <td> <a href="ipxe/netboot.xyz-legacy.efi">netboot.xyz-legacy.efi</a> </td>
+       <td> Legacy DHCP EFI boot image file (no USB NIC drivers, preserves USB keyboard) </td>
+    </tr>
+      </table>
+
+  <p>ARM64 UEFI iPXE Bootloaders</p>
+
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> ISO </td>
+       <td> <a href="ipxe/netboot.xyz-arm64.iso">netboot.xyz-arm64.iso</a> </td>
+       <td> Used for CD/DVD, Virtual CDs, DRAC/iLO, VMware, Virtual Box </td>
+    </tr>
+        <tr>
+       <td> IMG </td>
+       <td> <a href="ipxe/netboot.xyz-arm64.img">netboot.xyz-arm64.img</a> </td>
+       <td> Used for creation of USB Keys </td>
+    </tr>
+        <tr>
+       <td> DHCP </td>
+       <td> <a href="ipxe/netboot.xyz-arm64.efi">netboot.xyz-arm64.efi</a> </td>
+       <td> DHCP EFI boot image file, uses built-in iPXE NIC drivers </td>
+    </tr>
+        <tr>
+       <td> DHCP-snp </td>
+       <td> <a href="ipxe/netboot.xyz-arm64-snp.efi">netboot.xyz-arm64-snp.efi</a> </td>
+       <td> EFI w/ Simple Network Protocol, attempts to boot all net devices </td>
+    </tr>
+        <tr>
+       <td> DHCP-snponly </td>
+       <td> <a href="ipxe/netboot.xyz-arm64-snponly.efi">netboot.xyz-arm64-snponly.efi</a> </td>
+       <td> EFI w/ Simple Network Protocol, only boots from device chained from </td>
+    </tr>
+      </table>
+
+  <p>x86_64 UEFI Secure Boot iPXE Bootloaders</p>
+
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> ISO </td>
+       <td> <a href="ipxe/netboot.xyz-sb.iso">netboot.xyz-sb.iso</a> </td>
+       <td> Secure Boot x86_64 ISO for CD/DVD/Virtual Media </td>
+    </tr>
+        <tr>
+       <td> IMG </td>
+       <td> <a href="ipxe/netboot.xyz-sb.img">netboot.xyz-sb.img</a> </td>
+       <td> Secure Boot x86_64 USB image </td>
+    </tr>
+      </table>
+
+  <p>ARM64 UEFI Secure Boot iPXE Bootloaders</p>
+
+  <table style="width:100%">
+    <!-- table header -->
+    <tr>
+       <th style="width:10%;"> Type </th>
+       <th style="width:20%;"> Bootloader </th>
+       <th style="width:70%;"> Description </th>
+    </tr>
+    <!-- table rows -->
+        <tr>
+       <td> ISO </td>
+       <td> <a href="ipxe/netboot.xyz-sb-arm64.iso">netboot.xyz-sb-arm64.iso</a> </td>
+       <td> Secure Boot ARM64 ISO for CD/DVD/Virtual Media </td>
+    </tr>
+        <tr>
+       <td> IMG </td>
+       <td> <a href="ipxe/netboot.xyz-sb-arm64.img">netboot.xyz-sb-arm64.img</a> </td>
+       <td> Secure Boot ARM64 USB image </td>
+    </tr>
+      </table>
+
+
+  <p>Checksums<p>
+
+  <a href="ipxe/netboot.xyz-sha256-checksums.txt">SHA256 checksums</a>
+  </div>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Save, RefreshCw, Plus, Eye, Trash2 } from 'lucide-react'
 import { Card } from '../components/ui/Card'
@@ -23,7 +23,7 @@ export default function SettingsDNS() {
   const [settingsLoading, setSettingsLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [config, setConfig] = useState<DNSSettingsData>({
-    enabled: false, port: 53, upstream: '', local_domain: 'pxego.local', default_record: false,
+    enabled: false, port: 53, upstream: '', local_domain: 'PxeLab.local', default_record: false,
   })
 
   // DNS records
@@ -52,7 +52,7 @@ export default function SettingsDNS() {
         enabled: d.enabled ?? false,
         port: 53,
         upstream: d.upstream || '',
-        local_domain: d.local_domain || 'pxego.local',
+        local_domain: d.local_domain || 'PxeLab.local',
         default_record: d.default_record ?? false,
       })
     } catch (err: any) {
@@ -185,7 +185,7 @@ export default function SettingsDNS() {
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <SettingsField label={t('settings.localDomain')} help={t('settings.localDomainHelp', { domain: config.local_domain || 'pxego.local' })}>
+              <SettingsField label={t('settings.localDomain')} help={t('settings.localDomainHelp', { domain: config.local_domain || 'PxeLab.local' })}>
                 <SettingsInput value={config.local_domain || ''} onChange={v => setConfig({...config, local_domain: v})} />
               </SettingsField>
               <SettingsField label={t('settings.dnsUpstream')} help={t('settings.upstreamDnsHelp')}>

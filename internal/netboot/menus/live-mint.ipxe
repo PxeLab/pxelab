@@ -1,0 +1,111 @@
+#!ipxe
+
+goto ${menu} ||
+
+:live_menu
+set os Mint Live
+menu ${os}
+item --gap ${os} Versions
+item 21 ${space} ${os} 21
+item 20 ${space} ${os} 20
+item lmde ${space} ${os} LMDE
+choose live_version || goto live_exit
+menu ${os} ${live_version}
+item --gap ${os} Flavors
+goto ${live_version}
+
+:22
+item mint-22-cinnamon-squash ${space} Mint 22 Cinnamon
+item mint-22-mate-squash ${space} Mint 22 Mate
+item mint-22-xfce-squash ${space} Mint 22 Xfce
+goto flavor_select
+
+:21
+item mint-21-cinnamon-squash ${space} Mint 21 Cinnamon
+item mint-21-mate-squash ${space} Mint 21 Mate
+item mint-21-xfce-squash ${space} Mint 21 Xfce
+goto flavor_select
+
+:20
+item mint-20-cinnamon-squash ${space} Mint 20.3 Cinnamon
+item mint-20-mate-squash ${space} Mint 20.3 Mate
+item mint-20-xfce-squash ${space} Mint 20.3 Xfce
+goto flavor_select
+
+:lmde
+goto flavor_select
+
+:flavor_select
+choose flavor || goto live_menu
+echo ${cls}
+goto ${flavor} ||
+
+:mint-20-cinnamon-squash
+set squash_url ${live_endpoint}/ubuntu-squash/releases/download/20.3-33df4cad/filesystem.squashfs
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/20.3-33df4cad/
+goto 20-boot
+:mint-20-mate-squash
+set squash_url ${live_endpoint}/ubuntu-squash/releases/download/20.3-7b17290c/filesystem.squashfs
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/20.3-7b17290c/
+goto 20-boot
+:mint-20-xfce-squash
+set squash_url ${live_endpoint}/ubuntu-squash/releases/download/20.3-af4b8d97/filesystem.squashfs
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/20.3-af4b8d97/
+goto 20-boot
+:mint-21-cinnamon-squash
+set squash_url ${live_endpoint}/ubuntu-squash/releases/download/21-32bd7a0e/filesystem.squashfs
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/21-32bd7a0e/
+goto 21-boot
+:mint-21-mate-squash
+set squash_url ${live_endpoint}/ubuntu-squash/releases/download/21-f0dbd590/filesystem.squashfs
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/21-f0dbd590/
+goto 21-boot
+:mint-21-xfce-squash
+set squash_url ${live_endpoint}/ubuntu-squash/releases/download/21-48716442/filesystem.squashfs
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/21-48716442/
+goto 21-boot
+:mint-22-cinnamon-squash
+set squash_url ${live_endpoint}/ubuntu-squash/releases/download/22-14b93ac4/filesystem.squashfs
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/22-14b93ac4/
+goto 22-boot
+:mint-22-mate-squash
+set squash_url ${live_endpoint}/ubuntu-squash/releases/download/22-482b71dc/filesystem.squashfs
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/22-482b71dc/
+goto 22-boot
+:mint-22-xfce-squash
+set squash_url ${live_endpoint}/ubuntu-squash/releases/download/22-e45bc094/filesystem.squashfs
+set kernel_url ${live_endpoint}/ubuntu-squash/releases/download/22-e45bc094/
+goto 22-boot
+:mint-lmde-cinnamon-squash
+set squash_url ${live_endpoint}/debian-squash/releases/download/6-1834227b/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/6-1834227b/
+goto 6-boot
+
+:22-boot
+imgfree
+kernel ${kernel_url}vmlinuz ip=dhcp boot=casper netboot=url url=${squash_url} initrd=initrd.magic ${cmdline}
+initrd ${kernel_url}initrd
+boot
+
+:21-boot
+imgfree
+kernel ${kernel_url}vmlinuz ip=dhcp boot=casper netboot=url url=${squash_url} initrd=initrd.magic ${cmdline}
+initrd ${kernel_url}initrd
+boot
+
+:20-boot
+imgfree
+kernel ${kernel_url}vmlinuz ip=dhcp boot=casper netboot=url url=${squash_url} initrd=initrd.magic ${cmdline}
+initrd ${kernel_url}initrd
+boot
+
+:lmde-boot
+imgfree
+kernel ${kernel_url}vmlinuz boot=live fetch=${squash_url} initrd=initrd.magic ${cmdline}
+initrd ${kernel_url}initrd
+boot
+
+:live_exit
+clear menu
+exit 0
+

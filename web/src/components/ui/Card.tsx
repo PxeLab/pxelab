@@ -11,7 +11,7 @@ interface Props {
 
 export const Card: FC<Props> = ({ title, children, className = '', hover = false, footer, padding = true }) => (
   <div
-    className={`group bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-xl overflow-hidden transition-all duration-300 ${
+    className={`group card-glass rounded-xl overflow-hidden transition-all duration-300 bg-[var(--bg-card)] border border-[var(--bg-border)] ${
       hover
         ? 'shadow-sm hover:shadow-lg hover:border-blue-500/20 hover:-translate-y-0.5'
         : 'shadow-sm'

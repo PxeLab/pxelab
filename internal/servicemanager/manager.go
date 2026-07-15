@@ -1,4 +1,4 @@
-package servicemanager
+﻿package servicemanager
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pxego/pxego/internal/app"
+	"github.com/pxelab/pxelab/internal/app"
 )
 
 type Status string

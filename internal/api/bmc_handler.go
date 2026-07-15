@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"context"
@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/pxego/pxego/internal/bmc"
-	"github.com/pxego/pxego/internal/models"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/bmc"
+	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 type BMCHandler struct {

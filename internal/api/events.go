@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"context"
@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/models"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 var (

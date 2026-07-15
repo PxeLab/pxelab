@@ -1,4 +1,4 @@
-package dhcp
+﻿package dhcp
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pxego/pxego/internal/models"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 type ClientInfo struct {

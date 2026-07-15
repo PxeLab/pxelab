@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Power, PowerOff, RefreshCw, Activity, Zap, HardDrive } from 'lucide-react'
+import { ArrowLeft, Power, PowerOff, RefreshCw, Activity, Zap, HardDrive, Wifi } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -9,7 +9,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Tag } from '../components/ui/Tag'
 import { StatusDot } from '../components/ui/StatusDot'
 import { useToast } from '../components/ui/Toast'
-import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro } from '../api/client'
+import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord } from '../api/client'
 
 export default function HostDetail() {
   const { id } = useParams<{ id: string }>()
@@ -34,6 +34,11 @@ export default function HostDetail() {
   const [taskError, setTaskError] = useState('')
   const [confirmPower, setConfirmPower] = useState<string | null>(null)
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<InstallTask | null>(null)
+
+  // WOL state
+  const [wolHistory, setWolHistory] = useState<WOLHistoryRecord[]>([])
+  const [wakingWOL, setWakingWOL] = useState(false)
+  const [wolHistoryLoaded, setWolHistoryLoaded] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -84,13 +89,35 @@ export default function HostDetail() {
     setPowerLoading(confirmPower)
     try {
       const res = await api.powerHost(host.id, confirmPower)
-      success( `${t('hosts.detail.power' + confirmPower)}: ${(res.data as any).status}`)
+      success(`${t('hosts.detail.power' + confirmPower)}: ${(res.data as any).status}`)
     } catch (err: any) {
       showError(err.message)
     } finally {
       setPowerLoading(null)
       setConfirmPower(null)
     }
+  }
+
+  async function doWOLWake() {
+    if (!host) return
+    setWakingWOL(true)
+    try {
+      await api.wakeHost(host.id)
+      success(t('hosts.detail.wolSent', { mac: host.mac }))
+      loadWOLHistory()
+    } catch (e: any) {
+      showError(e?.message || t('hosts.detail.wolFailed'))
+    }
+    setWakingWOL(false)
+  }
+
+  async function loadWOLHistory() {
+    if (!host) return
+    try {
+      const res = await api.getWOLHistoryByMAC(host.mac)
+      setWolHistory(res.data.records)
+      setWolHistoryLoaded(true)
+    } catch { /* ignore */ }
   }
 
   if (loading) {
@@ -120,6 +147,9 @@ export default function HostDetail() {
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={() => handlePower('status')}>
             <Zap size={14} /> {t('hosts.detail.wake')}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={doWOLWake} disabled={wakingWOL}>
+            <Wifi size={14} /> {wakingWOL ? '...' : t('hosts.detail.wolWake')}
           </Button>
           <Button variant="primary" size="sm" onClick={() => navigate('/hosts/' + host.id + '/edit')}>
             {t('common.edit')}
@@ -202,6 +232,54 @@ export default function HostDetail() {
                         </Tag>
                       </td>
                       <td className="px-4 py-3 border-b border-[var(--bg-border)] text-[var(--text-secondary)]">{e.message}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* WOL History */}
+      <div className="mt-5">
+        <Card title={
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <Wifi size={16} />
+              <span>{t('hosts.detail.wolHistory')}</span>
+            </div>
+            <Button variant="secondary" size="sm" onClick={loadWOLHistory}>
+              <RefreshCw size={12} className="mr-1" /> {t('common.refresh')}
+            </Button>
+          </div>
+        }>
+          {!wolHistoryLoaded ? (
+            <div className="py-8 text-center text-sm text-[var(--text-muted)]">
+              <Button variant="ghost" size="sm" onClick={loadWOLHistory}>{t('hosts.detail.loadWOLHistory')}</Button>
+            </div>
+          ) : wolHistory.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('hosts.detail.noWOLHistory')}</p>
+          ) : (
+            <div className="overflow-x-auto -mx-5">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('wol.broadcast')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('wol.source')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('wol.status')}</th>
+                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('wol.time')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wolHistory.map(r => (
+                    <tr key={r.id} className="hover:bg-[var(--bg-hover)]/50">
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)] font-mono text-xs text-[var(--text-secondary)]">{r.broadcast}</td>
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)] font-mono text-xs text-[var(--text-secondary)]">{r.source_ip || '-'}</td>
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
+                        <Tag color={r.success ? 'green' : 'red'}>{r.success ? t('wol.success') : (r.error_msg || t('wol.failed'))}</Tag>
+                      </td>
+                      <td className="px-4 py-3 border-b border-[var(--bg-border)] font-mono text-xs text-[var(--text-muted)]">{new Date(r.created_at).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>

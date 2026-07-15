@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PxeGo - PXE Server Management</title>
+<title>PxeLab - PXE Server Management</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -994,7 +994,7 @@ const pageTitles = {
   profiles: ['引导配置', '管理 PXE/iPXE 引导配置文件'],
   files: ['文件管理', '管理启动文件与上传'],
   events: ['事件日志', '实时服务事件流'],
-  settings: ['设置', 'PxeGo 服务器配置'],
+  settings: ['设置', 'PxeLab 服务器配置'],
 };
 
 function switchPage(page) {
@@ -1482,7 +1482,7 @@ function renderSettings(el) {
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">服务器名称</label>
-            <input class="input" value="PxeGo-Server">
+            <input class="input" value="PxeLab-Server">
           </div>
           <div class="form-group">
             <label class="form-label">日志级别</label>
@@ -1497,7 +1497,7 @@ function renderSettings(el) {
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">数据目录</label>
-            <input class="input" value="/var/lib/pxego">
+            <input class="input" value="/var/lib/PxeLab">
           </div>
           <div class="form-group">
             <label class="form-label">运行模式</label>
@@ -1513,7 +1513,7 @@ function renderSettings(el) {
         </div>
         <div class="form-group">
           <label class="form-label">API 认证令牌</label>
-          <input class="input" type="password" value="pxego-secret-token-2026">
+          <input class="input" type="password" value="PxeLab-secret-token-2026">
         </div>
         <div class="form-group">
           <label class="toggle">

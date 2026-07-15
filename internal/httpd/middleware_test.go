@@ -1,12 +1,12 @@
-package httpd
+﻿package httpd
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/session"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/session"
 )
 
 func TestCORSMiddleware(t *testing.T) {

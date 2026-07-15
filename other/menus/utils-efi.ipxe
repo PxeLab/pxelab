@@ -1,0 +1,113 @@
+#!ipxe
+
+:utils_menu
+menu Utilities
+item --gap Utilities:
+item 4mlinux ${space} 4MLinux
+item bootrepair ${space} Boot Repair CD
+item caine ${space} CAINE
+item clonezilla ${space} Clonezilla
+item dts ${space} Dasharo Tools Suite
+item gparted ${space} GParted
+item kaspersky ${space} Kaspersky Rescue Disk
+item memtest86plus ${space} Memtest86+ 8.00
+item redorescue ${space} RedoRescue
+item rescatux ${space} Rescatux
+item rescuezilla ${space} Rescuezilla
+item shredos ${space} ShredOS
+item supergrubdisk ${space} Super Grub2 Disk
+item systemrescue ${space} System Rescue CD
+item uefishell ${space} UEFI Shell
+item zfsbootmenu ${space} ZFSBootMenu
+item --gap netboot.xyz tools:
+item cmdline ${space} Kernel cmdline params: [${cmdline}]
+item nbxyz_custom_url ${space} Set custom menu [url: ${custom_url}]
+item nbxyz_custom_github ${space} Set Github username [user: ${github_user}]
+item nbxyz ${space} netboot.xyz endpoints
+choose --default ${menu} menu || goto utils_exit
+echo ${cls}
+goto ${menu} ||
+chain ${menu}.ipxe || goto utils_exit
+goto utils_exit
+
+:bootrepair
+imgfree
+kernel ${live_endpoint}/ubuntu-squash/releases/download/current-e035b00c/vmlinuz ip=dhcp boot=casper netboot=http fetch=${live_endpoint}/ubuntu-squash/releases/download/current-e035b00c/filesystem.squashfs initrd=initrd.magic ${cmdline}
+initrd ${live_endpoint}/ubuntu-squash/releases/download/current-e035b00c/initrd
+boot
+goto utils_exit
+:caine
+imgfree
+kernel ${live_endpoint}/ubuntu-squash/releases/download/13.0-4216585a/vmlinuz ip=dhcp boot=casper netboot=url url=${live_endpoint}/ubuntu-squash/releases/download/13.0-4216585a/filesystem.squashfs initrd=initrd.magic ${cmdline}
+initrd ${live_endpoint}/ubuntu-squash/releases/download/13.0-4216585a/initrd
+boot
+goto utils_exit
+:dts
+imgfree
+kernel https://boot.dasharo.com/dts/v2.7.1/bzImage-v2.7.1
+initrd https://boot.dasharo.com/dts/v2.7.1/dts-base-image-v2.7.1.cpio.gz
+boot
+goto utils_exit
+:redorescue
+imgfree
+kernel ${live_endpoint}/asset-mirror/releases/download/4.0.0-000d2575/vmlinuz boot=live noprompt nocomponents setkmap=us fetch=${live_endpoint}/asset-mirror/releases/download/4.0.0-000d2575/filesystem.squashfs initrd=initrd.magic ${cmdline}
+initrd ${live_endpoint}/asset-mirror/releases/download/4.0.0-000d2575/initrd
+boot
+goto utils_exit
+:rescatux
+imgfree
+kernel ${live_endpoint}/debian-squash/releases/download/0.72-beta8-2568400c/vmlinuz boot=live fetch=${live_endpoint}/debian-squash/releases/download/0.72-beta8-2568400c/filesystem.squashfs selinux=1 security=selinux enforcing=0 initrd=initrd.magic ${cmdline}
+initrd ${live_endpoint}/debian-squash/releases/download/0.72-beta8-2568400c/initrd
+boot
+goto utils_exit
+:supergrubdisk
+imgfree
+kernel ${live_endpoint}/asset-mirror/releases/download/2.06s4-30515aca/supergrub2-classic-x86_64.efi
+boot
+goto utils_exit
+:uefishell
+imgfree
+kernel ${live_endpoint}/asset-mirror/releases/download/edk2-stable202002-a6917535/uefi-shell-x64.efi
+boot
+goto utils_exit
+:zfsbootmenu
+imgfree
+kernel ${live_endpoint}/asset-mirror/releases/download/3.1.0-1620b6a3/zfsbootmenu-recovery-x86_64.efi
+boot
+goto utils_exit
+
+
+:cmdline
+echo If you want to change the default kernel command line parameters
+echo you can override the defaults here.
+echo
+echo Currently set to: ${cmdline}
+echo
+echo -n Enter cmdline parameters: ${} && read cmdline
+goto utils_menu
+
+:memtest86plus
+imgfree
+kernel ${live_endpoint}/asset-mirror/releases/download/8.00-32a14678/mt86p_x86_64
+boot
+goto utils_menu
+
+:nbxyz_custom_url
+echo If you have a customized menu you would like to load into netboot.xyz
+echo set the base path url to your custom ipxe files here. 
+echo It will look for custom.ipxe in that path as the entry point.
+echo
+echo -n Please enter your custom http url here: ${} && read custom_url
+goto utils_menu
+
+:nbxyz_custom_github
+echo Make sure you have a fork of https://github.com/netbootxyz/netboot.xyz-custom.
+echo You can then customize your fork as needed and set up your own custom options.
+echo Once your username is set, a custom option will appear on the main menu.
+echo
+echo -n Please enter your Github username: ${} && read github_user
+goto utils_menu
+
+:utils_exit
+clear menu
+exit 0

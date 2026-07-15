@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"encoding/json"
@@ -6,8 +6,8 @@ import (
 	"net/url"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/servicemanager"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/servicemanager"
 )
 
 type ServiceHandler struct {

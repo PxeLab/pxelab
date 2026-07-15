@@ -1,0 +1,49 @@
+#!ipxe
+set esc:hex 1b
+set bold ${esc:string}[1m
+set ital ${esc:string}[3m
+set under ${esc:string}[4m
+set boldoff ${esc:string}[22m
+set italoff ${esc:string}[23m
+set underoff ${esc:string}[24m
+set fs_bla ${esc:string}[30m
+set fg_red ${esc:string}[31m
+set fg_gre ${esc:string}[32m
+set fg_yel ${esc:string}[33m
+set fg_blu ${esc:string}[34m
+set fg_mag ${esc:string}[35m
+set fg_cya ${esc:string}[36m
+set fg_whi ${esc:string}[37m
+
+:netabout
+menu ${fg_cya}${bold}About netboot.xyz ${fg_whi}(v${version})
+item about  
+item about    ${fg_gre}${bold}Thanks for using netboot.xyz! We'd love to hear your feedback.
+item about  
+item --gap -- ${fg_whi}${bold}--- Community --------------------------------------------------------------
+item about    ${fg_cya}${bold}X (Twitter):       ${fg_whi}${boldoff}@netbootxyz
+item about    ${fg_mag}${bold}Discord:           ${fg_whi}${boldoff}https://discord.gg/An6PA2a
+item about    ${fg_cya}${bold}GitHub Repo:       ${fg_whi}${boldoff}https://github.com/netbootxyz/netboot.xyz
+item about  
+item --gap -- ${fg_whi}${bold}--- Support the Project ----------------------------------------------------
+item about    ${fg_gre}${bold}Open Collective:   ${fg_whi}${boldoff}https://opencollective.com/netbootxyz
+item about    ${fg_gre}${bold}Github Sponsors:   ${fg_whi}${boldoff}https://github.com/sponsors/netbootxyz
+item about    ${fg_yel}${bold}Official Store:    ${fg_whi}${boldoff}https://store.netboot.xyz
+isset ${upstream_version} && goto display_version || goto skip_version
+:display_version
+item about  
+iseq ${version} ${upstream_version} || item about    ${fg_yel}${bold}>>> Update available: ${fg_whi}${boldoff}${upstream_version}
+:skip_version
+item --gap -- ${fg_whi}${bold}-------------------------------------------------------------------------------
+item exit     ${fg_cya}${bold}<-- Back to main menu
+choose selected || goto exit
+goto ${selected}
+
+:about
+clear menu
+goto netabout
+
+:exit
+clear menu
+exit
+

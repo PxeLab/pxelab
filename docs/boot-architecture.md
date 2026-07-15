@@ -1,8 +1,8 @@
-# Boot Architecture
+﻿# Boot Architecture
 
 ## Overview
 
-PxeGo uses a two-stage network boot architecture:
+PxeLab uses a two-stage network boot architecture:
 
 ```
 Stage 1                    Stage 2
@@ -19,7 +19,7 @@ Stage 1                    Stage 2
 ### Stage 1: PXE ROM → iPXE
 
 1. Client PXE ROM sends DHCP Discover
-2. PxeGo DHCP 服务器响应 Offer/Ack，包含:
+2. PxeLab DHCP 服务器响应 Offer/Ack，包含:
    - IP 地址（full/hybrid 模式）
    - next-server（TFTP 服务器地址）
    - bootfile（NBP 文件名）
@@ -36,7 +36,7 @@ Stage 1                    Stage 2
    chain http://${next-server}:8080/boot/ipxe/script?mac=${net0/mac} || shell
    ```
 2. iPXE 执行 DHCP（自己做，不读 PXE 缓存）
-3. PxeGo 再次响应 DHCP，包含 Option 175.178
+3. PxeLab 再次响应 DHCP，包含 Option 175.178
 4. iPXE 通过 HTTP 获取引导菜单脚本
 5. 菜单显示配置的引导项
 
@@ -100,6 +100,6 @@ GRUB2 的网络引导（HTTP Boot / PXE）暂不支持。要支持 GRUB2：
 
 | Mode | 行为 | 适用场景 |
 |------|------|---------|
-| `full` | DHCP 服务器分配 IP + PXE 选项 | 独立网络，PxeGo 作为唯一 DHCP |
+| `full` | DHCP 服务器分配 IP + PXE 选项 | 独立网络，PxeLab 作为唯一 DHCP |
 | `proxy` | 仅提供 PXE 选项，不分配 IP | 现有 DHCP 环境中叠加 PXE 服务 |
 | `hybrid` | PXE 客户端用 proxy，其他用 full | 混合环境，默认模式 |

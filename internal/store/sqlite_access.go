@@ -1,10 +1,10 @@
-package store
+﻿package store
 
 import (
 	"context"
 	"time"
 
-	"github.com/pxego/pxego/internal/models"
+	"github.com/pxelab/pxelab/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

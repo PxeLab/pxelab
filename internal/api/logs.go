@@ -1,4 +1,4 @@
-package api
+﻿package api
 
 import (
 	"bufio"
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/logbus"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/logbus"
 )
 
 type LogStreamHandler struct {

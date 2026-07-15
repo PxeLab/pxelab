@@ -1,0 +1,17 @@
+name: Super Grub2 Disk
+enabled: true
+menu_group: tools
+versions:
+  - codename: "2.06s4"
+    name: "Super Grub2 Disk 2.06s4 (EFI)"
+    arch: amd64
+    enabled: true
+    remote:
+      kernel: https://github.com/netbootxyz/asset-mirror/releases/download/2.06s4-30515aca/supergrub2-classic-x86_64.efi
+  - codename: "2.04s1"
+    name: "Super Grub2 Disk 2.04s1 (BIOS)"
+    arch: i386
+    enabled: true
+    type: memdisk
+    remote:
+      initrd: http://master.dl.sourceforge.net/project/supergrub2/2.04s1/super_grub2_disk_hybrid_2.04s1.iso

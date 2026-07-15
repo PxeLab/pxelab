@@ -1,8 +1,8 @@
-# iPXE 引导脚本配置使用说明
+﻿# iPXE 引导脚本配置使用说明
 
 ## 概述
 
-PxeGo 的 iPXE 引导脚本系统采用**配置驱动决策树**设计。你无需编写原始 iPXE 脚本，通过 Web 管理界面（设置 → Netboot）即可可视化配置完整的 PXE 引导行为。
+PxeLab 的 iPXE 引导脚本系统采用**配置驱动决策树**设计。你无需编写原始 iPXE 脚本，通过 Web 管理界面（设置 → Netboot）即可可视化配置完整的 PXE 引导行为。
 
 ## 决策树流程
 
@@ -54,7 +54,7 @@ chain {{.URL}}/boot/custom.ipxe || shell
 当客户端**无关联 Profile** 且**未启用 Netboot 安装目录跳转**时，客户端看到此菜单。
 
 #### 菜单标题
-默认值：`PxeGo Boot Menu`
+默认值：`PxeLab Boot Menu`
 
 #### 超时时间（秒）
 - `0` = 不自动选择，等待用户操作
@@ -189,7 +189,7 @@ set keep-san 1
 
 ### chain_to_ipxe
 
-当接口配置的引导加载器为 `pxelinux` 或 `grub2`，且启用了 `chain_to_ipxe` 时，PxeGo 会在 PXELinux/GRUB2 客户端请求配置文件时，自动返回 iPXE chainload 配置，引导客户端升级到 iPXE。
+当接口配置的引导加载器为 `pxelinux` 或 `grub2`，且启用了 `chain_to_ipxe` 时，PxeLab 会在 PXELinux/GRUB2 客户端请求配置文件时，自动返回 iPXE chainload 配置，引导客户端升级到 iPXE。
 
 工作原理：
 
@@ -264,7 +264,7 @@ netboot:
   script_template: ""  # 留空则使用可视化配置
   boot:
     default_menu:
-      title: "PxeGo Boot Menu"
+      title: "PxeLab Boot Menu"
       timeout: 5000
       default: 0
       entries:

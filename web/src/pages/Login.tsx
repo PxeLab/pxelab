@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { login } from '../api/client'
 import { Button } from '../components/ui/Button'
@@ -43,7 +43,7 @@ export default function LoginPage({ onLogin }: LoginProps) {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-extrabold text-xl text-white shadow-xl shadow-blue-500/25 mx-auto mb-4">
             PX
           </div>
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">PxeGo</h1>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">PxeLab</h1>
           <p className="text-sm text-[var(--text-muted)] mt-2">{t('login.title')}</p>
         </div>
 

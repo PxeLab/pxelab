@@ -1,4 +1,4 @@
-# PxeGo Documentation
+﻿# PxeLab Documentation
 
 | Document | Description |
 |----------|-------------|

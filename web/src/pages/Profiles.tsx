@@ -338,6 +338,9 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
                     <textarea className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} placeholder={t('profiles.cmdlinePlaceholder')} />
                   </div>
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2 text-xs text-amber-300 leading-relaxed">
+                    {t('profiles.uefiInitrdHint')}
+                  </div>
                 </>
               )}
               {form.entry.type === 'chain' && (

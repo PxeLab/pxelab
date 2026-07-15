@@ -1,4 +1,4 @@
-package dns
+﻿package dns
 
 import (
 	"context"
@@ -9,11 +9,14 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/pxego/pxego/internal/config"
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/models"
-	"github.com/pxego/pxego/internal/store"
+	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/metrics"
+	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/store"
 )
+
+var dnsMetrics = metrics.DefaultRegistry.GetOrCreate("dns")
 
 const dnsTimeout = 5 * time.Second
 
@@ -40,7 +43,7 @@ type Handler struct {
 func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Handler {
 	localDomain := cfg.DNS.LocalDomain
 	if localDomain == "" {
-		localDomain = "pxego.local"
+		localDomain = "pxelab.local"
 	}
 
 	subnetIPMap := make(map[string]string)
@@ -118,6 +121,7 @@ func parseUpstreams(s string) []string {
 }
 
 func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	dnsMetrics.RecordRequest()
 	m := new(dns.Msg)
 	m.SetReply(r)
 
@@ -185,7 +189,7 @@ func (h *Handler) resolveLocal(m *dns.Msg, qName string, typeStr string, q dns.Q
 		return false
 	}
 
-	// Extract hostname: "pxe-server.pxego.local" → "pxe-server"
+	// Extract hostname: "pxe-server.pxelab.local" → "pxe-server"
 	hostname := qName
 	if strings.EqualFold(qName, h.localDomain) {
 		hostname = "@" // root record for the domain itself
@@ -262,6 +266,7 @@ func (h *Handler) forwardToUpstream(r *dns.Msg, qName string) *dns.Msg {
 		}
 		return resp
 	}
+	dnsMetrics.RecordError()
 	slog.Error("DNS 所有上游均不可用", "service", "DNS", "query", qName, "upstreams", h.upstreams)
 	m := new(dns.Msg)
 	m.SetReply(r)

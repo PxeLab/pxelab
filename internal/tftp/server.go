@@ -1,4 +1,4 @@
-package tftp
+﻿package tftp
 
 import (
 	"bytes"
@@ -9,10 +9,13 @@ import (
 	"net"
 
 	"github.com/pin/tftp/v3"
-	"github.com/pxego/pxego/internal/boot"
-	"github.com/pxego/pxego/internal/eventbus"
-	"github.com/pxego/pxego/internal/models"
+	"github.com/pxelab/pxelab/internal/boot"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/metrics"
+	"github.com/pxelab/pxelab/internal/models"
 )
+
+var tftpMetrics = metrics.DefaultRegistry.GetOrCreate("tftp")
 
 type Server struct {
 	name     string
@@ -85,6 +88,8 @@ func (s *Server) readHandler(filename string, rf io.ReaderFrom) error {
 	}
 	slog.Info("TFTP 请求", "service", "TFTP", "file", filename, "client", clientAddr)
 
+	tftpMetrics.RecordRequest()
+
 	s.eventBus.Publish("event", models.Event{
 		Type:    models.EventTFTP,
 		Level:   models.EventInfo,
@@ -93,17 +98,21 @@ func (s *Server) readHandler(filename string, rf io.ReaderFrom) error {
 
 	data, err := s.bootFS.Read(filename)
 	if err != nil {
+		tftpMetrics.RecordError()
 		slog.Warn("TFTP 文件未找到", "service", "TFTP", "file", filename, "client", clientAddr)
 		return fmt.Errorf("file not found: %s", filename)
 	}
 
 	slog.Info("TFTP 开始发送", "service", "TFTP", "file", filename, "client", clientAddr, "size", len(data))
 
-	if _, err := rf.ReadFrom(bytes.NewReader(data)); err != nil {
+	n, err := rf.ReadFrom(bytes.NewReader(data))
+	if err != nil {
+		tftpMetrics.RecordError()
 		slog.Warn("TFTP 传输失败", "service", "TFTP", "file", filename, "client", clientAddr, "error", err)
 		return err
 	}
 
+	tftpMetrics.RecordBytes(n, true)
 	slog.Info("TFTP 传输完成", "service", "TFTP", "file", filename, "client", clientAddr, "size", len(data))
 	return nil
 }

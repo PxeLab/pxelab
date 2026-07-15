@@ -1,0 +1,66 @@
+#!ipxe
+
+goto ${menu} ||
+
+:live_menu
+set os SparkyLinux Live
+menu ${os}
+item --gap ${os} Versions
+item stable ${space} ${os} Stable
+item rolling ${space} ${os} Rolling
+choose live_version || goto live_exit
+menu ${os} ${live_version}
+item --gap ${os} Flavors
+goto ${live_version}
+
+:stable
+item sparky-stable-gui ${space} Sparky stable Xfce
+item sparky-stable-lxqt ${space} Sparky stable Lxqt
+item sparky-stable-mingui ${space} Sparky stable Xfce-Min
+goto flavor_select
+
+:rolling
+item sparky-rolling-gui ${space} Sparky rolling Xfce
+item sparky-rolling-lxqt ${space} Sparky rolling Lxqt
+item sparky-rolling-mingui ${space} Sparky rolling Xfce-Min
+goto flavor_select
+
+:flavor_select
+choose flavor || goto live_menu
+echo ${cls}
+goto ${flavor} ||
+
+:sparky-rolling-gui
+set squash_url ${live_endpoint}/debian-squash/releases/download/2026.03-314f0a50/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/2026.03-314f0a50/
+goto boot
+:sparky-rolling-lxqt
+set squash_url ${live_endpoint}/debian-squash/releases/download/2026.03-1a7f6c6a/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/2026.03-1a7f6c6a/
+goto boot
+:sparky-rolling-mingui
+set squash_url ${live_endpoint}/debian-squash/releases/download/2026.03-8a7a4cf8/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/2026.03-8a7a4cf8/
+goto boot
+:sparky-stable-gui
+set squash_url ${live_endpoint}/debian-squash/releases/download/8.2-28fbf253/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/8.2-28fbf253/
+goto boot
+:sparky-stable-lxqt
+set squash_url ${live_endpoint}/debian-squash/releases/download/8.2-16df4761/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/8.2-16df4761/
+goto boot
+:sparky-stable-mingui
+set squash_url ${live_endpoint}/debian-squash/releases/download/8.2-d8df60d4/filesystem.squashfs
+set kernel_url ${live_endpoint}/debian-squash/releases/download/8.2-d8df60d4/
+goto boot
+
+:boot
+imgfree
+kernel ${kernel_url}vmlinuz boot=live fetch=${squash_url} initrd=initrd.magic ${cmdline}
+initrd ${kernel_url}initrd
+boot
+
+:live_exit
+clear menu
+exit 0

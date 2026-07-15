@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Save, RefreshCw, Copy, Check, RotateCw } from 'lucide-react'
 import { Card } from '../components/ui/Card'
@@ -27,7 +27,7 @@ export default function SettingsGeneral() {
     catalog_display: { title: '' },
   })
   const [config, setConfig] = useState<GeneralSettings>({
-    server_name: 'pxego',
+    server_name: 'PxeLab',
     app_mode: false,
     token: '',
     token_set: false,
@@ -38,7 +38,7 @@ export default function SettingsGeneral() {
     script_template: '',
     page_size: 50,
     default_menu: {
-      title: 'PxeGo Boot Menu',
+      title: 'PxeLab Boot Menu',
       timeout: 10,
       default: 0,
       list_all_profiles: false,
@@ -59,7 +59,7 @@ export default function SettingsGeneral() {
       const d = res.data
       setConfig(prev => ({
         ...prev,
-        server_name: d.server_name || 'pxego',
+        server_name: d.server_name || 'PxeLab',
         log_level: d.log_level || prev.log_level,
         data_dir: d.data_dir || prev.data_dir,
         listen_addr: d.listen_addr || prev.listen_addr,
@@ -153,7 +153,11 @@ export default function SettingsGeneral() {
             {/* ── 基本设置 ── */}
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('settings.basicSettings')}</h3>
             <SettingsField label={t('common.serverName', '服务器名称')}>
-              <SettingsInput value={config.server_name} onChange={v => setConfig({...config, server_name: v})} />
+              <SettingsInput value={config.server_name} onChange={v => setConfig({...config, server_name: v})}
+                error={config.server_name !== '' && !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(config.server_name)} />
+              {config.server_name !== '' && !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(config.server_name) && (
+                <p className="text-xs text-amber-400 mt-1">{t('common.serverNameHint')}</p>
+              )}
             </SettingsField>
             <SettingsField label={t('common.logLevel', '日志级别')}>
               <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none"
