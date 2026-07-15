@@ -45,7 +45,7 @@ export default function WolView() {
       setHistory(h.data.records)
       setTotal(h.data.total)
       setSchedules(s.data.schedules)
-      setInterfaces(ifs.data)
+      setInterfaces(ifs.data || [])
     } catch { /* ignore */ }
     setLoading(false)
   }
@@ -129,7 +129,7 @@ export default function WolView() {
                 className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-primary)] outline-none focus:border-blue-500/50 transition-colors"
               >
                 <option value="">{t('wol.auto')}</option>
-                {interfaces.map(iface => iface.ips.map(ip => (
+                {(interfaces || []).map(iface => (iface.ips || []).map(ip => (
                   <option key={`${iface.name}-${ip}`} value={ip}>{iface.name} ({ip})</option>
                 )))}
               </select>
@@ -148,10 +148,10 @@ export default function WolView() {
             <p className="text-xs text-[var(--text-muted)]">{t('wol.noInterfaces')}</p>
           ) : (
             <div className="space-y-2">
-              {interfaces.map(iface => (
+              {(interfaces || []).map(iface => (
                 <div key={iface.name} className="text-xs">
                   <span className="font-medium text-[var(--text-primary)]">{iface.name}</span>
-                  <div className="text-[var(--text-muted)] font-mono mt-0.5">{iface.ips.join(', ')}</div>
+                  <div className="text-[var(--text-muted)] font-mono mt-0.5">{(iface.ips || []).join(', ')}</div>
                 </div>
               ))}
             </div>

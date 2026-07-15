@@ -26,10 +26,25 @@ Thumbs.db
 # Dependencies
 web/node_modules/
 
+# Go vendor (rebuild from go.mod)
+vendor/
+
 # Build output
 web/dist/
 cmd/pxelab/webdist/assets/
 *.tsbuildinfo
+
+# PXE boot large binaries (download from releases, not committed)
+boot/init-ok.xz
+boot/bzImage*
+boot/vmlinuz
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pxelab.db*
 
 # Environment
 .env
