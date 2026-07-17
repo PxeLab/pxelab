@@ -35,6 +35,36 @@ const WINDOWS_VARS = [
   '{{.AdminPassword}}', '{{.TimeZone}}',
 ]
 
+interface VariableDef {
+  key: string
+  value: string
+  required: boolean
+}
+
+const DEFAULT_PREVIEW_VARS: VariableDef[] = [
+  { key: 'host_name', value: 'node-01', required: true },
+  { key: 'host_ip', value: '192.168.1.100', required: false },
+  { key: 'host_mac', value: '00:11:22:33:44:55', required: false },
+  { key: 'host_cidr', value: '192.168.1.0/24', required: false },
+  { key: 'gateway', value: '192.168.1.1', required: false },
+  { key: 'dns_servers', value: '192.168.1.1', required: false },
+  { key: 'disk', value: '/dev/sda', required: false },
+  { key: 'keyboard_layout', value: 'us', required: false },
+  { key: 'arch', value: 'amd64', required: false },
+  { key: 'product_key', value: 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX', required: false },
+  { key: 'computer_name', value: 'WIN-NODE-01', required: false },
+  { key: 'join_domain', value: 'example.local', required: false },
+  { key: 'domain_ou', value: 'OU=Servers,DC=example,DC=local', required: false },
+  { key: 'admin_password', value: 'P@ssw0rd', required: false },
+  { key: 'time_zone', value: 'UTC', required: false },
+]
+
+function varToPayload(vars: VariableDef[]): Record<string, string> {
+  const p: Record<string, string> = {}
+  for (const v of vars) { if (v.value) p[v.key] = v.value }
+  return p
+}
+
 export default function AnswerTemplates() {
   const { t } = useTranslation()
   const [templates, setTemplates] = useState<AnswerTemplate[]>([])
@@ -45,6 +75,21 @@ export default function AnswerTemplates() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const importRef = useRef<HTMLInputElement>(null)
 
+  // Validation state
+  const [validationResult, setValidationResult] = useState<{ valid: boolean; error?: string } | null>(null)
+  const [validating, setValidating] = useState(false)
+
+  // Preview state
+  const [showPreview, setShowPreview] = useState(false)
+  const [previewVars, setPreviewVars] = useState<VariableDef[]>(DEFAULT_PREVIEW_VARS.map(v => ({ ...v })))
+  const [previewResult, setPreviewResult] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  // Preset state
+  const [showPresets, setShowPresets] = useState(false)
+  const [presets, setPresets] = useState<{ name: string; description: string; content: string; variables: string[] }[]>([])
+  const [presetType, setPresetType] = useState('preseed')
+
   // Version history state
   const [showVersions, setShowVersions] = useState(false)
   const [versionTemplateId, setVersionTemplateId] = useState<number | null>(null)
@@ -54,6 +99,7 @@ export default function AnswerTemplates() {
   const [diffVerB, setDiffVerB] = useState<number | ''>('')
   const [confirmBatchDelete, setConfirmBatchDelete] = useState(false)
   const [confirmRollback, setConfirmRollback] = useState<number | null>(null)
+
   const load = useCallback(async () => {
     try {
       const res = await api.getAnswerTemplates()
@@ -68,8 +114,30 @@ export default function AnswerTemplates() {
 
   useEffect(() => { load() }, [load])
 
+  const runValidation = async (content: string) => {
+    setValidating(true)
+    setValidationResult(null)
+    try {
+      const res = await api.validateAnswerTemplate(content)
+      setValidationResult(res.data)
+    } catch (err: any) {
+      setValidationResult({ valid: false, error: err.message })
+    } finally { setValidating(false) }
+  }
+
   const save = async () => {
     if (!editing) return
+    // Validate before save
+    try {
+      const res = await api.validateAnswerTemplate(editing.content)
+      if (!res.data.valid) {
+        setError('Template syntax error: ' + (res.data.error || 'unknown'))
+        return
+      }
+    } catch (err: any) {
+      setError('Validation failed: ' + err.message)
+      return
+    }
     try {
       if (editing.id) {
         await api.updateAnswerTemplate(editing.id, editing)
@@ -78,6 +146,7 @@ export default function AnswerTemplates() {
       }
       setShowEditor(false)
       setEditing(null)
+      setValidationResult(null)
       await load()
     } catch (err: any) {
       setError(err.message || t('answerTemplates.saveFailed'))
@@ -116,12 +185,54 @@ export default function AnswerTemplates() {
 
   const openNew = () => {
     setEditing({ name: '', description: '', type: 'preseed', content: '' })
+    setValidationResult(null)
     setShowEditor(true)
   }
 
   const openNewWithContent = (content: string, name: string) => {
     setEditing({ name, description: '', type: 'preseed', content })
+    setValidationResult(null)
     setShowEditor(true)
+  }
+
+  const openPresets = async (type: string) => {
+    setPresetType(type)
+    try {
+      const res = await api.getAnswerTemplatePresets(type) as any
+      setPresets((res.data as any).presets || [])
+      setShowPresets(true)
+    } catch (err: any) {
+      setError(err.message || 'Failed to load presets')
+    }
+  }
+
+  const applyPreset = (preset: { name: string; description: string; content: string; variables: string[] }) => {
+    setEditing({
+      name: preset.name,
+      description: preset.description,
+      type: presetType,
+      content: preset.content,
+    })
+    setShowPresets(false)
+    setValidationResult(null)
+  }
+
+  const openPreview = async () => {
+    if (!editing?.id) return
+    setShowPreview(true)
+    setPreviewResult('')
+    setPreviewVars(DEFAULT_PREVIEW_VARS.map(v => ({ ...v })))
+  }
+
+  const doPreview = async () => {
+    if (!editing?.id) return
+    setPreviewLoading(true)
+    try {
+      const res = await api.previewAnswerTemplate(editing.id, varToPayload(previewVars))
+      setPreviewResult(res.data.rendered)
+    } catch (err: any) {
+      setPreviewResult('Error: ' + err.message)
+    } finally { setPreviewLoading(false) }
   }
 
   const openVersions = async (tplId: number) => {
@@ -158,7 +269,6 @@ export default function AnswerTemplates() {
     }
   }
 
-  // Simple LCS-based line diff
   function computeDiff(a: string, b: string): { type: 'add' | 'remove' | 'keep'; line: string }[] {
     const linesA = a.split('\n')
     const linesB = b.split('\n')
@@ -192,6 +302,7 @@ export default function AnswerTemplates() {
 
   const openEdit = (tpl: AnswerTemplate) => {
     setEditing({ ...tpl })
+    setValidationResult(null)
     setShowEditor(true)
   }
 
@@ -242,7 +353,6 @@ export default function AnswerTemplates() {
     const reader = new FileReader()
     reader.onload = async (ev) => {
       const content = ev.target?.result as string
-      // Handle JSON batch import (from multi-export)
       if (file.name.endsWith('.json')) {
         try {
           const items: AnswerTemplate[] = JSON.parse(content)
@@ -260,15 +370,11 @@ export default function AnswerTemplates() {
             } catch {}
           }
           await load()
-          if (count > 0) {
-            setError('')
-          }
         } catch {
           setError(t('answerTemplates.importJsonError'))
         }
         return
       }
-      // Single file import — pre-fill editor
       const name = file.name.replace(/\.[^.]+$/, '')
       openNewWithContent(content, name)
     }
@@ -297,7 +403,6 @@ export default function AnswerTemplates() {
         </div>
       )}
 
-      {/* Selection toolbar */}
       {selected.size > 0 && (
         <div className="mb-3 px-4 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-between">
           <span className="text-xs text-blue-400">{t('answerTemplates.selectedCount', { count: selected.size })}</span>
@@ -309,14 +414,20 @@ export default function AnswerTemplates() {
         </div>
       )}
 
-      {/* Template editor modal */}
+      {/* Editor Modal */}
       <Modal
         open={showEditor && !!editing}
-        onClose={() => setShowEditor(false)}
+        onClose={() => { setShowEditor(false); setValidationResult(null) }}
         title={editing?.id ? t('answerTemplates.editTemplate') : t('answerTemplates.newTemplate')}
-        width="720px"
+        width="780px"
         footer={
           <>
+            <Button variant="ghost" size="sm" onClick={() => { if (editing?.id) openPreview() }} disabled={!editing?.id}>
+              Preview
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => runValidation(editing?.content || '')} disabled={validating}>
+              {validating ? '...' : 'Validate'}
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => setShowEditor(false)}>{t('common.cancel')}</Button>
             <Button variant="primary" size="sm" onClick={save} disabled={!editing?.name || !editing?.content}>{t('common.save')}</Button>
           </>
@@ -324,8 +435,8 @@ export default function AnswerTemplates() {
       >
         {editing && (
           <>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="col-span-2">
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.name')}</label>
                 <input
                   type="text" value={editing.name}
@@ -335,15 +446,24 @@ export default function AnswerTemplates() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.type')}</label>
-                <select
-                  value={editing.type}
-                  onChange={e => setEditing({ ...editing, type: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
-                >
-                  {TEMPLATE_TYPES.map(tp => (
-                    <option key={tp} value={tp}>{TYPE_LABELS[tp] || tp}</option>
-                  ))}
-                </select>
+                <div className="flex gap-1">
+                  <select
+                    value={editing.type}
+                    onChange={e => setEditing({ ...editing, type: e.target.value })}
+                    className="flex-1 px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+                  >
+                    {TEMPLATE_TYPES.map(tp => (
+                      <option key={tp} value={tp}>{TYPE_LABELS[tp] || tp}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => openPresets(editing.type)}
+                    className="px-2 py-1 text-[10px] rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
+                    title="From preset"
+                  >
+                    Presets
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -356,24 +476,47 @@ export default function AnswerTemplates() {
               />
             </div>
 
+            {/* Validation result */}
+            {validationResult && (
+              <div className={`mb-4 px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${
+                validationResult.valid
+                  ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                  : 'bg-red-500/10 text-red-400 border border-red-500/20'
+              }`}>
+                <span>{validationResult.valid ? '✓ Valid template syntax' : '✗ Validation error'}</span>
+                {validationResult.error && <code className="ml-1 font-mono text-[10px] opacity-70">{validationResult.error}</code>}
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.content')}</label>
               <textarea
                 value={editing.content}
-                onChange={e => setEditing({ ...editing, content: e.target.value })}
+                onChange={e => { setEditing({ ...editing, content: e.target.value }); setValidationResult(null) }}
                 rows={16}
                 className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)] resize-y"
               />
             </div>
 
-            {/* Variable hints panel */}
+            {/* Variable hints */}
             <div className="mb-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
               <p className="text-xs font-medium text-blue-400 mb-2">{t('answerTemplates.availableVars')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {variablesForType(editing.type).map(v => (
                   <button
                     key={v}
-                    onClick={() => navigator.clipboard.writeText(v)}
+                    onClick={() => {
+                      const ta = document.querySelector('textarea') as HTMLTextAreaElement
+                      if (ta) {
+                        const start = ta.selectionStart
+                        const end = ta.selectionEnd
+                        const newContent = editing.content.substring(0, start) + v + editing.content.substring(end)
+                        setEditing({ ...editing, content: newContent })
+                        setTimeout(() => { ta.selectionStart = ta.selectionEnd = start + v.length; ta.focus() }, 0)
+                      } else {
+                        navigator.clipboard.writeText(v)
+                      }
+                    }}
                     className="px-2 py-0.5 text-[11px] font-mono rounded bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 transition-colors"
                   >
                     {v}
@@ -383,6 +526,84 @@ export default function AnswerTemplates() {
             </div>
           </>
         )}
+      </Modal>
+
+      {/* Preview Modal */}
+      <Modal
+        open={showPreview && !!editing?.id}
+        onClose={() => setShowPreview(false)}
+        title="Template Preview"
+        width="740px"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setShowPreview(false)}>Close</Button>
+            <Button variant="primary" size="sm" onClick={doPreview} disabled={previewLoading}>
+              {previewLoading ? 'Rendering...' : 'Render Preview'}
+            </Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          {previewVars.map((v, i) => (
+            <div key={v.key}>
+              <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-0.5">
+                {v.key} {v.required && <span className="text-red-400">*</span>}
+              </label>
+              <input
+                type="text" value={v.value}
+                onChange={e => { const nv = [...previewVars]; nv[i] = { ...nv[i], value: e.target.value }; setPreviewVars(nv) }}
+                className="w-full px-2 py-1.5 text-[11px] font-mono rounded border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+                placeholder={v.key}
+              />
+            </div>
+          ))}
+        </div>
+        {previewResult && (
+          <div className="rounded-lg border border-[var(--bg-border)] overflow-hidden">
+            <div className="px-3 py-2 text-[10px] font-bold text-[var(--text-muted)] bg-[var(--bg-base)] border-b border-[var(--bg-border)]">
+              Rendered Output
+            </div>
+            <pre className="p-3 max-h-80 overflow-y-auto text-[11px] font-mono whitespace-pre-wrap text-[var(--text-primary)]">
+              {previewResult}
+            </pre>
+          </div>
+        )}
+      </Modal>
+
+      {/* Presets Modal */}
+      <Modal
+        open={showPresets}
+        onClose={() => setShowPresets(false)}
+        title={`Presets — ${TYPE_LABELS[presetType] || presetType}`}
+        width="640px"
+        footer={<Button variant="secondary" size="sm" onClick={() => setShowPresets(false)}>Close</Button>}
+      >
+        <div className="space-y-3">
+          {presets.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)]">No presets for this type.</p>
+          ) : (
+            presets.map((p, i) => (
+              <div key={i} className="p-4 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)]">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">{p.name}</p>
+                    <p className="text-[11px] text-[var(--text-muted)]">{p.description}</p>
+                  </div>
+                  <Button variant="primary" size="sm" onClick={() => applyPreset(p)}>Use</Button>
+                </div>
+                {p.variables?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {p.variables.map(v => (
+                      <span key={v} className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-yellow-500/10 text-yellow-400">
+                        {v}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
       </Modal>
 
       {/* Template list */}
@@ -460,7 +681,7 @@ export default function AnswerTemplates() {
         open={showVersions}
         onClose={() => setShowVersions(false)}
         title={t('answerTemplates.versionHistory')}
-        width="640px"
+        width="700px"
         footer={<Button variant="secondary" size="sm" onClick={() => setShowVersions(false)}>{t('common.close')}</Button>}
       >
         {versionsLoading ? (
@@ -493,7 +714,6 @@ export default function AnswerTemplates() {
           </div>
         )}
 
-        {/* Diff comparison */}
         {versions.length >= 2 && (
           <div className="mt-4">
             <div className="flex items-center gap-3 mb-3">

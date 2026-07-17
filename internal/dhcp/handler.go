@@ -59,7 +59,7 @@ func (h *Handler) InitSubnets() {
 			// 确定 DHCP 模式
 			dhcpMode := subnet.DHCP
 			if dhcpMode == "" {
-				dhcpMode = "full"
+				dhcpMode = "server"
 			}
 
 			var pools []*IPRange
@@ -366,7 +366,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	// 从匹配的子网确定 DHCP 模式
 	dhcpMode := subnetCfg.DHCP
 	if dhcpMode == "" {
-		dhcpMode = "full"
+		dhcpMode = "server"
 	}
 
 	// Proxy subnet: skip non-PXE clients
@@ -519,7 +519,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 			reply.UpdateOption(dhcpv4.OptSubnetMask(ipnet.Mask))
 		}
 	}
-	case "full":
+	case "server":
 		ip, err := h.leaseMgr.AllocateWithInfo(subnetCfg.CIDR, pkt.ClientHWAddr.String(), archStr, platformStr)
 		if err != nil {
 			slog.Warn("IP 分配失败", "mac", pkt.ClientHWAddr.String(), "error", err)

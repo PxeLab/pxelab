@@ -29,7 +29,7 @@ func TestDefaultDataDir(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	t.Run("valid DHCP modes", func(t *testing.T) {
-		modes := []string{"full", "proxy", "off", ""}
+		modes := []string{"server", "proxy", "off", ""}
 		for _, mode := range modes {
 			cfg := &Config{
 				Interfaces: []InterfaceConfig{

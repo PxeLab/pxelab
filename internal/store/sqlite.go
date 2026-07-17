@@ -3,6 +3,7 @@
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"time"
@@ -66,6 +67,7 @@ func (s *sqliteStore) Migrate() error {
 		&models.DHCPReservation{},
 		&models.WOLHistory{},
 		&models.WOLSchedule{},
+		&models.OSImage{},
 	)
 }
 
@@ -588,6 +590,14 @@ func (s *sqliteStore) CreateWOLHistory(ctx context.Context, h *models.WOLHistory
 	return s.db.WithContext(ctx).Create(h).Error
 }
 
+func (s *sqliteStore) DeleteWOLHistory(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.WOLHistory{}, id).Error
+}
+
+func (s *sqliteStore) DeleteAllWOLHistory(ctx context.Context) error {
+	return s.db.WithContext(ctx).Delete(&models.WOLHistory{}).Error
+}
+
 func (s *sqliteStore) PruneWOLHistory(ctx context.Context, before time.Time) error {
 	return s.db.WithContext(ctx).Where("created_at < ?", before).Delete(&models.WOLHistory{}).Error
 }
@@ -620,4 +630,34 @@ func (s *sqliteStore) UpdateWOLSchedule(ctx context.Context, schedule *models.WO
 
 func (s *sqliteStore) DeleteWOLSchedule(ctx context.Context, id uint) error {
 	return s.db.WithContext(ctx).Delete(&models.WOLSchedule{}, id).Error
+}
+
+func (s *sqliteStore) ListOSImages(ctx context.Context) ([]models.OSImage, error) {
+	var imgs []models.OSImage
+	err := s.db.WithContext(ctx).Order("created_at desc").Find(&imgs).Error
+	return imgs, err
+}
+
+func (s *sqliteStore) GetOSImage(ctx context.Context, id uint) (*models.OSImage, error) {
+	var img models.OSImage
+	err := s.db.WithContext(ctx).First(&img, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &img, nil
+}
+
+func (s *sqliteStore) CreateOSImage(ctx context.Context, img *models.OSImage) error {
+	return s.db.WithContext(ctx).Create(img).Error
+}
+
+func (s *sqliteStore) UpdateOSImage(ctx context.Context, img *models.OSImage) error {
+	return s.db.WithContext(ctx).Save(img).Error
+}
+
+func (s *sqliteStore) DeleteOSImage(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.OSImage{}, id).Error
 }

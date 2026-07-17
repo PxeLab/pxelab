@@ -46,6 +46,8 @@ type memoryStore struct {
 	wolSchedules     map[uint]*models.WOLSchedule
 	wolHistIdx       uint
 	wolSchedIdx      uint
+	osImages         map[uint]*models.OSImage
+	osImgIdx         uint
 }
 
 func NewMemory() Interface {
@@ -66,6 +68,7 @@ func NewMemory() Interface {
 		dhcpReservations: make(map[uint]*models.DHCPReservation),
 		wolHistory:       make([]models.WOLHistory, 0),
 		wolSchedules:     make(map[uint]*models.WOLSchedule),
+		osImages:         make(map[uint]*models.OSImage),
 	}
 }
 
@@ -1040,6 +1043,25 @@ func (s *memoryStore) CreateWOLHistory(_ context.Context, h *models.WOLHistory) 
 	return nil
 }
 
+func (s *memoryStore) DeleteWOLHistory(_ context.Context, id uint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, h := range s.wolHistory {
+		if h.ID == id {
+			s.wolHistory = append(s.wolHistory[:i], s.wolHistory[i+1:]...)
+			return nil
+		}
+	}
+	return nil
+}
+
+func (s *memoryStore) DeleteAllWOLHistory(_ context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.wolHistory = make([]models.WOLHistory, 0)
+	return nil
+}
+
 func (s *memoryStore) PruneWOLHistory(_ context.Context, before time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1104,5 +1126,60 @@ func (s *memoryStore) DeleteWOLSchedule(_ context.Context, id uint) error {
 		return ErrNotFound
 	}
 	delete(s.wolSchedules, id)
+	return nil
+}
+
+func (s *memoryStore) ListOSImages(_ context.Context) ([]models.OSImage, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	imgs := make([]models.OSImage, 0, len(s.osImages))
+	for _, img := range s.osImages {
+		imgs = append(imgs, *img)
+	}
+	sort.Slice(imgs, func(i, j int) bool { return imgs[i].CreatedAt.After(imgs[j].CreatedAt) })
+	return imgs, nil
+}
+
+func (s *memoryStore) GetOSImage(_ context.Context, id uint) (*models.OSImage, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	img, ok := s.osImages[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return img, nil
+}
+
+func (s *memoryStore) CreateOSImage(_ context.Context, img *models.OSImage) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.osImgIdx++
+	img.ID = s.osImgIdx
+	img.CreatedAt = time.Now()
+	img.UpdatedAt = time.Now()
+	s.osImages[img.ID] = img
+	return nil
+}
+
+func (s *memoryStore) UpdateOSImage(_ context.Context, img *models.OSImage) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	existing, ok := s.osImages[img.ID]
+	if !ok {
+		return ErrNotFound
+	}
+	img.CreatedAt = existing.CreatedAt
+	img.UpdatedAt = time.Now()
+	s.osImages[img.ID] = img
+	return nil
+}
+
+func (s *memoryStore) DeleteOSImage(_ context.Context, id uint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.osImages[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.osImages, id)
 	return nil
 }

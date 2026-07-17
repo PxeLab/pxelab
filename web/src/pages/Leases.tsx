@@ -189,8 +189,8 @@ export default function Leases() {
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <span className="text-sm font-semibold text-[var(--text-primary)]">{s.subnet_id}</span>
-                      <Tag color={s.dhcp_mode === 'full' ? 'blue' : 'purple'} className="ml-2">
-                        {s.dhcp_mode === 'full' ? t('leases.dhcpModeFull') : s.dhcp_mode === 'proxy' ? t('leases.dhcpModeProxy') : t('leases.dhcpModeOff')}
+                      <Tag color={s.dhcp_mode === 'server' ? 'blue' : 'purple'} className="ml-2">
+                        {s.dhcp_mode === 'server' ? t('leases.dhcpModeFull') : s.dhcp_mode === 'proxy' ? t('leases.dhcpModeProxy') : t('leases.dhcpModeOff')}
                       </Tag>
                     </div>
                   </div>

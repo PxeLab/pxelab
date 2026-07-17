@@ -3,6 +3,7 @@
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
@@ -95,12 +96,13 @@ func sendWOLPacket(bcastIP, localIP string, mac net.HardwareAddr) error {
 	return lastErr
 }
 
-func (h *WOLHandler) recordHistory(mac, hostName, bcast, sourceIP string, success bool, errMsg string) {
+func (h *WOLHandler) recordHistory(mac, hostName, bcast, sourceIP, iface string, success bool, errMsg string) {
 	h.store.CreateWOLHistory(nil, &models.WOLHistory{
 		MAC:       mac,
 		HostName:  hostName,
 		Broadcast: bcast,
 		SourceIP:  sourceIP,
+		Interface: iface,
 		Success:   success,
 		ErrorMsg:  errMsg,
 	})
@@ -114,15 +116,18 @@ func (h *WOLHandler) wakeAndRecord(mac, hostName, bcast, localIP string) bool {
 	macHW, err := net.ParseMAC(mac)
 	if err != nil {
 		wolMetrics.RecordError()
-		h.recordHistory(mac, hostName, bcast, localIP, false, "无效 MAC")
+		slog.Error("WOL 唤醒失败", "service", "WOL", "mac", mac, "host", hostName, "error", "无效 MAC")
+		h.recordHistory(mac, hostName, bcast, localIP, localIP, false, "无效 MAC")
 		return false
 	}
 	if err := sendWOLPacket(bcast, localIP, macHW); err != nil {
 		wolMetrics.RecordError()
-		h.recordHistory(mac, hostName, bcast, localIP, false, err.Error())
+		slog.Error("WOL 唤醒失败", "service", "WOL", "mac", mac, "host", hostName, "broadcast", bcast, "error", err)
+		h.recordHistory(mac, hostName, bcast, localIP, localIP, false, err.Error())
 		return false
 	}
-	h.recordHistory(mac, hostName, bcast, localIP, true, "")
+	slog.Info("WOL 唤醒已发送", "service", "WOL", "mac", mac, "host", hostName, "broadcast", bcast)
+	h.recordHistory(mac, hostName, bcast, localIP, localIP, true, "")
 	return true
 }
 
@@ -159,6 +164,7 @@ func (h *WOLHandler) BatchWake(w http.ResponseWriter, r *http.Request) {
 		IDs       []string `json:"ids"`
 		MACs      []string `json:"macs"`
 		Interface string   `json:"interface"`
+		Broadcast string   `json:"broadcast"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		Error(w, http.StatusBadRequest, "无效的请求体")
@@ -184,7 +190,10 @@ func (h *WOLHandler) BatchWake(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		seen[host.MAC] = true
-		bcast := h.broadcastForIP(host.IP)
+		bcast := req.Broadcast
+		if bcast == "" {
+			bcast = h.broadcastForIP(host.IP)
+		}
 		ok := h.wakeAndRecord(host.MAC, host.Name, bcast, req.Interface)
 		results = append(results, result{
 			MAC: host.MAC, HostName: host.Name, Success: ok,
@@ -204,9 +213,11 @@ func (h *WOLHandler) BatchWake(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			hostName = host.Name
 		}
-		bcast := ""
-		if host != nil {
-			bcast = h.broadcastForIP(host.IP)
+		bcast := req.Broadcast
+		if bcast == "" {
+			if host != nil {
+				bcast = h.broadcastForIP(host.IP)
+			}
 		}
 		ok := h.wakeAndRecord(mac, hostName, bcast, req.Interface)
 		results = append(results, result{
@@ -228,6 +239,7 @@ func (h *WOLHandler) BatchWake(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
+	slog.Info("WOL 批量唤醒完成", "service", "WOL", "success", successCount, "total", len(results))
 	OK(w, map[string]any{"results": results, "success_count": successCount, "total": len(results)})
 }
 
@@ -260,13 +272,40 @@ func (h *WOLHandler) ListHistoryByMAC(w http.ResponseWriter, r *http.Request) {
 	OK(w, map[string]any{"records": records})
 }
 
+// DELETE /api/v1/wol/history/{id}
+func (h *WOLHandler) DeleteHistory(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	var id uint
+	if _, err := fmt.Sscanf(idStr, "%d", &id); err != nil {
+		Error(w, http.StatusBadRequest, "无效的 ID")
+		return
+	}
+	if err := h.store.DeleteWOLHistory(r.Context(), id); err != nil {
+		Error(w, http.StatusInternalServerError, "删除失败")
+		return
+	}
+	OK(w, map[string]any{"message": "已删除"})
+}
+
+// DELETE /api/v1/wol/history
+func (h *WOLHandler) DeleteAllHistory(w http.ResponseWriter, r *http.Request) {
+	if err := h.store.DeleteAllWOLHistory(r.Context()); err != nil {
+		Error(w, http.StatusInternalServerError, "删除失败")
+		return
+	}
+	OK(w, map[string]any{"message": "已清空所有唤醒记录"})
+}
+
 // POST /api/v1/wol/schedule
 func (h *WOLHandler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		MAC        string `json:"mac"`
-		ScheduleAt string `json:"schedule_at"`
-		CronExpr   string `json:"cron_expr"`
-		RepeatType string `json:"repeat_type"`
+		MAC             string `json:"mac"`
+		ScheduleAt      string `json:"schedule_at"`
+		CronExpr        string `json:"cron_expr"`
+		RepeatType      string `json:"repeat_type"`
+		Weekday         int    `json:"weekday"`
+		ScheduleTime    string `json:"schedule_time"`
+		CustomBroadcast string `json:"custom_broadcast"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		Error(w, http.StatusBadRequest, "无效的请求体")
@@ -290,12 +329,15 @@ func (h *WOLHandler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 		hostName = host.Name
 	}
 	schedule := &models.WOLSchedule{
-		MAC:        req.MAC,
-		HostName:   hostName,
-		ScheduleAt: scheduleAt,
-		CronExpr:   req.CronExpr,
-		RepeatType: req.RepeatType,
-		Enabled:    true,
+		MAC:             req.MAC,
+		HostName:        hostName,
+		ScheduleAt:      scheduleAt,
+		CronExpr:        req.CronExpr,
+		RepeatType:      req.RepeatType,
+		Weekday:         req.Weekday,
+		ScheduleTime:    req.ScheduleTime,
+		CustomBroadcast: req.CustomBroadcast,
+		Enabled:         true,
 	}
 	if err := h.store.CreateWOLSchedule(r.Context(), schedule); err != nil {
 		Error(w, http.StatusInternalServerError, "创建定时唤醒失败")
@@ -329,19 +371,45 @@ func (h *WOLHandler) DeleteSchedule(w http.ResponseWriter, r *http.Request) {
 	OK(w, map[string]string{"message": "已删除"})
 }
 
-// GET /api/v1/wol/interfaces — 返回可选网卡 IP 列表
+// GET /api/v1/wol/interfaces — 返回机器实际网卡 IP 列表
 func (h *WOLHandler) ListInterfaces(w http.ResponseWriter, r *http.Request) {
 	type ifaceInfo struct {
 		Name string   `json:"name"`
 		IPs  []string `json:"ips"`
 	}
 	var result []ifaceInfo
-	for _, iface := range h.config.Interfaces {
-		info := ifaceInfo{Name: iface.Name}
-		if iface.IP != "" {
-			info.IPs = append(info.IPs, iface.IP)
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		OK(w, result)
+		return
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
 		}
-		result = append(result, info)
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		info := ifaceInfo{Name: iface.Name}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			if ip.To4() != nil {
+				info.IPs = append(info.IPs, ip.String())
+			}
+		}
+		if len(info.IPs) > 0 {
+			result = append(result, info)
+		}
 	}
 	OK(w, result)
 }

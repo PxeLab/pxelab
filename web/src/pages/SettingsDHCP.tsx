@@ -24,7 +24,7 @@ interface InterfaceConfig {
 
 const defaultIface: InterfaceConfig = {
   name: '', ip: '', bootloader: 'ipxe',
-  subnets: [{ cidr: '', dhcpMode: 'full', pools: [''], gateway: '', dnsServers: '', leaseTime: '3600', nextServer: '', chainToIPXE: false }],
+  subnets: [{ cidr: '', dhcpMode: 'server', pools: [''], gateway: '', dnsServers: '', leaseTime: '3600', nextServer: '', chainToIPXE: false }],
 }
 
 function validateIP(ip: string): boolean {
@@ -130,7 +130,7 @@ function InterfaceEditModal({
         </div>
 
         {form.subnets.map((s, si) => {
-          const subnetMode = s.dhcpMode || 'full'
+          const subnetMode = s.dhcpMode || 'server'
           const isOffSubnet = subnetMode === 'off'
           const isProxySubnet = subnetMode === 'proxy'
           const disableFields = isOffSubnet || isProxySubnet
@@ -154,7 +154,7 @@ function InterfaceEditModal({
                     value={s.dhcpMode} onChange={e => {
                       const sn = [...form.subnets]; sn[si] = {...sn[si], dhcpMode: e.target.value}; setForm({...form, subnets: sn})
                     }}>
-                    <option value="full">{t('settings.dhcpModeFull')}</option>
+                    <option value="server">{t('settings.dhcpModeFull')}</option>
                     <option value="proxy">{t('settings.dhcpModeProxy')}</option>
                     <option value="off">{t('settings.dhcpModeOff')}</option>
                   </select>
@@ -224,7 +224,7 @@ function InterfaceEditModal({
             </div>
           )
         })}
-        <Button variant="secondary" size="sm" onClick={() => setForm({...form, subnets: [...form.subnets, { cidr: '', dhcpMode: 'full', pools: [''], gateway: '', dnsServers: form.ip || '', leaseTime: '3600', nextServer: form.ip || '', chainToIPXE: false }]})}>
+        <Button variant="secondary" size="sm" onClick={() => setForm({...form, subnets: [...form.subnets, { cidr: '', dhcpMode: 'server', pools: [''], gateway: '', dnsServers: form.ip || '', leaseTime: '3600', nextServer: form.ip || '', chainToIPXE: false }]})}>
           {t('settings.addSubnet')}
         </Button>
 
@@ -266,7 +266,7 @@ function DHCPConfigTab() {
           const subnets: SubnetConfig[] = ir.subnets && ir.subnets.length > 0
             ? ir.subnets.map(s => ({
                 cidr: s.cidr || '',
-                dhcpMode: s.dhcp_mode || 'full',
+                dhcpMode: s.dhcp_mode || 'server',
                 pools: s.pools && s.pools.length > 0 ? s.pools : [''],
                 gateway: s.gateway || '',
                 dnsServers: s.dns_servers || '',
@@ -274,7 +274,7 @@ function DHCPConfigTab() {
                 nextServer: s.next_server || '',
                 chainToIPXE: s.chain_to_ipxe || false,
               }))
-            : [{ cidr: ir.subnet || '', dhcpMode: 'full', pools: ir.pools?.length ? ir.pools : [''], gateway: ir.gateway || '', dnsServers: ir.dns_servers || '', leaseTime: String(ir.lease_time || 3600), nextServer: ir.next_server || '', chainToIPXE: false }]
+            : [{ cidr: ir.subnet || '', dhcpMode: 'server', pools: ir.pools?.length ? ir.pools : [''], gateway: ir.gateway || '', dnsServers: ir.dns_servers || '', leaseTime: String(ir.lease_time || 3600), nextServer: ir.next_server || '', chainToIPXE: false }]
           return {
             name: ir.name || '',
             ip: ir.ip || '',
@@ -355,8 +355,8 @@ function DHCPConfigTab() {
     const errs: string[] = []
     for (let si = 0; si < iface.subnets.length; si++) {
       const s = iface.subnets[si]
-      const mode = s.dhcpMode || 'full'
-      if (mode === 'full') {
+      const mode = s.dhcpMode || 'server'
+      if (mode === 'server') {
         if (s.cidr && !validateCIDR(s.cidr)) errs.push(`${t('settings.subnetNumberLabel')} #${si + 1}: ${t('settings.cidrInvalid')}`)
         for (let pi = 0; pi < s.pools.length; pi++) {
           const pool = s.pools[pi]
@@ -392,8 +392,8 @@ function DHCPConfigTab() {
             {r.iface.subnets.map((s, i) => (
               <div key={i} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
                 <span className="font-mono text-[var(--text-primary)]">{s.cidr || '—'}</span>
-                <Tag color={s.dhcpMode === 'full' ? 'blue' : s.dhcpMode === 'proxy' ? 'purple' : 'cyan'}>
-                  {s.dhcpMode === 'full' ? 'full' : s.dhcpMode === 'proxy' ? 'proxy' : 'off'}
+                <Tag color={s.dhcpMode === 'server' ? 'blue' : s.dhcpMode === 'proxy' ? 'purple' : 'cyan'}>
+                  {s.dhcpMode === 'server' ? 'server' : s.dhcpMode === 'proxy' ? 'proxy' : 'off'}
                 </Tag>
               </div>
             ))}
@@ -638,8 +638,8 @@ function LeasesTab() {
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <span className="text-sm font-semibold text-[var(--text-primary)]">{s.subnet_id}</span>
-                      <Tag color={s.dhcp_mode === 'full' ? 'blue' : 'purple'} className="ml-2">
-                        {s.dhcp_mode === 'full' ? t('leases.dhcpModeFull') : s.dhcp_mode === 'proxy' ? t('leases.dhcpModeProxy') : t('leases.dhcpModeOff')}
+                      <Tag color={s.dhcp_mode === 'server' ? 'blue' : 'purple'} className="ml-2">
+                        {s.dhcp_mode === 'server' ? t('leases.dhcpModeFull') : s.dhcp_mode === 'proxy' ? t('leases.dhcpModeProxy') : t('leases.dhcpModeOff')}
                       </Tag>
                     </div>
                   </div>
@@ -836,7 +836,7 @@ function ReservationTab() {
         const subnets: SubnetConfig[] = ir.subnets && ir.subnets.length > 0
           ? ir.subnets.map(s => ({
               cidr: s.cidr || '',
-              dhcpMode: s.dhcp_mode || 'full',
+              dhcpMode: s.dhcp_mode || 'server',
               pools: s.pools && s.pools.length > 0 ? s.pools : [''],
               gateway: s.gateway || '',
               dnsServers: s.dns_servers || '',
@@ -1011,7 +1011,7 @@ function ReservationTab() {
                 value={form.interface_name || ''}
                 onChange={e => {
                   const iface = ifaceSettings.find(i => i.name === e.target.value)
-                  const fullSubnet = iface?.subnets?.find(sn => sn.dhcpMode === 'full')
+                  const fullSubnet = iface?.subnets?.find(sn => sn.dhcpMode === 'server')
                   setForm({...form, interface_name: e.target.value, subnet_cidr: fullSubnet?.cidr || ''})
                 }}
               >
@@ -1031,7 +1031,7 @@ function ReservationTab() {
                 {ifaceSettings
                   .filter(i => i.name === form.interface_name)
                   .flatMap(i => i.subnets)
-                  .filter(sn => sn.cidr && sn.dhcpMode === 'full')
+                  .filter(sn => sn.cidr && sn.dhcpMode === 'server')
                   .map(sn => (
                     <option key={sn.cidr} value={sn.cidr}>
                       {sn.cidr}{t('settings.subnetFull')}

@@ -47,6 +47,8 @@ type Handler struct {
 	DNSRecord       *DNSRecordHandler
 	BMC             *BMCHandler
 	DHCPReservation *DHCPReservationHandler
+	Network         *NetworkHandler
+	OSImage         *OSImageHandler
 	svcController   ServiceController
 	sessions        *session.Store
 }
@@ -68,10 +70,12 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		InstallTask:     &InstallTaskHandler{store: st},
 		Service:         NewServiceHandler(svcController, cfg, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:            NewAuthHandler(cfg, sessions),
-		Access:          NewAccessHandler(st),
+		Access:          &AccessHandler{store: st},
 		DNSRecord:       &DNSRecordHandler{store: st, localDomain: cfg.DNS.LocalDomain},
 		BMC:             NewBMCHandler(st),
 		DHCPReservation: &DHCPReservationHandler{store: st},
+		Network:         &NetworkHandler{},
+		OSImage:         NewOSImageHandler(st, cfg),
 		svcController:   svcController,
 		sessions:        sessions,
 	}
@@ -163,9 +167,13 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/netboot/answer-templates/{id}", h.AnswerTemplate.Get)
 		r.Put("/netboot/answer-templates/{id}", h.AnswerTemplate.Update)
 		r.Delete("/netboot/answer-templates/{id}", h.AnswerTemplate.Delete)
+		r.Get("/netboot/answer-templates/presets", h.AnswerTemplate.Presets)
+		r.Post("/netboot/answer-templates/validate", h.AnswerTemplate.Validate)
 		r.Get("/netboot/answer-templates/{id}/versions", h.AnswerTemplate.ListVersions)
 		r.Get("/netboot/answer-templates/{id}/versions/{version}", h.AnswerTemplate.GetVersion)
+		r.Post("/netboot/answer-templates/{id}/preview", h.AnswerTemplate.Preview)
 		r.Post("/netboot/answer-templates/{id}/rollback/{version}", h.AnswerTemplate.Rollback)
+		r.Post("/netboot/answer-templates/{id}/validate", h.AnswerTemplate.Validate)
 
 		// Install tasks
 		r.Get("/netboot/tasks", h.InstallTask.List)
@@ -223,14 +231,31 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/dhcp/reservations/{id}", h.DHCPReservation.Update)
 		r.Delete("/dhcp/reservations/{id}", h.DHCPReservation.Delete)
 
+		// Network diagnostics
+		r.Post("/network/ping", h.Network.Ping)
+		r.Post("/network/ping/stream", h.Network.PingStream)
+		r.Post("/network/traceroute", h.Network.Traceroute)
+		r.Get("/network/interfaces", h.Network.ListInterfaces)
+
 		// WOL
 		r.Post("/hosts/batch/wake", h.WOL.BatchWake)
 		r.Get("/wol/history", h.WOL.ListHistory)
 		r.Get("/wol/history/{mac}", h.WOL.ListHistoryByMAC)
+		r.Delete("/wol/history/{id}", h.WOL.DeleteHistory)
+		r.Delete("/wol/history", h.WOL.DeleteAllHistory)
 		r.Post("/wol/schedule", h.WOL.CreateSchedule)
 		r.Get("/wol/schedules", h.WOL.ListSchedules)
 		r.Delete("/wol/schedule/{id}", h.WOL.DeleteSchedule)
 		r.Get("/wol/interfaces", h.WOL.ListInterfaces)
+
+		// OS images
+		r.Get("/os-images", h.OSImage.List)
+		r.Post("/os-images/upload", h.OSImage.Upload)
+		r.Get("/os-images/{id}", h.OSImage.Get)
+		r.Delete("/os-images/{id}", h.OSImage.Delete)
+		r.Post("/os-images/{id}/extract", h.OSImage.Extract)
+		r.Post("/os-images/{id}/mount", h.OSImage.Mount)
+		r.Post("/os-images/{id}/unmount", h.OSImage.Unmount)
 
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)

@@ -11,7 +11,7 @@ import SettingsModal from './SettingsModal'
 import {
   LayoutDashboard, Server, FileCode, Activity, Settings,
   Monitor, ShieldCheck, Network, Menu, ChevronRight, ChevronLeft,
-  HardDrive, Cpu, Wifi,
+  HardDrive, Cpu, Wifi, Disc,
 } from 'lucide-react'
 
 interface NavItem {
@@ -39,6 +39,8 @@ const navSections = [
       { path: '/install-tasks', label: 'nav.installTasks', icon: HardDrive },
       { path: '/bmc', label: 'nav.bmc', icon: Cpu },
       { path: '/wol', label: 'nav.wol', icon: Wifi },
+      { path: '/os-images', label: 'nav.osImages', icon: Disc },
+      { path: '/network', label: 'nav.network', icon: Network },
     ] as NavItem[],
   },
   {

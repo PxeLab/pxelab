@@ -169,7 +169,7 @@ type LogConfig struct {
 func (c *Config) Validate() error {
 	for _, iface := range c.Interfaces {
 		for _, sn := range iface.Subnets {
-			if sn.DHCP != "" && sn.DHCP != "full" && sn.DHCP != "proxy" && sn.DHCP != "off" {
+			if sn.DHCP != "" && sn.DHCP != "server" && sn.DHCP != "proxy" && sn.DHCP != "off" {
 				return fmt.Errorf("interface %s subnet %s: 无效的 DHCP 模式: %s", iface.Name, sn.CIDR, sn.DHCP)
 			}
 				if sn.ChainToIPXE && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" {

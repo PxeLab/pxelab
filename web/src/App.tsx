@@ -25,6 +25,8 @@ const AccessControl = lazy(() => import('./pages/AccessControl'))
 const InstallTasks = lazy(() => import('./pages/InstallTasks'))
 const BmcView = lazy(() => import('./pages/BmcView'))
 const WolView = lazy(() => import('./pages/WolView'))
+const OSImages = lazy(() => import('./pages/OSImages'))
+const NetworkDiagnostics = lazy(() => import('./pages/NetworkDiagnostics'))
 
 function LoadingFallback() {
   return (
@@ -85,6 +87,8 @@ function AppContent() {
           <Route path="/install-tasks" element={<InstallTasks />} />
           <Route path="/bmc" element={<BmcView />} />
           <Route path="/wol" element={<WolView />} />
+          <Route path="/os-images" element={<OSImages />} />
+          <Route path="/network" element={<NetworkDiagnostics />} />
           <Route path="/netboot-catalog" element={<NetbootCatalog />} />
           <Route path="/events" element={<Events />} />
           <Route path="/logs" element={<Logs />} />

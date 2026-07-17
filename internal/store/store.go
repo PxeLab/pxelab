@@ -7,6 +7,14 @@ import (
 	"github.com/pxelab/pxelab/internal/models"
 )
 
+type OSImageStore interface {
+	ListOSImages(ctx context.Context) ([]models.OSImage, error)
+	GetOSImage(ctx context.Context, id uint) (*models.OSImage, error)
+	CreateOSImage(ctx context.Context, img *models.OSImage) error
+	UpdateOSImage(ctx context.Context, img *models.OSImage) error
+	DeleteOSImage(ctx context.Context, id uint) error
+}
+
 type Interface interface {
 	HostStore
 	ProfileStore
@@ -22,6 +30,7 @@ type Interface interface {
 	BMCConfigStore
 	DHCPReservationStore
 	WOLStore
+	OSImageStore
 	Close() error
 	Migrate() error
 	Seed() error
@@ -31,6 +40,8 @@ type WOLStore interface {
 	ListWOLHistory(ctx context.Context, page, size int) ([]models.WOLHistory, int64, error)
 	ListWOLHistoryByMAC(ctx context.Context, mac string, limit int) ([]models.WOLHistory, error)
 	CreateWOLHistory(ctx context.Context, h *models.WOLHistory) error
+	DeleteWOLHistory(ctx context.Context, id uint) error
+	DeleteAllWOLHistory(ctx context.Context) error
 	PruneWOLHistory(ctx context.Context, before time.Time) error
 	ListWOLSchedules(ctx context.Context) ([]models.WOLSchedule, error)
 	GetWOLSchedule(ctx context.Context, id uint) (*models.WOLSchedule, error)

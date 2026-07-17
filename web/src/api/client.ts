@@ -697,6 +697,23 @@ export function rollbackAnswerTemplate(id: number, version: number): Promise<Api
   return request('POST', `/netboot/answer-templates/${id}/rollback/${version}`)
 }
 
+export function validateAnswerTemplate(content: string): Promise<ApiResponse<{ valid: boolean; error?: string }>> {
+  return request('POST', '/netboot/answer-templates/validate', content)
+}
+
+export function validateAnswerTemplateById(id: number, content: string): Promise<ApiResponse<{ valid: boolean; error?: string }>> {
+  return request('POST', `/netboot/answer-templates/${id}/validate`, content)
+}
+
+export function previewAnswerTemplate(id: number, vars: Record<string, string>): Promise<ApiResponse<{ rendered: string }>> {
+  return request('POST', `/netboot/answer-templates/${id}/preview`, vars)
+}
+
+export function getAnswerTemplatePresets(type?: string): Promise<ApiResponse<{ presets: { type: string; count?: number }[] } | { presets: { name: string; description: string; content: string; variables: string[] }[] }>> {
+  const q = type ? `?type=${encodeURIComponent(type)}` : ''
+  return request('GET', `/netboot/answer-templates/presets${q}`)
+}
+
 // ── Install Tasks ──
 export interface InstallTask {
   id?: string
@@ -1047,6 +1064,7 @@ export interface WOLHistoryRecord {
   host_name: string
   broadcast: string
   source_ip: string
+  interface: string
   success: boolean
   error_msg?: string
   created_at: string
@@ -1078,7 +1096,7 @@ export interface BatchWakeResult {
   error?: string
 }
 
-export function batchWakeHosts(req: { ids?: string[]; macs?: string[]; interface?: string }): Promise<ApiResponse<{ results: BatchWakeResult[]; success_count: number; total: number }>> {
+export function batchWakeHosts(req: { ids?: string[]; macs?: string[]; interface?: string; broadcast?: string }): Promise<ApiResponse<{ results: BatchWakeResult[]; success_count: number; total: number }>> {
   return request('POST', '/hosts/batch/wake', req)
 }
 
@@ -1090,8 +1108,16 @@ export function getWOLHistoryByMAC(mac: string): Promise<ApiResponse<{ records: 
   return request('GET', `/wol/history/${encodeURIComponent(mac)}`)
 }
 
-export function createWOLSchedule(mac: string, scheduleAt: string, cronExpr?: string, repeatType = 'once'): Promise<ApiResponse<WOLSchedule>> {
-  return request('POST', '/wol/schedule', { mac, schedule_at: scheduleAt, cron_expr: cronExpr, repeat_type: repeatType })
+export function deleteWOLHistory(id: number): Promise<ApiResponse<{ message: string }>> {
+  return request('DELETE', `/wol/history/${id}`)
+}
+
+export function deleteAllWOLHistory(): Promise<ApiResponse<{ message: string }>> {
+  return request('DELETE', '/wol/history')
+}
+
+export function createWOLSchedule(mac: string, scheduleAt: string, cronExpr?: string, repeatType = 'once', weekday?: number, scheduleTime?: string, customBroadcast?: string): Promise<ApiResponse<WOLSchedule>> {
+  return request('POST', '/wol/schedule', { mac, schedule_at: scheduleAt, cron_expr: cronExpr, repeat_type: repeatType, weekday, schedule_time: scheduleTime, custom_broadcast: customBroadcast })
 }
 
 export function getWOLSchedules(): Promise<ApiResponse<{ schedules: WOLSchedule[] }>> {
@@ -1110,6 +1136,175 @@ export function getMetrics(): Promise<ApiResponse<MetricsSnapshot>> {
   return request<MetricsSnapshot>('GET', '/metrics')
 }
 
+// ── OS Images ──
+export interface OSImage {
+  id?: number
+  name: string
+  filename: string
+  size?: number
+  distro?: string
+  version?: string
+  arch?: string
+  status?: string
+  mount_point?: string
+  extracted_to?: string
+  checksum?: string
+  error_message?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export function getOSImages(): Promise<ApiResponse<OSImage[]>> {
+  return request<OSImage[]>('GET', '/os-images')
+}
+
+export function getOSImage(id: number): Promise<ApiResponse<OSImage>> {
+  return request<OSImage>('GET', `/os-images/${id}`)
+}
+
+export function uploadOSImage(file: File, name?: string): Promise<ApiResponse<OSImage>> {
+  const form = new FormData()
+  form.append('file', file)
+  if (name) form.append('name', name)
+  return request<OSImage>('POST', '/os-images/upload', form)
+}
+
+export function deleteOSImage(id: number): Promise<ApiResponse<void>> {
+  return request<void>('DELETE', `/os-images/${id}`)
+}
+
+export function extractOSImage(id: number): Promise<ApiResponse<OSImage>> {
+  return request<OSImage>('POST', `/os-images/${id}/extract`)
+}
+
+export function mountOSImage(id: number): Promise<ApiResponse<OSImage>> {
+  return request<OSImage>('POST', `/os-images/${id}/mount`)
+}
+
+export function unmountOSImage(id: number): Promise<ApiResponse<OSImage>> {
+  return request<OSImage>('POST', `/os-images/${id}/unmount`)
+}
+
+// ── Network Diagnostics ──
+export interface PingOptions {
+  host: string
+  count?: number
+  timeout_ms?: number
+  interval_ms?: number
+  size?: number
+  ttl?: number
+  interface?: string
+}
+
+export interface PingPacket {
+  seq: number
+  rtt: number
+  ttl: number
+  bytes: number
+  error?: string
+}
+
+export interface PingResult {
+  host: string
+  ip: string
+  sent: number
+  received: number
+  lost: number
+  min_rtt: number
+  max_rtt: number
+  avg_rtt: number
+  stddev_rtt: number
+  packets: PingPacket[]
+  reachable: boolean
+  error?: string
+}
+
+export interface TracerouteOptions {
+  host: string
+  max_hops?: number
+  timeout_ms?: number
+  probes?: number
+  interface?: string
+}
+
+export interface TracerouteHop {
+  ttl: number
+  ip: string
+  host: string
+  rtt: number
+  rtts: number[]
+  timeout: boolean
+  avg_rtt?: number
+}
+
+export interface TracerouteResult {
+  host: string
+  ip: string
+  hops: TracerouteHop[]
+  error?: string
+}
+
+export interface NetworkInterface {
+  name: string
+  ips: string[]
+}
+
+export function networkPing(options: PingOptions): Promise<ApiResponse<PingResult>> {
+  return request<PingResult>('POST', '/network/ping', options)
+}
+
+export function networkPingStream(options: PingOptions, onPacket: (pkt: PingPacket | { type: string; sent: number; received: number; lost: number; min_rtt: number; max_rtt: number; avg_rtt: number }) => void): EventSource {
+  const session = getSessionToken()
+  const url = getBaseURL() + '/api/v1/network/ping/stream'
+  
+  // Use fetch with streaming for POST SSE
+  const controller = new AbortController()
+  
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session ? { 'Authorization': 'Bearer ' + session } : {}),
+    },
+    body: JSON.stringify(options),
+    signal: controller.signal,
+  }).then(async (res) => {
+    const reader = res.body?.getReader()
+    const decoder = new TextDecoder()
+    if (!reader) return
+    
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6))
+            onPacket(data)
+          } catch {}
+        }
+      }
+    }
+  }).catch(() => {})
+  
+  // Return a fake EventSource-like object with abort capability
+  return { close: () => controller.abort() } as unknown as EventSource
+}
+
+export function networkTraceroute(options: TracerouteOptions): Promise<ApiResponse<TracerouteResult>> {
+  return request<TracerouteResult>('POST', '/network/traceroute', options)
+}
+
+export function getNetworkInterfaces(): Promise<ApiResponse<NetworkInterface[]>> {
+  return request<NetworkInterface[]>('GET', '/network/interfaces')
+}
+
 // ── Convenience namespace (backward-compat) ──
 export const api = {
   getStatus,
@@ -1119,10 +1314,19 @@ export const api = {
   batchWakeHosts,
   getWOLHistory,
   getWOLHistoryByMAC,
+  deleteWOLHistory,
+  deleteAllWOLHistory,
   createWOLSchedule,
   getWOLSchedules,
   deleteWOLSchedule,
   getWOLInterfaces,
+  getOSImages,
+  getOSImage,
+  uploadOSImage,
+  deleteOSImage,
+  extractOSImage,
+  mountOSImage,
+  unmountOSImage,
   createHost,
   updateHost,
   deleteHost,
@@ -1158,6 +1362,10 @@ export const api = {
   getAnswerTemplate,
   updateAnswerTemplate,
   deleteAnswerTemplate,
+  validateAnswerTemplate,
+  validateAnswerTemplateById,
+  previewAnswerTemplate,
+  getAnswerTemplatePresets,
   getAnswerTemplateVersions,
   getAnswerTemplateVersion,
   rollbackAnswerTemplate,
@@ -1223,4 +1431,8 @@ export const api = {
   createDHCPReservation,
   updateDHCPReservation,
   deleteDHCPReservation,
+  networkPing,
+  networkPingStream,
+  networkTraceroute,
+  getNetworkInterfaces,
 }

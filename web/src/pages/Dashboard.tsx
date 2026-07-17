@@ -1,30 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, Server, Zap, ChevronRight, Wifi, AlertTriangle, BarChart3, Users, XCircle } from 'lucide-react'
+import { Activity, Server, Zap, ChevronRight, Wifi, BarChart3, Users, FileText } from 'lucide-react'
 import { StatusDot } from '../components/ui/StatusDot'
 import { Card } from '../components/ui/Card'
-import { api, type ServiceStatus, type Host, type Event, type MetricsSnapshot, type MetricServiceData, type TimeBucket } from '../api/client'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, type PieLabelRenderProps } from 'recharts'
+import { api, type ServiceStatus, type Host, type Event, type MetricsSnapshot, type TimeBucket } from '../api/client'
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, type PieLabelRenderProps } from 'recharts'
 
-interface ServiceMetricWithKey extends MetricServiceData {
-  key: string
+function avgRate(buckets: TimeBucket[]): string {
+  if (buckets.length < 2) return '0'
+  const recent = buckets.slice(-6)
+  const avg = recent.reduce((a, b) => a + b.v, 0) / recent.length
+  return avg < 10 ? avg.toFixed(1) : Math.round(avg).toString()
 }
 
-function lastRate(buckets: TimeBucket[]): number {
-  if (buckets.length < 2) return 0
-  return Math.round(buckets[buckets.length - 1].v * 10) / 10
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n}B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)}KB`
+  return `${(n / 1024 / 1024).toFixed(1)}MB`
 }
 
 const PIE_COLORS = ['#22d3ee', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#f97316', '#06b6d4', '#84cc16']
-
-const CHART_STROKES: Record<string, string> = {
-  dhcp: '#22d3ee',
-  tftp: '#f59e0b',
-  dns: '#a78bfa',
-  http: '#34d399',
-  nfs: '#f472b6',
-}
 
 export default function Dashboard() {
   const { t } = useTranslation()
@@ -33,21 +29,24 @@ export default function Dashboard() {
   const [hosts, setHosts] = useState<Host[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null)
+  const [dnsCount, setDnsCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined)
 
   const load = useCallback(async () => {
     try {
-      const [s, h, e, m] = await Promise.all([
+      const [s, h, e, m, d] = await Promise.all([
         api.getStatus(),
         api.getHosts({ page: '1', size: '8' }),
         api.getEvents({ page: '1', size: '12' }),
         api.getMetrics(),
+        api.getDNSRecords().catch(() => ({ data: { records: [] } })),
       ])
       setStatus(s.data)
       setHosts(h.data.hosts ?? [])
       setEvents(e.data.events ?? [])
       setMetrics(m.data)
+      setDnsCount(d.data.records.length)
     } catch (err) {
       console.error('Failed to load dashboard', err)
     } finally {
@@ -56,14 +55,6 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => { load(); intervalRef.current = window.setInterval(load, 5000); return () => clearInterval(intervalRef.current) }, [load])
-
-  const serviceColor = (svc: string) => {
-    if (!status?.services) return 'yellow'
-    const s = status.services[svc] || ''
-    if (s === 'running') return 'green'
-    if (s === 'error') return 'red'
-    return 'yellow'
-  }
 
   const serviceStatus = (svc: string): 'running' | 'stopped' | 'error' => {
     if (!status?.services) return 'stopped'
@@ -81,75 +72,26 @@ export default function Dashboard() {
     { name: 'NFS', port: ':2049', key: 'nfs' },
   ]
 
-  const defaultMetrics = { metrics: { requests: 0, errors: 0, bytesIn: 0, bytesOut: 0, activeConns: 0, rejected: 0, requestRate: [], errorRate: [], bandwidth: [], latencyMs: [] } }
-  const metricServices: ServiceMetricWithKey[] = services
-    .map(s => ({ key: s.key, ...(metrics?.services[s.key] ?? defaultMetrics) }))
-    .filter(s => s.metrics.requests > 0 || s.key === 'dhcp')
-
-  const totalRequests = metricServices.reduce((a, s) => a + s.metrics.requests, 0)
-  const totalErrors = metricServices.reduce((a, s) => a + s.metrics.errors, 0)
-  const totalRejected = metricServices.reduce((a, s) => a + s.metrics.rejected, 0)
-  const activeConnections = metricServices.reduce((a, s) => a + s.metrics.activeConns, 0)
-
+  const dm = (k: string) => metrics?.services[k]?.metrics
   const dhcpData = metrics?.services.dhcp?.dhcp
   const httpData = metrics?.services.http?.http
 
-  const eventIcon = (type: string) => {
-    const t = type.toLowerCase()
-    if (t.includes('dhcp')) return { label: 'DHCP', color: 'cyan' as const }
-    if (t.includes('tftp')) return { label: 'TFTP', color: 'orange' as const }
-    if (t.includes('http')) return { label: 'HTTP', color: 'purple' as const }
-    if (t.includes('boot')) return { label: 'BOOT', color: 'green' as const }
-    if (t.includes('ipmi')) return { label: 'IPMI', color: 'yellow' as const }
-    if (t.includes('dns')) return { label: 'DNS', color: 'violet' as const }
-    return { label: 'EVENT', color: 'blue' as const }
-  }
+  const todayBoots = events.filter(e => {
+    const d = new Date(e.timestamp)
+    const now = new Date()
+    return d.toDateString() === now.toDateString()
+  }).length
 
-  const eventColor = (ic: { label: string; color: string }) =>
-    ic.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
-    ic.color === 'orange' ? 'bg-orange-500/10 text-orange-400' :
-    ic.color === 'purple' ? 'bg-purple-500/10 text-purple-400' :
-    ic.color === 'green' ? 'bg-green-500/10 text-green-400' :
-    ic.color === 'yellow' ? 'bg-yellow-500/10 text-yellow-400' :
-    ic.color === 'violet' ? 'bg-violet-500/10 text-violet-400' :
-    'bg-blue-500/10 text-blue-400'
-
-  const statusColorMap: Record<string, string> = {
-    running: 'bg-green-500',
-    stopped: 'bg-gray-400',
-    error: 'bg-red-500',
-  }
-
-  const formatTS = (ts: number) => {
-    const d = new Date(ts * 1000)
-    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
-  }
-
-  const lineChartData = () => {
-    const allBuckets: Record<string, Record<number, number>> = {}
-    let allTimestamps = new Set<number>()
-    for (const svc of metricServices) {
-      for (const b of svc.metrics.requestRate) {
-        if (!allBuckets[svc.key]) allBuckets[svc.key] = {}
-        allBuckets[svc.key][b.t] = (allBuckets[svc.key][b.t] || 0) + b.v
-        allTimestamps.add(b.t)
-      }
-    }
-    return Array.from(allTimestamps).sort().map(ts => {
-      const point: Record<string, number | string> = { time: formatTS(ts) }
-      for (const svc of metricServices) {
-        point[svc.key] = allBuckets[svc.key]?.[ts] ?? 0
-      }
-      return point
-    })
-  }
+  const statCards = [
+    { label: t('dashboard.stats.onlineHosts'), value: hosts.length, color: 'green', icon: Server, desc: '在线主机' },
+    { label: '运行服务', value: services.filter(s => serviceStatus(s.key) === 'running').length, color: 'blue', icon: Wifi, desc: `共 ${services.length} 个` },
+    { label: '活跃租约', value: dhcpData?.activeLeases ?? 0, color: 'cyan', icon: Users, desc: `发现 ${dhcpData?.discovers ?? 0}` },
+    { label: 'DNS 记录', value: dnsCount, color: 'violet', icon: FileText, desc: '解析记录' },
+    { label: '今日启动', value: todayBoots, color: 'orange', icon: Activity, desc: 'PXE 启动事件' },
+  ]
 
   const archPieData = dhcpData?.archBreakdown
     ? Object.entries(dhcpData.archBreakdown).map(([name, value]) => ({ name, value }))
-    : []
-
-  const platformPieData = dhcpData?.platformBreakdown
-    ? Object.entries(dhcpData.platformBreakdown).map(([name, value]) => ({ name, value }))
     : []
 
   const httpStatusData = httpData
@@ -161,14 +103,16 @@ export default function Dashboard() {
       ]
     : []
 
-  const statCards = [
-    { label: t('dashboard.stats.onlineHosts'), value: hosts.length, color: 'green' as const, icon: Server, gradient: 'from-green-500/20 to-emerald-500/5' },
-    { label: t('dashboard.stats.runningServices'), value: services.filter(s => serviceStatus(s.key) === 'running').length, color: 'blue' as const, icon: Wifi, gradient: 'from-blue-500/20 to-cyan-500/5' },
-    { label: '总请求', value: totalRequests.toLocaleString(), color: 'orange' as const, icon: BarChart3, gradient: 'from-orange-500/20 to-amber-500/5' },
-    { label: '总错误', value: totalErrors.toLocaleString(), color: 'red' as const, icon: XCircle, gradient: 'from-red-500/20 to-rose-500/5' },
-    { label: '总拒绝', value: totalRejected.toLocaleString(), color: 'yellow' as const, icon: AlertTriangle, gradient: 'from-yellow-500/20 to-amber-500/5' },
-    { label: '活跃连接', value: activeConnections.toString(), color: 'purple' as const, icon: Users, gradient: 'from-purple-500/20 to-pink-500/5' },
-  ]
+  const eventIcon = (type: string) => {
+    const t = type.toLowerCase()
+    if (t.includes('dhcp')) return { label: 'DHCP', color: 'bg-cyan-500/10 text-cyan-400' }
+    if (t.includes('tftp')) return { label: 'TFTP', color: 'bg-orange-500/10 text-orange-400' }
+    if (t.includes('http')) return { label: 'HTTP', color: 'bg-purple-500/10 text-purple-400' }
+    if (t.includes('boot')) return { label: 'BOOT', color: 'bg-green-500/10 text-green-400' }
+    if (t.includes('ipmi')) return { label: 'IPMI', color: 'bg-yellow-500/10 text-yellow-400' }
+    if (t.includes('dns')) return { label: 'DNS', color: 'bg-violet-500/10 text-violet-400' }
+    return { label: 'EVT', color: 'bg-blue-500/10 text-blue-400' }
+  }
 
   return (
     <div className="space-y-6">
@@ -190,22 +134,23 @@ export default function Dashboard() {
             <div className="flex items-center gap-1.5">
               {services.map(svc => {
                 const st = serviceStatus(svc.key)
-                return <span key={svc.key} className={`w-2 h-2 rounded-full ${statusColorMap[st]}`} />
+                const colorMap: Record<string, string> = { running: 'bg-green-500', stopped: 'bg-gray-400', error: 'bg-red-500' }
+                return <span key={svc.key} className={`w-2 h-2 rounded-full ${colorMap[st]}`} />
               })}
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {services.map(svc => {
               const st = serviceStatus(svc.key)
-              const color = serviceColor(svc.key)
-              const m = metrics?.services[svc.key]?.metrics
+              const color = st === 'running' ? 'green' : st === 'error' ? 'red' : 'yellow'
+              const m = dm(svc.key)
               return (
                 <div key={svc.name} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg-base)]/50 border border-[var(--bg-border)]/50">
                   <StatusDot color={color as any} pulse={st === 'running'} />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-[var(--text-primary)]">{svc.name}</div>
                     <div className="text-[10px] font-mono text-[var(--text-muted)]">{svc.port}</div>
-                    {m && <div className="text-[9px] font-mono text-[var(--text-muted)] mt-0.5">{m.requests} req</div>}
+                    {m && <div className="text-[9px] font-mono text-[var(--text-muted)] mt-0.5">{avgRate(m.requestRate)}/s · {fmtBytes(m.bytesOut + m.bytesIn)}</div>}
                   </div>
                   <span className={`ml-auto text-[10px] font-semibold uppercase tracking-wide ${
                     st === 'running' ? 'text-green-400' : st === 'error' ? 'text-red-400' : 'text-[var(--text-muted)]'
@@ -221,33 +166,32 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 animate-shimmer" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {statCards.map((s, i) => {
             const Icon = s.icon
             return (
-              <div key={i} className={`group relative overflow-hidden rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300`}>
-                <div className={`absolute inset-0 bg-gradient-to-br ${s.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+              <div key={i} className="group relative overflow-hidden rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
                 <div className="relative">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">{s.label}</span>
                     <span className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${
                       s.color === 'green' ? 'bg-green-500/10 text-green-400' :
                       s.color === 'blue' ? 'bg-blue-500/10 text-blue-400' :
-                      s.color === 'orange' ? 'bg-orange-500/10 text-orange-400' :
-                      s.color === 'red' ? 'bg-red-500/10 text-red-400' :
-                      s.color === 'yellow' ? 'bg-yellow-500/10 text-yellow-400' :
-                      'bg-purple-500/10 text-purple-400'
+                      s.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
+                      s.color === 'violet' ? 'bg-violet-500/10 text-violet-400' :
+                      'bg-orange-500/10 text-orange-400'
                     }`}>
                       <Icon size={16} />
                     </span>
                   </div>
                   <div className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">{s.value}</div>
+                  {s.desc && <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{s.desc}</div>}
                 </div>
               </div>
             )
@@ -255,40 +199,101 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Request Rate Line Chart */}
-      <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <Activity size={14} className="text-blue-400" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">请求速率 (ops)</span>
+      {/* Per-Service Detail Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+        {/* DHCP */}
+        <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-[var(--text-primary)]">DHCP</span>
+            <StatusDot color={serviceStatus('dhcp') === 'running' ? 'green' : 'red'} pulse />
+          </div>
+          {dhcpData ? (
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">Offer/Ack/Nak</span><span className="font-mono text-[var(--text-primary)]">{dhcpData.offers}/{dhcpData.acks}/{dhcpData.naks}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">Discover/Request</span><span className="font-mono text-[var(--text-primary)]">{dhcpData.discovers}/{dhcpData.requests}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">Decline</span><span className="font-mono text-red-400">{dhcpData.declines}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">未授权</span><span className="font-mono text-yellow-400">{dhcpData.unauthorized}</span></div>
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('dhcp') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+          )}
         </div>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={lineChartData()} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-              <XAxis dataKey="time" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: '#e2e8f0' }}
-              />
-              {metricServices.map(svc => (
-                <Line key={svc.key} type="monotone" dataKey={svc.key} stroke={CHART_STROKES[svc.key] || '#22d3ee'} strokeWidth={2} dot={false} isAnimationActive={false} />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+
+        {/* TFTP */}
+        <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-[var(--text-primary)]">TFTP</span>
+            <StatusDot color={serviceStatus('tftp') === 'running' ? 'green' : 'red'} pulse />
+          </div>
+          {dm('tftp') ? (
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">请求</span><span className="font-mono text-[var(--text-primary)]">{dm('tftp')?.requests ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">错误</span><span className="font-mono text-red-400">{dm('tftp')?.errors ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">下发流量</span><span className="font-mono text-[var(--text-primary)]">{fmtBytes(dm('tftp')?.bytesOut ?? 0)}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">速率</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('tftp')?.requestRate ?? [])}/s</span></div>
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('tftp') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+          )}
         </div>
-        <div className="flex flex-wrap gap-4 mt-3 text-xs text-[var(--text-muted)]">
-          {metricServices.map(svc => (
-            <span key={svc.key} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: CHART_STROKES[svc.key] || '#22d3ee' }} />
-              {svc.key.toUpperCase()} {lastRate(svc.metrics.requestRate)}/s
-            </span>
-          ))}
+
+        {/* DNS */}
+        <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-[var(--text-primary)]">DNS</span>
+            <StatusDot color={serviceStatus('dns') === 'running' ? 'green' : 'red'} pulse />
+          </div>
+          {dm('dns') ? (
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">解析记录</span><span className="font-mono text-[var(--text-primary)]">{dnsCount}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">查询次数</span><span className="font-mono text-[var(--text-primary)]">{dm('dns')?.requests ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">错误</span><span className="font-mono text-red-400">{dm('dns')?.errors ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">查询速率</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('dns')?.requestRate ?? [])}/s</span></div>
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('dns') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+          )}
+        </div>
+
+        {/* HTTP */}
+        <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-[var(--text-primary)]">HTTP</span>
+            <StatusDot color={serviceStatus('http') === 'running' ? 'green' : 'red'} pulse />
+          </div>
+          {dm('http') ? (
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">请求</span><span className="font-mono text-[var(--text-primary)]">{dm('http')?.requests ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">活跃连接</span><span className="font-mono text-[var(--text-primary)]">{dm('http')?.activeConns ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">2xx/4xx/5xx</span><span className="font-mono text-[var(--text-primary)]">{httpData?.status2xx ?? 0}/{httpData?.status4xx ?? 0}/{httpData?.status5xx ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">拒绝</span><span className="font-mono text-yellow-400">{dm('http')?.rejected ?? 0}</span></div>
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('http') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+          )}
+        </div>
+
+        {/* NFS */}
+        <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-[var(--text-primary)]">NFS</span>
+            <StatusDot color={serviceStatus('nfs') === 'running' ? 'green' : 'red'} pulse />
+          </div>
+          {dm('nfs') ? (
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">请求</span><span className="font-mono text-[var(--text-primary)]">{dm('nfs')?.requests ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">活跃连接</span><span className="font-mono text-[var(--text-primary)]">{dm('nfs')?.activeConns ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">传输流量</span><span className="font-mono text-[var(--text-primary)]">{fmtBytes((dm('nfs')?.bytesOut ?? 0) + (dm('nfs')?.bytesIn ?? 0))}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">速率</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('nfs')?.requestRate ?? [])}/s</span></div>
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('nfs') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+          )}
         </div>
       </div>
 
-      {/* Charts Row: DHCP Arch + HTTP Status + Per-Service */}
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* DHCP Architecture Pie */}
         <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Server size={14} className="text-cyan-400" />
@@ -310,7 +315,6 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* HTTP Status Breakdown */}
         <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 size={14} className="text-purple-400" />
@@ -341,7 +345,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* DHCP Active Leases & Unauthorized */}
         <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Users size={14} className="text-green-400" />
@@ -367,12 +370,12 @@ export default function Dashboard() {
                   <div className="text-xl font-bold text-red-400">{dhcpData.unauthorized}</div>
                 </div>
               </div>
-              {platformPieData.length > 0 && (
+              {dhcpData.platformBreakdown && Object.keys(dhcpData.platformBreakdown).length > 0 && (
                 <div className="h-28">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={platformPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={40} innerRadius={25}>
-                        {platformPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                      <Pie data={Object.entries(dhcpData.platformBreakdown).map(([name, value]) => ({ name, value }))} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={40} innerRadius={25}>
+                        {Object.entries(dhcpData.platformBreakdown).map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
@@ -410,7 +413,7 @@ export default function Dashboard() {
                   const ic = eventIcon(e.type)
                   return (
                     <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[var(--bg-border)] last:border-b-0 hover:bg-[var(--bg-hover)]/30 transition-colors group">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-bold shrink-0 ${eventColor(ic)}`}>{ic.label}</div>
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-bold shrink-0 ${ic.color}`}>{ic.label}</div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-[var(--text-primary)]">{e.type}</span>

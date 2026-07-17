@@ -28,6 +28,7 @@ import (
 	"github.com/pxelab/pxelab/internal/session"
 	"github.com/pxelab/pxelab/internal/store"
 	"github.com/pxelab/pxelab/internal/tftp"
+	"github.com/pxelab/pxelab/internal/wol"
 	"github.com/spf13/cobra"
 )
 
@@ -327,6 +328,9 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 
 	dnsServer := dns.NewServer(cfg, st, bus)
 	svcMgr.Register("dns", "DNS", dnsServer, cfg.ServiceAutoStart.DNS, false, cfg.DNS.Port, "UDP")
+
+	wolScheduler := wol.NewScheduler(st, cfg, bus)
+	go wolScheduler.Start()
 
 	return svcMgr.Run(ctx)
 }

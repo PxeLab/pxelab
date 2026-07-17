@@ -338,7 +338,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			ir.DHCPMode = iface.Subnets[0].DHCP
 		}
 		if ir.DHCPMode == "" {
-			ir.DHCPMode = "full"
+			ir.DHCPMode = "server"
 		}
 		if len(iface.Subnets) > 0 {
 			sn := iface.Subnets[0]
@@ -358,7 +358,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			for _, sn := range iface.Subnets {
 				dhcpMode := sn.DHCP
 				if dhcpMode == "" {
-					dhcpMode = "full"
+					dhcpMode = "server"
 				}
 				pools := sn.Pools
 				if len(pools) == 0 && sn.Pool != "" {
@@ -445,7 +445,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		subnets := ir.Subnets
 		if len(subnets) == 0 && ir.Subnet != "" {
 			subnets = []SubnetSettings{{
-				CIDR: ir.Subnet, DHCPMode: "full",
+				CIDR: ir.Subnet, DHCPMode: "server",
 				Pools: ir.Pools, Gateway: ir.Gateway,
 				DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
 				NextServer: ir.NextServer,
@@ -579,7 +579,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			} else if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" || ir.NextServer != "" {
 				iface.Subnets = []config.SubnetConfig{{
 					CIDR:       ir.Subnet,
-					DHCP:       "full",
+					DHCP:       "server",
 					Pools:      ir.Pools,
 					Gateway:    ir.Gateway,
 					DNSServers: ir.DNSServers,
@@ -781,7 +781,7 @@ func (h *SettingsHandler) GetInterfaces(w http.ResponseWriter, r *http.Request) 
 			ir.DHCPMode = iface.Subnets[0].DHCP
 		}
 		if ir.DHCPMode == "" {
-			ir.DHCPMode = "full"
+			ir.DHCPMode = "server"
 		}
 		if len(iface.Subnets) > 0 {
 			sn := iface.Subnets[0]
@@ -800,7 +800,7 @@ func (h *SettingsHandler) GetInterfaces(w http.ResponseWriter, r *http.Request) 
 			for _, sn := range iface.Subnets {
 				dhcpMode := sn.DHCP
 				if dhcpMode == "" {
-					dhcpMode = "full"
+					dhcpMode = "server"
 				}
 				pools := sn.Pools
 				if len(pools) == 0 && sn.Pool != "" {
@@ -836,7 +836,7 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 		subnets := ir.Subnets
 		if len(subnets) == 0 && ir.Subnet != "" {
 			subnets = []SubnetSettings{{
-				CIDR: ir.Subnet, DHCPMode: "full",
+				CIDR: ir.Subnet, DHCPMode: "server",
 				Pools: ir.Pools, Gateway: ir.Gateway,
 				DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
 				NextServer: ir.NextServer,
@@ -913,7 +913,7 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 		} else if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" || ir.NextServer != "" {
 			iface.Subnets = []config.SubnetConfig{{
 				CIDR:       ir.Subnet,
-				DHCP:       "full",
+				DHCP:       "server",
 				Pools:      ir.Pools,
 				Gateway:    ir.Gateway,
 				DNSServers: ir.DNSServers,
@@ -1015,7 +1015,7 @@ func (h *SettingsHandler) UpdateDHCP(w http.ResponseWriter, r *http.Request) {
 	if len(h.cfg.Interfaces) > 0 && len(h.cfg.Interfaces[0].Subnets) > 0 {
 		dhcpMode := "off"
 		if req.Enabled {
-			dhcpMode = "full"
+			dhcpMode = "server"
 		}
 		h.cfg.Interfaces[0].Subnets[0].DHCP = dhcpMode
 		if req.Enabled {
