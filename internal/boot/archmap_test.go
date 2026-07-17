@@ -11,13 +11,13 @@ func TestBootFileForArch(t *testing.T) {
 		arch iana.Arch
 		want string
 	}{
-		{iana.INTEL_X86PC, "undionly.kpxe"},
+		{iana.INTEL_X86PC, "ipxe.pxe"},
 		{iana.EFI_IA32, "ipxe32.efi"},
 		{iana.EFI_X86_64, "ipxe.efi"},
 		{iana.EFI_BC, "ipxe.efi"},
 		{iana.EFI_ARM64, "ipxe-arm64.efi"},
 		{iana.EFI_RISCV64, "ipxe-riscv64.efi"},
-		{iana.Arch(255), "undionly.kpxe"}, // unknown → default
+		{iana.Arch(255), "ipxe.pxe"}, // unknown → default
 	}
 
 	for _, tc := range tests {
