@@ -6,6 +6,8 @@ import (
 	"net"
 	"testing"
 	"time"
+
+	"github.com/go-git/go-billy/v5/osfs"
 )
 
 func TestBuildProgMismatchReply(t *testing.T) {
@@ -222,4 +224,80 @@ func TestBufferedConn(t *testing.T) {
 		t.Errorf("expected [42,43], got %v", third)
 	}
 	<-written
+}
+
+func TestParseAllowIPs(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []string
+		wantLen int
+	}{
+		{"empty", nil, 0},
+		{"single IP", []string{"192.168.1.1"}, 1},
+		{"CIDR", []string{"10.0.0.0/24"}, 1},
+		{"mixed", []string{"192.168.1.1", "10.0.0.0/24", ""}, 2},
+		{"invalid skipped", []string{"not-an-ip", "10.0.0.1"}, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nets := parseAllowIPs(tt.input)
+			if len(nets) != tt.wantLen {
+				t.Errorf("parseAllowIPs(%v): got %d nets, want %d", tt.input, len(nets), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestFindEntry(t *testing.T) {
+	fs := osfs.New("/tmp")
+	handler := &nfsHandler{
+		entries: []mountEntry{
+			{exportPath: "/", fs: fs},
+			{exportPath: "/isos", fs: fs},
+			{exportPath: "/images", fs: fs},
+		},
+	}
+
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"/", true},
+		{"/isos", true},
+		{"/images", true},
+		{"/missing", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			entry := handler.findEntry(tt.path)
+			if (entry != nil) != tt.want {
+				t.Errorf("findEntry(%q): got %v, want match=%v", tt.path, entry != nil, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsAllowed(t *testing.T) {
+	_, cidr, _ := net.ParseCIDR("192.168.1.0/24")
+	allowNets := []*net.IPNet{cidr}
+
+	tests := []struct {
+		name    string
+		addr    net.Addr
+		nets    []*net.IPNet
+		want    bool
+	}{
+		{"empty allow list allows all", &net.TCPAddr{IP: net.ParseIP("10.0.0.1")}, nil, true},
+		{"IP in range", &net.TCPAddr{IP: net.ParseIP("192.168.1.100")}, allowNets, true},
+		{"IP out of range", &net.TCPAddr{IP: net.ParseIP("10.0.0.1")}, allowNets, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isAllowed(tt.addr, tt.nets)
+			if got != tt.want {
+				t.Errorf("isAllowed() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

@@ -42,6 +42,7 @@ func LoadConfig(cfgPath string) (*Config, error) {
 
 	// nfs defaults
 	v.SetDefault("nfs.port", DefaultPortNFS)
+	v.SetDefault("nfs.mount_points", []NFSMountPoint{})
 	v.SetDefault("nfs.root_dir", "")
 	v.SetDefault("nfs.read_only", true)
 
@@ -92,6 +93,17 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	}
 	if cfg.NFS.RootDir == "" && dd != "" {
 		cfg.NFS.RootDir = filepath.Join(dd, "boot", "isos")
+	}
+
+	// 旧格式自动迁移：如果 MountPoints 为空但 RootDir 有值，转为单个挂载点
+	if len(cfg.NFS.MountPoints) == 0 && cfg.NFS.RootDir != "" {
+		cfg.NFS.MountPoints = []NFSMountPoint{{
+			Label:      "Default",
+			ExportPath: "/",
+			LocalDir:   cfg.NFS.RootDir,
+			ReadOnly:   cfg.NFS.ReadOnly,
+			AllowIPs:   cfg.NFS.AllowIPs,
+		}}
 	}
 
 	if err := cfg.Validate(); err != nil {

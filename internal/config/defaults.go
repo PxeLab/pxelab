@@ -50,9 +50,13 @@ func DefaultConfig() *Config {
 			DSN: filepath.Join(dataDir, "pxelab.db"),
 		},
 		NFS: NFSConfig{
-			Port:     DefaultPortNFS,
-			RootDir:  filepath.Join(dataDir, "boot", "isos"),
-			ReadOnly: true,
+			Port: DefaultPortNFS,
+			MountPoints: []NFSMountPoint{{
+				Label:      "ISOs",
+				ExportPath: "/",
+				LocalDir:   filepath.Join(dataDir, "boot", "isos"),
+				ReadOnly:   true,
+			}},
 		},
 		DNS: DNSConfig{
 			Port:        DefaultPortDNS,

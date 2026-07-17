@@ -76,12 +76,22 @@ type DNSConfig struct {
 	DefaultRecordIP string `yaml:"default_record_ip" mapstructure:"default_record_ip"`
 }
 
+type NFSMountPoint struct {
+	Label      string   `yaml:"label"       mapstructure:"label"`
+	ExportPath string   `yaml:"export_path" mapstructure:"export_path"`
+	LocalDir   string   `yaml:"local_dir"   mapstructure:"local_dir"`
+	ReadOnly   bool     `yaml:"read_only"   mapstructure:"read_only"`
+	AllowIPs   []string `yaml:"allow_ips"   mapstructure:"allow_ips"`
+}
+
 type NFSConfig struct {
-	Enabled  bool     `yaml:"enabled" mapstructure:"enabled"`
-	Port     int      `yaml:"port" mapstructure:"port"`
-	RootDir  string   `yaml:"root_dir" mapstructure:"root_dir"`
-	ReadOnly bool     `yaml:"read_only" mapstructure:"read_only"`
-	AllowIPs []string `yaml:"allow_ips" mapstructure:"allow_ips"`
+	Enabled     bool            `yaml:"enabled"      mapstructure:"enabled"`
+	Port        int             `yaml:"port"         mapstructure:"port"`
+	MountPoints []NFSMountPoint `yaml:"mount_points" mapstructure:"mount_points"`
+	// Deprecated: 旧格式字段，用于自动迁移
+	RootDir  string   `yaml:"root_dir,omitempty"  mapstructure:"root_dir"`
+	ReadOnly bool     `yaml:"read_only,omitempty" mapstructure:"read_only"`
+	AllowIPs []string `yaml:"allow_ips,omitempty" mapstructure:"allow_ips"`
 }
 
 type NetbootConfig struct {

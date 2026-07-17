@@ -469,12 +469,18 @@ export interface DNSSettingsData {
   default_record?: boolean
 }
 
+export interface NFSMountPointData {
+  label: string
+  export_path: string
+  local_dir: string
+  read_only: boolean
+  allow_ips: string[]
+}
+
 export interface NFSSettingsData {
   enabled: boolean
   port: number
-  root_dir: string
-  read_only: boolean
-  allow_ips: string[]
+  mount_points: NFSMountPointData[]
 }
 
 export interface NetbootSettingsData {
@@ -1305,6 +1311,101 @@ export function getNetworkInterfaces(): Promise<ApiResponse<NetworkInterface[]>>
   return request<NetworkInterface[]>('GET', '/network/interfaces')
 }
 
+// ── Bootloader Management ──
+export interface BootFileInfo {
+  name: string
+  description: string
+  required: boolean
+  present: boolean
+  size?: number
+  checksum?: string
+  mod_time?: string
+}
+
+export interface BootloaderCheckResult {
+  root_dir: string
+  total: number
+  present: number
+  missing: number
+  all_ok: boolean
+  files: BootFileInfo[]
+}
+
+export interface BootDirEntry {
+  name: string
+  size: number
+  mod_time: string
+  is_dir: boolean
+}
+
+export function getBootloaderCheck(): Promise<ApiResponse<BootloaderCheckResult>> {
+  return request<BootloaderCheckResult>('GET', '/bootloader/check')
+}
+
+export function getBootloaderFiles(): Promise<ApiResponse<BootDirEntry[]>> {
+  return request<BootDirEntry[]>('GET', '/bootloader/files')
+}
+
+export function checkBootloaderFile(name: string): Promise<ApiResponse<BootFileInfo>> {
+  return request<BootFileInfo>('POST', '/bootloader/check-file', { name })
+}
+
+// ── Script Editor ──
+export interface ScriptMeta {
+  id: string
+  profile_id: string
+  entry_idx: number
+  label: string
+  type: string
+  updated_at: string
+}
+
+export interface ScriptVersion {
+  id: string
+  content: string
+  checksum: string
+  comment?: string
+  created_at: string
+}
+
+export interface ScriptDetail {
+  id: string
+  content: string
+  meta?: ScriptMeta
+}
+
+export function getScripts(): Promise<ApiResponse<ScriptMeta[]>> {
+  return request<ScriptMeta[]>('GET', '/scripts')
+}
+
+export function getScript(id: string): Promise<ApiResponse<ScriptDetail>> {
+  return request<ScriptDetail>('GET', `/scripts/${encodeURIComponent(id)}`)
+}
+
+export function saveScript(id: string, content: string, comment?: string): Promise<ApiResponse<ScriptVersion>> {
+  return request<ScriptVersion>('PUT', `/scripts/${encodeURIComponent(id)}`, { content, comment })
+}
+
+export function syncScript(profileId: string, label: string, type: string, content: string, comment?: string): Promise<ApiResponse<any>> {
+  return request<any>('POST', '/scripts/sync', { profile_id: profileId, label, type, content, comment })
+}
+
+export function getScriptVersions(id: string): Promise<ApiResponse<ScriptVersion[]>> {
+  return request<ScriptVersion[]>('GET', `/scripts/${encodeURIComponent(id)}/versions`)
+}
+
+export function getScriptVersion(id: string, ver: string): Promise<ApiResponse<ScriptVersion>> {
+  return request<ScriptVersion>('GET', `/scripts/${encodeURIComponent(id)}/versions/${encodeURIComponent(ver)}`)
+}
+
+export function getScriptDiff(id: string, ver: string): Promise<ApiResponse<{ diff: string }>> {
+  return request<{ diff: string }>('GET', `/scripts/${encodeURIComponent(id)}/diff/${encodeURIComponent(ver)}`)
+}
+
+export function rollbackScript(id: string, ver: string): Promise<ApiResponse<ScriptVersion>> {
+  return request<ScriptVersion>('POST', `/scripts/${encodeURIComponent(id)}/rollback/${encodeURIComponent(ver)}`)
+}
+
 // ── Convenience namespace (backward-compat) ──
 export const api = {
   getStatus,
@@ -1435,4 +1536,15 @@ export const api = {
   networkPingStream,
   networkTraceroute,
   getNetworkInterfaces,
+  getBootloaderCheck,
+  getBootloaderFiles,
+  checkBootloaderFile,
+  getScripts,
+  getScript,
+  saveScript,
+  syncScript,
+  getScriptVersions,
+  getScriptVersion,
+  getScriptDiff,
+  rollbackScript,
 }

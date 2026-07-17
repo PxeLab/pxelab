@@ -28,15 +28,15 @@ type SubnetReloader interface {
 }
 
 type SettingsHandler struct {
-	cfg           *config.Config
-	store         store.Interface
-	reloader      SubnetReloader
-	setNFSAllowIPs func(ips []string)
-	mu            sync.Mutex
+	cfg              *config.Config
+	store            store.Interface
+	reloader         SubnetReloader
+	setNFSMountPoints func(mps []config.NFSMountPoint)
+	mu               sync.Mutex
 }
 
-func NewSettingsHandler(cfg *config.Config, st store.Interface, reloader SubnetReloader, setNFSAllowIPs func(ips []string)) *SettingsHandler {
-	return &SettingsHandler{cfg: cfg, store: st, reloader: reloader, setNFSAllowIPs: setNFSAllowIPs}
+func NewSettingsHandler(cfg *config.Config, st store.Interface, reloader SubnetReloader, setNFSMountPoints func(mps []config.NFSMountPoint)) *SettingsHandler {
+	return &SettingsHandler{cfg: cfg, store: st, reloader: reloader, setNFSMountPoints: setNFSMountPoints}
 }
 
 type SettingsResponse struct {
@@ -206,12 +206,18 @@ type DNSSettingsResponse struct {
 	DefaultRecord bool   `json:"default_record"`
 }
 
+type NFSMountPointResponse struct {
+	Label      string   `json:"label"`
+	ExportPath string   `json:"export_path"`
+	LocalDir   string   `json:"local_dir"`
+	ReadOnly   bool     `json:"read_only"`
+	AllowIPs   []string `json:"allow_ips"`
+}
+
 type NFSSettingsResponse struct {
-	Enabled  bool     `json:"enabled"`
-	Port     int      `json:"port"`
-	RootDir  string   `json:"root_dir"`
-	ReadOnly bool     `json:"read_only"`
-	AllowIPs []string `json:"allow_ips"`
+	Enabled     bool                    `json:"enabled"`
+	Port        int                     `json:"port"`
+	MountPoints []NFSMountPointResponse `json:"mount_points"`
 }
 
 type NetbootSettingsResponse struct {
@@ -1097,12 +1103,20 @@ func (h *SettingsHandler) UpdateDNS(w http.ResponseWriter, r *http.Request) {
 
 func (h *SettingsHandler) GetNFS(w http.ResponseWriter, r *http.Request) {
 	cfg := h.cfg
+	mps := make([]NFSMountPointResponse, len(cfg.NFS.MountPoints))
+	for i, mp := range cfg.NFS.MountPoints {
+		mps[i] = NFSMountPointResponse{
+			Label:      mp.Label,
+			ExportPath: mp.ExportPath,
+			LocalDir:   mp.LocalDir,
+			ReadOnly:   mp.ReadOnly,
+			AllowIPs:   mp.AllowIPs,
+		}
+	}
 	OK(w, NFSSettingsResponse{
-		Enabled:  cfg.NFS.Enabled,
-		Port:     cfg.NFS.Port,
-		RootDir:  cfg.NFS.RootDir,
-		ReadOnly: cfg.NFS.ReadOnly,
-		AllowIPs: cfg.NFS.AllowIPs,
+		Enabled:     cfg.NFS.Enabled,
+		Port:        cfg.NFS.Port,
+		MountPoints: mps,
 	})
 }
 
@@ -1118,15 +1132,23 @@ func (h *SettingsHandler) UpdateNFS(w http.ResponseWriter, r *http.Request) {
 	if req.Port > 0 {
 		h.cfg.NFS.Port = req.Port
 	}
-	if req.RootDir != "" {
-		h.cfg.NFS.RootDir = req.RootDir
+
+	// 转换挂载点配置
+	mps := make([]config.NFSMountPoint, len(req.MountPoints))
+	for i, mp := range req.MountPoints {
+		mps[i] = config.NFSMountPoint{
+			Label:      mp.Label,
+			ExportPath: mp.ExportPath,
+			LocalDir:   mp.LocalDir,
+			ReadOnly:   mp.ReadOnly,
+			AllowIPs:   mp.AllowIPs,
+		}
 	}
-	h.cfg.NFS.ReadOnly = req.ReadOnly
-	h.cfg.NFS.AllowIPs = req.AllowIPs
+	h.cfg.NFS.MountPoints = mps
 	h.mu.Unlock()
 
-	if h.setNFSAllowIPs != nil {
-		h.setNFSAllowIPs(req.AllowIPs)
+	if h.setNFSMountPoints != nil {
+		h.setNFSMountPoints(mps)
 	}
 
 	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {

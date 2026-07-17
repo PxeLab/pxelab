@@ -9,67 +9,65 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"path"
 	"strings"
+	"sync"
 
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
 	gonfs "github.com/willscott/go-nfs"
 	"github.com/willscott/go-nfs/helpers"
+	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/metrics"
 )
 
-type Server struct {
-	name       string
-	port       int
-	rootDir    string
+type mountEntry struct {
+	label      string
+	exportPath string
+	localDir   string
 	readOnly   bool
-	allowIPs   []string
-	listener   net.Listener
-	rpcbind    *rpcbindServer
-	cancel     context.CancelFunc
+	allowNets  []*net.IPNet
+	fs         billy.Filesystem
 }
 
-func NewServer(port int, rootDir string, readOnly bool, allowIPs []string) *Server {
+type Server struct {
+	name        string
+	port        int
+	mountPoints []config.NFSMountPoint
+	mu          sync.RWMutex
+	listener    net.Listener
+	rpcbind     *rpcbindServer
+	cancel      context.CancelFunc
+}
+
+func NewServer(port int, mountPoints []config.NFSMountPoint) *Server {
 	return &Server{
-		name:     "NFS",
-		port:     port,
-		rootDir:  rootDir,
-		readOnly: readOnly,
-		allowIPs: allowIPs,
+		name:        "NFS",
+		port:        port,
+		mountPoints: mountPoints,
 	}
 }
 
-func (s *Server) SetAllowIPs(ips []string) {
-	s.allowIPs = ips
+func (s *Server) SetMountPoints(mps []config.NFSMountPoint) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.mountPoints = mps
 }
 
 func (s *Server) Name() string { return s.name }
 
-func (s *Server) Start(ctx context.Context) error {
-	gonfs.Log.SetLevel(gonfs.FatalLevel)
-
-	if err := os.MkdirAll(s.rootDir, 0755); err != nil {
-		return fmt.Errorf("nfs: 创建根目录失败: %w", err)
-	}
-
-	rawFS := osfs.New(s.rootDir)
-
-	var fs billy.Filesystem = rawFS
-	if s.readOnly {
-		fs = &readOnlyFS{Filesystem: rawFS}
-	}
-
-	var allowNets []*net.IPNet
-	for _, s := range s.allowIPs {
-		s = strings.TrimSpace(s)
-		if s == "" {
+func parseAllowIPs(ips []string) []*net.IPNet {
+	var nets []*net.IPNet
+	for _, raw := range ips {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
 			continue
 		}
-		_, cidr, err := net.ParseCIDR(s)
+		_, cidr, err := net.ParseCIDR(raw)
 		if err != nil {
-			ip := net.ParseIP(s)
+			ip := net.ParseIP(raw)
 			if ip == nil {
-				slog.Warn("NFS 允许列表解析失败，跳过", "service", "nfs", "value", s)
+				slog.Warn("NFS 允许列表解析失败，跳过", "service", "nfs", "value", raw)
 				continue
 			}
 			bits := 32
@@ -78,19 +76,70 @@ func (s *Server) Start(ctx context.Context) error {
 			}
 			cidr = &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)}
 		}
-		allowNets = append(allowNets, cidr)
+		nets = append(nets, cidr)
 	}
+	return nets
+}
 
-	handler := &nfsHandler{fs: fs, readOnly: s.readOnly, allowNets: allowNets}
-	cachingHandler := helpers.NewCachingHandler(handler, 1000)
+func (s *Server) Start(ctx context.Context) error {
+	gonfs.Log.SetLevel(gonfs.FatalLevel)
 
-	if len(allowNets) > 0 {
-		allowList := make([]string, len(allowNets))
-		for i, n := range allowNets {
-			allowList[i] = n.String()
+	s.mu.RLock()
+	mps := s.mountPoints
+	s.mu.RUnlock()
+
+	var entries []mountEntry
+	seenExports := make(map[string]string) // exportPath -> label (for duplicate detection)
+	for _, mp := range mps {
+		localDir := mp.LocalDir
+		if localDir == "" {
+			continue
 		}
-		slog.Info("NFS IP 允许列表", "service", "nfs", "allow", allowList)
+		if err := os.MkdirAll(localDir, 0755); err != nil {
+			return fmt.Errorf("nfs: 创建目录失败 %s: %w", localDir, err)
+		}
+
+		rawFS := osfs.New(localDir)
+		var fs billy.Filesystem = rawFS
+		if mp.ReadOnly {
+			fs = &readOnlyFS{Filesystem: rawFS}
+		}
+
+		exportPath := mp.ExportPath
+		if exportPath == "" {
+			exportPath = "/"
+		}
+		exportPath = path.Clean(exportPath)
+
+		if prevLabel, exists := seenExports[exportPath]; exists {
+			slog.Warn("NFS 重复导出路径，后者将被忽略", "service", "nfs",
+				"export", exportPath, "previous_label", prevLabel, "current_label", mp.Label)
+			continue
+		}
+		seenExports[exportPath] = mp.Label
+
+		entry := mountEntry{
+			label:      mp.Label,
+			exportPath: exportPath,
+			localDir:   localDir,
+			readOnly:   mp.ReadOnly,
+			allowNets:  parseAllowIPs(mp.AllowIPs),
+			fs:         fs,
+		}
+		entries = append(entries, entry)
+
+		if len(entry.allowNets) > 0 {
+			allowList := make([]string, len(entry.allowNets))
+			for i, n := range entry.allowNets {
+				allowList[i] = n.String()
+			}
+			slog.Info("NFS 挂载点 IP 允许列表", "service", "nfs", "export", exportPath, "allow", allowList)
+		}
+		slog.Info("NFS 挂载点已注册", "service", "nfs", "export", exportPath, "local", localDir, "read_only", mp.ReadOnly)
 	}
+
+	handler := &nfsHandler{entries: entries}
+	cachingHandler := helpers.NewCachingHandler(handler, 1000)
 
 	addr := fmt.Sprintf(":%d", s.port)
 	listener, err := net.Listen("tcp", addr)
@@ -105,7 +154,7 @@ func (s *Server) Start(ctx context.Context) error {
 	versionListener := &versionAwareListener{Listener: listener}
 
 	go func() {
-		slog.Info("NFS 服务已启动", "service", "NFS", "port", s.port, "root", s.rootDir, "read_only", s.readOnly)
+		slog.Info("NFS 服务已启动", "service", "NFS", "port", s.port, "mount_points", len(entries))
 		if err := gonfs.Serve(versionListener, cachingHandler); err != nil {
 			select {
 			case <-ctx.Done():
@@ -137,32 +186,63 @@ func (s *Server) Stop(ctx context.Context) error {
 var nfsMetrics = metrics.DefaultRegistry.GetOrCreate("nfs")
 
 type nfsHandler struct {
-	fs        billy.Filesystem
-	readOnly  bool
-	allowNets []*net.IPNet
+	entries []mountEntry
+}
+
+func (h *nfsHandler) findEntry(dirpath string) *mountEntry {
+	cleaned := path.Clean(dirpath)
+	for i := range h.entries {
+		if h.entries[i].exportPath == cleaned {
+			return &h.entries[i]
+		}
+	}
+	return nil
+}
+
+func (h *nfsHandler) findEntryByFS(fs billy.Filesystem) *mountEntry {
+	for i := range h.entries {
+		if h.entries[i].fs == fs {
+			return &h.entries[i]
+		}
+	}
+	return nil
 }
 
 func (h *nfsHandler) Mount(ctx context.Context, conn net.Conn, req gonfs.MountRequest) (gonfs.MountStatus, billy.Filesystem, []gonfs.AuthFlavor) {
 	nfsMetrics.RecordRequest()
 	clientAddr := conn.RemoteAddr().String()
-	if !h.isAllowed(conn.RemoteAddr()) {
+	dirpath := strings.TrimSpace(string(req.Dirpath))
+	if dirpath == "" {
+		dirpath = "/"
+	}
+
+	entry := h.findEntry(dirpath)
+	if entry == nil {
 		nfsMetrics.RecordRejected()
-		if len(h.allowNets) > 0 {
-			allowList := make([]string, len(h.allowNets))
-			for i, n := range h.allowNets {
+		slog.Warn("NFS 挂载失败（导出路径不存在）", "service", "nfs", "client", clientAddr, "path", dirpath)
+		return gonfs.MountStatusErrNoEnt, nil, nil
+	}
+
+	if !isAllowed(conn.RemoteAddr(), entry.allowNets) {
+		nfsMetrics.RecordRejected()
+		if len(entry.allowNets) > 0 {
+			allowList := make([]string, len(entry.allowNets))
+			for i, n := range entry.allowNets {
 				allowList[i] = n.String()
 			}
-			slog.Warn("NFS 挂载被拒绝（不在允许列表）", "service", "nfs", "client", clientAddr, "allow", allowList)
+			slog.Warn("NFS 挂载被拒绝（不在允许列表）", "service", "nfs", "client", clientAddr, "export", entry.exportPath, "allow", allowList)
 		} else {
-			slog.Warn("NFS 挂载被拒绝", "service", "nfs", "client", clientAddr)
+			slog.Warn("NFS 挂载被拒绝", "service", "nfs", "client", clientAddr, "export", entry.exportPath)
 		}
 		return gonfs.MountStatusErrAcces, nil, nil
 	}
-	return gonfs.MountStatusOk, h.fs, []gonfs.AuthFlavor{gonfs.AuthFlavorNull}
+
+	slog.Info("NFS 挂载成功", "service", "nfs", "client", clientAddr, "export", entry.exportPath, "local", entry.localDir)
+	return gonfs.MountStatusOk, entry.fs, []gonfs.AuthFlavor{gonfs.AuthFlavorNull}
 }
 
-func (h *nfsHandler) isAllowed(addr net.Addr) bool {
-	if len(h.allowNets) == 0 {
+func isAllowed(addr net.Addr, allowNets []*net.IPNet) bool {
+	if len(allowNets) == 0 {
 		return true
 	}
 	tcpAddr, ok := addr.(*net.TCPAddr)
@@ -170,7 +250,7 @@ func (h *nfsHandler) isAllowed(addr net.Addr) bool {
 		slog.Warn("NFS 客户端地址类型异常，拒绝访问", "service", "nfs", "client", addr.String(), "type", addr.Network())
 		return false
 	}
-	for _, n := range h.allowNets {
+	for _, n := range allowNets {
 		if n.Contains(tcpAddr.IP) {
 			return true
 		}
@@ -179,10 +259,11 @@ func (h *nfsHandler) isAllowed(addr net.Addr) bool {
 }
 
 func (h *nfsHandler) Change(fs billy.Filesystem) billy.Change {
-	if h.readOnly {
+	entry := h.findEntryByFS(fs)
+	if entry != nil && entry.readOnly {
 		return nil
 	}
-	if c, ok := h.fs.(billy.Change); ok {
+	if c, ok := fs.(billy.Change); ok {
 		return c
 	}
 	return nil

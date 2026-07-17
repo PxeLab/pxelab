@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Added
+- NFS 多挂载点支持：每个挂载点独立配置标签、导出路径（客户端挂载别名）、本地目录、只读权限和 IP/CIDR 白名单
+- NFS 设置页面 UI 重写：动态挂载点卡片列表，支持添加/删除挂载点
+- NFS 单元测试覆盖：`parseAllowIPs`、`findEntry`、`isAllowed` 多挂载点逻辑
 - NFSv3 服务器（基于 go-nfs），默认端口 2049/TCP，只读导出 `~/.pxelab/boot/isos`
 - NFS IP 访问控制：支持按 IP 或 CIDR 网段限制挂载（`allow_ips`），空列表不限制
 - 内嵌 rpcbind（端口 111/UDP+TCP），自动注册 NFSv3/MOUNT 端口映射
@@ -17,9 +20,13 @@
 - DNS 服务启动时重新读取配置，上游 DNS 变更不再需要重启进程
 
 ### Changed
+- NFS 配置结构重构：`root_dir`/`read_only`/`allow_ips` 迁移为 `mount_points[]` 数组，旧格式自动兼容
+- NFS API 响应格式变更：`NFSSettingsData` 返回 `mount_points` 替代原有的 `root_dir`/`read_only`/`allow_ips`
+- NFS 挂载路径匹配改用 `path.Clean`（始终正斜杠），修复 Windows 上 NFS 路径分隔符问题
 - Netboot 默认启用 HTTPS 代理（ProxyHTTPS）和本地缓存（CacheEnabled）
 
 ### Fixed
+- NFS 导出路径在 Windows 上使用反斜杠导致客户端挂载失败（改用 `path.Clean` 统一正斜杠）
 - GParted 引导失败：替换 live_endpoint 为本地 HTTP 代理地址，禁用签名校验
 - 保存 netboot 设置时丢失 CatalogDisplay.Groups 配置
 - 文件管理表格显示修改时间、MD5 列，带表头展示

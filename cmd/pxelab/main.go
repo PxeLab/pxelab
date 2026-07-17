@@ -314,10 +314,10 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 
 	sessions := session.NewStore(0)
 
-	nfsServer := pxelabnfs.NewServer(cfg.NFS.Port, cfg.NFS.RootDir, cfg.NFS.ReadOnly, cfg.NFS.AllowIPs)
+	nfsServer := pxelabnfs.NewServer(cfg.NFS.Port, cfg.NFS.MountPoints)
 	svcMgr.Register("nfs", "NFS", nfsServer, cfg.ServiceAutoStart.NFS, false, cfg.NFS.Port, "TCP")
 
-	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP, svcMgr, sessions, nfsServer.SetAllowIPs)
+	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP, svcMgr, sessions, nfsServer.SetMountPoints)
 	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP, true, 8080, "TCP")
 
 

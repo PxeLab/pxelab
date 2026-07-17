@@ -49,11 +49,13 @@ type Handler struct {
 	DHCPReservation *DHCPReservationHandler
 	Network         *NetworkHandler
 	OSImage         *OSImageHandler
+	Bootloader      *BootloaderHandler
+	Script          *ScriptHandler
 	svcController   ServiceController
 	sessions        *session.Store
 }
 
-func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store, setNFSAllowIPs func(ips []string)) *Handler {
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store, setNFSMountPoints func(mps []config.NFSMountPoint)) *Handler {
 	h := &Handler{
 		Host:            &HostHandler{store: st},
 		Profile:         &ProfileHandler{store: st, netbootMgr: netbootMgr},
@@ -62,7 +64,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		WOL:             &WOLHandler{store: st, config: cfg, eventBus: bus},
 		IPMI:            &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
 		Lease:           &LeaseHandler{store: st, config: cfg},
-		Settings:        NewSettingsHandler(cfg, st, reloader, setNFSAllowIPs),
+		Settings:        NewSettingsHandler(cfg, st, reloader, setNFSMountPoints),
 		Logs:            NewLogStreamHandler(bus, logDir(cfg)),
 		Netboot:         NewNetbootHandler(netbootMgr),
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
@@ -76,6 +78,8 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		DHCPReservation: &DHCPReservationHandler{store: st},
 		Network:         &NetworkHandler{},
 		OSImage:         NewOSImageHandler(st, cfg),
+		Bootloader:      NewBootloaderHandler(bootFS),
+		Script:          NewScriptHandler(st, boot.NewScriptManager(bootFS.Root())),
 		svcController:   svcController,
 		sessions:        sessions,
 	}
@@ -256,6 +260,21 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/os-images/{id}/extract", h.OSImage.Extract)
 		r.Post("/os-images/{id}/mount", h.OSImage.Mount)
 		r.Post("/os-images/{id}/unmount", h.OSImage.Unmount)
+
+		// Bootloader management
+		r.Get("/bootloader/check", h.Bootloader.Check)
+		r.Get("/bootloader/files", h.Bootloader.List)
+		r.Post("/bootloader/check-file", h.Bootloader.CheckFile)
+
+		// Script editor
+		r.Get("/scripts", h.Script.List)
+		r.Post("/scripts/sync", h.Script.Sync)
+		r.Get("/scripts/{id}", h.Script.Get)
+		r.Put("/scripts/{id}", h.Script.Save)
+		r.Get("/scripts/{id}/versions", h.Script.ListVersions)
+		r.Get("/scripts/{id}/versions/{ver}", h.Script.GetVersion)
+		r.Get("/scripts/{id}/diff/{ver}", h.Script.Diff)
+		r.Post("/scripts/{id}/rollback/{ver}", h.Script.Rollback)
 
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)
