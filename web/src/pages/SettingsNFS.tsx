@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Save, RefreshCw, Plus, Trash2, Edit2, FolderOpen, Server } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
 import { SettingsField, SettingsInput } from '../components/settings/SettingsField'
 import { api, type NFSSettingsData, type NFSMountPointData } from '../api/client'
@@ -309,20 +310,13 @@ export default function SettingsNFS() {
           </SettingsField>
 
           <div className="flex items-center justify-between py-2">
-            <div>
-              <div className="text-sm font-medium text-[var(--text-primary)]">{t('settings.nfsReadOnly')}</div>
-              <div className="text-xs text-[var(--text-muted)]">{t('settings.nfsReadOnlyHelp')}</div>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={modalData.read_only}
-                onChange={e => setModalData({ ...modalData, read_only: e.target.checked })}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 dark:bg-gray-600 dark:peer-checked:bg-blue-600"></div>
-            </label>
+            <Toggle
+              checked={modalData.read_only}
+              onChange={v => setModalData({ ...modalData, read_only: v })}
+              label={t('settings.nfsReadOnly')}
+            />
           </div>
+          <p className="text-xs text-[var(--text-muted)] -mt-2">{t('settings.nfsReadOnlyHelp')}</p>
         </div>
       </Modal>
 
