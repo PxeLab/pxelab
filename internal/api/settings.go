@@ -215,9 +215,11 @@ type NFSMountPointResponse struct {
 }
 
 type NFSSettingsResponse struct {
-	Enabled     bool                    `json:"enabled"`
-	Port        int                     `json:"port"`
-	MountPoints []NFSMountPointResponse `json:"mount_points"`
+	Enabled       bool                    `json:"enabled"`
+	Port          int                     `json:"port"`
+	RpcbindPort   int                     `json:"rpcbind_port"`
+	Version       string                  `json:"version"`
+	MountPoints   []NFSMountPointResponse `json:"mount_points"`
 }
 
 type NetbootSettingsResponse struct {
@@ -1116,6 +1118,8 @@ func (h *SettingsHandler) GetNFS(w http.ResponseWriter, r *http.Request) {
 	OK(w, NFSSettingsResponse{
 		Enabled:     cfg.NFS.Enabled,
 		Port:        cfg.NFS.Port,
+		RpcbindPort: 111,
+		Version:     "NFSv3",
 		MountPoints: mps,
 	})
 }

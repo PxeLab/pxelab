@@ -480,6 +480,8 @@ export interface NFSMountPointData {
 export interface NFSSettingsData {
   enabled: boolean
   port: number
+  rpcbind_port: number
+  version: string
   mount_points: NFSMountPointData[]
 }
 

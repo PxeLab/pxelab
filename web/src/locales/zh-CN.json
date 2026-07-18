@@ -47,7 +47,7 @@
     "wol": "唤醒管理",
     "osImages": "系统镜像",
     "network": "网络诊断",
-    "bootloader": "引导管理",
+    "bootSettings": "引导设置",
     "scripts": "脚本编辑器"
   },
   "dashboard": {
@@ -410,6 +410,17 @@
     "nfsAllowIPsPlaceholder": "例如 192.168.1.0/24\n10.0.0.5",
     "nfsAllowRestartHint": "更改允许的 IP 网段后需要重启 NFS 服务才能生效。",
     "nfsRpcbindPort": "端口 111/UDP+TCP — Linux NFSv3 客户端需通过 rpcbind 发现 NFS 服务端口，Windows 上需要管理员权限。",
+    "nfsNfsPort": "NFS 端口",
+    "nfsRpcbindPortLabel": "RPCbind 端口",
+    "nfsVersion": "版本",
+    "nfsNoMountPoints": "暂无挂载点配置，点击「添加挂载点」创建。",
+    "nfsAddMountPoint": "添加挂载点",
+    "nfsEditMountPoint": "编辑挂载点",
+    "nfsDeleteMountPoint": "删除挂载点",
+    "nfsDeleteMountPointConfirm": "确定要删除挂载点「{path}」吗？",
+    "nfsReadOnlyYes": "只读",
+    "nfsReadOnlyNo": "读写",
+    "nfsMountPointRequired": "导出路径和本地目录不能为空。",
     "dnsTitle": "DNS 设置",
     "localDomain": "本地域名",
     "localDomainHelp": "DNS 记录中的主机名会以此域名后缀进行本地解析。例如 pxe-server → pxe-server.{domain}",
@@ -991,5 +1002,30 @@
     "pingSuccess": "Ping 完成",
     "pingFailed": "Ping 失败",
     "tracerouteFailed": "Traceroute 失败"
+  },
+  "bootloader": {
+    "check": "健康检查",
+    "total": "总计",
+    "present": "存在",
+    "missing": "缺失",
+    "status": "状态",
+    "ok": "正常",
+    "issues": "异常",
+    "rootDir": "启动目录",
+    "file": "文件",
+    "description": "描述",
+    "required": "必需",
+    "optional": "可选",
+    "size": "大小",
+    "checksum": "校验和",
+    "checkHint": "点击刷新按钮检查引导文件完整性"
+  },
+  "bootSettings": {
+    "title": "引导设置",
+    "archMap": "架构引导文件映射",
+    "archMapHint": "PXE 客户端架构与引导文件的对应关系",
+    "arch": "架构",
+    "archCode": "代码",
+    "editHint": "架构映射为硬编码配置，后续版本将支持自定义"
   }
 }

@@ -47,7 +47,7 @@
     "wol": "Wake-on-LAN",
     "osImages": "OS Images",
     "network": "Network Diagnostics",
-    "bootloader": "Bootloader",
+    "bootSettings": "Boot Settings",
     "scripts": "Script Editor"
   },
   "dashboard": {
@@ -410,6 +410,17 @@
     "nfsAllowIPsPlaceholder": "e.g. 192.168.1.0/24\n10.0.0.5",
     "nfsAllowRestartHint": "Changes to allowed IPs take effect after restarting the NFS service.",
     "nfsRpcbindPort": "Port 111/UDP+TCP — required for Linux NFSv3 clients to discover the NFS service. Admin privileges required on Windows.",
+    "nfsNfsPort": "NFS Port",
+    "nfsRpcbindPortLabel": "RPCbind Port",
+    "nfsVersion": "Version",
+    "nfsNoMountPoints": "No mount points configured. Click \"Add Mount Point\" to create one.",
+    "nfsAddMountPoint": "Add Mount Point",
+    "nfsEditMountPoint": "Edit Mount Point",
+    "nfsDeleteMountPoint": "Delete Mount Point",
+    "nfsDeleteMountPointConfirm": "Are you sure you want to delete mount point \"{path}\"?",
+    "nfsReadOnlyYes": "Read-Only",
+    "nfsReadOnlyNo": "Read/Write",
+    "nfsMountPointRequired": "Export path and local directory are required.",
     "dnsTitle": "DNS Settings",
     "localDomain": "Local Domain",
     "localDomainHelp": "Hostnames in DNS records are resolved locally with this domain suffix. e.g. pxe-server → pxe-server.{domain}",
@@ -991,5 +1002,30 @@
     "pingSuccess": "Ping completed",
     "pingFailed": "Ping failed",
     "tracerouteFailed": "Traceroute failed"
+  },
+  "bootloader": {
+    "check": "Health Check",
+    "total": "Total",
+    "present": "Present",
+    "missing": "Missing",
+    "status": "Status",
+    "ok": "OK",
+    "issues": "Issues",
+    "rootDir": "Boot Directory",
+    "file": "File",
+    "description": "Description",
+    "required": "Required",
+    "optional": "Optional",
+    "size": "Size",
+    "checksum": "Checksum",
+    "checkHint": "Click Refresh to check boot file integrity"
+  },
+  "bootSettings": {
+    "title": "Boot Settings",
+    "archMap": "Architecture Boot File Mapping",
+    "archMapHint": "PXE client architecture to boot file mapping",
+    "arch": "Architecture",
+    "archCode": "Code",
+    "editHint": "Architecture mapping is hardcoded and will be customizable in a future version"
   }
 }
