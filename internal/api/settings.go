@@ -13,9 +13,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
+	"github.com/pxelab/pxelab/internal/boot"
 	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/store"
@@ -28,15 +31,28 @@ type SubnetReloader interface {
 }
 
 type SettingsHandler struct {
-	cfg              *config.Config
-	store            store.Interface
-	reloader         SubnetReloader
+	cfg               *config.Config
+	store             store.Interface
+	reloader          SubnetReloader
 	setNFSMountPoints func(mps []config.NFSMountPoint)
-	mu               sync.Mutex
+	getNFSConnections func() map[string]NFSConnectionInfo
+	isServiceRunning  func(name string) bool
+	mu                sync.Mutex
 }
 
-func NewSettingsHandler(cfg *config.Config, st store.Interface, reloader SubnetReloader, setNFSMountPoints func(mps []config.NFSMountPoint)) *SettingsHandler {
-	return &SettingsHandler{cfg: cfg, store: st, reloader: reloader, setNFSMountPoints: setNFSMountPoints}
+type NFSConnectionInfo struct {
+	Connections int          `json:"connections"`
+	Clients     []NFSClientInfo `json:"clients"`
+}
+
+type NFSClientInfo struct {
+	IP           string `json:"ip"`
+	ConnectedAt string `json:"connected_at"`
+	LastActivity string `json:"last_activity"`
+}
+
+func NewSettingsHandler(cfg *config.Config, st store.Interface, reloader SubnetReloader, setNFSMountPoints func(mps []config.NFSMountPoint), getNFSConnections func() map[string]NFSConnectionInfo, isServiceRunning func(name string) bool) *SettingsHandler {
+	return &SettingsHandler{cfg: cfg, store: st, reloader: reloader, setNFSMountPoints: setNFSMountPoints, getNFSConnections: getNFSConnections, isServiceRunning: isServiceRunning}
 }
 
 type SettingsResponse struct {
@@ -193,9 +209,25 @@ type DHCPSettingsResponse struct {
 type TFTPSettingsResponse struct {
 	Enabled        bool   `json:"enabled"`
 	Port           int    `json:"port"`
+	Timeout        int    `json:"timeout"`
 	Root           string `json:"root"`
 	PXEConfigFile  string `json:"pxe_config_file"`
 	GRUBConfigFile string `json:"grub_config_file"`
+}
+
+// ArchEntryResponse 单架构映射
+type ArchEntryResponse struct {
+	ArchCode   int    `json:"arch_code"`
+	ArchName   string `json:"arch_name"`
+	IPXE       string `json:"ipxe"`
+	PXELinux   string `json:"pxelinux"`
+	GRUB       string `json:"grub"`
+	GRUBConfig string `json:"grub_config"`
+}
+
+// ArchMapResponse 完整的架构映射表
+type ArchMapResponse struct {
+	Entries []ArchEntryResponse `json:"entries"`
 }
 
 type DNSSettingsResponse struct {
@@ -207,15 +239,18 @@ type DNSSettingsResponse struct {
 }
 
 type NFSMountPointResponse struct {
-	Label      string   `json:"label"`
-	ExportPath string   `json:"export_path"`
-	LocalDir   string   `json:"local_dir"`
-	ReadOnly   bool     `json:"read_only"`
-	AllowIPs   []string `json:"allow_ips"`
+	Label           string          `json:"label"`
+	ExportPath      string          `json:"export_path"`
+	LocalDir        string          `json:"local_dir"`
+	ReadOnly        bool            `json:"read_only"`
+	AllowIPs        []string        `json:"allow_ips"`
+	ConnectionCount int             `json:"connection_count"`
+	Clients         []NFSClientInfo `json:"clients,omitempty"`
 }
 
 type NFSSettingsResponse struct {
 	Enabled       bool                    `json:"enabled"`
+	Running       bool                    `json:"running"`
 	Port          int                     `json:"port"`
 	RpcbindPort   int                     `json:"rpcbind_port"`
 	Version       string                  `json:"version"`
@@ -949,9 +984,18 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 
 func (h *SettingsHandler) GetTFTP(w http.ResponseWriter, r *http.Request) {
 	cfg := h.cfg
+	port := cfg.TFTP.Port
+	if port <= 0 {
+		port = config.DefaultPortTFTP
+	}
+	timeout := cfg.TFTP.Timeout
+	if timeout <= 0 {
+		timeout = config.DefaultTFTPTimeout
+	}
 	OK(w, TFTPSettingsResponse{
 		Enabled:        true,
-		Port:           config.DefaultPortTFTP,
+		Port:           port,
+		Timeout:        timeout,
 		Root:           cfg.Boot.RootDir,
 		PXEConfigFile:  cfg.Boot.PXEConfigFile,
 		GRUBConfigFile: cfg.Boot.GRUBConfigFile,
@@ -973,6 +1017,12 @@ func (h *SettingsHandler) UpdateTFTP(w http.ResponseWriter, r *http.Request) {
 	if req.GRUBConfigFile != "" {
 		h.cfg.Boot.GRUBConfigFile = req.GRUBConfigFile
 	}
+	if req.Port > 0 {
+		h.cfg.TFTP.Port = req.Port
+	}
+	if req.Timeout >= 0 {
+		h.cfg.TFTP.Timeout = req.Timeout
+	}
 	h.mu.Unlock()
 
 	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
@@ -981,6 +1031,76 @@ func (h *SettingsHandler) UpdateTFTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	OK(w, map[string]string{"status": "saved"})
+}
+
+// ── ArchMap ──
+
+func (h *SettingsHandler) GetArchMap(w http.ResponseWriter, r *http.Request) {
+	entries := make([]ArchEntryResponse, 0)
+	for code, entry := range boot.GetArchMap() {
+		entries = append(entries, ArchEntryResponse{
+			ArchCode:   code,
+			ArchName:   boot.ArchName(code),
+			IPXE:       entry.IPXE,
+			PXELinux:   entry.PXELinux,
+			GRUB:       entry.GRUB,
+			GRUBConfig: entry.GRUBConfig,
+		})
+	}
+	slices.SortFunc(entries, func(a, b ArchEntryResponse) int {
+		return a.ArchCode - b.ArchCode
+	})
+	OK(w, ArchMapResponse{Entries: entries})
+}
+
+func (h *SettingsHandler) UpdateArchMap(w http.ResponseWriter, r *http.Request) {
+	var req ArchMapResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	archMap := make(map[int]config.ArchEntry, len(req.Entries))
+	for _, e := range req.Entries {
+		archMap[e.ArchCode] = config.ArchEntry{
+			IPXE:       e.IPXE,
+			PXELinux:   e.PXELinux,
+			GRUB:       e.GRUB,
+			GRUBConfig: e.GRUBConfig,
+		}
+	}
+
+	h.mu.Lock()
+	h.cfg.Boot.ArchMap = archMap
+	boot.InitArchMap(archMap)
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	OK(w, map[string]string{"status": "saved"})
+}
+
+func (h *SettingsHandler) GetArchMapDefaults(w http.ResponseWriter, _ *http.Request) {
+	defs := boot.DefaultArchMap()
+	entries := make([]ArchEntryResponse, 0, len(defs))
+	for code := range defs {
+		entry := defs[code]
+		entries = append(entries, ArchEntryResponse{
+			ArchCode:   code,
+			ArchName:   boot.ArchName(code),
+			IPXE:       entry.IPXE,
+			PXELinux:   entry.PXELinux,
+			GRUB:       entry.GRUB,
+			GRUBConfig: entry.GRUBConfig,
+		})
+	}
+	slices.SortFunc(entries, func(a, b ArchEntryResponse) int {
+		return a.ArchCode - b.ArchCode
+	})
+	OK(w, ArchMapResponse{Entries: entries})
 }
 
 // ── DHCP (legacy single-interface) ──
@@ -1105,18 +1225,39 @@ func (h *SettingsHandler) UpdateDNS(w http.ResponseWriter, r *http.Request) {
 
 func (h *SettingsHandler) GetNFS(w http.ResponseWriter, r *http.Request) {
 	cfg := h.cfg
+
+	// Get live connection stats if callback available
+	var connStats map[string]NFSConnectionInfo
+	if h.getNFSConnections != nil {
+		connStats = h.getNFSConnections()
+	}
+
+	// Check if NFS service is running
+	running := false
+	if h.isServiceRunning != nil {
+		running = h.isServiceRunning("nfs")
+	}
+
 	mps := make([]NFSMountPointResponse, len(cfg.NFS.MountPoints))
 	for i, mp := range cfg.NFS.MountPoints {
-		mps[i] = NFSMountPointResponse{
+		resp := NFSMountPointResponse{
 			Label:      mp.Label,
 			ExportPath: mp.ExportPath,
 			LocalDir:   mp.LocalDir,
 			ReadOnly:   mp.ReadOnly,
 			AllowIPs:   mp.AllowIPs,
 		}
+		if connStats != nil {
+			if stat, ok := connStats[mp.ExportPath]; ok {
+				resp.ConnectionCount = stat.Connections
+				resp.Clients = stat.Clients
+			}
+		}
+		mps[i] = resp
 	}
 	OK(w, NFSSettingsResponse{
 		Enabled:     cfg.NFS.Enabled,
+		Running:     running,
 		Port:        cfg.NFS.Port,
 		RpcbindPort: 111,
 		Version:     "NFSv3",
@@ -1161,6 +1302,131 @@ func (h *SettingsHandler) UpdateNFS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	OK(w, map[string]string{"status": "saved"})
+}
+
+// ValidateNFSPath checks if a local directory exists and is accessible
+func (h *SettingsHandler) ValidateNFSPath(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Path string `json:"path"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+	if req.Path == "" {
+		Error(w, http.StatusBadRequest, "路径不能为空")
+		return
+	}
+
+	result := map[string]interface{}{
+		"exists":  false,
+		"writable": false,
+	}
+
+	info, err := os.Stat(req.Path)
+	if err != nil {
+		result["error"] = err.Error()
+		OK(w, result)
+		return
+	}
+
+	result["exists"] = true
+	result["is_dir"] = info.IsDir()
+
+	// Test write access by attempting to create a temp file
+	if info.IsDir() {
+		tmpFile := filepath.Join(req.Path, ".pxelab_write_test")
+		f, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
+		if err == nil {
+			f.Close()
+			os.Remove(tmpFile)
+			result["writable"] = true
+		}
+	}
+
+	OK(w, result)
+}
+
+// BrowseNFSPath lists directories at a given path for the directory browser UI
+func (h *SettingsHandler) BrowseNFSPath(w http.ResponseWriter, r *http.Request) {
+	dirPath := r.URL.Query().Get("path")
+
+	// On Windows with empty path, return drive letters as root-level entries
+	if dirPath == "" {
+		if runtime.GOOS == "windows" {
+			drives := listWindowsDrives()
+			type DirEntry struct {
+				Name  string `json:"name"`
+				Path  string `json:"path"`
+				IsDir bool   `json:"is_dir"`
+			}
+			var entries []DirEntry
+			for _, d := range drives {
+				entries = append(entries, DirEntry{
+					Name:  d,
+					Path:  d,
+					IsDir: true,
+				})
+			}
+			OK(w, map[string]interface{}{
+				"current": "",
+				"entries": entries,
+			})
+			return
+		}
+		dirPath = "/"
+	}
+
+	info, err := os.Stat(dirPath)
+	if err != nil || !info.IsDir() {
+		Error(w, http.StatusBadRequest, "路径不存在或不是目录")
+		return
+	}
+
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "无法读取目录: "+err.Error())
+		return
+	}
+
+	type DirEntry struct {
+		Name  string `json:"name"`
+		Path  string `json:"path"`
+		IsDir bool   `json:"is_dir"`
+	}
+	var dirs []DirEntry
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		// Skip hidden directories
+		if len(name) > 0 && name[0] == '.' {
+			continue
+		}
+		dirs = append(dirs, DirEntry{
+			Name:  name,
+			Path:  filepath.Join(dirPath, name),
+			IsDir: true,
+		})
+	}
+
+	OK(w, map[string]interface{}{
+		"current": dirPath,
+		"entries": dirs,
+	})
+}
+
+// listWindowsDrives returns available drive letters on Windows (e.g. ["C:\\", "D:\\"])
+func listWindowsDrives() []string {
+	var drives []string
+	for _, letter := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
+		path := string(letter) + ":\\"
+		if _, err := os.Stat(path); err == nil {
+			drives = append(drives, path)
+		}
+	}
+	return drives
 }
 
 // ── Netboot (stripped down — no script_template or default_menu) ──

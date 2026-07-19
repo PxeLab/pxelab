@@ -38,6 +38,7 @@ type Server struct {
 	listener    net.Listener
 	rpcbind     *rpcbindServer
 	cancel      context.CancelFunc
+	tracker     *ConnectionTracker
 }
 
 func NewServer(port int, mountPoints []config.NFSMountPoint) *Server {
@@ -45,6 +46,7 @@ func NewServer(port int, mountPoints []config.NFSMountPoint) *Server {
 		name:        "NFS",
 		port:        port,
 		mountPoints: mountPoints,
+		tracker:     NewConnectionTracker(),
 	}
 }
 
@@ -55,6 +57,11 @@ func (s *Server) SetMountPoints(mps []config.NFSMountPoint) {
 }
 
 func (s *Server) Name() string { return s.name }
+
+// GetConnectionStats returns connection statistics for all mount points
+func (s *Server) GetConnectionStats() map[string]MountStats {
+	return s.tracker.GetStats()
+}
 
 func parseAllowIPs(ips []string) []*net.IPNet {
 	var nets []*net.IPNet
@@ -138,7 +145,7 @@ func (s *Server) Start(ctx context.Context) error {
 		slog.Info("NFS 挂载点已注册", "service", "nfs", "export", exportPath, "local", localDir, "read_only", mp.ReadOnly)
 	}
 
-	handler := &nfsHandler{entries: entries}
+	handler := &nfsHandler{entries: entries, tracker: s.tracker}
 	cachingHandler := helpers.NewCachingHandler(handler, 1000)
 
 	addr := fmt.Sprintf(":%d", s.port)
@@ -166,11 +173,16 @@ func (s *Server) Start(ctx context.Context) error {
 
 	s.rpcbind = startRPCBind(ctx, s.port)
 
+	// Start connection tracker
+	s.tracker.Start()
+
 	return nil
 }
 
 func (s *Server) Stop(ctx context.Context) error {
 	slog.Info("NFS 服务关闭", "service", "NFS")
+	// Stop connection tracker
+	s.tracker.Stop()
 	if s.rpcbind != nil {
 		s.rpcbind.Stop()
 	}
@@ -187,6 +199,7 @@ var nfsMetrics = metrics.DefaultRegistry.GetOrCreate("nfs")
 
 type nfsHandler struct {
 	entries []mountEntry
+	tracker *ConnectionTracker
 }
 
 func (h *nfsHandler) findEntry(dirpath string) *mountEntry {
@@ -238,6 +251,12 @@ func (h *nfsHandler) Mount(ctx context.Context, conn net.Conn, req gonfs.MountRe
 	}
 
 	slog.Info("NFS 挂载成功", "service", "nfs", "client", clientAddr, "export", entry.exportPath, "local", entry.localDir)
+
+	// Record connection in tracker
+	if h.tracker != nil {
+		h.tracker.RecordMount(entry.exportPath, clientAddr)
+	}
+
 	return gonfs.MountStatusOk, entry.fs, []gonfs.AuthFlavor{gonfs.AuthFlavorNull}
 }
 

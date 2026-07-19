@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Activity, Server, Zap, ChevronRight, Wifi, BarChart3, Users, FileText } from 'lucide-react'
 import { StatusDot } from '../components/ui/StatusDot'
 import { Card } from '../components/ui/Card'
-import { api, type ServiceStatus, type Host, type Event, type MetricsSnapshot, type TimeBucket } from '../api/client'
+import { api, type Host, type Event, type MetricsSnapshot, type TimeBucket, getServices, type ServiceInfo } from '../api/client'
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, type PieLabelRenderProps } from 'recharts'
 
 function avgRate(buckets: TimeBucket[]): string {
@@ -20,33 +20,47 @@ function fmtBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)}MB`
 }
 
+function fmtUptime(startedAt: string | null): string {
+  if (!startedAt) return '—'
+  const ms = Date.now() - new Date(startedAt).getTime()
+  if (ms < 0) return '—'
+  const sec = Math.floor(ms / 1000)
+  if (sec < 60) return `${sec}s`
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min}m ${sec % 60}s`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ${min % 60}m`
+  const day = Math.floor(hr / 24)
+  return `${day}d ${hr % 24}h`
+}
+
 const PIE_COLORS = ['#22d3ee', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#f97316', '#06b6d4', '#84cc16']
 
 export default function Dashboard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [status, setStatus] = useState<ServiceStatus | null>(null)
   const [hosts, setHosts] = useState<Host[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null)
   const [dnsCount, setDnsCount] = useState(0)
+  const [serviceList, setServiceList] = useState<ServiceInfo[]>([])
   const [loading, setLoading] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined)
 
   const load = useCallback(async () => {
     try {
-      const [s, h, e, m, d] = await Promise.all([
-        api.getStatus(),
+      const [h, e, m, d, svcs] = await Promise.all([
         api.getHosts({ page: '1', size: '8' }),
         api.getEvents({ page: '1', size: '12' }),
         api.getMetrics(),
         api.getDNSRecords().catch(() => ({ data: { records: [] } })),
+        getServices().catch(() => ({ data: [] as ServiceInfo[] })),
       ])
-      setStatus(s.data)
       setHosts(h.data.hosts ?? [])
       setEvents(e.data.events ?? [])
       setMetrics(m.data)
       setDnsCount(d.data.records.length)
+      setServiceList(svcs.data)
     } catch (err) {
       console.error('Failed to load dashboard', err)
     } finally {
@@ -57,11 +71,17 @@ export default function Dashboard() {
   useEffect(() => { load(); intervalRef.current = window.setInterval(load, 5000); return () => clearInterval(intervalRef.current) }, [load])
 
   const serviceStatus = (svc: string): 'running' | 'stopped' | 'error' => {
-    if (!status?.services) return 'stopped'
-    const s = status.services[svc] || ''
-    if (s === 'running') return 'running'
-    if (s === 'error') return 'error'
-    return 'stopped'
+    if (!serviceList.length) return 'stopped'
+    // 对于 dhcp，匹配所有 dhcp/ 开头的服务（dhcp/eth0 等），任一 running 即 running
+    if (svc === 'dhcp') {
+      const dhcpSvcs = serviceList.filter(s => s.name.startsWith('dhcp/'))
+      if (dhcpSvcs.some(s => s.status === 'running')) return 'running'
+      if (dhcpSvcs.some(s => s.status === 'error')) return 'error'
+      return dhcpSvcs.length ? 'stopped' : 'stopped'
+    }
+    const s = serviceList.find(svcItem => svcItem.name === svc)
+    if (!s) return 'stopped'
+    return s.status
   }
 
   const services = [
@@ -143,14 +163,18 @@ export default function Dashboard() {
             {services.map(svc => {
               const st = serviceStatus(svc.key)
               const color = st === 'running' ? 'green' : st === 'error' ? 'red' : 'yellow'
-              const m = dm(svc.key)
+              const svcInfo = serviceList.find(s => s.name === svc.key) || (svc.key === 'dhcp' ? serviceList.find(s => s.name.startsWith('dhcp/')) : undefined)
+              const protocol = svcInfo?.protocol?.toUpperCase() || ''
+              const uptime = fmtUptime(svcInfo?.started_at ?? null)
               return (
                 <div key={svc.name} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg-base)]/50 border border-[var(--bg-border)]/50">
                   <StatusDot color={color as any} pulse={st === 'running'} />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-[var(--text-primary)]">{svc.name}</div>
-                    <div className="text-[10px] font-mono text-[var(--text-muted)]">{svc.port}</div>
-                    {m && <div className="text-[9px] font-mono text-[var(--text-muted)] mt-0.5">{avgRate(m.requestRate)}/s · {fmtBytes(m.bytesOut + m.bytesIn)}</div>}
+                    <div className="text-[10px] font-mono text-[var(--text-muted)]">{svc.port}{protocol ? `/${protocol}` : ''}</div>
+                    <div className="text-[9px] font-mono text-[var(--text-muted)] mt-0.5">
+                      {st === 'running' ? uptime : '—'}
+                    </div>
                   </div>
                   <span className={`ml-auto text-[10px] font-semibold uppercase tracking-wide ${
                     st === 'running' ? 'text-green-400' : st === 'error' ? 'text-red-400' : 'text-[var(--text-muted)]'

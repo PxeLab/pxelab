@@ -55,7 +55,7 @@ type Handler struct {
 	sessions        *session.Store
 }
 
-func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store, setNFSMountPoints func(mps []config.NFSMountPoint)) *Handler {
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store, setNFSMountPoints func(mps []config.NFSMountPoint), getNFSConnections func() map[string]NFSConnectionInfo, isServiceRunning func(name string) bool) *Handler {
 	h := &Handler{
 		Host:            &HostHandler{store: st},
 		Profile:         &ProfileHandler{store: st, netbootMgr: netbootMgr},
@@ -64,7 +64,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		WOL:             &WOLHandler{store: st, config: cfg, eventBus: bus},
 		IPMI:            &IPMIHandler{store: st, ipmiClient: ipmi.NewClient()},
 		Lease:           &LeaseHandler{store: st, config: cfg},
-		Settings:        NewSettingsHandler(cfg, st, reloader, setNFSMountPoints),
+		Settings:        NewSettingsHandler(cfg, st, reloader, setNFSMountPoints, getNFSConnections, isServiceRunning),
 		Logs:            NewLogStreamHandler(bus, logDir(cfg)),
 		Netboot:         NewNetbootHandler(netbootMgr),
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
@@ -116,6 +116,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/profiles/from-netboot", h.Profile.CreateFromNetboot)
 
 		r.Get("/files", h.File.List)
+		r.Get("/files/root", h.File.GetRootDir)
 		r.Post("/files/upload", h.File.Upload)
 		r.Delete("/files", h.File.Delete)
 
@@ -132,12 +133,17 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/settings/interfaces", h.Settings.UpdateInterfaces)
 		r.Get("/services/tftp", h.Settings.GetTFTP)
 		r.Put("/services/tftp", h.Settings.UpdateTFTP)
+		r.Get("/services/archmap", h.Settings.GetArchMap)
+		r.Put("/services/archmap", h.Settings.UpdateArchMap)
+		r.Get("/services/archmap/defaults", h.Settings.GetArchMapDefaults)
 		r.Get("/services/dhcp", h.Settings.GetDHCP)
 		r.Put("/services/dhcp", h.Settings.UpdateDHCP)
 		r.Get("/services/dns", h.Settings.GetDNS)
 		r.Put("/services/dns", h.Settings.UpdateDNS)
 		r.Get("/services/nfs", h.Settings.GetNFS)
 		r.Put("/services/nfs", h.Settings.UpdateNFS)
+		r.Post("/services/nfs/validate-path", h.Settings.ValidateNFSPath)
+		r.Get("/services/nfs/browse-path", h.Settings.BrowseNFSPath)
 		r.Get("/settings/netboot", h.Settings.GetNetboot)
 		r.Put("/settings/netboot", h.Settings.UpdateNetboot)
 		r.Get("/netboot/cache-stats", h.Settings.GetCacheStats)

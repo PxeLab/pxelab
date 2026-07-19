@@ -48,6 +48,11 @@ func (b *BootFileServer) resolvePath(path string) (string, error) {
 	return absFile, nil
 }
 
+// ResolvePath exposes resolvePath for use from other packages.
+func (b *BootFileServer) ResolvePath(path string) (string, error) {
+	return b.resolvePath(path)
+}
+
 func (b *BootFileServer) Read(path string) ([]byte, error) {
 	absFile, err := b.resolvePath(path)
 	if err != nil {

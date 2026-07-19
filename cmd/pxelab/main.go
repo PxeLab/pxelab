@@ -13,6 +13,7 @@ import (
 	"time"
 	"runtime/debug"
 
+	"github.com/pxelab/pxelab/internal/api"
 	"github.com/pxelab/pxelab/internal/boot"
 	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/dhcp"
@@ -30,6 +31,7 @@ import (
 	"github.com/pxelab/pxelab/internal/tftp"
 	"github.com/pxelab/pxelab/internal/wol"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // Version 在编译时通过 -ldflags -X main.Version=xxx 注入
@@ -226,6 +228,21 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 
 	defer st.Close()
 
+	// 配置文件中没有 arch_map 时自动写入默认值
+	if cfg.Boot.ArchMap == nil {
+		cfg.Boot.ArchMap = boot.GetArchMap()
+		cfgPath := cfg.ConfigPath
+		if cfgPath == "" {
+			cfgPath = filepath.Join(cfg.Global.DataDir, "config.yaml")
+		}
+		if data, err := yaml.Marshal(cfg); err == nil {
+			if err := os.WriteFile(cfgPath, data, 0644); err == nil {
+				slog.Info("已写入默认架构映射到配置文件", "path", cfgPath)
+			}
+		}
+	}
+	boot.InitArchMap(cfg.Boot.ArchMap)
+
 	bootFS := boot.NewBootFileServer(cfg.Boot.RootDir)
 
 	extractBootFiles(cfg.Boot.RootDir)
@@ -292,8 +309,15 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 		svcMgr.Register("proxy/any", "ProxyDHCP", proxyDHCP, true, false, 4011, "UDP")
 	}
 
-	tftpServer := tftp.NewServer(config.DefaultPortTFTP, bootFS, bus)
-	svcMgr.Register("tftp", "TFTP", tftpServer, cfg.ServiceAutoStart.TFTP, false, 69, "UDP")
+	tftpCfg := cfg.TFTP
+	if tftpCfg.Port <= 0 {
+		tftpCfg.Port = config.DefaultPortTFTP
+	}
+	if tftpCfg.Timeout <= 0 {
+		tftpCfg.Timeout = config.DefaultTFTPTimeout
+	}
+	tftpServer := tftp.NewServer(tftpCfg, bootFS, bus)
+	svcMgr.Register("tftp", "TFTP", tftpServer, cfg.ServiceAutoStart.TFTP, false, tftpCfg.Port, "UDP")
 
 	// Create netboot manager — extract embedded seed, then load from disk
 	catalogDir := filepath.Join(cfg.Global.DataDir, "netboot", "catalog")
@@ -317,7 +341,30 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 	nfsServer := pxelabnfs.NewServer(cfg.NFS.Port, cfg.NFS.MountPoints)
 	svcMgr.Register("nfs", "NFS", nfsServer, cfg.ServiceAutoStart.NFS, false, cfg.NFS.Port, "TCP")
 
-	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP, svcMgr, sessions, nfsServer.SetMountPoints)
+	nfsConnInfo := func() map[string]api.NFSConnectionInfo {
+		stats := nfsServer.GetConnectionStats()
+		result := make(map[string]api.NFSConnectionInfo, len(stats))
+		for path, s := range stats {
+			clients := make([]api.NFSClientInfo, len(s.Clients))
+			for i, c := range s.Clients {
+				clients[i] = api.NFSClientInfo{
+					IP:           c.IP,
+					ConnectedAt: c.ConnectedAt.Format(time.RFC3339),
+					LastActivity: c.LastActivity.Format(time.RFC3339),
+				}
+			}
+			result[path] = api.NFSConnectionInfo{
+				Connections: s.Connections,
+				Clients:     clients,
+			}
+		}
+		return result
+	}
+
+	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP, svcMgr, sessions, nfsServer.SetMountPoints, nfsConnInfo, func(name string) bool {
+		info, ok := svcMgr.Get(name)
+		return ok && info.Status == servicemanager.StatusRunning
+	})
 	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP, true, 8080, "TCP")
 
 

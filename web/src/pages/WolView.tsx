@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Wifi, Plus, Trash2, RefreshCw, Clock, History, List } from 'lucide-react'
+import { Wifi, Plus, Trash2, RefreshCw, Clock, History } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
-import { api, type WOLHistoryRecord, type WOLSchedule, type WOLInterface } from '../api/client'
+import { api, type WOLHistoryRecord, type WOLSchedule } from '../api/client'
 
 function formatTime(s: string) {
   try { return new Date(s).toLocaleString() } catch { return s }
@@ -18,12 +18,11 @@ export default function WolView() {
   const [, setLoading] = useState(true)
   const [history, setHistory] = useState<WOLHistoryRecord[]>([])
   const [schedules, setSchedules] = useState<WOLSchedule[]>([])
-  const [interfaces, setInterfaces] = useState<WOLInterface[]>([])
+
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
 
   const [wakeMac, setWakeMac] = useState('')
-  const [wakeIface, setWakeIface] = useState('')
   const [waking, setWaking] = useState(false)
   const [quickAdvancedMode, setQuickAdvancedMode] = useState(false)
   const [quickBroadcast, setQuickBroadcast] = useState('')
@@ -45,15 +44,13 @@ export default function WolView() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [h, s, ifs] = await Promise.all([
+      const [h, s] = await Promise.all([
         api.getWOLHistory(page),
         api.getWOLSchedules(),
-        api.getWOLInterfaces(),
       ])
       setHistory(h.data.records)
       setTotal(h.data.total)
       setSchedules(s.data.schedules)
-      setInterfaces(ifs.data || [])
     } catch { /* ignore */ }
     setLoading(false)
   }
@@ -69,7 +66,7 @@ export default function WolView() {
     if (!macs.length) { showError(t('wol.invalidMac')); return }
     setWaking(true)
     try {
-      const res = await api.batchWakeHosts({ macs, interface: wakeIface || undefined, broadcast: quickAdvancedMode && quickBroadcast ? quickBroadcast : undefined })
+      const res = await api.batchWakeHosts({ macs, broadcast: quickAdvancedMode && quickBroadcast ? quickBroadcast : undefined })
       const successCount = res.data.results.filter(r => r.success).length
       if (successCount > 0) {
         if (macs.length === 1) {
@@ -91,7 +88,7 @@ export default function WolView() {
     if (!macs.length) { showError(t('wol.invalidMac')); return }
     setWaking(true)
     try {
-      const res = await api.batchWakeHosts({ macs, interface: wakeIface || undefined, broadcast: quickAdvancedMode && quickBroadcast ? quickBroadcast : undefined })
+      const res = await api.batchWakeHosts({ macs, broadcast: quickAdvancedMode && quickBroadcast ? quickBroadcast : undefined })
       const successCount = res.data.results.filter(r => r.success).length
       if (successCount > 0) {
         success(t('wol.wakeMultiSent', { count: successCount, total: macs.length }))
@@ -217,24 +214,11 @@ export default function WolView() {
                 onKeyDown={e => e.key === 'Enter' && doQuickWake()}
               />
             </div>
-            <div className="min-w-[140px]">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">{t('wol.interface')}</label>
-              <select
-                value={wakeIface}
-                onChange={e => setWakeIface(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-primary)] outline-none focus:border-blue-500/50 transition-colors"
-              >
-                <option value="">{t('wol.auto')}</option>
-                {(interfaces || []).map(iface => (iface.ips || []).map(ip => (
-                  <option key={`${iface.name}-${ip}`} value={ip}>{iface.name} ({ip})</option>
-                )))}
-              </select>
-            </div>
             <Button onClick={doQuickWake} disabled={waking || !wakeMac.trim()}>
               {waking ? '...' : t('wol.wake')}
             </Button>
             <Button variant="secondary" onClick={() => setBatchOpen(true)}>
-              <List size={14} className="mr-1" />{t('wol.batchInput')}
+              {t('wol.batchInput')}
             </Button>
           </div>
           <div className="mt-3 border-t border-[var(--bg-border)] pt-3">
@@ -263,20 +247,26 @@ export default function WolView() {
 
         <Card className="p-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-            <List size={14} className="text-green-400" />{t('wol.availableInterfaces')}
+            <History size={14} className="text-blue-400" />{t('wol.wakeStats')}
           </h3>
-          {interfaces.length === 0 ? (
-            <p className="text-xs text-[var(--text-muted)]">{t('wol.noInterfaces')}</p>
-          ) : (
-            <div className="space-y-2">
-              {(interfaces || []).map(iface => (
-                <div key={iface.name} className="text-xs">
-                  <span className="font-medium text-[var(--text-primary)]">{iface.name}</span>
-                  <div className="text-[var(--text-muted)] font-mono mt-0.5">{(iface.ips || []).join(', ')}</div>
-                </div>
-              ))}
+          <div className="grid grid-cols-4 gap-2">
+            <div className="bg-[var(--bg-input)] rounded-lg p-3">
+              <div className="text-2xl font-bold text-[var(--text-primary)]">{history.length || 0}</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-1">{t('wol.statsTotal')}</div>
             </div>
-          )}
+            <div className="bg-[var(--bg-input)] rounded-lg p-3">
+              <div className="text-2xl font-bold text-green-400">{history.filter(r => r.success).length}</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-1">{t('wol.statsSuccess')}</div>
+            </div>
+            <div className="bg-[var(--bg-input)] rounded-lg p-3">
+              <div className="text-2xl font-bold text-red-400">{history.filter(r => !r.success).length}</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-1">{t('wol.statsFailed')}</div>
+            </div>
+            <div className="bg-[var(--bg-input)] rounded-lg p-3">
+              <div className="text-2xl font-bold text-[var(--text-primary)]">{schedules.filter(s => s.enabled).length}</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-1">{t('wol.activeSchedules')}</div>
+            </div>
+          </div>
         </Card>
       </div>
 

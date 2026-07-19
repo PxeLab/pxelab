@@ -14,11 +14,13 @@
   "nav": {
     "section": {
       "overview": "概览",
+      "basic": "基础配置",
       "manage": "管理",
       "monitor": "监控",
       "system": "系统",
       "settings": "服务设置"
     },
+    "serviceConfig": "服务配置",
     "settings": {
       "general": "通用设置",
       "interfaces": "DHCP 设置",
@@ -251,7 +253,9 @@
     "colSize": "大小",
     "colModified": "修改时间",
     "path": "路径",
-    "deleteTitle": "删除文件"
+    "deleteTitle": "删除文件",
+    "rootDir": "引导根目录",
+    "rootDirHint": "所有文件通过 TFTP/PXE 引导从此目录提供服务"
   },
   "leases": {
     "title": "DHCP 租约",
@@ -421,6 +425,29 @@
     "nfsReadOnlyYes": "只读",
     "nfsReadOnlyNo": "读写",
     "nfsMountPointRequired": "导出路径和本地目录不能为空。",
+    "nfsConnections": "连接数",
+    "nfsTotalConnections": "总连接数",
+    "nfsNoConnections": "暂无活跃连接",
+    "nfsClientIP": "客户端 IP",
+    "nfsClientConnectedAt": "连接时间",
+    "nfsClientLastActivity": "最后活跃",
+    "nfsClientDuration": "持续时间",
+    "nfsClientDetails": "客户端连接",
+    "nfsPathExists": "目录存在",
+    "nfsPathNotExist": "目录不存在",
+    "nfsPathWritable": "可写",
+    "nfsPathNotWritable": "不可写",
+    "nfsRunning": "运行中",
+    "nfsStopped": "已停止",
+    "nfsBrowse": "浏览目录",
+    "nfsBrowseEmpty": "没有子目录",
+    "nfsBrowseDrives": "此电脑 / 根目录",
+    "nfsSelectThisDir": "选择此目录",
+    "nfsLabelRequired": "标签不能为空",
+    "nfsExportPathRequired": "导出路径不能为空",
+    "nfsExportPathMustStartSlash": "导出路径必须以 / 开头",
+    "nfsLocalDirRequired": "本地目录不能为空",
+    "nfsExportPathDuplicate": "导出路径与挂载点「{{label}}」冲突",
     "dnsTitle": "DNS 设置",
     "localDomain": "本地域名",
     "localDomainHelp": "DNS 记录中的主机名会以此域名后缀进行本地解析。例如 pxe-server → pxe-server.{domain}",
@@ -962,6 +989,11 @@
     "invalidSchedule": "请输入 MAC 地址和计划时间",
     "scheduleCreated": "定时任务已创建",
     "scheduleFailed": "创建定时任务失败",
+    "wakeStats": "唤醒统计",
+    "statsTotal": "总次数",
+    "statsSuccess": "成功",
+    "statsFailed": "失败",
+    "activeSchedules": "活跃定时任务",
     "scheduleDeleted": "定时任务已删除"
   },
   "network": {
@@ -1026,6 +1058,6 @@
     "archMapHint": "PXE 客户端架构与引导文件的对应关系",
     "arch": "架构",
     "archCode": "代码",
-    "editHint": "架构映射为硬编码配置，后续版本将支持自定义"
+    "editHint": "可自由编辑映射关系，保存后立即生效"
   }
 }

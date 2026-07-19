@@ -16,6 +16,10 @@ type FileHandler struct {
 	bootFS *boot.BootFileServer
 }
 
+func (h *FileHandler) GetRootDir(w http.ResponseWriter, r *http.Request) {
+	OK(w, map[string]string{"root_dir": h.bootFS.Root()})
+}
+
 func (h *FileHandler) List(w http.ResponseWriter, r *http.Request) {
 	dir := r.URL.Query().Get("dir")
 	if dir == "" {

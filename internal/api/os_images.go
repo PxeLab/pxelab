@@ -67,7 +67,7 @@ func (h *OSImageHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if img.MountPoint != "" {
-		if err := osimage.UnmountISO(img.MountPoint); err != nil {
+		if err := osimage.UnmountISO(img.MountPoint, h.imagePath(img.Filename)); err != nil {
 			Error(w, http.StatusInternalServerError, fmt.Sprintf("unmount failed: %v", err))
 			return
 		}
@@ -162,14 +162,15 @@ func (h *OSImageHandler) processImage(id uint, isoPath string) {
 	}
 
 	mountPoint := filepath.Join(h.imageDir(), "mnt", fmt.Sprintf("%d", id))
-	if err := osimage.MountISO(isoPath, mountPoint); err != nil {
+	actualMount, err := osimage.MountISO(isoPath, mountPoint)
+	if err != nil {
 		img.Status = "error"
 		img.ErrorMessage = fmt.Sprintf("mount failed: %v", err)
 		h.store.UpdateOSImage(ctx, img)
 		return
 	}
 
-	meta, err := osimage.DetectDistro(isoPath, mountPoint)
+	meta, err := osimage.DetectDistro(isoPath, actualMount)
 	if err != nil {
 		img.ErrorMessage = fmt.Sprintf("detection failed: %v", err)
 	}
@@ -229,7 +230,8 @@ func (h *OSImageHandler) Mount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mountPoint := filepath.Join(h.imageDir(), "mnt", fmt.Sprintf("%d", id))
-	if err := osimage.MountISO(h.imagePath(img.Filename), mountPoint); err != nil {
+	_, err = osimage.MountISO(h.imagePath(img.Filename), mountPoint)
+	if err != nil {
 		Error(w, http.StatusInternalServerError, fmt.Sprintf("mount failed: %v", err))
 		return
 	}
@@ -254,7 +256,7 @@ func (h *OSImageHandler) Unmount(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "not mounted")
 		return
 	}
-	if err := osimage.UnmountISO(img.MountPoint); err != nil {
+	if err := osimage.UnmountISO(img.MountPoint, h.imagePath(img.Filename)); err != nil {
 		Error(w, http.StatusInternalServerError, fmt.Sprintf("unmount failed: %v", err))
 		return
 	}

@@ -10,7 +10,7 @@ import { getServices, startService, stopService, restartService, batchService, t
 import SettingsModal from './SettingsModal'
 import {
   LayoutDashboard, Server, FileCode, Activity, Settings,
-  Monitor, ShieldCheck, Network, Menu, ChevronRight, ChevronLeft,
+  ShieldCheck, Network, Menu, ChevronRight, ChevronLeft, Code,
   HardDrive, Cpu, Wifi, Disc,
 } from 'lucide-react'
 
@@ -30,12 +30,31 @@ const navSections = [
     ] as NavItem[],
   },
   {
+    label: 'nav.section.basic',
+    items: [
+      {
+        label: 'nav.serviceConfig',
+        icon: Settings,
+        children: [
+          { path: '/services/dhcp', label: 'nav.settings.dhcp' },
+          { path: '/services/dns', label: 'nav.settings.dns' },
+          { path: '/services/nfs', label: 'nav.settings.nfs' },
+          { path: '/services/tftp', label: 'nav.settings.tftp' },
+          { path: '/netboot-catalog', label: 'nav.netboot' },
+        ] as NavItem[],
+      },
+      { path: '/files', label: 'nav.files', icon: HardDrive },
+      { path: '/boot-settings', label: 'nav.bootSettings', icon: ShieldCheck },
+    ] as NavItem[],
+  },
+  {
     label: 'nav.section.manage',
     items: [
       { path: '/hosts', label: 'nav.hosts', icon: Server },
       { path: '/profiles', label: 'nav.profiles', icon: FileCode },
-      { path: '/answer-templates', label: 'nav.answerTemplates', icon: FileCode },
+      { path: '/scripts', label: 'nav.scripts', icon: Code },
       { path: '/access-control', label: 'nav.accessControl', icon: ShieldCheck },
+      { path: '/answer-templates', label: 'nav.answerTemplates', icon: FileCode },
       { path: '/install-tasks', label: 'nav.installTasks', icon: HardDrive },
       { path: '/bmc', label: 'nav.bmc', icon: Cpu },
       { path: '/wol', label: 'nav.wol', icon: Wifi },
@@ -48,16 +67,6 @@ const navSections = [
     items: [
       { path: '/events', label: 'nav.events', icon: Activity },
       { path: '/logs', label: 'nav.logs', icon: Activity },
-    ] as NavItem[],
-  },
-  {
-    label: 'nav.section.settings',
-    items: [
-      { path: '/services/dhcp', label: 'nav.settings.dhcp', icon: Network },
-      { path: '/services/tftp', label: 'nav.settings.tftp', icon: Monitor },
-      { path: '/services/dns', label: 'nav.settings.dns', icon: Monitor },
-      { path: '/services/nfs', label: 'nav.settings.nfs', icon: HardDrive },
-      { path: '/netboot-catalog', label: 'nav.netboot', icon: Monitor },
     ] as NavItem[],
   },
 ]
@@ -208,18 +217,6 @@ export const AppShell: FC<Props> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {}
-    for (const section of navSections) {
-      for (const item of section.items) {
-        if (item.children?.some(child => child.path && location.pathname.startsWith(child.path))) {
-          initial[item.label] = true
-        }
-      }
-    }
-    return initial
-  })
-
   useEffect(() => {
     document.documentElement.classList.toggle('theme-macos', macosCards)
     localStorage.setItem('PxeLab-macos-cards', String(macosCards))
@@ -230,6 +227,17 @@ export const AppShell: FC<Props> = ({ children }) => {
     if (path === '/services') return location.pathname === '/services'
     return location.pathname.startsWith(path)
   }
+
+  const activeLevel3Parent = (() => {
+    for (const section of navSections) {
+      for (const item of section.items) {
+        if (item.children?.some(child => child.path && isActive(child.path))) {
+          return item
+        }
+      }
+    }
+    return undefined
+  })()
 
   const pageTitle = () => {
     for (const section of navSections) {
@@ -288,47 +296,24 @@ export const AppShell: FC<Props> = ({ children }) => {
               </div>
               {section.items.map((item) => {
                 if (item.children) {
-                  const expanded = expandedSections[item.label] ?? false
                   const hasActiveChild = item.children.some(child => child.path && isActive(child.path))
                   const Icon = item.icon
+                  const firstChildPath = item.children.find(c => c.path)?.path
                   return (
-                    <div key={item.label}>
-                      <button
-                        onClick={() => setExpandedSections(prev => ({...prev, [item.label]: !expanded}))}
-                        className={`w-full flex items-center py-2 rounded-lg text-sm font-medium transition-all duration-200 text-left ${
-                          sidebarCollapsed ? 'justify-center gap-0 px-3'
+                    <button
+                      key={item.label}
+                      onClick={() => { firstChildPath && navigate(firstChildPath); setSidebarOpen(false) }}
+                      className={`w-full flex items-center py-2 rounded-lg text-sm font-medium transition-all duration-200 text-left ${
+                        sidebarCollapsed ? 'justify-center gap-0 px-3'
                         : 'gap-2.5 pl-5 pr-3 ' + (hasActiveChild
-                            ? 'text-blue-400'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]')
-                        }`}
-                        title={sidebarCollapsed ? t(item.label) : undefined}
-                      >
-                        {Icon && <Icon size={16} className="shrink-0 opacity-70" />}
-                        <span className={`${sidebarCollapsed ? 'hidden' : ''}`}>{t(item.label)}</span>
-                        <ChevronRight size={14} className={`shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''} ${sidebarCollapsed ? 'hidden' : ''}`} />
-                      </button>
-                      {expanded && !sidebarCollapsed && (
-                        <div className="ml-3 mt-0.5 space-y-0.5 border-l border-[var(--bg-border)] pl-2">
-                          {item.children.map(child => {
-                            const childActive = child.path && isActive(child.path)
-                            return (
-                              <button
-                                key={child.path}
-                                onClick={() => { child.path && navigate(child.path); setSidebarOpen(false) }}
-                                aria-current={childActive ? 'page' : undefined}
-                                className={`w-full flex items-center gap-2.5 pl-7 pr-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 text-left ${
-                                  childActive
-                                    ? 'bg-blue-500/10 text-blue-400'
-                                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
-                                }`}
-                              >
-                                <span>{t(child.label)}</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
+                            ? 'bg-blue-500/10 text-blue-400 shadow-sm'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] hover:shadow-sm')
+                      }`}
+                      title={sidebarCollapsed ? t(item.label) : undefined}
+                    >
+                      {Icon && <Icon size={16} className="shrink-0 opacity-70" />}
+                      <span className={`${sidebarCollapsed ? 'hidden' : ''}`}>{t(item.label)}</span>
+                    </button>
                   )
                 }
 
@@ -397,9 +382,9 @@ export const AppShell: FC<Props> = ({ children }) => {
       )}
 
       {/* Main */}
-      <main className={`flex-1 min-h-screen min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[64px]' : 'lg:ml-[200px]'}`}>
+      <main className={`flex flex-col flex-1 min-h-screen min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-[64px]' : 'lg:ml-[200px]'}`}>
         {/* Top Bar */}
-        <header className="h-16 border-b border-[var(--bg-border)] flex items-center justify-between px-4 lg:px-8 bg-[var(--bg-elevated)]/80 backdrop-blur-xl sticky top-0 z-30">
+        <header className="h-16 shrink-0 border-b border-[var(--bg-border)] flex items-center justify-between px-4 lg:px-8 bg-[var(--bg-elevated)]/80 backdrop-blur-xl sticky top-0 z-30">
           <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
           <div className="flex items-center gap-4">
             <button
@@ -419,8 +404,40 @@ export const AppShell: FC<Props> = ({ children }) => {
           </div>
         </header>
 
-        <div className="p-4 lg:p-8">
-          {children}
+        <div className="flex flex-1 min-h-0">
+          {/* Level 3 Sub-nav */}
+          {activeLevel3Parent && activeLevel3Parent.children && (
+            <div className="w-[160px] shrink-0 border-r border-[var(--bg-border)] bg-[var(--bg-elevated)]/30 hidden lg:flex flex-col py-3 gap-0.5">
+              <div className="px-4 pb-2 text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
+                {t(activeLevel3Parent.label)}
+              </div>
+              {activeLevel3Parent.children.map(child => {
+                const childActive = child.path && isActive(child.path)
+                return (
+                  <button
+                    key={child.path}
+                    onClick={() => { child.path && navigate(child.path) }}
+                    aria-current={childActive ? 'page' : undefined}
+                    className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium transition-all duration-200 text-left relative ${
+                      childActive
+                        ? 'bg-blue-500/10 text-blue-400'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {childActive && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-blue-500 rounded-r-full shadow-lg shadow-blue-500/50" />
+                    )}
+                    <span>{t(child.label)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Page content */}
+          <div className="flex-1 p-4 lg:p-8 min-w-0">
+            {children}
+          </div>
         </div>
       </main>
     </div>

@@ -166,14 +166,20 @@ func detectArch(mountPoint string, entries []fs.DirEntry, distro string) string 
 	return "amd64"
 }
 
-func MountISO(src, mountPoint string) error {
+// MountISO mounts an ISO and returns the actual accessible mount path.
+// On Linux: mountPoint is used directly and returned as-is.
+// On Windows: Mount-DiskImage mounts to a virtual drive letter; that path is returned.
+func MountISO(src, mountPoint string) (string, error) {
 	if err := os.MkdirAll(mountPoint, 0755); err != nil {
-		return fmt.Errorf("create mount point: %w", err)
+		return "", fmt.Errorf("create mount point: %w", err)
 	}
 	if runtime.GOOS == "windows" {
 		return mountWindowsISO(src)
 	}
-	return mountLinuxISO(src, mountPoint)
+	if err := mountLinuxISO(src, mountPoint); err != nil {
+		return "", err
+	}
+	return mountPoint, nil
 }
 
 func mountLinuxISO(src, mountPoint string) error {
@@ -182,19 +188,26 @@ func mountLinuxISO(src, mountPoint string) error {
 	return cmd.Run()
 }
 
-func mountWindowsISO(src string) error {
-	cmd := exec.Command("powershell", "-Command",
-		fmt.Sprintf(`Mount-DiskImage -ImagePath "%s" -StorageType ISO -Access ReadOnly`, src))
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("mount iso on windows: %w", err)
+func mountWindowsISO(src string) (string, error) {
+	cmd := exec.Command("powershell", "-NoProfile", "-Command",
+		fmt.Sprintf(`$img = Mount-DiskImage -ImagePath "%s" -StorageType ISO -Access ReadOnly -PassThru; ($img | Get-Volume).DriveLetter`, src))
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("mount iso on windows: %w", err)
 	}
-	return nil
+	driveLetter := strings.TrimSpace(string(out))
+	if driveLetter == "" {
+		return "", fmt.Errorf("mount iso on windows: no drive letter returned")
+	}
+	return driveLetter + ":\\", nil
 }
 
-func UnmountISO(mountPoint string) error {
+// UnmountISO dismounts an ISO.
+// On Windows: dismounts by the original ISO source path.
+// On Linux: unmounts by mount point.
+func UnmountISO(mountPoint, isoPath string) error {
 	if runtime.GOOS == "windows" {
-		return unmountWindowsISO()
+		return unmountWindowsISO(isoPath)
 	}
 	return unmountLinuxISO(mountPoint)
 }
@@ -205,9 +218,9 @@ func unmountLinuxISO(mountPoint string) error {
 	return cmd.Run()
 }
 
-func unmountWindowsISO() error {
-	cmd := exec.Command("powershell", "-Command",
-		`Get-DiskImage | Where-Object {$_.Attached -eq $true} | Dismount-DiskImage`)
+func unmountWindowsISO(isoPath string) error {
+	cmd := exec.Command("powershell", "-NoProfile", "-Command",
+		fmt.Sprintf(`Dismount-DiskImage -ImagePath "%s"`, isoPath))
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
@@ -219,13 +232,13 @@ func ValidateISO(path string) error {
 	}
 	defer f.Close()
 
-	header := make([]byte, 32768)
-	if _, err := f.Read(header); err != nil {
+	buf := make([]byte, 0x8001+6)
+	if _, err := f.Read(buf); err != nil {
 		return fmt.Errorf("cannot read header: %w", err)
 	}
-	isoMagic := string(header[1:6])
+	isoMagic := string(buf[1:6])
 	if isoMagic != "CD001" {
-		magic2 := string(header[0x8001 : 0x8001+5])
+		magic2 := string(buf[0x8001 : 0x8001+5])
 		if magic2 != "CD001" {
 			return fmt.Errorf("not a valid ISO 9660 image")
 		}

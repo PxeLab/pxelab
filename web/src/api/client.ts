@@ -311,6 +311,10 @@ export function deleteFile(path: string): Promise<ApiResponse<void>> {
   return request<void>('DELETE', '/files?path=' + encodeURIComponent(path))
 }
 
+export function getBootRootDir(): Promise<ApiResponse<{ root_dir: string }>> {
+  return request<{ root_dir: string }>('GET', '/files/root')
+}
+
 // ── Leases ──
 export function getLeases(): Promise<ApiResponse<Lease[]>> {
   return request<Lease[]>('GET', '/leases')
@@ -456,6 +460,7 @@ export interface DHCPSettingsData {
 export interface TFTPSettingsData {
   enabled: boolean
   port: number
+  timeout: number
   root: string
   pxe_config_file: string
   grub_config_file: string
@@ -469,16 +474,25 @@ export interface DNSSettingsData {
   default_record?: boolean
 }
 
+export interface NFSClientInfo {
+  ip: string
+  connected_at: string
+  last_activity: string
+}
+
 export interface NFSMountPointData {
   label: string
   export_path: string
   local_dir: string
   read_only: boolean
   allow_ips: string[]
+  connection_count: number
+  clients?: NFSClientInfo[]
 }
 
 export interface NFSSettingsData {
   enabled: boolean
+  running: boolean
   port: number
   rpcbind_port: number
   version: string
@@ -535,6 +549,32 @@ export function updateTFTPSettings(data: TFTPSettingsData): Promise<ApiResponse<
   return request<unknown>('PUT', '/services/tftp', data)
 }
 
+// ── ArchMap ──
+export interface ArchEntryData {
+  arch_code: number
+  arch_name: string
+  ipxe: string
+  pxelinux: string
+  grub: string
+  grub_config: string
+}
+
+export interface ArchMapData {
+  entries: ArchEntryData[]
+}
+
+export function getArchMap(): Promise<ApiResponse<ArchMapData>> {
+  return request<ArchMapData>('GET', '/services/archmap')
+}
+
+export function updateArchMap(data: ArchMapData): Promise<ApiResponse<unknown>> {
+  return request<unknown>('PUT', '/services/archmap', data)
+}
+
+export function getArchMapDefaults(): Promise<ApiResponse<ArchMapData>> {
+  return request<ArchMapData>('GET', '/services/archmap/defaults')
+}
+
 export function getDNSSettings(): Promise<ApiResponse<DNSSettingsData>> {
   return request<DNSSettingsData>('GET', '/services/dns')
 }
@@ -549,6 +589,20 @@ export function getNFSSettings(): Promise<ApiResponse<NFSSettingsData>> {
 
 export function updateNFSSettings(data: NFSSettingsData): Promise<ApiResponse<unknown>> {
   return request<unknown>('PUT', '/services/nfs', data)
+}
+
+export function validateNFSPath(path: string): Promise<ApiResponse<{ exists: boolean; writable: boolean; is_dir?: boolean; error?: string }>> {
+  return request<{ exists: boolean; writable: boolean; is_dir?: boolean; error?: string }>('POST', '/services/nfs/validate-path', { path })
+}
+
+export interface BrowseNFSPathEntry {
+  name: string
+  path: string
+  is_dir: boolean
+}
+
+export function browseNFSPath(path: string): Promise<ApiResponse<{ current: string; entries: BrowseNFSPathEntry[] }>> {
+  return request<{ current: string; entries: BrowseNFSPathEntry[] }>('GET', `/services/nfs/browse-path?path=${encodeURIComponent(path)}`)
 }
 
 export function getNetbootSettings(): Promise<ApiResponse<NetbootSettingsData>> {
@@ -989,6 +1043,7 @@ export interface ServiceInfo {
   port: number
   protocol: string
   error_msg: string
+  started_at: string | null
 }
 
 export function getServices(): Promise<ApiResponse<ServiceInfo[]>> {
@@ -1444,6 +1499,7 @@ export const api = {
   getFiles,
   uploadFile,
   deleteFile,
+  getBootRootDir,
   getLeases,
   getLeaseStats,
   deleteLease,
@@ -1506,10 +1562,15 @@ export const api = {
   updateDHCPSettings,
   getTFTPSettings,
   updateTFTPSettings,
+  getArchMap,
+  updateArchMap,
+  getArchMapDefaults,
   getDNSSettings,
   updateDNSSettings,
   getNFSSettings,
   updateNFSSettings,
+  validateNFSPath,
+  browseNFSPath,
   getNetbootSettings,
   updateNetbootSettings,
   getBMCConfigs,

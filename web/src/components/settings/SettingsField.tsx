@@ -32,11 +32,14 @@ interface InputProps {
   placeholder?: string
   disabled?: boolean
   type?: string
+  min?: number
+  max?: number
+  step?: number
   className?: string
   error?: boolean
 }
 
-export const SettingsInput: FC<InputProps> = ({ value, onChange, placeholder, disabled, type, className, error }) => {
+export const SettingsInput: FC<InputProps> = ({ value, onChange, placeholder, disabled, type, min, max, step, className, error }) => {
   const errorBorder = error ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/10' : 'border-[var(--bg-border)] focus:border-blue-500 focus:ring-blue-500/10'
   const bgColor = 'bg-[var(--bg-input)]'
   return (
@@ -46,6 +49,9 @@ export const SettingsInput: FC<InputProps> = ({ value, onChange, placeholder, di
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
+      min={min}
+      max={max}
+      step={step}
       className={`w-full ${bgColor} border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-all placeholder-[var(--text-muted)] ${errorBorder} ${className || ''}`}
     />
   )

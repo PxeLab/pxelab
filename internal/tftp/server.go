@@ -7,9 +7,11 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"time"
 
 	"github.com/pin/tftp/v3"
 	"github.com/pxelab/pxelab/internal/boot"
+	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/metrics"
 	"github.com/pxelab/pxelab/internal/models"
@@ -20,6 +22,7 @@ var tftpMetrics = metrics.DefaultRegistry.GetOrCreate("tftp")
 type Server struct {
 	name     string
 	port     int
+	timeout  int
 	bootFS   *boot.BootFileServer
 	eventBus *eventbus.Bus
 	conn     *net.UDPConn
@@ -28,11 +31,12 @@ type Server struct {
 	cancel   context.CancelFunc
 }
 
-func NewServer(port int, bootFS *boot.BootFileServer, bus *eventbus.Bus) *Server {
+func NewServer(cfg config.TFTPConfig, bootFS *boot.BootFileServer, bus *eventbus.Bus) *Server {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Server{
 		name:     "TFTP",
-		port:     port,
+		port:     cfg.Port,
+		timeout:  cfg.Timeout,
 		bootFS:   bootFS,
 		eventBus: bus,
 		ctx:      ctx,
@@ -55,8 +59,11 @@ func (s *Server) Start(ctx context.Context) error {
 	s.conn = conn
 
 	s.tftpSrv = tftp.NewServer(s.readHandler, nil)
+	if s.timeout > 0 {
+		s.tftpSrv.SetTimeout(time.Duration(s.timeout) * time.Second)
+	}
 
-	slog.Info("TFTP 服务启动", "service", "TFTP", "addr", addr)
+	slog.Info("TFTP 服务启动", "service", "TFTP", "addr", addr, "timeout", s.timeout)
 
 	go func() {
 		if err := s.tftpSrv.Serve(conn); err != nil {

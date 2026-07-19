@@ -14,6 +14,7 @@ type Config struct {
 	DNS              DNSConfig               `yaml:"dns" mapstructure:"dns"`
 	NFS              NFSConfig               `yaml:"nfs" mapstructure:"nfs"`
 	Boot             BootConfig              `yaml:"boot" mapstructure:"boot"`
+	TFTP             TFTPConfig              `yaml:"tftp" mapstructure:"tftp"`
 	Netboot          NetbootConfig           `yaml:"netboot" mapstructure:"netboot"`
 	Store            StoreConfig             `yaml:"store" mapstructure:"store"`
 	Log              LogConfig               `yaml:"log" mapstructure:"log"`
@@ -59,6 +60,11 @@ type SubnetConfig struct {
 	LeaseTime        int      `yaml:"lease_time" mapstructure:"lease_time"`
 	WhitelistEnabled bool     `yaml:"whitelist_enabled" mapstructure:"whitelist_enabled"`
 	ChainToIPXE      bool     `yaml:"chain_to_ipxe" mapstructure:"chain_to_ipxe"` // 子网级别：pxelinux/grub2 → chain-load to iPXE
+}
+
+type TFTPConfig struct {
+	Port    int `yaml:"port" mapstructure:"port"`
+	Timeout int `yaml:"timeout" mapstructure:"timeout"` // seconds, 0 = library default
 }
 
 type AuthConfig struct {
@@ -120,6 +126,14 @@ type NetbootPathConfig struct {
 	BootFiles string `yaml:"boot_files" mapstructure:"boot_files"`
 }
 
+// ArchEntry 定义单个 PXE 架构的引导文件映射
+type ArchEntry struct {
+	IPXE       string `yaml:"ipxe" mapstructure:"ipxe"`
+	PXELinux   string `yaml:"pxelinux" mapstructure:"pxelinux"`
+	GRUB       string `yaml:"grub" mapstructure:"grub"`
+	GRUBConfig string `yaml:"grub_config" mapstructure:"grub_config"`
+}
+
 type BootConfig struct {
 	RootDir         string                `yaml:"root_dir" mapstructure:"root_dir"`
 	DefaultMenu     DefaultMenuConfig     `yaml:"default_menu" mapstructure:"default_menu"`
@@ -127,6 +141,7 @@ type BootConfig struct {
 	CatalogDisplay  CatalogDisplayConfig  `yaml:"catalog_display" mapstructure:"catalog_display"`
 	PXEConfigFile   string                `yaml:"pxe_config_file" mapstructure:"pxe_config_file"`
 	GRUBConfigFile  string                `yaml:"grub_config_file" mapstructure:"grub_config_file"`
+	ArchMap         map[int]ArchEntry     `yaml:"arch_map,omitempty" mapstructure:"arch_map,omitempty"`
 }
 
 type DefaultMenuConfig struct {

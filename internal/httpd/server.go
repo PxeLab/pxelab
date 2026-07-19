@@ -45,7 +45,7 @@ type Server struct {
 	sessions   *session.Store
 }
 
-func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager, clientInfo func(ip string) (arch, platform string, ok bool), svcController api.ServiceController, sessions *session.Store, setNFSMountPoints func(mps []config.NFSMountPoint)) *Server {
+func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, spaHandler http.Handler, reloader api.SubnetReloader, netbootMgr *netboot.Manager, clientInfo func(ip string) (arch, platform string, ok bool), svcController api.ServiceController, sessions *session.Store, setNFSMountPoints func(mps []config.NFSMountPoint), getNFSConnections func() map[string]api.NFSConnectionInfo, isServiceRunning func(name string) bool) *Server {
 	r := chi.NewRouter()
 	r.Use(slogMiddleware)
 	r.Use(chimw.Recoverer)
@@ -57,7 +57,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader, netbootMgr, svcController, sessions, setNFSMountPoints)
+	apiHandler := api.NewHandler(cfg, st, bus, bootFS, reloader, netbootMgr, svcController, sessions, setNFSMountPoints, getNFSConnections, isServiceRunning)
 	apiHandler.RegisterRoutes(r)
 
 	// iPXE 引导脚本端点（配置驱动决策树）

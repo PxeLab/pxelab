@@ -14,11 +14,13 @@
   "nav": {
     "section": {
       "overview": "Overview",
+      "basic": "Basic Config",
       "manage": "Management",
       "monitor": "Monitoring",
       "system": "System",
       "settings": "Service Settings"
     },
+    "serviceConfig": "Service Config",
     "settings": {
       "general": "General",
       "interfaces": "DHCP Settings",
@@ -251,7 +253,9 @@
     "colSize": "Size",
     "colModified": "Modified",
     "path": "Path",
-    "deleteTitle": "Delete File"
+    "deleteTitle": "Delete File",
+    "rootDir": "Boot Root Directory",
+    "rootDirHint": "All files are served from this directory via TFTP/PXE boot"
   },
   "leases": {
     "title": "DHCP Leases",
@@ -421,6 +425,29 @@
     "nfsReadOnlyYes": "Read-Only",
     "nfsReadOnlyNo": "Read/Write",
     "nfsMountPointRequired": "Export path and local directory are required.",
+    "nfsConnections": "Connections",
+    "nfsTotalConnections": "Total Connections",
+    "nfsNoConnections": "No active connections",
+    "nfsClientIP": "IP Address",
+    "nfsClientConnectedAt": "Connected At",
+    "nfsClientLastActivity": "Last Activity",
+    "nfsClientDuration": "Duration",
+    "nfsClientDetails": "Client Connections",
+    "nfsPathExists": "Directory exists",
+    "nfsPathNotExist": "Directory does not exist",
+    "nfsPathWritable": "Writable",
+    "nfsPathNotWritable": "Not writable",
+    "nfsRunning": "Running",
+    "nfsStopped": "Stopped",
+    "nfsBrowse": "Browse Directory",
+    "nfsBrowseEmpty": "No subdirectories",
+    "nfsBrowseDrives": "This PC / Root",
+    "nfsSelectThisDir": "Select This Dir",
+    "nfsLabelRequired": "Label is required",
+    "nfsExportPathRequired": "Export path is required",
+    "nfsExportPathMustStartSlash": "Export path must start with /",
+    "nfsLocalDirRequired": "Local directory is required",
+    "nfsExportPathDuplicate": "Export path conflicts with mount point \"{{label}}\"",
     "dnsTitle": "DNS Settings",
     "localDomain": "Local Domain",
     "localDomainHelp": "Hostnames in DNS records are resolved locally with this domain suffix. e.g. pxe-server → pxe-server.{domain}",
@@ -962,6 +989,11 @@
     "invalidSchedule": "Please enter MAC address and schedule time",
     "scheduleCreated": "Schedule created",
     "scheduleFailed": "Failed to create schedule",
+    "wakeStats": "Wake Statistics",
+    "statsTotal": "Total",
+    "statsSuccess": "Success",
+    "statsFailed": "Failed",
+    "activeSchedules": "Active Schedules",
     "scheduleDeleted": "Schedule deleted"
   },
   "network": {
@@ -1026,6 +1058,6 @@
     "archMapHint": "PXE client architecture to boot file mapping",
     "arch": "Architecture",
     "archCode": "Code",
-    "editHint": "Architecture mapping is hardcoded and will be customizable in a future version"
+    "editHint": "Edit the mapping freely. Changes take effect after saving."
   }
 }

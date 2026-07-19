@@ -23,14 +23,15 @@ const (
 )
 
 type ServiceInfo struct {
-	Name      string `json:"name"`
-	Display   string `json:"display"`
-	Status    Status `json:"status"`
-	AutoStart bool   `json:"auto_start"`
-	Protected bool   `json:"protected"`
-	Port      int    `json:"port"`
-	Protocol  string `json:"protocol"`
-	ErrorMsg  string `json:"error_msg"`
+	Name      string      `json:"name"`
+	Display   string      `json:"display"`
+	Status    Status      `json:"status"`
+	AutoStart bool        `json:"auto_start"`
+	Protected bool        `json:"protected"`
+	Port      int         `json:"port"`
+	Protocol  string      `json:"protocol"`
+	ErrorMsg  string      `json:"error_msg"`
+	StartedAt *time.Time  `json:"started_at"`
 }
 
 type managedService struct {
@@ -42,6 +43,7 @@ type managedService struct {
 	port      int
 	protocol  string
 	errorMsg  string
+	startedAt *time.Time
 	stopCh    chan struct{}
 	mu        sync.Mutex
 }
@@ -108,7 +110,9 @@ func (m *Manager) Start(name string) error {
 		}
 	}()
 	svc.status = StatusRunning
-		svc.errorMsg = ""
+	svc.errorMsg = ""
+	now := time.Now()
+	svc.startedAt = &now
 	return nil
 }
 
@@ -137,6 +141,7 @@ func (m *Manager) Stop(name string) error {
 		return fmt.Errorf("stop %s: %w", name, err)
 	}
 	svc.status = StatusStopped
+	svc.startedAt = nil
 	return nil
 }
 
@@ -191,6 +196,7 @@ func (m *Manager) List() []ServiceInfo {
 			Port:      svc.port,
 			Protocol:  svc.protocol,
 			ErrorMsg:  svc.errorMsg,
+			StartedAt: svc.startedAt,
 		})
 		svc.mu.Unlock()
 	}
@@ -216,10 +222,11 @@ func (m *Manager) Get(name string) (ServiceInfo, bool) {
 		Display:   svc.display,
 		Status:    svc.status,
 		AutoStart: svc.autoStart,
-			Protected: svc.protected,
-			Port:      svc.port,
-			Protocol:  svc.protocol,
-			ErrorMsg:  svc.errorMsg,
+		Protected: svc.protected,
+		Port:      svc.port,
+		Protocol:  svc.protocol,
+		ErrorMsg:  svc.errorMsg,
+		StartedAt: svc.startedAt,
 	}, true
 }
 

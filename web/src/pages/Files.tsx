@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Upload, RefreshCw, Folder, File, Trash2, Search } from 'lucide-react'
+import { Upload, RefreshCw, Folder, File, Trash2, Search, Info } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Tag } from '../components/ui/Tag'
@@ -15,11 +15,16 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
   const [files, setFiles] = useState<FileInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [currentDir, setCurrentDir] = useState('.')
+  const [rootDir, setRootDir] = useState('')
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { loadFiles() }, [currentDir])
+
+  useEffect(() => {
+    api.getBootRootDir().then(res => setRootDir(res.data.root_dir)).catch(() => {})
+  }, [])
 
   async function loadFiles() {
     setLoading(true)
@@ -135,6 +140,16 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
             </div>
           </div>
         </>
+      )}
+
+      {rootDir && (
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-input)] border border-[var(--bg-border)]">
+          <Info size={14} className="text-blue-400 shrink-0" />
+          <span className="text-xs text-[var(--text-muted)]">
+            {t('files.rootDir')}: <span className="font-mono text-[var(--text-secondary)]">{rootDir}</span>
+          </span>
+          <span className="text-xs text-[var(--text-muted)]">— {t('files.rootDirHint')}</span>
+        </div>
       )}
 
       <Card

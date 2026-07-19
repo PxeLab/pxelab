@@ -11,6 +11,7 @@ const (
 	DefaultPortHTTP     = 8080
 	DefaultLeaseTime    = 3600
 	DefaultLogLevel     = "info"
+	DefaultTFTPTimeout  = 5 // seconds
 )
 
 func DefaultConfig() *Config {
@@ -21,6 +22,10 @@ func DefaultConfig() *Config {
 			ServerName: "PxeLab",
 			ListenAddr: ":8080",
 			PageSize:   50,
+		},
+		TFTP: TFTPConfig{
+			Port:    DefaultPortTFTP,
+			Timeout: DefaultTFTPTimeout,
 		},
 		Boot: BootConfig{
 			RootDir:        "./boot",
