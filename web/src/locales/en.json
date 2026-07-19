@@ -49,8 +49,7 @@
     "wol": "Wake-on-LAN",
     "osImages": "OS Images",
     "network": "Network Diagnostics",
-    "bootSettings": "Boot Settings",
-    "scripts": "Script Editor"
+    "bootSettings": "Boot Settings"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -62,8 +61,36 @@
       "totalEvents": "Total Events",
       "uptime": "Uptime"
     },
+    "activeLeases": "Active Leases",
+    "dnsRecords": "DNS Records",
+    "todayBoots": "Today Boots",
+    "chartDhcpArch": "DHCP Architecture",
+    "chartHttpStatus": "HTTP Status",
+    "chartTraffic": "Network Traffic",
+    "range5m": "5m",
+    "range30m": "30m",
+    "range1h": "1h",
+    "httpCount": "count",
+    "serviceNotRunning": "Service Not Running",
+    "noMetrics": "No Data",
+    "offerAckNak": "Offer/Ack/Nak",
+    "discoverRequest": "Discover/Request",
+    "decline": "Decline",
+    "unauthorized": "Unauthorized",
+    "labelRequests": "Requests",
+    "labelErrors": "Errors",
+    "labelTrafficOut": "Out Traffic",
+    "labelRate": "Rate",
+    "labelActiveConns": "Active Conns",
+    "labelStatusCodes": "2xx/4xx/5xx",
+    "labelRejected": "Rejected",
+    "labelTransferTraffic": "Transfer Traffic",
+    "labelDnsRecords": "DNS Records",
+    "labelQueryCount": "Queries",
+    "labelQueryRate": "Query Rate",
     "recentEvents": "Recent Events",
     "recentHosts": "Recent Hosts",
+    "startedAt": "Started",
     "noEvents": "No events"
   },
   "hosts": {
@@ -120,7 +147,11 @@
       "wolFailed": "WOL wake failed",
       "wolHistory": "WOL History",
       "loadWOLHistory": "Load WOL history",
-      "noWOLHistory": "No WOL history for this host"
+      "noWOLHistory": "No WOL history for this host",
+      "bootConfig": "Boot Config",
+      "bootConfigRefresh": "Refresh",
+      "bootConfigFailed": "Failed to load boot config",
+      "bootConfigHint": "Select format and click Refresh to preview"
     },
     "deleteConfirm": "Are you sure you want to delete this host?",
     "created": "Host created",
@@ -237,7 +268,14 @@
     "uefiInitrdHint": "UEFI: iPXE UEFI builds lack the bzImage feature and may fail to pass the initrd. If the boot hangs, add initrd=<filename> (e.g. initrd=initrd.img) at the end of the command line.",
     "chainUrlPlaceholder": "http://server/ipxe.efi or ${next-server}/bootmgr.efi",
     "sanUrlPlaceholder": "iscsi://server/iqn or http://server/centos7.iso",
-    "ipxeScript": "iPXE Script"
+    "ipxeScript": "iPXE Script",
+    "scriptHistory": "Script History",
+    "scriptHistoryEmpty": "No versions yet",
+    "scriptSaveComment": "Optional change comment...",
+    "scriptRollback": "Rollback",
+    "scriptRolledBack": "Rolled back to version",
+    "scriptDiff": "Diff",
+    "scriptAutoSave": "auto-saved on profile update"
   },
   "files": {
     "title": "Files",
@@ -1058,6 +1096,8 @@
     "archMapHint": "PXE client architecture to boot file mapping",
     "arch": "Architecture",
     "archCode": "Code",
-    "editHint": "Edit the mapping freely. Changes take effect after saving."
+    "editHint": "Edit the mapping freely. Changes take effect after saving.",
+    "notSupported": "Not supported",
+    "fallbackGrub": "Falls back to GRUB"
   }
 }

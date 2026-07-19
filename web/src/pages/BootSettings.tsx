@@ -1,9 +1,32 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { RefreshCw, CheckCircle, XCircle, Save, RotateCcw } from 'lucide-react'
+import { RefreshCw, CheckCircle, XCircle, Save, RotateCcw, AlertTriangle, ArrowRight } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { api, type BootloaderCheckResult, type ArchEntryData, type BootFileInfo } from '../api/client'
+
+// 各引导加载器的原生架构支持情况
+// native  = 该引导加载器有此架构的原生构建
+// fallback = PXELinux 不支持该架构，运行时回退到 GRUB
+// unsupported = 无原生构建，无回退
+const BOOTLOADER_SUPPORT: Record<string, Record<number, 'native' | 'fallback' | 'unsupported'>> = {
+  pxelinux: {
+    0: 'native',   // BIOS → pxelinux.bios
+    6: 'native',   // IA32 → pxelinux32.efi
+    7: 'native',   // x64 → pxelinux.efi
+    9: 'fallback', // BC → fallback 到 grubx64.efi
+    11: 'fallback', // ARM64 → fallback 到 grubaa64.efi
+    21: 'unsupported',
+  },
+  grub: {
+    0: 'unsupported',  // BIOS → GRUB2 无 BIOS 版本
+    6: 'unsupported',  // IA32 → GRUB2 无 32 位 EFI 版本
+    7: 'native',       // x64 → grubx64.efi
+    9: 'native',       // BC → grubx64.efi
+    11: 'native',      // ARM64 → grubaa64.efi
+    21: 'unsupported',
+  },
+}
 
 function formatSize(bytes: number): string {
   if (bytes === 0) return '0 B'
@@ -181,6 +204,7 @@ export default function BootSettings() {
                     <td className="px-4 py-2">
                       <EditableCell
                         value={e.pxelinux}
+                        hint={BOOTLOADER_SUPPORT.pxelinux[e.arch_code]}
                         files={checkResult?.files ?? []}
                         onChange={v => updateEntry(e.arch_code, 'pxelinux', v)}
                       />
@@ -188,6 +212,7 @@ export default function BootSettings() {
                     <td className="px-4 py-2">
                       <EditableCell
                         value={e.grub}
+                        hint={BOOTLOADER_SUPPORT.grub[e.arch_code]}
                         files={checkResult?.files ?? []}
                         onChange={v => updateEntry(e.arch_code, 'grub', v)}
                       />
@@ -206,17 +231,19 @@ export default function BootSettings() {
   )
 }
 
-/** 单个文件名输入框 + 下方文件状态行 */
-function EditableCell({ value, files, onChange }: {
+/** 单个文件名输入框 + 下方文件状态行 + 兼容性提示 */
+function EditableCell({ value, hint, files, onChange }: {
   value: string
+  hint?: 'native' | 'fallback' | 'unsupported'
   files: BootFileInfo[]
   onChange: (v: string) => void
 }) {
+  const { t } = useTranslation()
   const info = value ? findFileInfo(files, value) : undefined
   return (
     <div className="flex flex-col gap-1">
       <input
-        className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
+        className={`w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-blue-500 ${hint && hint !== 'native' ? 'border-dashed border-[var(--bg-border)] opacity-60' : 'border-[var(--bg-border)]'}`}
         value={value}
         onChange={v => onChange(v.target.value)}
       />
@@ -238,7 +265,19 @@ function EditableCell({ value, files, onChange }: {
           <span>-</span>
         </div>
       )}
-      {!value && (
+      {!value && hint === 'fallback' && (
+        <div className="flex items-center gap-1 text-[10px] text-blue-400">
+          <ArrowRight size={10} className="shrink-0" />
+          <span>{t('bootSettings.fallbackGrub', '回退到 GRUB')}</span>
+        </div>
+      )}
+      {!value && hint === 'unsupported' && (
+        <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] italic">
+          <AlertTriangle size={10} className="shrink-0" />
+          <span>{t('bootSettings.notSupported', '不支持此引导加载器')}</span>
+        </div>
+      )}
+      {!value && !hint && (
         <div className="text-[10px] text-[var(--text-muted)]">-</div>
       )}
     </div>

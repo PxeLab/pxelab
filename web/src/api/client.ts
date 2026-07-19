@@ -259,6 +259,25 @@ export function wakeHost(id: string): Promise<ApiResponse<unknown>> {
 export function powerHost(id: string, action: string): Promise<ApiResponse<unknown>> {
   return request<unknown>('POST', '/hosts/' + encodeURIComponent(id) + '/power', { action })
 }
+export async function getHostBootConfig(id: string, format: string): Promise<string> {
+  const session = getSessionToken()
+  const headers: Record<string, string> = {}
+  if (session) {
+    headers["Authorization"] = "Bearer " + session
+  }
+  const res = await fetch(baseURL + "/api/v1/hosts/" + encodeURIComponent(id) + "/boot-config?format=" + encodeURIComponent(format), { headers })
+  if (res.status === 401) {
+    clearSession()
+    window.location.href = "/login"
+    throw new Error("会话已过期，请重新登录")
+  }
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}))
+    throw new Error(json.error || "获取引导配置失败")
+  }
+  return res.text()
+}
+
 
 // ── Profiles ──
 export function getProfiles(): Promise<ApiResponse<Profile[]>> {
@@ -1407,60 +1426,30 @@ export function checkBootloaderFile(name: string): Promise<ApiResponse<BootFileI
   return request<BootFileInfo>('POST', '/bootloader/check-file', { name })
 }
 
-// ── Script Editor ──
-export interface ScriptMeta {
-  id: string
+// ── Profile Script Versions ──
+export interface ProfileScriptVersion {
+  id: number
   profile_id: string
-  entry_idx: number
-  label: string
-  type: string
-  updated_at: string
-}
-
-export interface ScriptVersion {
-  id: string
   content: string
   checksum: string
   comment?: string
   created_at: string
 }
 
-export interface ScriptDetail {
-  id: string
-  content: string
-  meta?: ScriptMeta
+export function getScriptVersions(profileId: string): Promise<ApiResponse<ProfileScriptVersion[]>> {
+  return request<ProfileScriptVersion[]>('GET', `/profiles/${encodeURIComponent(profileId)}/script-versions`)
 }
 
-export function getScripts(): Promise<ApiResponse<ScriptMeta[]>> {
-  return request<ScriptMeta[]>('GET', '/scripts')
+export function getScriptVersion(profileId: string, verId: number): Promise<ApiResponse<ProfileScriptVersion>> {
+  return request<ProfileScriptVersion>('GET', `/profiles/${encodeURIComponent(profileId)}/script-versions/${verId}`)
 }
 
-export function getScript(id: string): Promise<ApiResponse<ScriptDetail>> {
-  return request<ScriptDetail>('GET', `/scripts/${encodeURIComponent(id)}`)
+export function getScriptDiff(profileId: string, verId: number): Promise<ApiResponse<{ diff: string }>> {
+  return request<{ diff: string }>('GET', `/profiles/${encodeURIComponent(profileId)}/script-diff/${verId}`)
 }
 
-export function saveScript(id: string, content: string, comment?: string): Promise<ApiResponse<ScriptVersion>> {
-  return request<ScriptVersion>('PUT', `/scripts/${encodeURIComponent(id)}`, { content, comment })
-}
-
-export function syncScript(profileId: string, label: string, type: string, content: string, comment?: string): Promise<ApiResponse<any>> {
-  return request<any>('POST', '/scripts/sync', { profile_id: profileId, label, type, content, comment })
-}
-
-export function getScriptVersions(id: string): Promise<ApiResponse<ScriptVersion[]>> {
-  return request<ScriptVersion[]>('GET', `/scripts/${encodeURIComponent(id)}/versions`)
-}
-
-export function getScriptVersion(id: string, ver: string): Promise<ApiResponse<ScriptVersion>> {
-  return request<ScriptVersion>('GET', `/scripts/${encodeURIComponent(id)}/versions/${encodeURIComponent(ver)}`)
-}
-
-export function getScriptDiff(id: string, ver: string): Promise<ApiResponse<{ diff: string }>> {
-  return request<{ diff: string }>('GET', `/scripts/${encodeURIComponent(id)}/diff/${encodeURIComponent(ver)}`)
-}
-
-export function rollbackScript(id: string, ver: string): Promise<ApiResponse<ScriptVersion>> {
-  return request<ScriptVersion>('POST', `/scripts/${encodeURIComponent(id)}/rollback/${encodeURIComponent(ver)}`)
+export function rollbackScriptVersion(profileId: string, verId: number): Promise<ApiResponse<Profile>> {
+  return request<Profile>('POST', `/profiles/${encodeURIComponent(profileId)}/script-rollback/${verId}`)
 }
 
 // ── Convenience namespace (backward-compat) ──
@@ -1469,6 +1458,7 @@ export const api = {
   getMetrics,
   getHosts,
   getHost,
+  getHostBootConfig,
   batchWakeHosts,
   getWOLHistory,
   getWOLHistoryByMAC,
@@ -1602,12 +1592,8 @@ export const api = {
   getBootloaderCheck,
   getBootloaderFiles,
   checkBootloaderFile,
-  getScripts,
-  getScript,
-  saveScript,
-  syncScript,
   getScriptVersions,
   getScriptVersion,
   getScriptDiff,
-  rollbackScript,
+  rollbackScriptVersion,
 }

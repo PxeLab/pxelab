@@ -38,6 +38,7 @@ type memoryStore struct {
 	dhcpResIdx       uint
 	hostIdx          int
 	profIdx          int
+	svIdx            uint
 	tmplIdx          uint
 	tmplVerIdx       uint
 	dnsRecIdx        uint
@@ -48,12 +49,14 @@ type memoryStore struct {
 	wolSchedIdx      uint
 	osImages         map[uint]*models.OSImage
 	osImgIdx         uint
+	scriptVersions   map[uint]*models.ProfileScriptVersion
 }
 
 func NewMemory() Interface {
 	return &memoryStore{
 		hosts:            make(map[string]*models.Host),
 		profiles:         make(map[string]*models.Profile),
+		scriptVersions:   make(map[uint]*models.ProfileScriptVersion),
 		events:           make([]models.Event, 0),
 		leases:           make(map[string]*models.Lease),
 		overlays:         make(map[string]*models.NetbootOverlay),
@@ -293,6 +296,72 @@ func (s *memoryStore) DeleteProfile(_ context.Context, id string) error {
 	}
 	delete(s.profiles, id)
 	return nil
+}
+
+func (s *memoryStore) ListScriptVersions(_ context.Context, profileID string) ([]models.ProfileScriptVersion, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []models.ProfileScriptVersion
+	for _, v := range s.scriptVersions {
+		if v.ProfileID == profileID {
+			list = append(list, *v)
+		}
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].CreatedAt.After(list[j].CreatedAt)
+	})
+	return list, nil
+}
+
+func (s *memoryStore) GetScriptVersion(_ context.Context, id uint) (*models.ProfileScriptVersion, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	v, ok := s.scriptVersions[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return v, nil
+}
+
+func (s *memoryStore) CreateScriptVersion(_ context.Context, v *models.ProfileScriptVersion) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if v.CreatedAt.IsZero() {
+		v.CreatedAt = time.Now()
+	}
+	s.svIdx++
+	v.ID = s.svIdx
+	cp := *v
+	s.scriptVersions[cp.ID] = &cp
+	return nil
+}
+
+func (s *memoryStore) DeleteScriptVersionsByProfile(_ context.Context, profileID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, v := range s.scriptVersions {
+		if v.ProfileID == profileID {
+			delete(s.scriptVersions, id)
+		}
+	}
+	return nil
+}
+
+func (s *memoryStore) GetLatestScriptVersion(_ context.Context, profileID string) (*models.ProfileScriptVersion, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var latest *models.ProfileScriptVersion
+	for _, v := range s.scriptVersions {
+		if v.ProfileID == profileID {
+			if latest == nil || v.CreatedAt.After(latest.CreatedAt) {
+				latest = v
+			}
+		}
+	}
+	if latest == nil {
+		return nil, ErrNotFound
+	}
+	return latest, nil
 }
 
 // ── Events ──

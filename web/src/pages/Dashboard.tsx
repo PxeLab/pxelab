@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, Server, Zap, ChevronRight, Wifi, BarChart3, Users, FileText } from 'lucide-react'
+import { Activity, Server, Zap, ChevronRight, Wifi, BarChart3, Users, FileText, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { StatusDot } from '../components/ui/StatusDot'
 import { Card } from '../components/ui/Card'
 import { api, type Host, type Event, type MetricsSnapshot, type TimeBucket, getServices, type ServiceInfo } from '../api/client'
-import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, type PieLabelRenderProps } from 'recharts'
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, CartesianGrid, type PieLabelRenderProps } from 'recharts'
 
 function avgRate(buckets: TimeBucket[]): string {
   if (buckets.length < 2) return '0'
@@ -18,6 +18,16 @@ function fmtBytes(n: number): string {
   if (n < 1024) return `${n}B`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)}KB`
   return `${(n / 1024 / 1024).toFixed(1)}MB`
+}
+
+function bwRate(buckets: TimeBucket[]): string {
+  if (buckets.length < 3) return '0/s'
+  const recent = buckets.slice(-6)
+  const total = recent.reduce((a, b) => a + b.v, 0)
+  const bytesPerSec = Math.round(total / 60)
+  if (bytesPerSec < 1024) return `${bytesPerSec}B/s`
+  if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(1)}KB/s`
+  return `${(bytesPerSec / 1024 / 1024).toFixed(1)}MB/s`
 }
 
 function fmtUptime(startedAt: string | null): string {
@@ -36,6 +46,26 @@ function fmtUptime(startedAt: string | null): string {
 
 const PIE_COLORS = ['#22d3ee', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#f97316', '#06b6d4', '#84cc16']
 
+const HTTP_RANGE_CFG: Record<string, { seconds: number }> = {
+  '5m': { seconds: 300 },
+  '30m': { seconds: 1800 },
+  '1h': { seconds: 3600 },
+}
+
+function ChartTooltip({ active, payload, label, formatter }: any) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12, padding: '8px 12px' }}>
+      <p style={{ margin: 0, marginBottom: 4, fontWeight: 600, color: '#e2e8f0' }}>{label}</p>
+      {payload.map((entry: any, i: number) => (
+        <p key={i} style={{ margin: 0, color: '#e2e8f0' }}>
+          {entry.name}: {formatter ? formatter(entry.value) : typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+        </p>
+      ))}
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -45,6 +75,10 @@ export default function Dashboard() {
   const [dnsCount, setDnsCount] = useState(0)
   const [serviceList, setServiceList] = useState<ServiceInfo[]>([])
   const [loading, setLoading] = useState(true)
+  const [trafficRange, setTrafficRange] = useState<'5m' | '30m' | '1h'>('5m')
+  const [httpRange, setHttpRange] = useState<'5m' | '30m' | '1h'>('5m')
+  const httpDeltasRef = useRef<{ time: number; status2xx: number; status3xx: number; status4xx: number; status5xx: number }[]>([])
+  const lastHttpRef = useRef<{ status2xx: number; status3xx: number; status4xx: number; status5xx: number } | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined)
 
   const load = useCallback(async () => {
@@ -61,6 +95,31 @@ export default function Dashboard() {
       setMetrics(m.data)
       setDnsCount(d.data.records.length)
       setServiceList(svcs.data)
+
+      // Compute HTTP status deltas for time-range filtering
+      const httpMetrics = m.data.services.http?.http
+      if (httpMetrics) {
+        const prev = lastHttpRef.current
+        if (prev !== null) {
+          const entry = {
+            time: Date.now(),
+            status2xx: Math.max(0, httpMetrics.status2xx - prev.status2xx),
+            status3xx: Math.max(0, httpMetrics.status3xx - prev.status3xx),
+            status4xx: Math.max(0, httpMetrics.status4xx - prev.status4xx),
+            status5xx: Math.max(0, httpMetrics.status5xx - prev.status5xx),
+          }
+          httpDeltasRef.current.push(entry)
+          // Prune entries older than 1h
+          const cutoff = Date.now() - 3600000
+          httpDeltasRef.current = httpDeltasRef.current.filter(d => d.time > cutoff)
+        }
+        lastHttpRef.current = {
+          status2xx: httpMetrics.status2xx,
+          status3xx: httpMetrics.status3xx,
+          status4xx: httpMetrics.status4xx,
+          status5xx: httpMetrics.status5xx,
+        }
+      }
     } catch (err) {
       console.error('Failed to load dashboard', err)
     } finally {
@@ -94,7 +153,6 @@ export default function Dashboard() {
 
   const dm = (k: string) => metrics?.services[k]?.metrics
   const dhcpData = metrics?.services.dhcp?.dhcp
-  const httpData = metrics?.services.http?.http
 
   const todayBoots = events.filter(e => {
     const d = new Date(e.timestamp)
@@ -103,23 +161,82 @@ export default function Dashboard() {
   }).length
 
   const statCards = [
-    { label: t('dashboard.stats.onlineHosts'), value: hosts.length, color: 'green', icon: Server, desc: '在线主机' },
-    { label: '运行服务', value: services.filter(s => serviceStatus(s.key) === 'running').length, color: 'blue', icon: Wifi, desc: `共 ${services.length} 个` },
-    { label: '活跃租约', value: dhcpData?.activeLeases ?? 0, color: 'cyan', icon: Users, desc: `发现 ${dhcpData?.discovers ?? 0}` },
-    { label: 'DNS 记录', value: dnsCount, color: 'violet', icon: FileText, desc: '解析记录' },
-    { label: '今日启动', value: todayBoots, color: 'orange', icon: Activity, desc: 'PXE 启动事件' },
+    { label: t('dashboard.stats.onlineHosts'), value: hosts.length, color: 'green', icon: Server },
+    { label: t('dashboard.stats.runningServices'), value: serviceList.filter(s => s.status === 'running').length, color: 'blue', icon: Wifi },
+    { label: t('dashboard.activeLeases'), value: dhcpData?.activeLeases ?? 0, color: 'cyan', icon: Users },
+    { label: t('dashboard.dnsRecords'), value: dnsCount, color: 'violet', icon: FileText },
+    { label: t('dashboard.todayBoots'), value: todayBoots, color: 'orange', icon: Activity },
   ]
 
   const archPieData = dhcpData?.archBreakdown
     ? Object.entries(dhcpData.archBreakdown).map(([name, value]) => ({ name, value }))
     : []
 
-  const httpStatusData = httpData
+  const trafficServices = ['tftp', 'http', 'nfs']
+  const trafficColors: Record<string, string> = { tftp: '#f59e0b', http: '#a78bfa', nfs: '#34d399' }
+  const trafficLabels: Record<string, string> = { tftp: 'TFTP', http: 'HTTP', nfs: 'NFS' }
+
+  const trafficRangeCfg: Record<string, { seconds: number; agg: number }> = {
+    '5m': { seconds: 300, agg: 10 },
+    '30m': { seconds: 1800, agg: 60 },
+    '1h': { seconds: 3600, agg: 120 },
+  }
+
+  const trafficChartData = useMemo(() => {
+    const now = Date.now() / 1000
+    const { seconds: maxAge, agg } = trafficRangeCfg[trafficRange] ?? trafficRangeCfg['5m']
+    const buckets: Record<number, Record<string, number>> = {}
+    trafficServices.forEach(svc => {
+      const bw = metrics?.services[svc]?.metrics?.bandwidth ?? []
+      bw.forEach(b => {
+        if (now - b.t > maxAge) return
+        const key = Math.floor(b.t / agg) * agg
+        if (!buckets[key]) buckets[key] = {}
+        buckets[key][svc] = (buckets[key][svc] || 0) + b.v
+      })
+    })
+    return Object.entries(buckets)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([t, svcData]) => ({
+        time: new Date(Number(t) * 1000).toLocaleTimeString(),
+        tftp: +(svcData.tftp ?? 0),
+        http: +(svcData.http ?? 0),
+        nfs: +(svcData.nfs ?? 0),
+      }))
+  }, [metrics, trafficRange])
+
+  const httpRecent = useMemo(() => {
+    const now = Date.now()
+    const maxAge = (HTTP_RANGE_CFG[httpRange] ?? HTTP_RANGE_CFG['5m']).seconds * 1000
+    const cutoff = now - maxAge
+    const relevant = httpDeltasRef.current.filter(d => d.time > cutoff)
+    if (relevant.length > 0) {
+      return {
+        status2xx: relevant.reduce((a, d) => a + d.status2xx, 0),
+        status3xx: relevant.reduce((a, d) => a + d.status3xx, 0),
+        status4xx: relevant.reduce((a, d) => a + d.status4xx, 0),
+        status5xx: relevant.reduce((a, d) => a + d.status5xx, 0),
+      }
+    }
+    // Fall back to cumulative until first delta is available
+    const init = metrics?.services.http?.http
+    if (init) {
+      return {
+        status2xx: init.status2xx,
+        status3xx: init.status3xx,
+        status4xx: init.status4xx,
+        status5xx: init.status5xx,
+      }
+    }
+    return { status2xx: 0, status3xx: 0, status4xx: 0, status5xx: 0 }
+  }, [metrics, httpRange])
+
+  const httpStatusData = httpRecent.status2xx > 0 || httpRecent.status3xx > 0 || httpRecent.status4xx > 0 || httpRecent.status5xx > 0
     ? [
-        { name: '2xx', value: httpData.status2xx, fill: '#34d399' },
-        { name: '3xx', value: httpData.status3xx, fill: '#22d3ee' },
-        { name: '4xx', value: httpData.status4xx, fill: '#f59e0b' },
-        { name: '5xx', value: httpData.status5xx, fill: '#ef4444' },
+        { name: '2xx', value: httpRecent.status2xx, fill: '#34d399' },
+        { name: '3xx', value: httpRecent.status3xx, fill: '#22d3ee' },
+        { name: '4xx', value: httpRecent.status4xx, fill: '#f59e0b' },
+        { name: '5xx', value: httpRecent.status5xx, fill: '#ef4444' },
       ]
     : []
 
@@ -166,21 +283,27 @@ export default function Dashboard() {
               const svcInfo = serviceList.find(s => s.name === svc.key) || (svc.key === 'dhcp' ? serviceList.find(s => s.name.startsWith('dhcp/')) : undefined)
               const protocol = svcInfo?.protocol?.toUpperCase() || ''
               const uptime = fmtUptime(svcInfo?.started_at ?? null)
+              const startTime = svcInfo?.started_at ? new Date(svcInfo.started_at).toLocaleString() : '—'
               return (
                 <div key={svc.name} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--bg-base)]/50 border border-[var(--bg-border)]/50">
                   <StatusDot color={color as any} pulse={st === 'running'} />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-[var(--text-primary)]">{svc.name}</div>
                     <div className="text-[10px] font-mono text-[var(--text-muted)]">{svc.port}{protocol ? `/${protocol}` : ''}</div>
-                    <div className="text-[9px] font-mono text-[var(--text-muted)] mt-0.5">
-                      {st === 'running' ? uptime : '—'}
-                    </div>
+                    {st === 'running' && (
+                      <div className="text-[9px] font-mono text-[var(--text-muted)] mt-0.5">{t('dashboard.startedAt')} {startTime}</div>
+                    )}
                   </div>
-                  <span className={`ml-auto text-[10px] font-semibold uppercase tracking-wide ${
-                    st === 'running' ? 'text-green-400' : st === 'error' ? 'text-red-400' : 'text-[var(--text-muted)]'
-                  }`}>
-                    {st === 'running' ? t('common.running') : st === 'error' ? t('common.error') : t('common.stopped')}
-                  </span>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className={`text-[10px] font-semibold tracking-wide ${
+                      st === 'running' ? 'text-green-400' : st === 'error' ? 'text-red-400' : 'text-[var(--text-muted)]'
+                    }`}>
+                      {st === 'running' ? t('common.running') : st === 'error' ? t('common.error') : t('common.stopped')}
+                    </span>
+                    {st === 'running' && (
+                      <span className="text-[9px] font-mono text-[var(--text-muted)]">{uptime}</span>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -215,7 +338,6 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <div className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">{s.value}</div>
-                  {s.desc && <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{s.desc}</div>}
                 </div>
               </div>
             )
@@ -233,13 +355,13 @@ export default function Dashboard() {
           </div>
           {dhcpData ? (
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">Offer/Ack/Nak</span><span className="font-mono text-[var(--text-primary)]">{dhcpData.offers}/{dhcpData.acks}/{dhcpData.naks}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">Discover/Request</span><span className="font-mono text-[var(--text-primary)]">{dhcpData.discovers}/{dhcpData.requests}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">Decline</span><span className="font-mono text-red-400">{dhcpData.declines}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">未授权</span><span className="font-mono text-yellow-400">{dhcpData.unauthorized}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.offerAckNak')}</span><span className="font-mono text-[var(--text-primary)]">{dhcpData.offers}/{dhcpData.acks}/{dhcpData.naks}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.discoverRequest')}</span><span className="font-mono text-[var(--text-primary)]">{dhcpData.discovers}/{dhcpData.requests}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.decline')}</span><span className="font-mono text-red-400">{dhcpData.declines}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.unauthorized')}</span><span className="font-mono text-yellow-400">{dhcpData.unauthorized}</span></div>
             </div>
           ) : (
-            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('dhcp') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('dhcp') === 'stopped' ? t('dashboard.serviceNotRunning') : t('dashboard.noMetrics')}</p>
           )}
         </div>
 
@@ -251,13 +373,13 @@ export default function Dashboard() {
           </div>
           {dm('tftp') ? (
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">请求</span><span className="font-mono text-[var(--text-primary)]">{dm('tftp')?.requests ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">错误</span><span className="font-mono text-red-400">{dm('tftp')?.errors ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">下发流量</span><span className="font-mono text-[var(--text-primary)]">{fmtBytes(dm('tftp')?.bytesOut ?? 0)}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">速率</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('tftp')?.requestRate ?? [])}/s</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRequests')}</span><span className="font-mono text-[var(--text-primary)]">{dm('tftp')?.requests ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelErrors')}</span><span className="font-mono text-red-400">{dm('tftp')?.errors ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelTrafficOut')}</span><span className="font-mono text-[var(--text-primary)]">{fmtBytes(dm('tftp')?.bytesOut ?? 0)}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRate')}</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('tftp')?.requestRate ?? [])}/s</span></div>
             </div>
           ) : (
-            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('tftp') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('tftp') === 'stopped' ? t('dashboard.serviceNotRunning') : t('dashboard.noMetrics')}</p>
           )}
         </div>
 
@@ -269,13 +391,13 @@ export default function Dashboard() {
           </div>
           {dm('dns') ? (
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">解析记录</span><span className="font-mono text-[var(--text-primary)]">{dnsCount}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">查询次数</span><span className="font-mono text-[var(--text-primary)]">{dm('dns')?.requests ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">错误</span><span className="font-mono text-red-400">{dm('dns')?.errors ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">查询速率</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('dns')?.requestRate ?? [])}/s</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelDnsRecords')}</span><span className="font-mono text-[var(--text-primary)]">{dnsCount}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelQueryCount')}</span><span className="font-mono text-[var(--text-primary)]">{dm('dns')?.requests ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelErrors')}</span><span className="font-mono text-red-400">{dm('dns')?.errors ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelQueryRate')}</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('dns')?.requestRate ?? [])}/s</span></div>
             </div>
           ) : (
-            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('dns') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('dns') === 'stopped' ? t('dashboard.serviceNotRunning') : t('dashboard.noMetrics')}</p>
           )}
         </div>
 
@@ -287,13 +409,13 @@ export default function Dashboard() {
           </div>
           {dm('http') ? (
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">请求</span><span className="font-mono text-[var(--text-primary)]">{dm('http')?.requests ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">活跃连接</span><span className="font-mono text-[var(--text-primary)]">{dm('http')?.activeConns ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">2xx/4xx/5xx</span><span className="font-mono text-[var(--text-primary)]">{httpData?.status2xx ?? 0}/{httpData?.status4xx ?? 0}/{httpData?.status5xx ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">拒绝</span><span className="font-mono text-yellow-400">{dm('http')?.rejected ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRequests')}</span><span className="font-mono text-[var(--text-primary)]">{dm('http')?.requests ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelActiveConns')}</span><span className="font-mono text-[var(--text-primary)]">{dm('http')?.activeConns ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelStatusCodes')}</span><span className="font-mono text-[var(--text-primary)]">{httpRecent.status2xx}/{httpRecent.status4xx}/{httpRecent.status5xx}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRejected')}</span><span className="font-mono text-yellow-400">{dm('http')?.rejected ?? 0}</span></div>
             </div>
           ) : (
-            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('http') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('http') === 'stopped' ? t('dashboard.serviceNotRunning') : t('dashboard.noMetrics')}</p>
           )}
         </div>
 
@@ -305,13 +427,13 @@ export default function Dashboard() {
           </div>
           {dm('nfs') ? (
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">请求</span><span className="font-mono text-[var(--text-primary)]">{dm('nfs')?.requests ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">活跃连接</span><span className="font-mono text-[var(--text-primary)]">{dm('nfs')?.activeConns ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">传输流量</span><span className="font-mono text-[var(--text-primary)]">{fmtBytes((dm('nfs')?.bytesOut ?? 0) + (dm('nfs')?.bytesIn ?? 0))}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">速率</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('nfs')?.requestRate ?? [])}/s</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRequests')}</span><span className="font-mono text-[var(--text-primary)]">{dm('nfs')?.requests ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelActiveConns')}</span><span className="font-mono text-[var(--text-primary)]">{dm('nfs')?.activeConns ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelTransferTraffic')}</span><span className="font-mono text-[var(--text-primary)]">{fmtBytes((dm('nfs')?.bytesOut ?? 0) + (dm('nfs')?.bytesIn ?? 0))}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRate')}</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('nfs')?.requestRate ?? [])}/s</span></div>
             </div>
           ) : (
-            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('nfs') === 'stopped' ? '服务未运行' : '暂无数据'}</p>
+            <p className="text-xs text-[var(--text-muted)]">{serviceStatus('nfs') === 'stopped' ? t('dashboard.serviceNotRunning') : t('dashboard.noMetrics')}</p>
           )}
         </div>
       </div>
@@ -321,7 +443,7 @@ export default function Dashboard() {
         <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <Server size={14} className="text-cyan-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">DHCP 架构分布</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{t('dashboard.chartDhcpArch')}</span>
           </div>
           {archPieData.length > 0 ? (
             <div className="h-52">
@@ -330,19 +452,28 @@ export default function Dashboard() {
                   <Pie data={archPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }: PieLabelRenderProps) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                     {archPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip content={<ChartTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-sm text-[var(--text-muted)] text-center py-12">暂无数据</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-12">{t('common.noData')}</p>
           )}
         </div>
 
         <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 size={14} className="text-purple-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">HTTP 状态码</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 size={14} className="text-purple-400" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{t('dashboard.chartHttpStatus')}</span>
+            </div>
+            <div className="flex items-center gap-1 bg-[var(--bg-base)]/50 rounded-lg p-0.5">
+              {[['5m', t('dashboard.range5m')], ['30m', t('dashboard.range30m')], ['1h', t('dashboard.range1h')]].map(([key, label]) => (
+                <button key={key} onClick={() => setHttpRange(key as any)} className={`px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors ${httpRange === key ? 'bg-blue-500/20 text-blue-400' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           {httpStatusData.some(d => d.value > 0) ? (
             <div className="h-52">
@@ -350,15 +481,15 @@ export default function Dashboard() {
                 <BarChart data={httpStatusData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="value" name="count" radius={[4, 4, 0, 0]}>
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="value" name={t('dashboard.httpCount')} radius={[4, 4, 0, 0]}>
                     {httpStatusData.map((d, i) => <Cell key={i} fill={d.fill} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-sm text-[var(--text-muted)] text-center py-12">暂无数据</p>
+            <p className="text-sm text-[var(--text-muted)] text-center py-12">{t('common.noData')}</p>
           )}
           <div className="flex flex-wrap gap-3 mt-2 text-xs text-[var(--text-muted)]">
             {httpStatusData.map(d => (
@@ -370,129 +501,99 @@ export default function Dashboard() {
         </div>
 
         <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <Users size={14} className="text-green-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">DHCP 摘要</span>
-          </div>
-          {dhcpData ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-[var(--bg-base)]/50 rounded-xl p-3">
-                  <div className="text-[10px] font-mono text-[var(--text-muted)]">活跃租约</div>
-                  <div className="text-xl font-bold text-[var(--text-primary)]">{dhcpData.activeLeases}</div>
-                </div>
-                <div className="bg-[var(--bg-base)]/50 rounded-xl p-3">
-                  <div className="text-[10px] font-mono text-[var(--text-muted)]">发现/请求</div>
-                  <div className="text-xl font-bold text-[var(--text-primary)]">{dhcpData.discovers}/{dhcpData.requests}</div>
-                </div>
-                <div className="bg-[var(--bg-base)]/50 rounded-xl p-3">
-                  <div className="text-[10px] font-mono text-[var(--text-muted)]">授权</div>
-                  <div className="text-xl font-bold text-green-400">{dhcpData.acks}</div>
-                </div>
-                <div className="bg-[var(--bg-base)]/50 rounded-xl p-3">
-                  <div className="text-[10px] font-mono text-[var(--text-muted)]">未授权</div>
-                  <div className="text-xl font-bold text-red-400">{dhcpData.unauthorized}</div>
-                </div>
-              </div>
-              {dhcpData.platformBreakdown && Object.keys(dhcpData.platformBreakdown).length > 0 && (
-                <div className="h-28">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={Object.entries(dhcpData.platformBreakdown).map(([name, value]) => ({ name, value }))} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={40} innerRadius={25}>
-                        {Object.entries(dhcpData.platformBreakdown).map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 size={14} className="text-green-400" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{t('dashboard.chartTraffic')}</span>
             </div>
-          ) : (
-            <p className="text-sm text-[var(--text-muted)] text-center py-12">暂无数据</p>
-          )}
-        </div>
-      </div>
-
-      {/* Events + Hosts */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-3">
-          <Card
-            padding={false}
-            title={
-              <div className="flex items-center gap-2">
-                <Activity size={14} className="text-blue-400" />
-                <span>{t('dashboard.recentEvents')}</span>
+            <div className="flex items-center gap-1 bg-[var(--bg-base)]/50 rounded-lg p-0.5">
+              {[['5m', t('dashboard.range5m')], ['30m', t('dashboard.range30m')], ['1h', t('dashboard.range1h')]].map(([key, label]) => (
+                <button key={key} onClick={() => setTrafficRange(key as any)} className={`px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors ${trafficRange === key ? 'bg-blue-500/20 text-blue-400' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {trafficChartData.length > 0 ? (
+            <>
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trafficChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-border)" strokeOpacity={0.5} />
+                    <XAxis dataKey="time" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                    <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1024 * 1024 ? `${(v / 1024 / 1024).toFixed(0)}MB` : v >= 1024 ? `${(v / 1024).toFixed(0)}KB` : `${v}B`} />
+                    <Tooltip content={<ChartTooltip formatter={(v: any) => fmtBytes(Math.round(Number(v)))} />} />
+                    {trafficServices.map(svc => (
+                      <Line key={svc} type="monotone" dataKey={svc} name={trafficLabels[svc]} stroke={trafficColors[svc]} strokeWidth={1.5} dot={false} />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-            }
-            footer={
-              <button onClick={() => navigate('/events')} className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors">
-                {t('common.viewAll')} <ChevronRight size={12} />
-              </button>
-            }
-          >
-            {events.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)] text-center py-8">{t('dashboard.noEvents')}</p>
-            ) : (
-              <div>
-                {events.slice(0, 8).map((e, i) => {
-                  const ic = eventIcon(e.type)
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {trafficServices.map(svc => {
+                  const m = metrics?.services[svc]?.metrics
                   return (
-                    <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[var(--bg-border)] last:border-b-0 hover:bg-[var(--bg-hover)]/30 transition-colors group">
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-bold shrink-0 ${ic.color}`}>{ic.label}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-[var(--text-primary)]">{e.type}</span>
-                          {e.mac && <span className="text-[10px] font-mono text-[var(--text-muted)]">{e.mac}</span>}
-                        </div>
-                        <p className="text-[11px] text-[var(--text-muted)] truncate">{e.message}</p>
+                    <div key={svc} className="bg-[var(--bg-base)]/50 rounded-xl p-2.5">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className="w-2 h-2 rounded-full" style={{ background: trafficColors[svc] }} />
+                        <span className="text-[10px] font-semibold text-[var(--text-muted)]">{trafficLabels[svc]}</span>
                       </div>
-                      <span className="text-[10px] text-[var(--text-muted)] font-mono shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {new Date(e.timestamp).toLocaleTimeString()}
-                      </span>
+                      <div className="text-xs font-mono text-[var(--text-primary)] font-semibold">{bwRate(m?.bandwidth ?? [])}</div>
+                      <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-[var(--text-muted)]">
+                        <span className="flex items-center gap-0.5"><ArrowUpRight size={10} className="text-green-400" />{fmtBytes(m?.bytesOut ?? 0)}</span>
+                        <span className="flex items-center gap-0.5"><ArrowDownRight size={10} className="text-blue-400" />{fmtBytes(m?.bytesIn ?? 0)}</span>
+                      </div>
                     </div>
                   )
                 })}
               </div>
-            )}
-          </Card>
-        </div>
-        <div className="lg:col-span-2">
-          <Card
-            padding={false}
-            title={
-              <div className="flex items-center gap-2">
-                <Server size={14} className="text-green-400" />
-                <span>{t('dashboard.recentHosts')}</span>
-              </div>
-            }
-            footer={
-              <button onClick={() => navigate('/hosts')} className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors">
-                {t('common.viewAll')} <ChevronRight size={12} />
-              </button>
-            }
-          >
-            {hosts.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)] text-center py-8">{t('hosts.empty')}</p>
-            ) : (
-              <div>
-                {hosts.slice(0, 6).map(h => (
-                  <div
-                    key={h.id}
-                    onClick={() => navigate('/hosts/' + h.id)}
-                    className="flex items-center gap-3 px-5 py-3 border-b border-[var(--bg-border)] last:border-b-0 hover:bg-[var(--bg-hover)]/30 transition-colors cursor-pointer group"
-                  >
-                    <StatusDot color={h.last_online ? 'green' : 'red'} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-[var(--text-primary)] truncate">{h.name || h.mac}</div>
-                      <div className="text-[10px] font-mono text-[var(--text-muted)]">{h.ip}</div>
-                    </div>
-                    <ChevronRight size={14} className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+            </>
+          ) : (
+            <p className="text-sm text-[var(--text-muted)] text-center py-12">{t('common.noData')}</p>
+          )}
         </div>
       </div>
+
+      {/* Events */}
+      <Card
+        padding={false}
+        title={
+          <div className="flex items-center gap-2">
+            <Activity size={14} className="text-blue-400" />
+            <span>{t('dashboard.recentEvents')}</span>
+          </div>
+        }
+        footer={
+          <button onClick={() => navigate('/events')} className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors">
+            {t('common.viewAll')} <ChevronRight size={12} />
+          </button>
+        }
+      >
+        {events.length === 0 ? (
+          <p className="text-sm text-[var(--text-muted)] text-center py-8">{t('dashboard.noEvents')}</p>
+        ) : (
+          <div>
+            {events.slice(0, 8).map((e, i) => {
+              const ic = eventIcon(e.type)
+              return (
+                <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[var(--bg-border)] last:border-b-0 hover:bg-[var(--bg-hover)]/30 transition-colors group">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-bold shrink-0 ${ic.color}`}>{ic.label}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[var(--text-primary)]">{e.type}</span>
+                      {e.mac && <span className="text-[10px] font-mono text-[var(--text-muted)]">{e.mac}</span>}
+                    </div>
+                    <p className="text-[11px] text-[var(--text-muted)] truncate">{e.message}</p>
+                  </div>
+                  <span className="text-[10px] text-[var(--text-muted)] font-mono shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {new Date(e.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

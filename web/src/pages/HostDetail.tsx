@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Power, PowerOff, RefreshCw, Activity, Zap, HardDrive, Wifi } from 'lucide-react'
+import { ArrowLeft, Power, PowerOff, RefreshCw, Activity, Zap, HardDrive, Wifi, FileText } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -34,6 +34,13 @@ export default function HostDetail() {
   const [taskError, setTaskError] = useState('')
   const [confirmPower, setConfirmPower] = useState<string | null>(null)
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<InstallTask | null>(null)
+
+  // Boot config preview state
+  const [showBootConfig, setShowBootConfig] = useState(false)
+  const [bootConfigFormat, setBootConfigFormat] = useState('pxelinux')
+  const [bootConfigContent, setBootConfigContent] = useState('')
+  const [bootConfigLoading, setBootConfigLoading] = useState(false)
+  const [bootConfigError, setBootConfigError] = useState('')
 
   // WOL state
   const [wolHistory, setWolHistory] = useState<WOLHistoryRecord[]>([])
@@ -120,6 +127,23 @@ export default function HostDetail() {
     } catch { /* ignore */ }
   }
 
+  async function handlePreviewBootConfig() {
+    if (!host) return
+    setBootConfigLoading(true)
+    setBootConfigError('')
+    setBootConfigContent('')
+    try {
+      const text = await api.getHostBootConfig(host.id, bootConfigFormat)
+      setBootConfigContent(text)
+      setShowBootConfig(true)
+    } catch (e: any) {
+      setBootConfigError(e?.message || t('hosts.detail.bootConfigFailed'))
+      setShowBootConfig(true)
+    } finally {
+      setBootConfigLoading(false)
+    }
+  }
+
   if (loading) {
     return <div className="space-y-6">
       {Array.from({ length: 3 }).map((_, i) => (
@@ -145,6 +169,9 @@ export default function HostDetail() {
           <Tag color={host.last_online ? 'green' : 'red'}>{host.last_online ? 'online' : 'offline'}</Tag>
         </div>
         <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={handlePreviewBootConfig} disabled={bootConfigLoading}>
+            <FileText size={14} /> {bootConfigLoading ? '...' : t('hosts.detail.bootConfig')}
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => handlePower('status')}>
             <Zap size={14} /> {t('hosts.detail.wake')}
           </Button>
@@ -473,6 +500,44 @@ export default function HostDetail() {
           </div>
         </div>
       </Modal>
+
+      {/* Boot Config Preview Modal */}
+      <Modal open={showBootConfig} onClose={() => setShowBootConfig(false)} title={t('hosts.detail.bootConfig')}>
+        <div className="space-y-4">
+          <div className="flex gap-2 items-center">
+            <select
+              value={bootConfigFormat}
+              onChange={e => setBootConfigFormat(e.target.value)}
+              className="px-3 py-1.5 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
+            >
+              <option value="pxelinux">pxelinux</option>
+              <option value="grub2">grub2</option>
+            </select>
+            <Button size="sm" variant="primary" onClick={handlePreviewBootConfig} disabled={bootConfigLoading}>
+              {bootConfigLoading ? '...' : t('hosts.detail.bootConfigRefresh')}
+            </Button>
+          </div>
+
+          {bootConfigError && (
+            <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+              {bootConfigError}
+            </div>
+          )}
+
+          {bootConfigContent && (
+            <pre className="p-4 rounded-lg bg-[var(--bg-card)] border border-[var(--bg-border)] text-xs font-mono text-[var(--text-primary)] overflow-x-auto max-h-[500px] overflow-y-auto whitespace-pre">
+              {bootConfigContent}
+            </pre>
+          )}
+
+          {!bootConfigContent && !bootConfigError && !bootConfigLoading && (
+            <div className="py-8 text-center text-sm text-[var(--text-muted)]">
+              {t('hosts.detail.bootConfigHint')}
+            </div>
+          )}
+        </div>
+      </Modal>
+
       <ConfirmDialog
         open={!!confirmPower}
         onClose={() => setConfirmPower(null)}

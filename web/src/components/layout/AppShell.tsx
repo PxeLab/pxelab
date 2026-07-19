@@ -10,7 +10,7 @@ import { getServices, startService, stopService, restartService, batchService, t
 import SettingsModal from './SettingsModal'
 import {
   LayoutDashboard, Server, FileCode, Activity, Settings,
-  ShieldCheck, Network, Menu, ChevronRight, ChevronLeft, Code,
+  ShieldCheck, Network, Menu, ChevronRight, ChevronLeft,
   HardDrive, Cpu, Wifi, Disc,
 } from 'lucide-react'
 
@@ -52,7 +52,6 @@ const navSections = [
     items: [
       { path: '/hosts', label: 'nav.hosts', icon: Server },
       { path: '/profiles', label: 'nav.profiles', icon: FileCode },
-      { path: '/scripts', label: 'nav.scripts', icon: Code },
       { path: '/access-control', label: 'nav.accessControl', icon: ShieldCheck },
       { path: '/answer-templates', label: 'nav.answerTemplates', icon: FileCode },
       { path: '/install-tasks', label: 'nav.installTasks', icon: HardDrive },

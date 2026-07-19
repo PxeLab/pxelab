@@ -66,6 +66,13 @@ type ProfileStore interface {
 	CreateProfile(ctx context.Context, profile *models.Profile) error
 	UpdateProfile(ctx context.Context, profile *models.Profile) error
 	DeleteProfile(ctx context.Context, id string) error
+
+	// Script versioning for custom-type entries
+	ListScriptVersions(ctx context.Context, profileID string) ([]models.ProfileScriptVersion, error)
+	GetScriptVersion(ctx context.Context, id uint) (*models.ProfileScriptVersion, error)
+	CreateScriptVersion(ctx context.Context, version *models.ProfileScriptVersion) error
+	DeleteScriptVersionsByProfile(ctx context.Context, profileID string) error
+	GetLatestScriptVersion(ctx context.Context, profileID string) (*models.ProfileScriptVersion, error)
 }
 
 type EventStore interface {

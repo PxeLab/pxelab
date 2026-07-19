@@ -28,7 +28,6 @@ const WolView = lazy(() => import('./pages/WolView'))
 const OSImages = lazy(() => import('./pages/OSImages'))
 const NetworkDiagnostics = lazy(() => import('./pages/NetworkDiagnostics'))
 const FileManager = lazy(() => import('./pages/FileManager'))
-const ScriptEditor = lazy(() => import('./pages/ScriptEditor'))
 const BootSettings = lazy(() => import('./pages/BootSettings'))
 
 function LoadingFallback() {
@@ -93,7 +92,6 @@ function AppContent() {
           <Route path="/os-images" element={<OSImages />} />
           <Route path="/network" element={<NetworkDiagnostics />} />
           <Route path="/files" element={<FileManager />} />
-          <Route path="/scripts" element={<ScriptEditor />} />
           <Route path="/boot-settings" element={<BootSettings />} />
           <Route path="/netboot-catalog" element={<NetbootCatalog />} />
           <Route path="/events" element={<Events />} />

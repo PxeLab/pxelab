@@ -49,8 +49,7 @@
     "wol": "唤醒管理",
     "osImages": "系统镜像",
     "network": "网络诊断",
-    "bootSettings": "引导设置",
-    "scripts": "脚本编辑器"
+    "bootSettings": "引导设置"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -62,8 +61,36 @@
       "totalEvents": "事件总数",
       "uptime": "运行时间"
     },
+    "activeLeases": "活跃租约",
+    "dnsRecords": "DNS 记录",
+    "todayBoots": "今日启动",
+    "chartDhcpArch": "DHCP 架构分布",
+    "chartHttpStatus": "HTTP 状态码",
+    "chartTraffic": "网络流量",
+    "range5m": "5分钟",
+    "range30m": "30分钟",
+    "range1h": "1小时",
+    "httpCount": "次数",
+    "serviceNotRunning": "服务未运行",
+    "noMetrics": "暂无数据",
+    "offerAckNak": "Offer/Ack/Nak",
+    "discoverRequest": "Discover/Request",
+    "decline": "Decline",
+    "unauthorized": "未授权",
+    "labelRequests": "请求",
+    "labelErrors": "错误",
+    "labelTrafficOut": "下发流量",
+    "labelRate": "速率",
+    "labelActiveConns": "活跃连接",
+    "labelStatusCodes": "2xx/4xx/5xx",
+    "labelRejected": "拒绝",
+    "labelTransferTraffic": "传输流量",
+    "labelDnsRecords": "解析记录",
+    "labelQueryCount": "查询次数",
+    "labelQueryRate": "查询速率",
     "recentEvents": "近期事件",
     "recentHosts": "最近主机",
+    "startedAt": "启动",
     "noEvents": "暂无事件"
   },
   "hosts": {
@@ -120,7 +147,11 @@
       "wolFailed": "WOL 唤醒失败",
       "wolHistory": "WOL 唤醒记录",
       "loadWOLHistory": "加载 WOL 记录",
-      "noWOLHistory": "暂无 WOL 唤醒记录"
+      "noWOLHistory": "暂无 WOL 唤醒记录",
+      "bootConfig": "引导配置",
+      "bootConfigRefresh": "刷新",
+      "bootConfigFailed": "加载引导配置失败",
+      "bootConfigHint": "选择格式后点击刷新预览"
     },
     "deleteConfirm": "确定要删除该主机吗？",
     "created": "主机已创建",
@@ -237,7 +268,14 @@
     "uefiInitrdHint": "UEFI 注意：iPXE UEFI 版本缺少 bzImage 特性，可能导致 initrd 无法传递。如果启动卡死，请在命令行末尾添加 initrd=<文件名>（如 initrd=initrd.img）。",
     "chainUrlPlaceholder": "http://server/ipxe.efi 或 ${next-server}/bootmgr.efi",
     "sanUrlPlaceholder": "iscsi://server/iqn 或 http://server/centos7.iso",
-    "ipxeScript": "iPXE 脚本"
+    "ipxeScript": "iPXE 脚本",
+    "scriptHistory": "脚本版本历史",
+    "scriptHistoryEmpty": "暂无版本记录",
+    "scriptSaveComment": "可选的变更说明...",
+    "scriptRollback": "回滚",
+    "scriptRolledBack": "已回滚到版本",
+    "scriptDiff": "差异对比",
+    "scriptAutoSave": "保存配置时自动创建"
   },
   "files": {
     "title": "文件管理",
@@ -1058,6 +1096,8 @@
     "archMapHint": "PXE 客户端架构与引导文件的对应关系",
     "arch": "架构",
     "archCode": "代码",
-    "editHint": "可自由编辑映射关系，保存后立即生效"
+    "editHint": "可自由编辑映射关系，保存后立即生效",
+    "notSupported": "不支持此引导加载器",
+    "fallbackGrub": "回退到 GRUB"
   }
 }

@@ -68,6 +68,7 @@ func (s *sqliteStore) Migrate() error {
 		&models.WOLHistory{},
 		&models.WOLSchedule{},
 		&models.OSImage{},
+		&models.ProfileScriptVersion{},
 	)
 }
 
@@ -262,6 +263,38 @@ func (s *sqliteStore) UpdateProfile(ctx context.Context, profile *models.Profile
 
 func (s *sqliteStore) DeleteProfile(ctx context.Context, id string) error {
 	return s.db.WithContext(ctx).Delete(&models.Profile{}, "id = ?", id).Error
+}
+
+func (s *sqliteStore) ListScriptVersions(ctx context.Context, profileID string) ([]models.ProfileScriptVersion, error) {
+	var versions []models.ProfileScriptVersion
+	if err := s.db.WithContext(ctx).Where("profile_id = ?", profileID).Order("created_at DESC").Find(&versions).Error; err != nil {
+		return nil, err
+	}
+	return versions, nil
+}
+
+func (s *sqliteStore) GetScriptVersion(ctx context.Context, id uint) (*models.ProfileScriptVersion, error) {
+	var v models.ProfileScriptVersion
+	if err := s.db.WithContext(ctx).First(&v, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func (s *sqliteStore) CreateScriptVersion(ctx context.Context, v *models.ProfileScriptVersion) error {
+	return s.db.WithContext(ctx).Create(v).Error
+}
+
+func (s *sqliteStore) DeleteScriptVersionsByProfile(ctx context.Context, profileID string) error {
+	return s.db.WithContext(ctx).Where("profile_id = ?", profileID).Delete(&models.ProfileScriptVersion{}).Error
+}
+
+func (s *sqliteStore) GetLatestScriptVersion(ctx context.Context, profileID string) (*models.ProfileScriptVersion, error) {
+	var v models.ProfileScriptVersion
+	if err := s.db.WithContext(ctx).Where("profile_id = ?", profileID).Order("created_at DESC").First(&v).Error; err != nil {
+		return nil, err
+	}
+	return &v, nil
 }
 
 // Event 操作

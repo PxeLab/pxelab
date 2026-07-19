@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"syscall"
 	"time"
 )
 
@@ -59,8 +60,8 @@ func (o *PingOptions) applyDefaults() {
 }
 
 var (
-	reWinReply   = regexp.MustCompile(`Reply from [^:]+: bytes=(\d+) time[=<](\d+)ms TTL=(\d+)`)
-	reWinTimeout = regexp.MustCompile(`Request timed out`)
+	reWinReply   = regexp.MustCompile(`(?:bytes|字节)=(\d+)\s+(?:time|时间)[=<](\d+)ms\s+TTL=(\d+)`)
+	reWinTimeout = regexp.MustCompile(`(?:Request timed out|请求超时)`)
 	reLinReply   = regexp.MustCompile(`bytes from [^(]+\((\d+\.\d+\.\d+\.\d+)\): icmp_seq=(\d+) ttl=(\d+) time=([0-9.]+)\s*ms`)
 	reLinTimeout = regexp.MustCompile(`no answer|timeout|100% packet loss`)
 )
@@ -105,6 +106,7 @@ func pingWindows(ctx context.Context, host, ip string, opts PingOptions, onPacke
 	}
 
 	cmd := exec.CommandContext(ctx, "ping", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("启动 ping 失败: %w", err)

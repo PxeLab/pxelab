@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, ChevronDown, ChevronRight, Info, Eye } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight, Info, Eye, History as HistoryIcon } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { Button } from '../components/ui/Button'
@@ -8,7 +8,7 @@ import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Tag } from '../components/ui/Tag'
 import { useToast } from '../components/ui/Toast'
-import { api, getNetbootCatalog, type Profile, type MenuEntry, type NetbootDistro } from '../api/client'
+import { api, getNetbootCatalog, type Profile, type MenuEntry, type NetbootDistro, type ProfileScriptVersion } from '../api/client'
 
 export default function Profiles() {
   const { t } = useTranslation()
@@ -26,6 +26,11 @@ export default function Profiles() {
   const [previewProfile, setPreviewProfile] = useState<Profile | null>(null)
   const [osCatalog, setOSCatalog] = useState<NetbootDistro[]>([])
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [versions, setVersions] = useState<ProfileScriptVersion[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [diffContent, setDiffContent] = useState('')
+  const [showDiff, setShowDiff] = useState(false)
+  const [versionLoading, setVersionLoading] = useState(false)
 
   useEffect(() => { loadProfiles() }, [])
   useEffect(() => {
@@ -110,6 +115,40 @@ export default function Profiles() {
       loadProfiles()
     } catch (err: any) { error(err.message) }
     finally { setSaving(false) }
+  }
+
+  async function loadVersions(profileId: string) {
+    setVersionLoading(true)
+    try {
+      const res = await api.getScriptVersions(profileId)
+      setVersions(res.data || [])
+    } catch { setVersions([]) }
+    finally { setVersionLoading(false) }
+  }
+
+  async function handleDiff(profileId: string, verId: number) {
+    try {
+      const res = await api.getScriptDiff(profileId, verId)
+      setDiffContent(res.data?.diff || '')
+      setShowDiff(true)
+    } catch {}
+  }
+
+  async function handleRollback(profileId: string, verId: number) {
+    try {
+      await api.rollbackScriptVersion(profileId, verId)
+      success(t('profiles.scriptRolledBack'))
+      loadProfiles()
+      // Reload versions and re-open history
+      await loadVersions(profileId)
+    } catch (err: any) { error(err.message) }
+  }
+
+  function openHistory() {
+    if (editing) {
+      setShowHistory(true)
+      loadVersions(editing.id)
+    }
   }
 
   async function handleDelete(id: string) {
@@ -390,6 +429,37 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.ipxeScript')} <span className="text-[var(--text-muted)] font-normal">{t('profiles.scriptHint')}</span></label>
                   <textarea className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-y" rows={6} value={form.entry.script || ''} onChange={e => updateEntry('script', e.target.value)} placeholder={"set keep-san 1\\nsanboot --drive 0x80 http://${next-server}/winpe.iso"} />
+                  {editing && (
+                    <button type="button" onClick={openHistory} className="mt-1.5 flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-blue-400 transition-colors">
+                      <HistoryIcon size={12} />
+                      {t('profiles.scriptHistory')} ({versions.length})
+                    </button>
+                  )}
+                  {!editing && (
+                    <p className="mt-1 text-[10px] text-[var(--text-muted)] italic">{t('profiles.scriptHistory')} — {t('profiles.scriptHistoryEmpty')}</p>
+                  )}
+                  {showHistory && editing && (
+                    <div className="mt-2 border border-[var(--bg-border)] rounded-lg bg-[var(--bg-input)] max-h-48 overflow-y-auto">
+                      {versionLoading ? (
+                        <p className="text-xs text-[var(--text-muted)] p-2">{t('common.loading')}</p>
+                      ) : versions.length === 0 ? (
+                        <p className="text-xs text-[var(--text-muted)] p-2">{t('profiles.scriptHistoryEmpty')}</p>
+                      ) : (
+                        versions.map(v => (
+                          <div key={v.id} className="flex items-center justify-between px-2.5 py-1.5 border-b border-[var(--bg-border)] last:border-b-0">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[11px] font-mono text-[var(--text-muted)]">{new Date(v.created_at).toLocaleString()}</div>
+                              <div className="text-[10px] text-[var(--text-muted)] truncate">{v.comment || '-'}</div>
+                            </div>
+                            <div className="flex items-center gap-1 ml-2 shrink-0">
+                              <button type="button" onClick={() => handleDiff(editing.id, v.id)} className="px-1.5 py-0.5 text-[10px] rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">{t('profiles.scriptDiff')}</button>
+                              <button type="button" onClick={() => handleRollback(editing.id, v.id)} className="px-1.5 py-0.5 text-[10px] rounded bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors">{t('profiles.scriptRollback')}</button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               {form.entry.type === 'wds' && (
@@ -641,6 +711,17 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
             </div>
           )
         })()}
+      </Modal>
+      {/* Diff modal */}
+      <Modal open={showDiff} onClose={() => setShowDiff(false)} title={t('profiles.scriptDiff')} width="620px">
+        <pre className="p-3 bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg text-xs font-mono whitespace-pre-wrap break-all max-h-96 overflow-y-auto leading-relaxed">
+          {diffContent.split('\n').map((line, i) => {
+            let cls = 'text-[var(--text-primary)]'
+            if (line.startsWith('+')) cls = 'text-green-400'
+            else if (line.startsWith('-')) cls = 'text-red-400'
+            return <div key={i} className={cls}>{line || ' '}</div>
+          })}
+        </pre>
       </Modal>
       <ConfirmDialog
         open={!!confirmDeleteId}

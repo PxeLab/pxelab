@@ -46,11 +46,11 @@ func DefaultArchMap() map[int]config.ArchEntry {
 func defaultArchMap() map[int]config.ArchEntry {
 	return map[int]config.ArchEntry{
 		int(iana.INTEL_X86PC):       {IPXE: "ipxe.pxe", PXELinux: "pxelinux.bios"},
-		int(iana.EFI_IA32):          {IPXE: "ipxe32.efi", PXELinux: "pxelinux.efi"},
+		int(iana.EFI_IA32):          {IPXE: "ipxe32.efi", PXELinux: "pxelinux32.efi"},
 		int(iana.EFI_X86_64):        {IPXE: "ipxe.efi", PXELinux: "pxelinux.efi", GRUB: "grubx64.efi"},
-		int(iana.EFI_BC):            {IPXE: "ipxe.efi", PXELinux: "pxelinux.efi", GRUB: "grubx64.efi"},
-		int(iana.EFI_ARM64):         {IPXE: "ipxe-arm64.efi", PXELinux: "pxelinux.efi", GRUB: "grubaa64.efi"},
-		int(iana.EFI_RISCV64):       {IPXE: "ipxe-riscv64.efi", PXELinux: "pxelinux.efi"},
+		int(iana.EFI_BC):            {IPXE: "ipxe.efi", GRUB: "grubx64.efi"},
+		int(iana.EFI_ARM64):         {IPXE: "ipxe-arm64.efi", GRUB: "grubaa64.efi"},
+		int(iana.EFI_RISCV64):       {IPXE: "ipxe-riscv64.efi"},
 	}
 }
 

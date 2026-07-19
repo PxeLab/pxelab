@@ -23,6 +23,7 @@ export default function Hosts() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [newHost, setNewHost] = useState({ name: '', mac: '', ip: '', profile_id: '' })
+  const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([])
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const { pageSize } = useUIConfig()
@@ -30,6 +31,12 @@ export default function Hosts() {
   useEffect(() => {
     loadHosts()
   }, [page, search])
+
+  useEffect(() => {
+    api.getProfiles().then(res => {
+      setProfiles(res.data.map(p => ({ id: p.id, name: p.name })))
+    }).catch(() => {})
+  }, [])
 
   async function loadHosts() {
     setLoading(true)
@@ -146,12 +153,21 @@ export default function Hosts() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">IP {t('hosts.columns.ip')}</label>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.ip')}</label>
               <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="192.168.1.100" value={newHost.ip} onChange={e => setNewHost({...newHost, ip: e.target.value})} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('profiles.title')}</label>
-              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="profile-id" value={newHost.profile_id} onChange={e => setNewHost({...newHost, profile_id: e.target.value})} />
+              <select
+                className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                value={newHost.profile_id}
+                onChange={e => setNewHost({...newHost, profile_id: e.target.value})}
+              >
+                <option value="">—</option>
+                {profiles.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>

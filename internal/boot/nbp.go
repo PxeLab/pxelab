@@ -20,18 +20,24 @@ func NBPFilename(arch iana.Arch, bootloader string) string {
 	}
 }
 
-// pxelinuxFile 从 ArchMap 读取 PXELinux 文件名，缺失时回退到内置默认值。
+// pxelinuxFile 从 ArchMap 读取 PXELinux 文件名。
+// 当该架构没有 PXELinux 文件时（如 ARM64），尝试回退到 GRUB2；
+// 都没有时返回空字符串，DHCP 不下发启动文件。
 func pxelinuxFile(arch iana.Arch) string {
 	if entry, ok := archEntry(arch); ok && entry.PXELinux != "" {
 		return entry.PXELinux
 	}
+	// 没有 PXELinux 时尝试 GRUB fallback（如 ARM64 → grubaa64.efi）
+	if entry, ok := archEntry(arch); ok && entry.GRUB != "" {
+		return entry.GRUB
+	}
 	switch arch {
 	case iana.INTEL_X86PC:
 		return "pxelinux.bios"
-	case iana.EFI_IA32, iana.EFI_X86_64, iana.EFI_BC:
+	case iana.EFI_IA32, iana.EFI_X86_64:
 		return "pxelinux.efi"
 	default:
-		return "pxelinux.efi"
+		return ""
 	}
 }
 

@@ -1,9 +1,12 @@
 ﻿package api
 
 import (
+	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -69,7 +72,175 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	// Auto-create script version snapshot if custom entry script changed
+	if menu, err := profile.GetMenu(); err == nil && len(menu.Entries) > 0 && menu.Entries[0].Type == "custom" {
+		if script := menu.Entries[0].Script; script != nil && *script != "" {
+			h.createScriptVersion(r.Context(), id, *script)
+		}
+	}
 	OK(w, profile)
+}
+
+func scriptChecksum(content string) string {
+	h := sha256.Sum256([]byte(content))
+	return fmt.Sprintf("%x", h[:8])
+}
+
+func (h *ProfileHandler) createScriptVersion(ctx context.Context, profileID, content string) {
+	latest, err := h.store.GetLatestScriptVersion(ctx, profileID)
+	cs := scriptChecksum(content)
+	if err == nil && latest.Checksum == cs {
+		return // content unchanged, skip
+	}
+	_ = h.store.CreateScriptVersion(ctx, &models.ProfileScriptVersion{
+		ProfileID: profileID,
+		Content:   content,
+		Checksum:  cs,
+		Comment:   "auto-saved on profile update",
+	})
+}
+
+func (h *ProfileHandler) ListScriptVersions(w http.ResponseWriter, r *http.Request) {
+	profileID := chi.URLParam(r, "profileId")
+	versions, err := h.store.ListScriptVersions(r.Context(), profileID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	OK(w, versions)
+}
+
+func (h *ProfileHandler) GetScriptVersion(w http.ResponseWriter, r *http.Request) {
+	verID, err := strconv.ParseUint(chi.URLParam(r, "verId"), 10, 64)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "无效的版本 ID")
+		return
+	}
+	ver, err := h.store.GetScriptVersion(r.Context(), uint(verID))
+	if err != nil {
+		Error(w, http.StatusNotFound, "版本未找到")
+		return
+	}
+	OK(w, ver)
+}
+
+func (h *ProfileHandler) DiffScriptVersion(w http.ResponseWriter, r *http.Request) {
+	profileID := chi.URLParam(r, "profileId")
+	verID, err := strconv.ParseUint(chi.URLParam(r, "verId"), 10, 64)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "无效的版本 ID")
+		return
+	}
+	ver, err := h.store.GetScriptVersion(r.Context(), uint(verID))
+	if err != nil {
+		Error(w, http.StatusNotFound, "版本未找到")
+		return
+	}
+	// Current content from profile
+	profile, err := h.store.GetProfile(r.Context(), profileID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "配置未找到")
+		return
+	}
+	menu, _ := profile.GetMenu()
+	current := ""
+	if menu != nil && len(menu.Entries) > 0 && menu.Entries[0].Script != nil {
+		current = *menu.Entries[0].Script
+	}
+	diff := simpleDiff(ver.Content, current)
+	OK(w, map[string]string{"diff": diff})
+}
+
+func (h *ProfileHandler) RollbackScriptVersion(w http.ResponseWriter, r *http.Request) {
+	profileID := chi.URLParam(r, "profileId")
+	verID, err := strconv.ParseUint(chi.URLParam(r, "verId"), 10, 64)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "无效的版本 ID")
+		return
+	}
+	ver, err := h.store.GetScriptVersion(r.Context(), uint(verID))
+	if err != nil {
+		Error(w, http.StatusNotFound, "版本未找到")
+		return
+	}
+	// Update profile's script content to the version content
+	profile, err := h.store.GetProfile(r.Context(), profileID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "配置未找到")
+		return
+	}
+	menu, err := profile.GetMenu()
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if len(menu.Entries) > 0 && menu.Entries[0].Type == "custom" {
+		menu.Entries[0].Script = &ver.Content
+	}
+	if err := profile.SetMenu(menu); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if err := h.store.UpdateProfile(r.Context(), profile); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// Create a version snapshot for the rollback
+	h.createScriptVersion(r.Context(), profileID, ver.Content)
+	OK(w, profile)
+}
+
+// simpleDiff produces a line-by-line diff with "+"/"-"/" " prefixes.
+func simpleDiff(oldText, newText string) string {
+	oldLines := splitLines(oldText)
+	newLines := splitLines(newText)
+	oldMap := make(map[string]int)
+	for _, l := range oldLines {
+		oldMap[l]++
+	}
+	newMap := make(map[string]int)
+	for _, l := range newLines {
+		newMap[l]++
+	}
+	var result string
+	i, j := 0, 0
+	for i < len(oldLines) || j < len(newLines) {
+		if i < len(oldLines) && j < len(newLines) && oldLines[i] == newLines[j] {
+			result += " " + oldLines[i] + "\n"
+			i++
+			j++
+		} else if j < len(newLines) && (i >= len(oldLines) || newMap[newLines[j]] > 0 && oldMap[newLines[j]] == 0) {
+			result += "+" + newLines[j] + "\n"
+			newMap[newLines[j]]--
+			j++
+		} else if i < len(oldLines) {
+			result += "-" + oldLines[i] + "\n"
+			oldMap[oldLines[i]]--
+			i++
+		} else {
+			result += "+" + newLines[j] + "\n"
+			j++
+		}
+	}
+	return result
+}
+
+func splitLines(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var lines []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			lines = append(lines, s[start:i])
+			start = i + 1
+		}
+	}
+	if start < len(s) {
+		lines = append(lines, s[start:])
+	}
+	return lines
 }
 
 func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {

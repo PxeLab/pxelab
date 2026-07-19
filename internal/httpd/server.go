@@ -20,6 +20,7 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/pxelab/pxelab/internal/api"
 	"github.com/pxelab/pxelab/internal/boot"
+	"github.com/pxelab/pxelab/internal/boot/configgen"
 	"github.com/pxelab/pxelab/internal/boot/ipxe"
 	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/models"
@@ -112,38 +113,76 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		w.Write([]byte(script))
 	})
 
-	// 启动文件 HTTP 服务 — 带 chain_to_ipxe 配置文件拦截
+	// 启动文件 HTTP 服务 — 带 chain_to_ipxe 和 Profile 原生配置生成
 	if bootFS != nil {
 		ci := clientInfo // capture for closure
 		cfgLocal := cfg  // capture for closure
+		stLocal := st    // capture for closure
 		r.Get("/boot/*", func(w http.ResponseWriter, r *http.Request) {
 			filePath := chi.URLParam(r, "*")
 			if filePath == "" {
 				filePath = r.URL.Query().Get("path")
 			}
 
-			// chain_to_ipxe：拦截 PXELinux/GRUB2 配置文件，返回 chainload 配置
-			if ci != nil && (filePath == cfgLocal.Boot.PXEConfigFile || filePath == cfgLocal.Boot.GRUBConfigFile) {
+			// PXELinux/GRUB2 配置文件拦截
+			pxeConfigFile := cfgLocal.Boot.PXEConfigFile
+			grubConfigFile := cfgLocal.Boot.GRUBConfigFile
+			isDefaultConfig := filePath == pxeConfigFile || filePath == grubConfigFile
+			configMac := extractPXEMac(filePath, cfgLocal)
+			isConfigFile := isDefaultConfig || configMac != ""
+
+			if isConfigFile {
 				clientIP := r.RemoteAddr
 				if host, _, err := net.SplitHostPort(clientIP); err == nil {
 					clientIP = host
 				}
-				arch, platform, ok := ci(clientIP)
-				if !ok {
-					arch, platform = "x86", "pc"
+
+				// 1. ChainToIPXE 兜底（仅对默认配置）
+				if isDefaultConfig && ci != nil {
+					arch, platform, ok := ci(clientIP)
+					if !ok {
+						arch, platform = "x86", "pc"
+					}
+					if chainToIPXEFallback(cfgLocal, filePath, clientIP) {
+						var config string
+						if filePath == grubConfigFile {
+							config = boot.GRUB2ChainloadConfig(r.Host)
+						} else {
+							config = boot.PXELinuxChainloadConfig(r.Host, arch, platform)
+						}
+						w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+						w.Header().Set("Content-Length", strconv.Itoa(len(config)))
+						w.Write([]byte(config))
+						return
+					}
 				}
 
-				if chainToIPXEFallback(cfgLocal, filePath, clientIP) {
-					var config string
-					if filePath == cfgLocal.Boot.GRUBConfigFile {
-						config = boot.GRUB2ChainloadConfig(r.Host)
-					} else {
-						config = boot.PXELinuxChainloadConfig(r.Host, arch, platform)
+				// 2. Profile 原生配置生成
+				var profile *models.Profile
+				var err error
+				if configMac != "" {
+					host, hErr := stLocal.GetHostByMAC(r.Context(), configMac)
+					if hErr == nil && host != nil && host.ProfileID != nil {
+						profile, err = stLocal.GetProfile(r.Context(), *host.ProfileID)
 					}
-					w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-					w.Header().Set("Content-Length", strconv.Itoa(len(config)))
-					w.Write([]byte(config))
-					return
+				} else {
+					profile, err = stLocal.GetDefaultProfile(r.Context())
+				}
+				if err == nil && profile != nil {
+					menu, mErr := profile.GetMenu()
+					if mErr == nil && menu != nil && len(menu.Entries) > 0 {
+						format := configgen.FormatPXELinux
+						if strings.HasPrefix(filePath, grubConfigFile) || strings.Contains(filePath, grubConfigFile+"-") {
+							format = configgen.FormatGRUB2
+						}
+						cfgStr, cfgErr := configgen.Generate(menu.Entries, format, r.Host, configMac)
+						if cfgErr == nil && cfgStr != "" {
+							w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+							w.Header().Set("Content-Length", strconv.Itoa(len(cfgStr)))
+							w.Write([]byte(cfgStr))
+							return
+						}
+					}
 				}
 			}
 
@@ -338,6 +377,7 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 					var entries []ipxe.MenuEntryData
 					for _, e := range bootMenu.Entries {
 						entry := ipxe.MenuEntryData{
+							Script: ptrStr(e.Script),
 							Label: e.Label,
 							Type:  ipxe.BootType(e.Type),
 							Kernel:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Kernel), serverAddr, mac)),
@@ -403,6 +443,7 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 			entry := bootMenu.Entries[0]
 			makeEntry := func(label string, e models.MenuEntry) ipxe.MenuEntryData {
 				return ipxe.MenuEntryData{
+						Script: ptrStr(e.Script),
 					Label:   label,
 					Type:    ipxe.BootType(e.Type),
 					Kernel:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Kernel), serverAddr, mac)),
@@ -464,6 +505,10 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 		return "", err
 	}
 	return script, nil
+}
+// GenerateBootMenu is the exported wrapper for generateBootMenu, usable by API handlers.
+func GenerateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr string, ctx context.Context) (string, error) {
+	return generateBootMenu(cfg, st, mac, serverAddr, ctx)
 }
 
 //go:embed autoexec.ipxe
@@ -536,11 +581,11 @@ func chainToIPXEFallback(cfg *config.Config, filePath, clientIP string) bool {
 				continue
 			}
 			switch filePath {
-			case "grub2/grub.cfg":
+			case cfg.Boot.GRUBConfigFile:
 				if iface.Bootloader == "grub2" {
 					return true
 				}
-			case "pxelinux.cfg/default":
+			case cfg.Boot.PXEConfigFile:
 				if iface.Bootloader == "pxelinux" {
 					return true
 				}
@@ -640,8 +685,11 @@ func extractPXEMac(filePath string, cfg *config.Config) string {
 		if idx >= 0 {
 			prefix = cfg.Boot.GRUBConfigFile + "-01-"
 		}
-	}
-	if prefix == "" {
+	} else if grubDir := grubConfigDir(cfg.Boot.GRUBConfigFile); grubDir != "" && strings.HasPrefix(filePath, grubDir+"/01-") {
+			// GRUB2 short MAC file: "<grubDir>/01-aa-bb-cc-dd-ee-ff"
+			prefix = grubDir + "/01-"
+		}
+		if prefix == "" {
 		return ""
 	}
 	if !strings.HasPrefix(filePath, prefix) {
@@ -668,6 +716,14 @@ func extractPXEMac(filePath string, cfg *config.Config) string {
 	}
 	// Rejoin with colons for store lookup
 	return strings.Join(parts, ":")
+}
+// grubConfigDir returns the directory portion of a GRUB config file path.
+func grubConfigDir(configPath string) string {
+	idx := strings.LastIndex(configPath, "/")
+	if idx < 0 {
+		return ""
+	}
+	return configPath[:idx]
 }
 
 

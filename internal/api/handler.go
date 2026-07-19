@@ -50,14 +50,13 @@ type Handler struct {
 	Network         *NetworkHandler
 	OSImage         *OSImageHandler
 	Bootloader      *BootloaderHandler
-	Script          *ScriptHandler
 	svcController   ServiceController
 	sessions        *session.Store
 }
 
 func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store, setNFSMountPoints func(mps []config.NFSMountPoint), getNFSConnections func() map[string]NFSConnectionInfo, isServiceRunning func(name string) bool) *Handler {
 	h := &Handler{
-		Host:            &HostHandler{store: st},
+		Host:            &HostHandler{store: st, config: cfg},
 		Profile:         &ProfileHandler{store: st, netbootMgr: netbootMgr},
 		Event:           NewEventHandler(st, bus),
 		File:            &FileHandler{bootFS: bootFS},
@@ -79,7 +78,6 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Network:         &NetworkHandler{},
 		OSImage:         NewOSImageHandler(st, cfg),
 		Bootloader:      NewBootloaderHandler(bootFS),
-		Script:          NewScriptHandler(st, boot.NewScriptManager(bootFS.Root())),
 		svcController:   svcController,
 		sessions:        sessions,
 	}
@@ -107,6 +105,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Delete("/hosts/{id}", h.Host.Delete)
 		r.Post("/hosts/{id}/wake", h.WOL.Wake)
 		r.Post("/hosts/{id}/power", h.IPMI.PowerAction)
+		r.Get("/hosts/{id}/boot-config", h.Host.PreviewBootConfig)
 
 		r.Get("/profiles", h.Profile.List)
 		r.Post("/profiles", h.Profile.Create)
@@ -114,6 +113,10 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/profiles/{id}", h.Profile.Update)
 		r.Delete("/profiles/{id}", h.Profile.Delete)
 		r.Post("/profiles/from-netboot", h.Profile.CreateFromNetboot)
+		r.Get("/profiles/{profileId}/script-versions", h.Profile.ListScriptVersions)
+		r.Get("/profiles/{profileId}/script-versions/{verId}", h.Profile.GetScriptVersion)
+		r.Get("/profiles/{profileId}/script-diff/{verId}", h.Profile.DiffScriptVersion)
+		r.Post("/profiles/{profileId}/script-rollback/{verId}", h.Profile.RollbackScriptVersion)
 
 		r.Get("/files", h.File.List)
 		r.Get("/files/root", h.File.GetRootDir)
@@ -272,15 +275,6 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/bootloader/files", h.Bootloader.List)
 		r.Post("/bootloader/check-file", h.Bootloader.CheckFile)
 
-		// Script editor
-		r.Get("/scripts", h.Script.List)
-		r.Post("/scripts/sync", h.Script.Sync)
-		r.Get("/scripts/{id}", h.Script.Get)
-		r.Put("/scripts/{id}", h.Script.Save)
-		r.Get("/scripts/{id}/versions", h.Script.ListVersions)
-		r.Get("/scripts/{id}/versions/{ver}", h.Script.GetVersion)
-		r.Get("/scripts/{id}/diff/{ver}", h.Script.Diff)
-		r.Post("/scripts/{id}/rollback/{ver}", h.Script.Rollback)
 
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)
