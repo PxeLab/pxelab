@@ -47,8 +47,13 @@ export default function SettingsModal({ open, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return
+    setGeneral(null)
+    setNetboot(null)
+    setLogging(null)
+    setServices([])
     setLoading(true)
     setTokenCopied(false)
+    setSection('general')
     Promise.all([getGeneralSettings(), getNetbootSettings(), getInterfaces(), getServices(), getLoggingSettings()])
       .then(([g, nb, ifaces, svc, log]) => {
         const gen = g.data as unknown as GeneralSettings
