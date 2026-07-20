@@ -69,7 +69,12 @@ func DefaultConfig() *Config {
 			LocalDomain: "pxelab.local",
 		},
 		Log: LogConfig{
-			Level: DefaultLogLevel,
+			Level:           DefaultLogLevel,
+			MaxSizeMB:       100,
+			MaxBackups:      5,
+			MaxAgeDays:      30,
+			Compress:        true,
+			CleanupInterval: 24,
 		},
 		ServiceAutoStart: ServiceAutoStartConfig{
 			HTTP: true,

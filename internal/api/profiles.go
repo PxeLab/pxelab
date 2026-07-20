@@ -57,6 +57,7 @@ func (h *ProfileHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.ID, remoteIP(r), profile.Name)
 	Created(w, profile)
 }
 
@@ -78,6 +79,7 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 			h.createScriptVersion(r.Context(), id, *script)
 		}
 	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "profile", id, remoteIP(r), profile.Name)
 	OK(w, profile)
 }
 
@@ -249,6 +251,7 @@ func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "profile", id, remoteIP(r), "")
 	w.WriteHeader(http.StatusNoContent)
 }
 // CreateFromNetboot creates a profile from a netboot.xyz catalog entry.
@@ -344,5 +347,6 @@ func (h *ProfileHandler) CreateFromNetboot(w http.ResponseWriter, r *http.Reques
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.ID, remoteIP(r), profile.Name+" (from netboot)")
 	Created(w, profile)
 }

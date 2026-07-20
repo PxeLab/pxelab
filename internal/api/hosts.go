@@ -53,6 +53,7 @@ func (h *HostHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "host", host.ID, remoteIP(r), host.Name)
 	Created(w, host)
 }
 
@@ -68,6 +69,7 @@ func (h *HostHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "host", id, remoteIP(r), host.Name)
 	OK(w, host)
 }
 
@@ -77,6 +79,7 @@ func (h *HostHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "host", id, remoteIP(r), "")
 	w.WriteHeader(http.StatusNoContent)
 }
 func (h *HostHandler) PreviewBootConfig(w http.ResponseWriter, r *http.Request) {

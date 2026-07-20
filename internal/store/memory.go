@@ -50,6 +50,8 @@ type memoryStore struct {
 	osImages         map[uint]*models.OSImage
 	osImgIdx         uint
 	scriptVersions   map[uint]*models.ProfileScriptVersion
+	auditLogs        []models.AuditLog
+	auditLogIdx      uint
 }
 
 func NewMemory() Interface {
@@ -1250,5 +1252,67 @@ func (s *memoryStore) DeleteOSImage(_ context.Context, id uint) error {
 		return ErrNotFound
 	}
 	delete(s.osImages, id)
+	return nil
+}
+
+// ── AuditLog ──
+
+func (s *memoryStore) CreateAuditLog(_ context.Context, log *models.AuditLog) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.auditLogIdx++
+	log.ID = fmt.Sprintf("%d", s.auditLogIdx)
+	s.auditLogs = append([]models.AuditLog{*log}, s.auditLogs...)
+	return nil
+}
+
+func (s *memoryStore) ListAuditLogs(_ context.Context, filter AuditLogFilter) ([]models.AuditLog, int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var filtered []models.AuditLog
+	for _, l := range s.auditLogs {
+		if filter.Action != "" && string(l.Action) != filter.Action {
+			continue
+		}
+		if filter.Resource != "" && l.Resource != filter.Resource {
+			continue
+		}
+		if filter.ResourceID != "" && l.ResourceID != filter.ResourceID {
+			continue
+		}
+		if filter.RemoteIP != "" && l.RemoteIP != filter.RemoteIP {
+			continue
+		}
+		if !filter.From.IsZero() && l.Timestamp.Before(filter.From) {
+			continue
+		}
+		if !filter.To.IsZero() && l.Timestamp.After(filter.To) {
+			continue
+		}
+		filtered = append(filtered, l)
+	}
+	total := int64(len(filtered))
+	start := (filter.Page - 1) * filter.Size
+	if start >= len(filtered) {
+		return []models.AuditLog{}, total, nil
+	}
+	end := start + filter.Size
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	return filtered[start:end], total, nil
+}
+
+func (s *memoryStore) PruneAuditLogs(_ context.Context, before time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for _, l := range s.auditLogs {
+		if !l.Timestamp.Before(before) {
+			s.auditLogs[n] = l
+			n++
+		}
+	}
+	s.auditLogs = s.auditLogs[:n]
 	return nil
 }

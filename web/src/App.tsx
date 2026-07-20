@@ -13,6 +13,7 @@ const HostDetail = lazy(() => import('./pages/HostDetail'))
 const Profiles = lazy(() => import('./pages/Profiles'))
 
 const Events = lazy(() => import('./pages/Events'))
+const AuditLogs = lazy(() => import('./pages/AuditLogs'))
 const Logs = lazy(() => import('./pages/Logs'))
 const SettingsLayout = lazy(() => import('./pages/SettingsLayout'))
 const SettingsDHCP = lazy(() => import('./pages/SettingsDHCP'))
@@ -95,6 +96,7 @@ function AppContent() {
           <Route path="/boot-settings" element={<BootSettings />} />
           <Route path="/netboot-catalog" element={<NetbootCatalog />} />
           <Route path="/events" element={<Events />} />
+          <Route path="/audit-logs" element={<AuditLogs />} />
           <Route path="/logs" element={<Logs />} />
           <Route path="/services" element={<SettingsLayout />}>
             <Route index element={<Navigate to="/services/dhcp" replace />} />

@@ -55,6 +55,16 @@ export interface Event {
   timestamp: string
 }
 
+export interface AuditLog {
+  id: string
+  action: string
+  resource: string
+  resource_id: string
+  remote_ip: string
+  detail: string
+  timestamp: string
+}
+
 export interface Lease {
   mac: string
   ip: string
@@ -314,6 +324,11 @@ export function getEvents(params?: Record<string, unknown>): Promise<ApiResponse
   return request('GET', '/events' + buildQuery(params))
 }
 
+// ── Audit Logs ──
+export function getAuditLogs(params?: Record<string, unknown>): Promise<ApiResponse<{ logs: AuditLog[]; meta: { page: number; size: number; total: number } }>> {
+  return request('GET', '/audit-logs' + buildQuery(params))
+}
+
 // ── Files ──
 export function getFiles(dir?: string): Promise<ApiResponse<FileInfo[]>> {
   const q = dir ? '?dir=' + encodeURIComponent(dir) : ''
@@ -526,6 +541,25 @@ export interface NetbootSettingsData {
   catalog_display: BootSettings['catalog_display']
 }
 
+export interface LoggingSettings {
+  max_size_mb: number
+  max_backups: number
+  max_age_days: number
+  compress: boolean
+  cleanup_interval: number
+}
+
+export interface LogFileInfo {
+  name: string
+  size: number
+  mod_time: string
+}
+
+export interface LogDiskUsage {
+  dir: string
+  size_bytes: number
+}
+
 export interface CacheStats {
   path: string
   size_bytes: number
@@ -630,6 +664,27 @@ export function getNetbootSettings(): Promise<ApiResponse<NetbootSettingsData>> 
 
 export function updateNetbootSettings(data: NetbootSettingsData): Promise<ApiResponse<unknown>> {
   return request<unknown>('PUT', '/settings/netboot', data)
+}
+
+// ── Logging Settings ──
+export function getLoggingSettings(): Promise<ApiResponse<LoggingSettings>> {
+  return request<LoggingSettings>('GET', '/settings/logging')
+}
+
+export function updateLoggingSettings(data: LoggingSettings): Promise<ApiResponse<unknown>> {
+  return request<unknown>('PUT', '/settings/logging', data)
+}
+
+export function getLogFiles(): Promise<ApiResponse<{ files: LogFileInfo[]; dir: string }>> {
+  return request('GET', '/logs/files')
+}
+
+export function getLogDiskUsage(): Promise<ApiResponse<LogDiskUsage>> {
+  return request<LogDiskUsage>('GET', '/logs/disk-usage')
+}
+
+export function cleanupLogs(maxAgeDays?: number, maxBackups?: number): Promise<ApiResponse<{ removed: number }>> {
+  return request('POST', '/logs/cleanup', { max_age_days: maxAgeDays || 30, max_backups: maxBackups || 5 })
 }
 
 // ── Netboot Catalog ──
@@ -1486,6 +1541,7 @@ export const api = {
   deleteProfile,
   createProfileFromNetboot,
   getEvents,
+  getAuditLogs,
   getFiles,
   uploadFile,
   deleteFile,
@@ -1563,6 +1619,11 @@ export const api = {
   browseNFSPath,
   getNetbootSettings,
   updateNetbootSettings,
+  getLoggingSettings,
+  updateLoggingSettings,
+  getLogFiles,
+  getLogDiskUsage,
+  cleanupLogs,
   getBMCConfigs,
   getBMCConfig,
   createBMCConfig,

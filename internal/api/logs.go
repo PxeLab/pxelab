@@ -25,6 +25,48 @@ func NewLogStreamHandler(bus *eventbus.Bus, logDir string) *LogStreamHandler {
 	return &LogStreamHandler{eventBus: bus, logDir: logDir}
 }
 
+// ListLogFiles 返回日志目录中的所有文件信息
+func (h *LogStreamHandler) ListLogFiles(w http.ResponseWriter, r *http.Request) {
+	files, err := logbus.ListLogFiles(h.logDir)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "列出日志文件失败")
+		return
+	}
+	OK(w, map[string]any{"files": files, "dir": h.logDir})
+}
+
+// DiskUsage 返回日志目录磁盘用量
+func (h *LogStreamHandler) DiskUsage(w http.ResponseWriter, r *http.Request) {
+	size, err := logbus.LogDirSize(h.logDir)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "查询磁盘用量失败")
+		return
+	}
+	OK(w, map[string]any{"dir": h.logDir, "size_bytes": size})
+}
+
+// CleanupLogs 手动触发日志清理
+func (h *LogStreamHandler) CleanupLogs(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		MaxAgeDays  int `json:"max_age_days"`
+		MaxBackups  int `json:"max_backups"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	if req.MaxAgeDays <= 0 {
+		req.MaxAgeDays = 30
+	}
+	if req.MaxBackups <= 0 {
+		req.MaxBackups = 5
+	}
+	removed, err := logbus.CleanupLogs(h.logDir, req.MaxAgeDays, req.MaxBackups)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "清理日志失败: "+err.Error())
+		return
+	}
+	slog.Info("手动日志清理完成", "service", "HTTP", "removed", removed)
+	OK(w, map[string]any{"removed": removed})
+}
+
 func (h *LogStreamHandler) Stream(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {

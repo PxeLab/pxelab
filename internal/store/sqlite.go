@@ -69,6 +69,7 @@ func (s *sqliteStore) Migrate() error {
 		&models.WOLSchedule{},
 		&models.OSImage{},
 		&models.ProfileScriptVersion{},
+		&models.AuditLog{},
 	)
 }
 
@@ -693,4 +694,43 @@ func (s *sqliteStore) UpdateOSImage(ctx context.Context, img *models.OSImage) er
 
 func (s *sqliteStore) DeleteOSImage(ctx context.Context, id uint) error {
 	return s.db.WithContext(ctx).Delete(&models.OSImage{}, id).Error
+}
+
+// ── AuditLog ──
+
+func (s *sqliteStore) ListAuditLogs(ctx context.Context, filter AuditLogFilter) ([]models.AuditLog, int64, error) {
+	var logs []models.AuditLog
+	var total int64
+	query := s.db.WithContext(ctx).Model(&models.AuditLog{})
+	if filter.Action != "" {
+		query = query.Where("action = ?", filter.Action)
+	}
+	if filter.Resource != "" {
+		query = query.Where("resource = ?", filter.Resource)
+	}
+	if filter.ResourceID != "" {
+		query = query.Where("resource_id = ?", filter.ResourceID)
+	}
+	if filter.RemoteIP != "" {
+		query = query.Where("remote_ip = ?", filter.RemoteIP)
+	}
+	if !filter.From.IsZero() {
+		query = query.Where("timestamp >= ?", filter.From)
+	}
+	if !filter.To.IsZero() {
+		query = query.Where("timestamp <= ?", filter.To)
+	}
+	query.Count(&total)
+	if err := query.Order("timestamp DESC").Offset((filter.Page - 1) * filter.Size).Limit(filter.Size).Find(&logs).Error; err != nil {
+		return nil, 0, err
+	}
+	return logs, total, nil
+}
+
+func (s *sqliteStore) CreateAuditLog(ctx context.Context, log *models.AuditLog) error {
+	return s.db.WithContext(ctx).Create(log).Error
+}
+
+func (s *sqliteStore) PruneAuditLogs(ctx context.Context, before time.Time) error {
+	return s.db.WithContext(ctx).Where("timestamp < ?", before).Delete(&models.AuditLog{}).Error
 }

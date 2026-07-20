@@ -37,6 +37,7 @@
     "profiles": "引导配置",
     "files": "文件管理",
     "events": "事件日志",
+    "auditLogs": "审计日志",
     "logs": "实时日志",
     "services": "服务管理",
     "about": "关于",
@@ -349,6 +350,21 @@
     "pause": "暂停",
     "resume": "继续"
   },
+  "audit": {
+    "title": "审计日志",
+    "searchPlaceholder": "搜索...",
+    "allActions": "全部",
+    "resourceFilter": "资源...",
+    "ipFilter": "IP...",
+    "clearFilters": "清除筛选",
+    "noLogs": "暂无审计日志",
+    "time": "时间",
+    "action": "操作",
+    "resource": "资源",
+    "resourceId": "资源 ID",
+    "remoteIp": "IP",
+    "detail": "详情"
+  },
   "logs": {
     "allServices": "全部",
     "allLevels": "全部",
@@ -613,7 +629,21 @@
     "modalServiceAutoStartHelp": "开启后，对应服务将在 PxeLab 下次启动时自动运行（不影响当前运行状态）。",
     "modalInterfaceServices": "接口级服务（每个网卡独立配置）",
     "modalEnabled": "已开启",
-    "modalDisabled": "已关闭"
+    "modalDisabled": "已关闭",
+    "logging": "日志管理",
+    "loggingHelp": "配置日志文件轮转和清理策略，轮转参数修改后需重启服务生效",
+    "logMaxSize": "单文件最大体积",
+    "logMaxBackups": "保留轮转文件数",
+    "logMaxAge": "日志保留天数",
+    "logCompress": "压缩旧日志",
+    "logCleanupInterval": "自动清理间隔",
+    "logDiskUsage": "磁盘用量",
+    "logDir": "目录",
+    "logTotalSize": "总大小",
+    "logNoFiles": "暂无日志文件",
+    "logCleanupNow": "立即清理",
+    "logCleanupDone": "清理完成",
+    "logCleanupFailed": "清理失败"
   },
   "services": {
     "title": "服务管理",

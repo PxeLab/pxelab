@@ -2,6 +2,7 @@
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -57,6 +58,7 @@ func (h *DHCPReservationHandler) Create(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "dhcp_reservation", fmt.Sprintf("%d", res.ID), remoteIP(r), res.IP)
 	Created(w, res)
 }
 
@@ -80,6 +82,7 @@ func (h *DHCPReservationHandler) Update(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), res.IP)
 	OK(w, res)
 }
 
@@ -128,5 +131,6 @@ func (h *DHCPReservationHandler) Delete(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), "")
 	w.WriteHeader(http.StatusNoContent)
 }

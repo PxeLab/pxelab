@@ -644,6 +644,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.reloader.ReloadSubnets()
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "full update")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -800,6 +801,7 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "general")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -977,6 +979,7 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 		h.reloader.ReloadSubnets()
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "interfaces")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1030,6 +1033,7 @@ func (h *SettingsHandler) UpdateTFTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "tftp")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1080,6 +1084,7 @@ func (h *SettingsHandler) UpdateArchMap(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "archmap")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1169,6 +1174,7 @@ func (h *SettingsHandler) UpdateDHCP(w http.ResponseWriter, r *http.Request) {
 		h.reloader.ReloadSubnets()
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "dhcp")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1218,6 +1224,7 @@ func (h *SettingsHandler) UpdateDNS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "dns")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1301,6 +1308,7 @@ func (h *SettingsHandler) UpdateNFS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "nfs")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1477,6 +1485,7 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "netboot")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1549,6 +1558,71 @@ func convertMenuEntriesFromAPI(entries []MenuEntrySettings) []config.MenuEntry {
 	}
 	return result
 }
+
+// ── 日志管理设置 ──
+
+type LoggingSettingsResponse struct {
+	MaxSizeMB       int  `json:"max_size_mb"`
+	MaxBackups      int  `json:"max_backups"`
+	MaxAgeDays      int  `json:"max_age_days"`
+	Compress        bool `json:"compress"`
+	CleanupInterval int  `json:"cleanup_interval"`
+}
+
+func (h *SettingsHandler) GetLoggingSettings(w http.ResponseWriter, r *http.Request) {
+	h.mu.Lock()
+	cfg := h.cfg
+	h.mu.Unlock()
+
+	resp := LoggingSettingsResponse{
+		MaxSizeMB:       cfg.Log.MaxSizeMB,
+		MaxBackups:      cfg.Log.MaxBackups,
+		MaxAgeDays:      cfg.Log.MaxAgeDays,
+		Compress:        cfg.Log.Compress,
+		CleanupInterval: cfg.Log.CleanupInterval,
+	}
+	OK(w, resp)
+}
+
+func (h *SettingsHandler) UpdateLoggingSettings(w http.ResponseWriter, r *http.Request) {
+	var req LoggingSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	// 参数校验
+	if req.MaxSizeMB < 0 {
+		req.MaxSizeMB = 0
+	}
+	if req.MaxBackups < 0 {
+		req.MaxBackups = 0
+	}
+	if req.MaxAgeDays < 0 {
+		req.MaxAgeDays = 0
+	}
+	if req.CleanupInterval < 0 {
+		req.CleanupInterval = 0
+	}
+
+	h.mu.Lock()
+	h.cfg.Log.MaxSizeMB = req.MaxSizeMB
+	h.cfg.Log.MaxBackups = req.MaxBackups
+	h.cfg.Log.MaxAgeDays = req.MaxAgeDays
+	h.cfg.Log.Compress = req.Compress
+	h.cfg.Log.CleanupInterval = req.CleanupInterval
+	cfg := h.cfg
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(cfg), cfg); err != nil {
+		slog.Error("保存日志配置失败", "service", "HTTP", "error", err)
+		Error(w, http.StatusInternalServerError, "保存配置失败")
+		return
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "logging")
+	OK(w, map[string]any{"message": "日志设置已保存，轮转参数将在服务重启后生效"})
+}
+
 func saveConfig(path string, cfg *config.Config) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {

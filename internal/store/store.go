@@ -31,6 +31,7 @@ type Interface interface {
 	DHCPReservationStore
 	WOLStore
 	OSImageStore
+	AuditLogStore
 	Close() error
 	Migrate() error
 	Seed() error
@@ -177,4 +178,21 @@ type DHCPReservationStore interface {
 	CreateDHCPReservation(ctx context.Context, r *models.DHCPReservation) error
 	UpdateDHCPReservation(ctx context.Context, r *models.DHCPReservation) error
 	DeleteDHCPReservation(ctx context.Context, id uint) error
+}
+
+type AuditLogStore interface {
+	ListAuditLogs(ctx context.Context, filter AuditLogFilter) ([]models.AuditLog, int64, error)
+	CreateAuditLog(ctx context.Context, log *models.AuditLog) error
+	PruneAuditLogs(ctx context.Context, before time.Time) error
+}
+
+type AuditLogFilter struct {
+	Action     string
+	Resource   string
+	ResourceID string
+	RemoteIP   string
+	From       time.Time
+	To         time.Time
+	Page       int
+	Size       int
 }

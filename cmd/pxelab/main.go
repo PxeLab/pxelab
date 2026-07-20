@@ -126,6 +126,13 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 		slog.NewTextHandler(logWriters, &slog.HandlerOptions{Level: logLevel}),
 		bus,
 		logDir,
+		logbus.RotatingConfig{
+			MaxSizeMB:    cfg.Log.MaxSizeMB,
+			MaxBackups:   cfg.Log.MaxBackups,
+			MaxAgeDays:   cfg.Log.MaxAgeDays,
+			Compress:     cfg.Log.Compress,
+			CleanupHours: cfg.Log.CleanupInterval,
+		},
 	)))
 
 	buildVer := Version

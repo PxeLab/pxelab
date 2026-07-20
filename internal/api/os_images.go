@@ -83,6 +83,7 @@ func (h *OSImageHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "os_image", strconv.FormatUint(id, 10), remoteIP(r), "")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -151,6 +152,7 @@ func (h *OSImageHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go h.processImage(img.ID, dst)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "os_image", strconv.FormatUint(uint64(img.ID), 10), remoteIP(r), filename)
 	Created(w, img)
 }
 

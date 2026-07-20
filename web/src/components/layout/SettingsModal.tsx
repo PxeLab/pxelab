@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { X, Save, Copy, Check, RotateCw, Settings as SettingsIcon, Monitor, FileCode, Activity } from 'lucide-react'
+import { X, Save, Copy, Check, RotateCw, Settings as SettingsIcon, Monitor, FileCode, Activity, HardDrive } from 'lucide-react'
 import { Toggle } from '../../components/ui/Toggle'
 import { Button } from '../../components/ui/Button'
 import { useToast } from '../../components/ui/Toast'
@@ -11,7 +11,10 @@ import {
   getNetbootSettings, updateNetbootSettings,
   getInterfaces, getServices, updateAutoStart,
   getCacheStats,
+  getLoggingSettings, updateLoggingSettings,
+  getLogFiles, getLogDiskUsage, cleanupLogs,
   type GeneralSettings, type NetbootSettingsData, type InterfaceInfo, type ServiceInfo, type CacheStats,
+  type LoggingSettings, type LogFileInfo,
 } from '../../api/client'
 
 interface Props {
@@ -19,7 +22,7 @@ interface Props {
   onClose: () => void
 }
 
-type Section = 'general' | 'boot' | 'netboot' | 'services'
+type Section = 'general' | 'boot' | 'netboot' | 'services' | 'logging'
 
 interface NavItem {
   key: Section
@@ -39,20 +42,22 @@ export default function SettingsModal({ open, onClose }: Props) {
   const [general, setGeneral] = useState<GeneralSettings | null>(null)
   const [netboot, setNetboot] = useState<NetbootSettingsData | null>(null)
   const [services, setServices] = useState<ServiceInfo[]>([])
+  const [logging, setLogging] = useState<LoggingSettings | null>(null)
   const [originalDataDir, setOriginalDataDir] = useState('')
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
     setTokenCopied(false)
-    Promise.all([getGeneralSettings(), getNetbootSettings(), getInterfaces(), getServices()])
-      .then(([g, nb, ifaces, svc]) => {
+    Promise.all([getGeneralSettings(), getNetbootSettings(), getInterfaces(), getServices(), getLoggingSettings()])
+      .then(([g, nb, ifaces, svc, log]) => {
         const gen = g.data as unknown as GeneralSettings
         setGeneral(gen)
         setOriginalDataDir(gen.data_dir || '')
         setNetboot(nb.data as unknown as NetbootSettingsData)
         setAvailableIfaces(ifaces.data as unknown as InterfaceInfo[])
         setServices(svc.data as unknown as ServiceInfo[])
+        setLogging(log.data as unknown as LoggingSettings)
       })
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -79,6 +84,7 @@ export default function SettingsModal({ open, onClose }: Props) {
       const promises: Promise<unknown>[] = []
       if (general) promises.push(updateGeneralSettings(general))
       if (netboot) promises.push(updateNetbootSettings(netboot))
+      if (logging) promises.push(updateLoggingSettings(logging))
       await Promise.all(promises)
       if (general?.page_size) setPageSize(general.page_size)
       success(t('settings.saved'))
@@ -96,6 +102,7 @@ export default function SettingsModal({ open, onClose }: Props) {
     { key: 'boot', label: t('nav.settings.bootMenu'), icon: FileCode },
     { key: 'netboot', label: t('nav.settings.netboot'), icon: Monitor },
     { key: 'services', label: t('settings.modalServiceAutoStart'), icon: Activity },
+    { key: 'logging', label: t('settings.logging', '日志管理'), icon: HardDrive },
   ]
 
   return createPortal(
@@ -152,6 +159,7 @@ export default function SettingsModal({ open, onClose }: Props) {
                 {section === 'boot' && general && <BootForm config={general} onChange={setGeneral} />}
                 {section === 'netboot' && netboot && <NetbootForm data={netboot} onChange={setNetboot} />}
                 {section === 'services' && services.length > 0 && <ServicesForm services={services} onReload={async () => { try { const res = await getServices(); setServices(res.data as unknown as ServiceInfo[]) } catch {} }} />}
+                {section === 'logging' && logging && <LoggingForm config={logging} onChange={setLogging} />}
               </>
             )}
           </div>
@@ -497,5 +505,119 @@ function SettingsField({ label, children }: { label: string; children: React.Rea
       <span className="text-sm text-[var(--text-secondary)] shrink-0 w-32">{label}</span>
       <div className="flex-1">{children}</div>
     </label>
+  )
+}
+
+// ── Logging Settings ──
+
+function LoggingForm({ config, onChange }: { config: LoggingSettings; onChange: (c: LoggingSettings) => void }) {
+  const { t } = useTranslation()
+  const { success, error: showError } = useToast()
+  const inputCls = 'w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500'
+  const [files, setFiles] = useState<LogFileInfo[]>([])
+  const [diskSize, setDiskSize] = useState(0)
+  const [logDir, setLogDir] = useState('')
+  const [loadingFiles, setLoadingFiles] = useState(true)
+  const [cleaning, setCleaning] = useState(false)
+
+  const fetchLogInfo = useCallback(async () => {
+    setLoadingFiles(true)
+    try {
+      const [filesRes, usageRes] = await Promise.all([getLogFiles(), getLogDiskUsage()])
+      setFiles((filesRes.data as any)?.files || [])
+      setDiskSize((usageRes.data as any)?.size_bytes || 0)
+      setLogDir((usageRes.data as any)?.dir || '')
+    } catch { /* ignore */ }
+    setLoadingFiles(false)
+  }, [])
+
+  useEffect(() => { fetchLogInfo() }, [fetchLogInfo])
+
+  const fmtBytes = (b: number) => {
+    if (b === 0) return '0 B'
+    const u = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(b) / Math.log(1024))
+    return (b / Math.pow(1024, i)).toFixed(1) + ' ' + u[i]
+  }
+
+  const handleCleanup = async () => {
+    setCleaning(true)
+    try {
+      const res = await cleanupLogs(config.max_age_days || 30, config.max_backups || 5)
+      const removed = (res.data as any)?.removed || 0
+      success(t('settings.logCleanupDone', `已清理 ${removed} 个文件`))
+      await fetchLogInfo()
+    } catch (e: any) {
+      showError(e?.message || t('settings.logCleanupFailed', '清理失败'))
+    }
+    setCleaning(false)
+  }
+
+  return (
+    <div className="p-6 space-y-4">
+      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('settings.logging', '日志管理')}</h3>
+      <p className="text-xs text-[var(--text-muted)]">{t('settings.loggingHelp', '配置日志文件轮转和清理策略，轮转参数修改后需重启服务生效')}</p>
+
+      <SettingsField label={t('settings.logMaxSize', '单文件最大体积')}>
+        <div className="flex items-center gap-2">
+          <input type="number" min={1} value={config.max_size_mb}
+            onChange={e => onChange({...config, max_size_mb: parseInt(e.target.value) || 100})}
+            className={inputCls} />
+          <span className="text-xs text-[var(--text-muted)] shrink-0">MB</span>
+        </div>
+      </SettingsField>
+
+      <SettingsField label={t('settings.logMaxBackups', '保留轮转文件数')}>
+        <input type="number" min={0} value={config.max_backups}
+          onChange={e => onChange({...config, max_backups: parseInt(e.target.value) || 5})}
+          className={inputCls} />
+      </SettingsField>
+
+      <SettingsField label={t('settings.logMaxAge', '日志保留天数')}>
+        <input type="number" min={0} value={config.max_age_days}
+          onChange={e => onChange({...config, max_age_days: parseInt(e.target.value) || 30})}
+          className={inputCls} />
+      </SettingsField>
+
+      <label className="flex items-center justify-between gap-4 py-2 border-b border-[var(--bg-border)]">
+        <span className="text-sm text-[var(--text-secondary)]">{t('settings.logCompress', '压缩旧日志')}</span>
+        <Toggle checked={config.compress} onChange={v => onChange({...config, compress: v})} />
+      </label>
+
+      <SettingsField label={t('settings.logCleanupInterval', '自动清理间隔')}>
+        <div className="flex items-center gap-2">
+          <input type="number" min={0} value={config.cleanup_interval}
+            onChange={e => onChange({...config, cleanup_interval: parseInt(e.target.value) || 24})}
+            className={inputCls} />
+          <span className="text-xs text-[var(--text-muted)] shrink-0">h</span>
+        </div>
+      </SettingsField>
+
+      {/* 当前磁盘用量 */}
+      <div className="pt-3 border-t border-[var(--bg-border)]">
+        <h4 className="text-xs font-semibold text-[var(--text-primary)] mb-2">{t('settings.logDiskUsage', '磁盘用量')}</h4>
+        {logDir && <p className="text-xs text-[var(--text-muted)] mb-2">{t('settings.logDir', '目录')}: <code className="text-[var(--text-secondary)]">{logDir}</code></p>}
+        <p className="text-xs text-[var(--text-muted)] mb-3">{t('settings.logTotalSize', '总大小')}: <span className="text-[var(--text-secondary)] font-semibold">{fmtBytes(diskSize)}</span></p>
+
+        {loadingFiles ? (
+          <span className="text-xs text-[var(--text-muted)]">{t('settings.loading')}</span>
+        ) : files.length > 0 ? (
+          <div className="space-y-1">
+            {files.map(f => (
+              <div key={f.name} className="flex items-center justify-between text-xs py-1">
+                <span className="text-[var(--text-secondary)] font-mono">{f.name}</span>
+                <span className="text-[var(--text-muted)]">{fmtBytes(f.size)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-[var(--text-muted)]">{t('settings.logNoFiles', '暂无日志文件')}</p>
+        )}
+
+        <Button variant="secondary" size="sm" className="mt-3" onClick={handleCleanup} disabled={cleaning}>
+          {cleaning ? t('settings.loading') : t('settings.logCleanupNow', '立即清理')}
+        </Button>
+      </div>
+    </div>
   )
 }

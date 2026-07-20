@@ -37,6 +37,7 @@
     "profiles": "Boot Profiles",
     "files": "Files",
     "events": "Event Log",
+    "auditLogs": "Audit Logs",
     "logs": "Live Logs",
     "services": "Services",
     "about": "About",
@@ -349,6 +350,21 @@
     "pause": "Pause",
     "resume": "Resume"
   },
+  "audit": {
+    "title": "Audit Logs",
+    "searchPlaceholder": "Search...",
+    "allActions": "All",
+    "resourceFilter": "Resource...",
+    "ipFilter": "IP...",
+    "clearFilters": "Clear Filters",
+    "noLogs": "No audit logs",
+    "time": "Time",
+    "action": "Action",
+    "resource": "Resource",
+    "resourceId": "Resource ID",
+    "remoteIp": "IP",
+    "detail": "Detail"
+  },
   "logs": {
     "allServices": "All",
     "allLevels": "All",
@@ -613,7 +629,21 @@
     "modalServiceAutoStartHelp": "When enabled, the service will auto-start on next PxeLab launch (does not affect current state).",
     "modalInterfaceServices": "Interface-level Services (configured per NIC)",
     "modalEnabled": "Enabled",
-    "modalDisabled": "Disabled"
+    "modalDisabled": "Disabled",
+    "logging": "Log Management",
+    "loggingHelp": "Configure log file rotation and cleanup. Rotation changes take effect after restart.",
+    "logMaxSize": "Max File Size",
+    "logMaxBackups": "Max Backups",
+    "logMaxAge": "Retention Days",
+    "logCompress": "Compress Old Logs",
+    "logCleanupInterval": "Auto Cleanup Interval",
+    "logDiskUsage": "Disk Usage",
+    "logDir": "Directory",
+    "logTotalSize": "Total Size",
+    "logNoFiles": "No log files",
+    "logCleanupNow": "Cleanup Now",
+    "logCleanupDone": "Cleanup complete",
+    "logCleanupFailed": "Cleanup failed"
   },
   "services": {
     "title": "Services",

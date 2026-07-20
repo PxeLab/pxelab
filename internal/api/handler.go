@@ -50,6 +50,7 @@ type Handler struct {
 	Network         *NetworkHandler
 	OSImage         *OSImageHandler
 	Bootloader      *BootloaderHandler
+	AuditLog        *AuditLogHandler
 	svcController   ServiceController
 	sessions        *session.Store
 }
@@ -78,6 +79,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Network:         &NetworkHandler{},
 		OSImage:         NewOSImageHandler(st, cfg),
 		Bootloader:      NewBootloaderHandler(bootFS),
+		AuditLog:        NewAuditLogHandler(st),
 		svcController:   svcController,
 		sessions:        sessions,
 	}
@@ -97,6 +99,10 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/events", h.Event.List)
 		r.Get("/events/stream", h.Event.Stream)
 		r.Get("/logs/stream", h.Logs.Stream)
+		r.Get("/logs/files", h.Logs.ListLogFiles)
+		r.Get("/logs/disk-usage", h.Logs.DiskUsage)
+		r.Post("/logs/cleanup", h.Logs.CleanupLogs)
+		r.Get("/audit-logs", h.AuditLog.List)
 
 		r.Get("/hosts", h.Host.List)
 		r.Post("/hosts", h.Host.Create)
@@ -149,6 +155,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/services/nfs/browse-path", h.Settings.BrowseNFSPath)
 		r.Get("/settings/netboot", h.Settings.GetNetboot)
 		r.Put("/settings/netboot", h.Settings.UpdateNetboot)
+		r.Get("/settings/logging", h.Settings.GetLoggingSettings)
+		r.Put("/settings/logging", h.Settings.UpdateLoggingSettings)
 		r.Get("/netboot/cache-stats", h.Settings.GetCacheStats)
 		// Keep monolithic endpoint for backward compat
 		r.Get("/settings", h.Settings.Get)

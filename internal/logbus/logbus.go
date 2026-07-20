@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -24,21 +23,33 @@ type LogEntry struct {
 }
 
 type BusHandler struct {
-	next    slog.Handler
-	bus     *eventbus.Bus
-	logDir  string
-	files   map[string]*os.File
-	fileMu  sync.Mutex
-	closed  bool
-	attrs   []slog.Attr // 来自 WithAttrs 的预置属性
+	next        slog.Handler
+	bus         *eventbus.Bus
+	logDir      string
+	files       map[string]*RotatingFile
+	fileMu      sync.Mutex
+	closed      bool
+	attrs       []slog.Attr // 来自 WithAttrs 的预置属性
+	rotCfg      RotatingConfig
 }
 
-func NewBusHandler(next slog.Handler, bus *eventbus.Bus, logDir string) *BusHandler {
+// NewBusHandler 创建日志处理器。
+// rotCfg 提供轮转配置；若 Dir/BaseName 为空则使用 logDir 和默认命名。
+func NewBusHandler(next slog.Handler, bus *eventbus.Bus, logDir string, rotCfg ...RotatingConfig) *BusHandler {
+	cfg := RotatingConfig{
+		Dir:      logDir,
+		Compress: true,
+	}
+	if len(rotCfg) > 0 {
+		cfg = rotCfg[0]
+		cfg.Dir = logDir
+	}
 	h := &BusHandler{
 		next:   next,
 		bus:    bus,
 		logDir: logDir,
-		files:  make(map[string]*os.File),
+		files:  make(map[string]*RotatingFile),
+		rotCfg: cfg,
 	}
 	if logDir != "" {
 		os.MkdirAll(logDir, 0755)
@@ -109,7 +120,6 @@ func (h *BusHandler) Handle(ctx context.Context, r slog.Record) error {
 func (h *BusHandler) writeServiceLog(entry LogEntry) {
 	// 服务名转小写文件名
 	fname := strings.ToLower(entry.Service) + ".log"
-	fpath := filepath.Join(h.logDir, fname)
 
 	h.fileMu.Lock()
 	defer h.fileMu.Unlock()
@@ -118,14 +128,19 @@ func (h *BusHandler) writeServiceLog(entry LogEntry) {
 		return
 	}
 
-	f, ok := h.files[fname]
+	rf, ok := h.files[fname]
 	if !ok {
+		cfg := h.rotCfg
+		cfg.BaseName = fname
+		if cfg.Dir == "" {
+			cfg.Dir = h.logDir
+		}
 		var err error
-		f, err = os.OpenFile(fpath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		rf, err = NewRotatingFile(cfg)
 		if err != nil {
 			return
 		}
-		h.files[fname] = f
+		h.files[fname] = rf
 	}
 
 	// 格式: 时间 LEVEL  message  key=value ...
@@ -152,7 +167,7 @@ func (h *BusHandler) writeServiceLog(entry LogEntry) {
 	}
 	b.WriteByte('\n')
 
-	f.WriteString(b.String())
+	rf.Write([]byte(b.String()))
 }
 
 // Close 关闭所有打开的日志文件
@@ -160,8 +175,8 @@ func (h *BusHandler) Close() {
 	h.fileMu.Lock()
 	defer h.fileMu.Unlock()
 	h.closed = true
-	for name, f := range h.files {
-		f.Close()
+	for name, rf := range h.files {
+		rf.Close()
 		delete(h.files, name)
 	}
 }
@@ -195,9 +210,10 @@ func (h *BusHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		logDir: h.logDir,
 		files:  h.files,
 		attrs:  merged,
+		rotCfg: h.rotCfg,
 	}
 }
 
 func (h *BusHandler) WithGroup(name string) slog.Handler {
-	return &BusHandler{next: h.next.WithGroup(name), bus: h.bus, logDir: h.logDir, files: h.files, attrs: h.attrs}
+	return &BusHandler{next: h.next.WithGroup(name), bus: h.bus, logDir: h.logDir, files: h.files, attrs: h.attrs, rotCfg: h.rotCfg}
 }

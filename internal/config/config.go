@@ -186,9 +186,14 @@ type StoreConfig struct {
 }
 
 type LogConfig struct {
-	Level  string `yaml:"level" mapstructure:"level"`
-	Format string `yaml:"format" mapstructure:"format"`
-	File   string `yaml:"file" mapstructure:"file"` // 日志文件路径，为空则不写文件
+	Level           string `yaml:"level" mapstructure:"level"`
+	Format          string `yaml:"format" mapstructure:"format"`
+	File            string `yaml:"file" mapstructure:"file"`                               // 日志文件路径，为空则不写文件
+	MaxSizeMB       int    `yaml:"max_size_mb" mapstructure:"max_size_mb"`                 // 单文件最大体积 (MB)，0=不限制
+	MaxBackups      int    `yaml:"max_backups" mapstructure:"max_backups"`                 // 保留轮转文件数，0=不限制
+	MaxAgeDays      int    `yaml:"max_age_days" mapstructure:"max_age_days"`               // 保留天数，0=不限制
+	Compress        bool   `yaml:"compress" mapstructure:"compress"`                       // 是否 gzip 压缩旧日志
+	CleanupInterval int    `yaml:"cleanup_interval" mapstructure:"cleanup_interval"`       // 清理检查间隔（小时），0=不自动清理
 }
 
 func (c *Config) Validate() error {

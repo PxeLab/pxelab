@@ -103,6 +103,7 @@ func (h *DNSRecordHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "dns_record", strconv.FormatUint(uint64(rec.ID), 10), remoteIP(r), rec.Name)
 	Created(w, rec)
 }
 
@@ -126,6 +127,7 @@ func (h *DNSRecordHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dns_record", strconv.FormatUint(uint64(rec.ID), 10), remoteIP(r), rec.Name)
 	OK(w, rec)
 }
 
@@ -139,5 +141,6 @@ func (h *DNSRecordHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "dns_record", strconv.FormatUint(uint64(id), 10), remoteIP(r), "")
 	w.WriteHeader(http.StatusNoContent)
 }

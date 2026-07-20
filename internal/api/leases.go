@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/store"
 )
 
@@ -129,6 +130,7 @@ func (h *LeaseHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "lease", mac, remoteIP(r), mac)
 	OK(w, map[string]string{"message": "lease deleted"})
 }
 
@@ -158,6 +160,7 @@ func (h *LeaseHandler) BatchDelete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "lease", "", remoteIP(r), "batch")
 
 	result := map[string]interface{}{
 		"success_count": len(req.MACs) - len(failed),

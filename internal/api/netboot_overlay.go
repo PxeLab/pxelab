@@ -44,6 +44,7 @@ func (h *NetbootOverlayHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "netboot_overlay", distro, remoteIP(r), "")
 	OK(w, overlay)
 }
 
@@ -53,5 +54,6 @@ func (h *NetbootOverlayHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "netboot_overlay", distro, remoteIP(r), "")
 	w.WriteHeader(http.StatusNoContent)
 }
