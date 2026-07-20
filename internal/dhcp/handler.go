@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
+	"github.com/insomniacslk/dhcp/iana"
 	"github.com/pxelab/pxelab/internal/boot"
 	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/eventbus"
@@ -361,8 +362,6 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 		nextServer = serverIP
 	}
 
-	bootloader := h.bootloaderForSubnet(subnetCfg)
-
 	// 从匹配的子网确定 DHCP 模式
 	dhcpMode := subnetCfg.DHCP
 	if dhcpMode == "" {
@@ -379,9 +378,9 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	var reply *dhcpv4.DHCPv4
 	switch mt {
 	case dhcpv4.MessageTypeDiscover:
-		reply = h.handleDiscover(pkt, dhcpMode, serverIP, nextServer, subnetCfg, bootloader, isIPXE)
+		reply = h.handleDiscover(pkt, dhcpMode, serverIP, nextServer, subnetCfg, "", isIPXE)
 	case dhcpv4.MessageTypeRequest:
-		reply = h.handleRequest(pkt, dhcpMode, serverIP, nextServer, subnetCfg, bootloader, isIPXE)
+		reply = h.handleRequest(pkt, dhcpMode, serverIP, nextServer, subnetCfg, "", isIPXE)
 	}
 
 	if reply != nil {
@@ -479,7 +478,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	dhcpTracker.RecordArch(archStr)
 	dhcpTracker.RecordPlatform(platformStr)
 
-	// iPXE 第二阶段：返回脚本 URL 而非启动文件
+	// iPXE 第一阶段：返回脚本 URL 而非启动文件
 	if isIPXE {
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.BootFileName = scriptURL
@@ -502,16 +501,24 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		return reply
 	}
 
-	// PXE ROM 客户端：提供启动文件 + Option 175.178（iPXE 启动后读取缓存）
+	// PXE ROM 客户端：使用架构驱动的 NBP 解析
 	scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+	arch, ok := DetectClientArch(pkt)
+
+	// 使用新的架构驱动 NBP 解析
+	var bootFile string
+	if ok {
+		bootFile, _ = h.resolveNBPForClient(arch)
+	} else {
+		// 无法检测架构，使用 iPXE 默认
+		bootFile = "ipxe.pxe"
+	}
 
 	switch mode {
 	case "proxy":
 	appendProxyPXEOptions(reply, serverIP, nextServer)
 	reply.YourIPAddr = net.IP{0, 0, 0, 0}
-	if arch, ok := DetectClientArch(pkt); ok {
-		reply.BootFileName = boot.NBPFilename(arch, bootloader)
-	}
+	reply.BootFileName = bootFile
 	reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	dhcpTracker.IncOffer()
 	if subnetCfg.CIDR != "" {
@@ -527,12 +534,10 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		}
 		reply.YourIPAddr = ip
 		appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
-		if arch, ok := DetectClientArch(pkt); ok {
-			reply.BootFileName = boot.NBPFilename(arch, bootloader)
-		}
+		reply.BootFileName = bootFile
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 		dhcpTracker.IncOffer()
-		slog.Info("DHCP Offer", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
+		slog.Info("DHCP Offer", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode, "bootfile", reply.BootFileName)
 	}
 
 	return reply
@@ -557,8 +562,10 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 			return reply
 		}
 		appendProxyPXEOptions(reply, serverIP, nextServer)
+		// 使用架构驱动的 NBP 解析
 		if arch, ok := DetectClientArch(pkt); ok {
-			reply.BootFileName = boot.NBPFilename(arch, bootloader)
+			bootFile, _ := h.resolveNBPForClient(arch)
+			reply.BootFileName = bootFile
 		}
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
@@ -582,13 +589,15 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 		reply.BootFileName = scriptURL
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	} else if arch, ok := DetectClientArch(pkt); ok {
-		reply.BootFileName = boot.NBPFilename(arch, bootloader)
+		// 使用架构驱动的 NBP 解析
+		bootFile, _ := h.resolveNBPForClient(arch)
+		reply.BootFileName = bootFile
 		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
 		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
 	}
 
 	dhcpTracker.IncAck()
-	slog.Info("DHCP Ack", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName, "bootloader", bootloader)
+	slog.Info("DHCP Ack", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName)
 	return reply
 }
 
@@ -606,6 +615,19 @@ func (h *Handler) bootloaderForSubnet(target *config.SubnetConfig) string {
 		}
 	}
 	return "ipxe"
+}
+
+// resolveNBPForClient 根据客户端架构和全局 ArchMap 配置，解析最终的引导文件。
+// 返回 bootFile（DHCP 响应中的引导文件名）和 chainLoadTarget（链式加载目标，可为空）。
+func (h *Handler) resolveNBPForClient(arch iana.Arch) (bootFile string, chainLoadTarget string) {
+	archMap := boot.GetArchMap()
+	entry, ok := archMap[int(arch)]
+	if !ok {
+		// 未知架构，使用 iPXE 默认
+		bootFile = boot.BootFileForArch(arch)
+		return bootFile, ""
+	}
+	return boot.ResolveNBP(arch, entry)
 }
 
 // GetClientByIP returns the client architecture info for the given IP address.

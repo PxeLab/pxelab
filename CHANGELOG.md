@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- **完整 iPXE 架构支持**：新增 ARM32、RISC-V 32/64、LoongArch32/64 架构的 iPXE 二进制文件
+- **Secure Boot 支持**：为 x86_64 和 ARM64 架构添加 UEFI Secure Boot 支持（shim + 签名 iPXE）
+- **LoongArch IANA 常量**：定义 `EFI_LOONGARCH32` (0x25) 和 `EFI_LOONGARCH64` (0x27) 常量
+- **架构配置 UI**：Boot Settings 页面新增 Secure Boot 列，显示安全启动支持状态
 - NFS 多挂载点支持：每个挂载点独立配置标签、导出路径（客户端挂载别名）、本地目录、只读权限和 IP/CIDR 白名单
 - NFS 设置页面 UI 重写：动态挂载点卡片列表，支持添加/删除挂载点
 - NFS 单元测试覆盖：`parseAllowIPs`、`findEntry`、`isAllowed` 多挂载点逻辑
@@ -20,12 +24,18 @@
 - DNS 服务启动时重新读取配置，上游 DNS 变更不再需要重启进程
 
 ### Changed
+- **NBP 架构重构**：架构（Option 93）作为 NBP 选择的主要依据，移除接口/子网级别的 bootloader 字段
+- **EFI_BC 使用 snponly.efi**：修复 EFI_BC 架构的引导文件，从 `ipxe.efi` 改为正确的 `snponly.efi`
+- **ArchEntry 结构体扩展**：新增 `SecureBoot`、`IPXESB`、`Shim` 字段支持安全启动配置
+- **API 响应扩展**：`ArchEntryResponse` 新增 `secure_boot`、`ipxe_sb`、`shim` 字段
 - NFS 配置结构重构：`root_dir`/`read_only`/`allow_ips` 迁移为 `mount_points[]` 数组，旧格式自动兼容
 - NFS API 响应格式变更：`NFSSettingsData` 返回 `mount_points` 替代原有的 `root_dir`/`read_only`/`allow_ips`
 - NFS 挂载路径匹配改用 `path.Clean`（始终正斜杠），修复 Windows 上 NFS 路径分隔符问题
 - Netboot 默认启用 HTTPS 代理（ProxyHTTPS）和本地缓存（CacheEnabled）
 
 ### Fixed
+- **RISC-V 64 二进制文件缺失**：修复 archMap 中 RISC-V 64 条目指向不存在的文件问题
+- **LoongArch 架构支持缺失**：添加完整的龙芯架构支持，包括 DHCP 架构检测
 - NFS 导出路径在 Windows 上使用反斜杠导致客户端挂载失败（改用 `path.Clean` 统一正斜杠）
 - GParted 引导失败：替换 live_endpoint 为本地 HTTP 代理地址，禁用签名校验
 - 保存 netboot 设置时丢失 CatalogDisplay.Groups 配置

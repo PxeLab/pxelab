@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Power, PowerOff, RefreshCw, Activity, Zap, HardDrive, Wifi, FileText } from 'lucide-react'
+import { ArrowLeft, Power, PowerOff, RefreshCw, Activity, HardDrive, Wifi, FileText } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -172,9 +172,6 @@ export default function HostDetail() {
           <Button variant="secondary" size="sm" onClick={handlePreviewBootConfig} disabled={bootConfigLoading}>
             <FileText size={14} /> {bootConfigLoading ? '...' : t('hosts.detail.bootConfig')}
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => handlePower('status')}>
-            <Zap size={14} /> {t('hosts.detail.wake')}
-          </Button>
           <Button variant="secondary" size="sm" onClick={doWOLWake} disabled={wakingWOL}>
             <Wifi size={14} /> {wakingWOL ? '...' : t('hosts.detail.wolWake')}
           </Button>
@@ -217,17 +214,21 @@ export default function HostDetail() {
               { action: 'off', label: t('hosts.detail.powerOff'), icon: PowerOff, color: 'text-red-400 hover:border-red-500/30' },
               { action: 'cycle', label: t('hosts.detail.powerRestart'), icon: RefreshCw, color: 'text-yellow-400 hover:border-yellow-500/30' },
               { action: 'status', label: t('hosts.detail.powerStatus'), icon: Activity, color: 'text-blue-400 hover:border-blue-500/30' },
-            ].map(({ action, label, icon: Icon, color }) => (
-              <button
-                key={action}
-                onClick={() => handlePower(action)}
-                disabled={powerLoading === action}
-                className={`flex flex-col items-center gap-2 py-4 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] cursor-pointer transition-all hover:bg-[var(--bg-hover)] disabled:opacity-50 ${color}`}
-              >
-                <Icon size={22} />
-                <span className="text-xs font-semibold text-[var(--text-secondary)]">{label}</span>
-              </button>
-            ))}
+            ].map(({ action, label, icon: Icon, color }) => {
+              const bmcMissing = !host.bmc_addr
+              return (
+                <button
+                  key={action}
+                  onClick={() => handlePower(action)}
+                  disabled={powerLoading === action || bmcMissing}
+                  title={bmcMissing ? t('hosts.detail.bmcNotConfigured', 'BMC 未配置') : undefined}
+                  className={`flex flex-col items-center gap-2 py-4 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] cursor-pointer transition-all hover:bg-[var(--bg-hover)] disabled:opacity-40 disabled:cursor-not-allowed ${bmcMissing ? '' : color}`}
+                >
+                  <Icon size={22} />
+                  <span className="text-xs font-semibold text-[var(--text-secondary)]">{label}</span>
+                </button>
+              )
+            })}
           </div>
         </Card>
       </div>

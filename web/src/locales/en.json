@@ -34,7 +34,7 @@
     },
     "dashboard": "Dashboard",
     "hosts": "Hosts",
-    "profiles": "Boot Profiles",
+    "profiles": "Boot Menu",
     "files": "Files",
     "events": "Event Log",
     "auditLogs": "Audit Logs",
@@ -50,7 +50,7 @@
     "wol": "Wake-on-LAN",
     "osImages": "OS Images",
     "network": "Network Diagnostics",
-    "bootSettings": "Boot Settings"
+    "bootSettings": "Boot Files"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1124,10 +1124,22 @@
     "title": "Boot Settings",
     "archMap": "Architecture Boot File Mapping",
     "archMapHint": "PXE client architecture to boot file mapping",
+    "nbpConfig": "NBP Configuration",
+    "nbpConfigHint": "Configure Network Bootstrap Program (NBP) for each architecture. The selected NBP determines which bootloader is served to PXE clients.",
     "arch": "Architecture",
     "archCode": "Code",
+    "nbpType": "NBP Type",
+    "chainLoad": "Chain Load",
+    "secureBoot": "Secure Boot",
+    "supported": "Supported",
+    "bootFile": "Boot File",
+    "fileStatus": "Status",
     "editHint": "Edit the mapping freely. Changes take effect after saving.",
     "notSupported": "Not supported",
-    "fallbackGrub": "Falls back to GRUB"
+    "fallbackGrub": "Falls back to GRUB",
+    "willFallback": "Will fallback at runtime",
+    "notNative": "Not native support",
+    "toIPXE": "to iPXE",
+    "nbpHint": "NBP Type determines the initial bootloader. Chain Load option enables loading iPXE after the initial bootloader for full menu support."
   }
 }

@@ -31,11 +31,6 @@ func GetArchMap() map[int]config.ArchEntry {
 	return m
 }
 
-// ArchName 返回 IANA 架构编号对应的可读名称。
-func ArchName(code int) string {
-	return iana.Arch(code).String()
-}
-
 // DefaultArchMap 返回内置默认的架构→启动文件映射表（纯默认值，不含用户覆盖）。
 func DefaultArchMap() map[int]config.ArchEntry {
 	return defaultArchMap()
@@ -43,14 +38,25 @@ func DefaultArchMap() map[int]config.ArchEntry {
 
 // defaultArchMap 返回内置默认的架构→启动文件映射表。
 // 当用户没有在 config.yaml 中配置 arch_map 时使用。
+// 默认所有架构使用 iPXE，NBP 类型决定使用哪种引导加载器。
+// 完整支持 iPXE v2.0.0 发布包中的所有架构。
 func defaultArchMap() map[int]config.ArchEntry {
 	return map[int]config.ArchEntry{
-		int(iana.INTEL_X86PC):       {IPXE: "ipxe.pxe", PXELinux: "pxelinux.bios"},
-		int(iana.EFI_IA32):          {IPXE: "ipxe32.efi", PXELinux: "pxelinux32.efi"},
-		int(iana.EFI_X86_64):        {IPXE: "ipxe.efi", PXELinux: "pxelinux.efi", GRUB: "grubx64.efi"},
-		int(iana.EFI_BC):            {IPXE: "ipxe.efi", GRUB: "grubx64.efi"},
-		int(iana.EFI_ARM64):         {IPXE: "ipxe-arm64.efi", GRUB: "grubaa64.efi"},
-		int(iana.EFI_RISCV64):       {IPXE: "ipxe-riscv64.efi"},
+		// BIOS 架构
+		int(iana.INTEL_X86PC): {NBP: "ipxe", IPXE: "ipxe.pxe", PXELinux: "pxelinux.bios"},
+
+		// EFI 架构
+		int(iana.EFI_IA32):    {NBP: "ipxe", IPXE: "ipxe32.efi", PXELinux: "pxelinux32.efi"},
+		int(iana.EFI_X86_64):  {NBP: "ipxe", IPXE: "ipxe.efi", PXELinux: "pxelinux.efi", GRUB: "grubx64.efi", SecureBoot: true, IPXESB: "ipxe-x86_64-sb.efi", Shim: "shim-x86_64.efi"},
+		int(iana.EFI_BC):      {NBP: "ipxe", IPXE: "snponly.efi", GRUB: "grubx64.efi"},
+		int(iana.EFI_ARM32):   {NBP: "ipxe", IPXE: "ipxe-arm32.efi"},
+		int(iana.EFI_ARM64):   {NBP: "ipxe", IPXE: "ipxe-arm64.efi", GRUB: "grubaa64.efi", SecureBoot: true, IPXESB: "ipxe-arm64-sb.efi", Shim: "shim-arm64.efi"},
+		int(iana.EFI_RISCV32): {NBP: "ipxe", IPXE: "ipxe-riscv32.efi"},
+		int(iana.EFI_RISCV64): {NBP: "ipxe", IPXE: "ipxe-riscv64.efi"},
+
+		// LoongArch 架构（insomniacslk/dhcp 库未定义，使用自定义常量）
+		int(EFI_LOONGARCH32): {NBP: "ipxe", IPXE: "ipxe-loong64.efi"}, // LoongArch32 使用 64 位二进制
+		int(EFI_LOONGARCH64): {NBP: "ipxe", IPXE: "ipxe-loong64.efi"},
 	}
 }
 

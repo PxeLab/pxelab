@@ -1,9 +1,57 @@
 package boot
 
-import "github.com/insomniacslk/dhcp/iana"
+import (
+	"github.com/insomniacslk/dhcp/iana"
+	"github.com/pxelab/pxelab/internal/config"
+)
 
-// NBPFilename 根据架构和引导加载器类型返回 NBP 文件名
+// ResolveNBP 根据客户端架构和 ArchEntry 配置，解析最终的引导文件和链式加载目标。
+// 返回值：
+//   - bootFile: DHCP 响应中的引导文件名
+//   - chainLoadTarget: 如果需要链式加载，返回 iPXE 文件名；否则为空
+//
+// 决策逻辑：
+//  1. NBP="ipxe" → 直接返回 IPXE 文件，无链式加载
+//  2. NBP="pxelinux" 且 ChainLoad=true → 返回 PXELinux 文件，chainLoadTarget=IPXE 文件
+//  3. NBP="pxelinux" 且 ChainLoad=false → 仅返回 PXELinux 文件
+//  4. NBP="grub2" 同理
+func ResolveNBP(arch iana.Arch, entry config.ArchEntry) (bootFile string, chainLoadTarget string) {
+	nbp := entry.NBP
+	if nbp == "" {
+		nbp = "ipxe" // 默认 iPXE
+	}
+
+	switch nbp {
+	case "pxelinux":
+		bootFile = entry.PXELinux
+		if bootFile == "" {
+			bootFile = pxelinuxFile(arch) // 从内置默认值获取
+		}
+		if entry.ChainLoad && entry.IPXE != "" {
+			chainLoadTarget = entry.IPXE
+		}
+	case "grub2":
+		bootFile = entry.GRUB
+		if bootFile == "" {
+			bootFile = grubFile(arch) // 从内置默认值获取
+		}
+		if entry.ChainLoad && entry.IPXE != "" {
+			chainLoadTarget = entry.IPXE
+		}
+	default: // "ipxe" 或未知类型
+		bootFile = entry.IPXE
+		if bootFile == "" {
+			bootFile = BootFileForArch(arch) // 从内置默认值获取
+		}
+	}
+
+	return bootFile, chainLoadTarget
+}
+
+// NBPFilename 根据架构和引导加载器类型返回 NBP 文件名（兼容旧接口）
 // bootloader: "ipxe"（默认）, "pxelinux", "grub2", "undionly"
+//
+// Deprecated: 新代码应使用 ResolveNBP()。
 func NBPFilename(arch iana.Arch, bootloader string) string {
 	switch bootloader {
 	case "pxelinux":

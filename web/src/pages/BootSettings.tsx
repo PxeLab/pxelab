@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { RefreshCw, CheckCircle, XCircle, Save, RotateCcw, AlertTriangle, ArrowRight } from 'lucide-react'
+import { RefreshCw, CheckCircle, XCircle, Save, RotateCcw, ArrowRight } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { api, type BootloaderCheckResult, type ArchEntryData, type BootFileInfo } from '../api/client'
 
+// NBP 类型选项
+const NBP_OPTIONS = [
+  { value: 'ipxe', label: 'iPXE' },
+  { value: 'pxelinux', label: 'PXELinux' },
+  { value: 'grub2', label: 'GRUB2' },
+]
+
 // 各引导加载器的原生架构支持情况
-// native  = 该引导加载器有此架构的原生构建
-// fallback = PXELinux 不支持该架构，运行时回退到 GRUB
-// unsupported = 无原生构建，无回退
 const BOOTLOADER_SUPPORT: Record<string, Record<number, 'native' | 'fallback' | 'unsupported'>> = {
   pxelinux: {
     0: 'native',   // BIOS → pxelinux.bios
@@ -69,8 +73,21 @@ export default function BootSettings() {
     finally { setArchLoading(false) }
   }
 
-  function updateEntry(code: number, field: 'ipxe' | 'pxelinux' | 'grub', value: string) {
-    setArchEntries(prev => prev.map(e => e.arch_code === code ? { ...e, [field]: value } : e))
+  function updateEntry(code: number, field: keyof ArchEntryData, value: string | boolean) {
+    setArchEntries(prev => prev.map(e => {
+      if (e.arch_code !== code) return e
+      const updated = { ...e, [field]: value }
+      // NBP 变更时自动更新引导文件名
+      if (field === 'nbp') {
+        updated.ipxe = getDefaultIPXE(code)
+        if (value === 'pxelinux') {
+          updated.pxelinux = getDefaultPXELinux(code)
+        } else if (value === 'grub2') {
+          updated.grub = getDefaultGRUB(code)
+        }
+      }
+      return updated
+    }))
   }
 
   async function saveArchMap() {
@@ -150,12 +167,12 @@ export default function BootSettings() {
         )}
       </Card>
 
-      {/* ── 可编辑架构映射表（含文件状态） ── */}
+      {/* ── 架构引导配置 ── */}
       <Card padding={false}>
         <div className="p-4 border-b border-[var(--bg-border)] flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">{t('bootSettings.archMap')}</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-1">{t('bootSettings.archMapHint')}</p>
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">{t('bootSettings.nbpConfig')}</h2>
+            <p className="text-xs text-[var(--text-muted)] mt-1">{t('bootSettings.nbpConfigHint')}</p>
           </div>
           <div className="flex items-center gap-2">
             {saveMsg && (
@@ -184,102 +201,206 @@ export default function BootSettings() {
                 <tr className="text-left text-xs font-semibold text-[var(--text-secondary)] border-b border-[var(--bg-border)]">
                   <th className="px-4 py-3">{t('bootSettings.arch')}</th>
                   <th className="px-4 py-3">{t('bootSettings.archCode')}</th>
-                  <th className="px-4 py-3">iPXE</th>
-                  <th className="px-4 py-3">PXELinux</th>
-                  <th className="px-4 py-3">GRUB2</th>
+                  <th className="px-4 py-3">{t('bootSettings.nbpType')}</th>
+                  <th className="px-4 py-3">{t('bootSettings.chainLoad')}</th>
+                  <th className="px-4 py-3">{t('bootSettings.secureBoot', 'Secure Boot')}</th>
+                  <th className="px-4 py-3">{t('bootSettings.bootFile')}</th>
+                  <th className="px-4 py-3">{t('bootSettings.fileStatus')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--bg-border)]">
                 {archEntries.map(e => (
-                  <tr key={e.arch_code} className="hover:bg-[var(--bg-hover)]/30">
-                    <td className="px-4 py-3 text-[var(--text-primary)] font-mono text-xs">{e.arch_name}</td>
-                    <td className="px-4 py-3 text-[var(--text-secondary)] font-mono text-xs">{e.arch_code}</td>
-                    <td className="px-4 py-2">
-                      <EditableCell
-                        value={e.ipxe}
-                        files={checkResult?.files ?? []}
-                        onChange={v => updateEntry(e.arch_code, 'ipxe', v)}
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <EditableCell
-                        value={e.pxelinux}
-                        hint={BOOTLOADER_SUPPORT.pxelinux[e.arch_code]}
-                        files={checkResult?.files ?? []}
-                        onChange={v => updateEntry(e.arch_code, 'pxelinux', v)}
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <EditableCell
-                        value={e.grub}
-                        hint={BOOTLOADER_SUPPORT.grub[e.arch_code]}
-                        files={checkResult?.files ?? []}
-                        onChange={v => updateEntry(e.arch_code, 'grub', v)}
-                      />
-                    </td>
-                  </tr>
+                  <ArchRow
+                    key={e.arch_code}
+                    entry={e}
+                    files={checkResult?.files ?? []}
+                    onUpdate={(field, value) => updateEntry(e.arch_code, field, value)}
+                  />
                 ))}
               </tbody>
             </table>
           </div>
         )}
         <div className="p-4 bg-[var(--bg-card)] border-t border-[var(--bg-border)]">
-          <p className="text-xs text-[var(--text-muted)]">{t('bootSettings.editHint')}</p>
+          <p className="text-xs text-[var(--text-muted)]">{t('bootSettings.nbpHint')}</p>
         </div>
       </Card>
     </div>
   )
 }
 
-/** 单个文件名输入框 + 下方文件状态行 + 兼容性提示 */
-function EditableCell({ value, hint, files, onChange }: {
-  value: string
-  hint?: 'native' | 'fallback' | 'unsupported'
+/** 架构行：NBP 选择 + 链式加载 + 引导文件 */
+function ArchRow({ entry, files, onUpdate }: {
+  entry: ArchEntryData
   files: BootFileInfo[]
-  onChange: (v: string) => void
+  onUpdate: (field: keyof ArchEntryData, value: string | boolean) => void
 }) {
   const { t } = useTranslation()
-  const info = value ? findFileInfo(files, value) : undefined
+  const nbp = entry.nbp || 'ipxe'
+  const chainLoad = entry.chain_load || false
+  const support = nbp === 'pxelinux' ? BOOTLOADER_SUPPORT.pxelinux[entry.arch_code]
+    : nbp === 'grub2' ? BOOTLOADER_SUPPORT.grub[entry.arch_code]
+    : 'native'
+
+  // 获取当前 NBP 对应的引导文件名
+  const bootFile = nbp === 'pxelinux' ? entry.pxelinux
+    : nbp === 'grub2' ? entry.grub
+    : entry.ipxe
+
+  // 获取链式加载目标
+  const chainTarget = chainLoad ? entry.ipxe : ''
+
+  const fileInfo = bootFile ? findFileInfo(files, bootFile) : undefined
+  const chainFileInfo = chainTarget ? findFileInfo(files, chainTarget) : undefined
+
   return (
-    <div className="flex flex-col gap-1">
-      <input
-        className={`w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-blue-500 ${hint && hint !== 'native' ? 'border-dashed border-[var(--bg-border)] opacity-60' : 'border-[var(--bg-border)]'}`}
-        value={value}
-        onChange={v => onChange(v.target.value)}
-      />
-      {value && info && (
-        <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)]">
-          {info.present
-            ? <CheckCircle size={10} className="text-green-400 shrink-0" />
-            : <XCircle size={10} className={info.required ? 'text-red-400' : 'text-yellow-400'} />
-          }
-          <span className="font-mono">{info.present ? formatSize(info.size ?? 0) : '-'}</span>
-          <span className="font-mono max-w-[72px] truncate shrink-0" title={'SHA-256: ' + info.checksum}>
-            {info.checksum ? info.checksum.substring(0, 8) : '-'}
-          </span>
-        </div>
-      )}
-      {value && !info && (
-        <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
-          <XCircle size={10} className="text-yellow-400 shrink-0" />
-          <span>-</span>
-        </div>
-      )}
-      {!value && hint === 'fallback' && (
-        <div className="flex items-center gap-1 text-[10px] text-blue-400">
-          <ArrowRight size={10} className="shrink-0" />
-          <span>{t('bootSettings.fallbackGrub', '回退到 GRUB')}</span>
-        </div>
-      )}
-      {!value && hint === 'unsupported' && (
-        <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] italic">
-          <AlertTriangle size={10} className="shrink-0" />
-          <span>{t('bootSettings.notSupported', '不支持此引导加载器')}</span>
-        </div>
-      )}
-      {!value && !hint && (
-        <div className="text-[10px] text-[var(--text-muted)]">-</div>
-      )}
+    <tr className="hover:bg-[var(--bg-hover)]/30">
+      <td className="px-4 py-3 text-[var(--text-primary)] font-mono text-xs">{entry.arch_name}</td>
+      <td className="px-4 py-3 text-[var(--text-secondary)] font-mono text-xs">{entry.arch_code}</td>
+
+      {/* NBP 类型选择 */}
+      <td className="px-4 py-2">
+        <select
+          className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500"
+          value={nbp}
+          onChange={v => onUpdate('nbp', v.target.value)}
+        >
+          {NBP_OPTIONS.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        {support === 'fallback' && (
+          <div className="flex items-center gap-1 text-[10px] text-blue-400 mt-1">
+            <ArrowRight size={10} />
+            <span>{t('bootSettings.willFallback', '运行时自动回退')}</span>
+          </div>
+        )}
+        {support === 'unsupported' && (
+          <div className="flex items-center gap-1 text-[10px] text-yellow-400 mt-1">
+            <span>{t('bootSettings.notNative', '非原生支持')}</span>
+          </div>
+        )}
+      </td>
+
+      {/* 链式加载开关 */}
+      <td className="px-4 py-2">
+        {nbp === 'ipxe' ? (
+          <span className="text-xs text-[var(--text-muted)]">-</span>
+        ) : (
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="w-4 h-4 rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500"
+              checked={chainLoad}
+              onChange={v => onUpdate('chain_load', v.target.checked)}
+            />
+            <span className="text-xs text-[var(--text-secondary)]">{t('bootSettings.toIPXE', '到 iPXE')}</span>
+          </label>
+        )}
+      </td>
+
+      {/* Secure Boot 支持 */}
+      <td className="px-4 py-2">
+        {entry.secure_boot ? (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[10px] text-green-400">
+              <CheckCircle size={10} />
+              <span>{t('bootSettings.supported', '支持')}</span>
+            </div>
+            {entry.ipxe_sb && (
+              <div className="text-[10px] text-[var(--text-muted)] font-mono">{entry.ipxe_sb}</div>
+            )}
+            {entry.shim && (
+              <div className="text-[10px] text-[var(--text-muted)] font-mono">{entry.shim}</div>
+            )}
+          </div>
+        ) : (
+          <span className="text-xs text-[var(--text-muted)]">-</span>
+        )}
+      </td>
+
+      {/* 引导文件名（可编辑） */}
+      <td className="px-4 py-2">
+        <input
+          className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
+          value={bootFile}
+          onChange={v => {
+            if (nbp === 'pxelinux') onUpdate('pxelinux', v.target.value)
+            else if (nbp === 'grub2') onUpdate('grub', v.target.value)
+            else onUpdate('ipxe', v.target.value)
+          }}
+        />
+        {chainLoad && chainTarget && (
+          <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] mt-1">
+            <ArrowRight size={10} />
+            <span className="font-mono">{chainTarget}</span>
+          </div>
+        )}
+      </td>
+
+      {/* 文件状态 */}
+      <td className="px-4 py-2">
+        <FileStatus info={fileInfo} />
+        {chainLoad && chainTarget && (
+          <div className="mt-1">
+            <FileStatus info={chainFileInfo} />
+          </div>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+/** 文件状态指示器 */
+function FileStatus({ info }: { info?: BootFileInfo }) {
+  if (!info) {
+    return (
+      <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+        <XCircle size={10} className="text-yellow-400" />
+        <span>-</span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)]">
+      {info.present
+        ? <CheckCircle size={10} className="text-green-400 shrink-0" />
+        : <XCircle size={10} className={info.required ? 'text-red-400' : 'text-yellow-400'} />
+      }
+      <span className="font-mono">{info.present ? formatSize(info.size ?? 0) : '-'}</span>
     </div>
   )
+}
+
+// ── 默认引导文件名 ──
+
+function getDefaultIPXE(archCode: number): string {
+  switch (archCode) {
+    case 0: return 'ipxe.pxe'         // BIOS x86
+    case 6: return 'ipxe32.efi'       // EFI IA32
+    case 7: case 9: return 'ipxe.efi' // EFI x86_64 / EFI BC
+    case 10: return 'ipxe-arm32.efi'  // EFI ARM32
+    case 11: return 'ipxe-arm64.efi'  // EFI ARM64
+    case 25: return 'ipxe-riscv32.efi' // EFI RISC-V 32
+    case 27: return 'ipxe-riscv64.efi' // EFI RISC-V 64
+    case 37: case 39: return 'ipxe-loong64.efi' // LoongArch
+    default: return 'ipxe.pxe'
+  }
+}
+
+function getDefaultPXELinux(archCode: number): string {
+  switch (archCode) {
+    case 0: return 'pxelinux.bios'
+    case 6: return 'pxelinux32.efi'
+    case 7: return 'pxelinux.efi'
+    default: return ''
+  }
+}
+
+function getDefaultGRUB(archCode: number): string {
+  switch (archCode) {
+    case 7: case 9: return 'grubx64.efi'
+    case 11: return 'grubaa64.efi'
+    default: return ''
+  }
 }

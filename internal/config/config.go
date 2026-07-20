@@ -128,10 +128,21 @@ type NetbootPathConfig struct {
 
 // ArchEntry 定义单个 PXE 架构的引导文件映射
 type ArchEntry struct {
+	// NBP 类型：决定使用哪种引导加载器（"ipxe" | "pxelinux" | "grub2"）
+	NBP string `yaml:"nbp" mapstructure:"nbp"`
+	// ChainLoad 是否链式加载到 iPXE（仅当 NBP 为 pxelinux 或 grub2 时有效）
+	ChainLoad bool `yaml:"chain_load" mapstructure:"chain_load"`
+
+	// 引导文件名（根据 NBP 类型自动填充，也可手动覆盖）
 	IPXE       string `yaml:"ipxe" mapstructure:"ipxe"`
 	PXELinux   string `yaml:"pxelinux" mapstructure:"pxelinux"`
 	GRUB       string `yaml:"grub" mapstructure:"grub"`
 	GRUBConfig string `yaml:"grub_config" mapstructure:"grub_config"`
+
+	// Secure Boot 支持
+	SecureBoot bool   `yaml:"secure_boot" mapstructure:"secure_boot"`
+	IPXESB     string `yaml:"ipxe_sb" mapstructure:"ipxe_sb"` // Secure Boot 签名的 iPXE 二进制文件
+	Shim       string `yaml:"shim" mapstructure:"shim"`       // UEFI Shim（用于 Secure Boot 启动链）
 }
 
 type BootConfig struct {

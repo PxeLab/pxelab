@@ -606,10 +606,17 @@ export function updateTFTPSettings(data: TFTPSettingsData): Promise<ApiResponse<
 export interface ArchEntryData {
   arch_code: number
   arch_name: string
+  nbp: string         // "ipxe" | "pxelinux" | "grub2"
+  chain_load: boolean // 是否链式加载到 iPXE
   ipxe: string
   pxelinux: string
   grub: string
   grub_config: string
+
+  // Secure Boot 支持
+  secure_boot: boolean
+  ipxe_sb: string
+  shim: string
 }
 
 export interface ArchMapData {

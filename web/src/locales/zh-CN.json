@@ -34,7 +34,7 @@
     },
     "dashboard": "仪表板",
     "hosts": "主机管理",
-    "profiles": "引导配置",
+    "profiles": "引导菜单",
     "files": "文件管理",
     "events": "事件日志",
     "auditLogs": "审计日志",
@@ -50,7 +50,7 @@
     "wol": "唤醒管理",
     "osImages": "系统镜像",
     "network": "网络诊断",
-    "bootSettings": "引导设置"
+    "bootSettings": "引导文件"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -1124,10 +1124,22 @@
     "title": "引导设置",
     "archMap": "架构引导文件映射",
     "archMapHint": "PXE 客户端架构与引导文件的对应关系",
+    "nbpConfig": "NBP 配置",
+    "nbpConfigHint": "为每个架构配置网络引导程序（NBP）。选择的 NBP 决定为 PXE 客户端提供哪个引导加载器。",
     "arch": "架构",
     "archCode": "代码",
+    "nbpType": "NBP 类型",
+    "chainLoad": "链式加载",
+    "secureBoot": "安全启动",
+    "supported": "支持",
+    "bootFile": "引导文件",
+    "fileStatus": "状态",
     "editHint": "可自由编辑映射关系，保存后立即生效",
     "notSupported": "不支持此引导加载器",
-    "fallbackGrub": "回退到 GRUB"
+    "fallbackGrub": "回退到 GRUB",
+    "willFallback": "运行时自动回退",
+    "notNative": "非原生支持",
+    "toIPXE": "到 iPXE",
+    "nbpHint": "NBP 类型决定初始引导加载器。链式加载选项可在初始引导加载器后加载 iPXE 以支持完整菜单。"
   }
 }

@@ -219,10 +219,17 @@ type TFTPSettingsResponse struct {
 type ArchEntryResponse struct {
 	ArchCode   int    `json:"arch_code"`
 	ArchName   string `json:"arch_name"`
+	NBP        string `json:"nbp"`         // "ipxe" | "pxelinux" | "grub2"
+	ChainLoad  bool   `json:"chain_load"`  // 是否链式加载到 iPXE
 	IPXE       string `json:"ipxe"`
 	PXELinux   string `json:"pxelinux"`
 	GRUB       string `json:"grub"`
 	GRUBConfig string `json:"grub_config"`
+
+	// Secure Boot 支持
+	SecureBoot bool   `json:"secure_boot"`
+	IPXESB     string `json:"ipxe_sb"`
+	Shim       string `json:"shim"`
 }
 
 // ArchMapResponse 完整的架构映射表
@@ -1074,10 +1081,15 @@ func (h *SettingsHandler) GetArchMap(w http.ResponseWriter, r *http.Request) {
 		entries = append(entries, ArchEntryResponse{
 			ArchCode:   code,
 			ArchName:   boot.ArchName(code),
+			NBP:        entry.NBP,
+			ChainLoad:  entry.ChainLoad,
 			IPXE:       entry.IPXE,
 			PXELinux:   entry.PXELinux,
 			GRUB:       entry.GRUB,
 			GRUBConfig: entry.GRUBConfig,
+			SecureBoot: entry.SecureBoot,
+			IPXESB:     entry.IPXESB,
+			Shim:       entry.Shim,
 		})
 	}
 	slices.SortFunc(entries, func(a, b ArchEntryResponse) int {
@@ -1096,10 +1108,15 @@ func (h *SettingsHandler) UpdateArchMap(w http.ResponseWriter, r *http.Request) 
 	archMap := make(map[int]config.ArchEntry, len(req.Entries))
 	for _, e := range req.Entries {
 		archMap[e.ArchCode] = config.ArchEntry{
+			NBP:        e.NBP,
+			ChainLoad:  e.ChainLoad,
 			IPXE:       e.IPXE,
 			PXELinux:   e.PXELinux,
 			GRUB:       e.GRUB,
 			GRUBConfig: e.GRUBConfig,
+			SecureBoot: e.SecureBoot,
+			IPXESB:     e.IPXESB,
+			Shim:       e.Shim,
 		}
 	}
 
@@ -1125,10 +1142,15 @@ func (h *SettingsHandler) GetArchMapDefaults(w http.ResponseWriter, _ *http.Requ
 		entries = append(entries, ArchEntryResponse{
 			ArchCode:   code,
 			ArchName:   boot.ArchName(code),
+			NBP:        entry.NBP,
+			ChainLoad:  entry.ChainLoad,
 			IPXE:       entry.IPXE,
 			PXELinux:   entry.PXELinux,
 			GRUB:       entry.GRUB,
 			GRUBConfig: entry.GRUBConfig,
+			SecureBoot: entry.SecureBoot,
+			IPXESB:     entry.IPXESB,
+			Shim:       entry.Shim,
 		})
 	}
 	slices.SortFunc(entries, func(a, b ArchEntryResponse) int {

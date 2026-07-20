@@ -7,6 +7,7 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/iana"
+	"github.com/pxelab/pxelab/internal/boot"
 )
 
 // BuildPXEOptions 构建 PXE 相关的 DHCP 选项
@@ -102,10 +103,16 @@ func ArchString(arch iana.Arch) string {
 		return "i386"
 	case iana.EFI_X86_64, iana.EFI_BC:
 		return "x86_64"
+	case iana.EFI_ARM32:
+		return "arm32"
 	case iana.EFI_ARM64:
 		return "arm64"
+	case iana.EFI_RISCV32:
+		return "riscv32"
 	case iana.EFI_RISCV64:
 		return "riscv64"
+	case boot.EFI_LOONGARCH32, boot.EFI_LOONGARCH64:
+		return "loong64"
 	default:
 		return "x86"
 	}
