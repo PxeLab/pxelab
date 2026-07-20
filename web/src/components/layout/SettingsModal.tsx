@@ -82,11 +82,11 @@ export default function SettingsModal({ open, onClose }: Props) {
     setSaving(true)
     try {
       const promises: Promise<unknown>[] = []
-      if (general) promises.push(updateGeneralSettings(general))
-      if (netboot) promises.push(updateNetbootSettings(netboot))
-      if (logging) promises.push(updateLoggingSettings(logging))
+      if (section === 'general' && general) promises.push(updateGeneralSettings(general))
+      if (section === 'netboot' && netboot) promises.push(updateNetbootSettings(netboot))
+      if (section === 'logging' && logging) promises.push(updateLoggingSettings(logging))
       await Promise.all(promises)
-      if (general?.page_size) setPageSize(general.page_size)
+      if (section === 'general' && general?.page_size) setPageSize(general.page_size)
       success(t('settings.saved'))
     } catch (e: any) {
       showError(e?.message || t('settings.saveFailed'))
