@@ -37,7 +37,7 @@ func (h *InstallTaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "install_task", task.ID, remoteIP(r), task.DistroName)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "install_task", task.ID, remoteIP(r), "新建安装任务: "+task.DistroName)
 	Created(w, task)
 }
 
@@ -63,7 +63,7 @@ func (h *InstallTaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "install_task", id, remoteIP(r), task.DistroName)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "install_task", id, remoteIP(r), "更新安装任务: "+task.DistroName)
 	OK(w, task)
 }
 
@@ -73,7 +73,7 @@ func (h *InstallTaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "install_task", id, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "install_task", id, remoteIP(r), "删除安装任务")
 	w.WriteHeader(http.StatusNoContent)
 }
 

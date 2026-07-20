@@ -428,7 +428,7 @@ func (h *AnswerTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "版本快照创建失败")
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "answer_template", fmt.Sprintf("%d", t.ID), remoteIP(r), t.Name)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "answer_template", fmt.Sprintf("%d", t.ID), remoteIP(r), "新建应答模板: "+t.Name)
 	Created(w, t)
 }
 
@@ -486,7 +486,7 @@ func (h *AnswerTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "answer_template", fmt.Sprintf("%d", id), remoteIP(r), t.Name)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "answer_template", fmt.Sprintf("%d", id), remoteIP(r), "更新应答模板: "+t.Name)
 	OK(w, t)
 }
 
@@ -500,7 +500,7 @@ func (h *AnswerTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "answer_template", fmt.Sprintf("%d", id), remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "answer_template", fmt.Sprintf("%d", id), remoteIP(r), "删除应答模板")
 	_ = h.store.DeleteAnswerTemplateVersions(r.Context(), uint(id))
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -57,7 +57,7 @@ func (h *ProfileHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.ID, remoteIP(r), profile.Name)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.Name, remoteIP(r), "新建引导配置")
 	Created(w, profile)
 }
 
@@ -79,7 +79,7 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 			h.createScriptVersion(r.Context(), id, *script)
 		}
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "profile", id, remoteIP(r), profile.Name)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "profile", profile.Name, remoteIP(r), "更新引导配置")
 	OK(w, profile)
 }
 
@@ -251,7 +251,7 @@ func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "profile", id, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "profile", id, remoteIP(r), "删除引导配置")
 	w.WriteHeader(http.StatusNoContent)
 }
 // CreateFromNetboot creates a profile from a netboot.xyz catalog entry.
@@ -347,6 +347,6 @@ func (h *ProfileHandler) CreateFromNetboot(w http.ResponseWriter, r *http.Reques
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.ID, remoteIP(r), profile.Name+" (from netboot)")
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.Name, remoteIP(r), "从网络引导目录新建: "+req.DistroName+"/"+req.VersionCodename)
 	Created(w, profile)
 }

@@ -130,7 +130,7 @@ func (h *LeaseHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "lease", mac, remoteIP(r), mac)
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "lease", mac, remoteIP(r), "删除租约: "+mac)
 	OK(w, map[string]string{"message": "lease deleted"})
 }
 
@@ -160,7 +160,7 @@ func (h *LeaseHandler) BatchDelete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "lease", "", remoteIP(r), "batch")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "lease", "", remoteIP(r), "批量删除租约")
 
 	result := map[string]interface{}{
 		"success_count": len(req.MACs) - len(failed),

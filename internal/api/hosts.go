@@ -53,7 +53,7 @@ func (h *HostHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "host", host.ID, remoteIP(r), host.Name)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "host", host.Name, remoteIP(r), "MAC: "+host.MAC+", IP: "+host.IP)
 	Created(w, host)
 }
 
@@ -69,7 +69,7 @@ func (h *HostHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "host", id, remoteIP(r), host.Name)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "host", host.Name, remoteIP(r), "MAC: "+host.MAC+", IP: "+host.IP)
 	OK(w, host)
 }
 
@@ -79,7 +79,7 @@ func (h *HostHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "host", id, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "host", id, remoteIP(r), "删除主机")
 	w.WriteHeader(http.StatusNoContent)
 }
 func (h *HostHandler) PreviewBootConfig(w http.ResponseWriter, r *http.Request) {

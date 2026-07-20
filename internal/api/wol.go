@@ -150,7 +150,7 @@ func (h *WOLHandler) Wake(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "发送唤醒包失败")
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "wol", id, remoteIP(r), host.MAC)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "wol", id, remoteIP(r), "发送唤醒: "+host.MAC)
 	h.eventBus.Publish("event", models.Event{
 		Type:  "WOL",
 		Level: models.EventInfo,
@@ -241,7 +241,7 @@ func (h *WOLHandler) BatchWake(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	slog.Info("WOL 批量唤醒完成", "service", "WOL", "success", successCount, "total", len(results))
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "wol", "", remoteIP(r), "batch wake")
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "wol", "", remoteIP(r), "批量唤醒")
 	OK(w, map[string]any{"results": results, "success_count": successCount, "total": len(results)})
 }
 
@@ -286,7 +286,7 @@ func (h *WOLHandler) DeleteHistory(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "删除失败")
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "wol_history", idStr, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "wol_history", idStr, remoteIP(r), "删除 WOL 记录")
 	OK(w, map[string]any{"message": "已删除"})
 }
 
@@ -296,7 +296,7 @@ func (h *WOLHandler) DeleteAllHistory(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "删除失败")
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "wol_history", "", remoteIP(r), "all")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "wol_history", "", remoteIP(r), "清空 WOL 记录")
 	OK(w, map[string]any{"message": "已清空所有唤醒记录"})
 }
 
@@ -347,7 +347,7 @@ func (h *WOLHandler) CreateSchedule(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "创建定时唤醒失败")
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "wol_schedule", fmt.Sprintf("%d", schedule.ID), remoteIP(r), req.MAC)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "wol_schedule", fmt.Sprintf("%d", schedule.ID), remoteIP(r), "新建 WOL 调度: "+req.MAC)
 	OK(w, schedule)
 }
 
@@ -373,7 +373,7 @@ func (h *WOLHandler) DeleteSchedule(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "删除失败")
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "wol_schedule", idStr, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "wol_schedule", idStr, remoteIP(r), "删除 WOL 调度")
 	OK(w, map[string]string{"message": "已删除"})
 }
 

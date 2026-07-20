@@ -74,7 +74,7 @@ func (h *AccessHandler) CreateBlacklist(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	h.logger.Info("黑名单已添加", "mac", mac)
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "blacklist", fmt.Sprintf("%d", entry.ID), remoteIP(r), mac)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "blacklist", fmt.Sprintf("%d", entry.ID), remoteIP(r), "拉黑设备: "+mac)
 	OK(w, entry)
 }
 
@@ -95,7 +95,7 @@ func (h *AccessHandler) DeleteBlacklist(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	h.logger.Info("黑名单已删除", "id", id)
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "blacklist", idStr, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "blacklist", idStr, remoteIP(r), "移除黑名单")
 	OK(w, map[string]string{"status": "deleted"})
 }
 
@@ -116,7 +116,7 @@ func (h *AccessHandler) DeleteWhitelist(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	h.logger.Info("白名单已删除", "id", id)
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "whitelist", idStr, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "whitelist", idStr, remoteIP(r), "移除白名单")
 	OK(w, map[string]string{"status": "deleted"})
 }
 
@@ -172,7 +172,7 @@ func (h *AccessHandler) AddToWhitelistFromUnauthorized(w http.ResponseWriter, r 
 		h.logger.Error("清除未授权设备记录失败", "error", err)
 	}
 	h.logger.Info("未授权设备已加白", "mac", mac, "cidr", cidr)
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "whitelist", fmt.Sprintf("%d", entry.ID), remoteIP(r), mac)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "whitelist", fmt.Sprintf("%d", entry.ID), remoteIP(r), "从未授权设备加入白名单: "+mac)
 	OK(w, entry)
 }
 
@@ -206,7 +206,7 @@ func (h *AccessHandler) AddToBlacklistFromUnauthorized(w http.ResponseWriter, r 
 		h.logger.Error("清除未授权设备记录失败", "error", err)
 	}
 	h.logger.Info("未授权设备已拉黑", "mac", mac)
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "blacklist", fmt.Sprintf("%d", entry.ID), remoteIP(r), mac)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "blacklist", fmt.Sprintf("%d", entry.ID), remoteIP(r), "从未授权设备加入黑名单: "+mac)
 	OK(w, entry)
 }
 
@@ -227,7 +227,7 @@ func (h *AccessHandler) DeleteUnauthorizedDevice(w http.ResponseWriter, r *http.
 		return
 	}
 	h.logger.Info("未授权设备记录已删除", "id", id)
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "unauthorized_device", idStr, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "unauthorized_device", idStr, remoteIP(r), "删除未授权设备记录")
 	OK(w, map[string]string{"status": "deleted"})
 }
 
@@ -286,6 +286,6 @@ func (h *AccessHandler) CreateWhitelist(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	h.logger.Info("白名单已添加", "mac", mac, "cidr", cidr)
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "whitelist", fmt.Sprintf("%d", entry.ID), remoteIP(r), mac)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "whitelist", fmt.Sprintf("%d", entry.ID), remoteIP(r), "加入白名单: "+mac)
 	OK(w, entry)
 }

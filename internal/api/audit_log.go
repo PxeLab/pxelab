@@ -2,9 +2,12 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/pxelab/pxelab/internal/models"
@@ -20,8 +23,16 @@ func NewAuditLogHandler(st store.Interface) *AuditLogHandler {
 }
 
 // RecordAudit logs a user action asynchronously (fire-and-forget).
+var auditSeqMu sync.Mutex
+var auditSeq int64
+
 func RecordAudit(ctx context.Context, st store.Interface, action models.AuditAction, resource, resourceID, remoteIP, detail string) {
+	auditSeqMu.Lock()
+	auditSeq++
+	seq := auditSeq
+	auditSeqMu.Unlock()
 	log := &models.AuditLog{
+		ID:         fmt.Sprintf("%d-%d", time.Now().UnixNano(), seq),
 		Action:     action,
 		Resource:   resource,
 		ResourceID: resourceID,
@@ -36,12 +47,26 @@ func RecordAudit(ctx context.Context, st store.Interface, action models.AuditAct
 
 func remoteIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return xff
+		return cleanIP(xff)
 	}
 	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return xri
+		return cleanIP(xri)
 	}
-	return r.RemoteAddr
+	return cleanIP(r.RemoteAddr)
+}
+
+// cleanIP strips port and normalizes localhost addresses to "本机".
+func cleanIP(addr string) string {
+	// strip port: "[::1]:65356" → "::1", "127.0.0.1:12345" → "127.0.0.1"
+	host := addr
+	if idx := strings.LastIndex(addr, ":"); idx > 0 {
+		host = addr[:idx]
+	}
+	host = strings.Trim(host, "[]")
+	if host == "127.0.0.1" || host == "::1" || host == "localhost" {
+		return "本机"
+	}
+	return host
 }
 
 func (h *AuditLogHandler) List(w http.ResponseWriter, r *http.Request) {

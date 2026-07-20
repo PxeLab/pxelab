@@ -2,6 +2,7 @@
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -103,7 +104,7 @@ func (h *DNSRecordHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "dns_record", strconv.FormatUint(uint64(rec.ID), 10), remoteIP(r), rec.Name)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "dns_record", rec.Name, remoteIP(r), "新建 DNS 记录: "+rec.Type)
 	Created(w, rec)
 }
 
@@ -127,7 +128,7 @@ func (h *DNSRecordHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dns_record", strconv.FormatUint(uint64(rec.ID), 10), remoteIP(r), rec.Name)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dns_record", rec.Name, remoteIP(r), "更新 DNS 记录: "+rec.Type)
 	OK(w, rec)
 }
 
@@ -141,6 +142,6 @@ func (h *DNSRecordHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "dns_record", strconv.FormatUint(uint64(id), 10), remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "dns_record", fmt.Sprintf("%d", id), remoteIP(r), "删除 DNS 记录")
 	w.WriteHeader(http.StatusNoContent)
 }

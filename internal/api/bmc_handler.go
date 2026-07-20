@@ -129,7 +129,7 @@ func (h *BMCHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "bmc_config", fmt.Sprintf("%d", cfg.ID), remoteIP(r), cfg.Host)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "bmc_config", fmt.Sprintf("%d", cfg.ID), remoteIP(r), "新建 BMC 配置: "+cfg.Host)
 	Created(w, toBMCConfigResponse(cfg))
 }
 
@@ -192,7 +192,7 @@ func (h *BMCHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "bmc_config", fmt.Sprintf("%d", id), remoteIP(r), cfg.Host)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "bmc_config", fmt.Sprintf("%d", id), remoteIP(r), "更新 BMC 配置: "+cfg.Host)
 	OK(w, toBMCConfigResponse(cfg))
 }
 
@@ -207,7 +207,7 @@ func (h *BMCHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "bmc_config", fmt.Sprintf("%d", id), remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "bmc_config", fmt.Sprintf("%d", id), remoteIP(r), "删除 BMC 配置")
 	w.WriteHeader(http.StatusNoContent)
 }
 

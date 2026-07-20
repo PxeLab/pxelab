@@ -44,7 +44,7 @@ func (h *NetbootOverlayHandler) Upsert(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "netboot_overlay", distro, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "netboot_overlay", distro, remoteIP(r), "更新网络引导覆盖: "+distro)
 	OK(w, overlay)
 }
 
@@ -54,6 +54,6 @@ func (h *NetbootOverlayHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "netboot_overlay", distro, remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "netboot_overlay", distro, remoteIP(r), "删除网络引导覆盖: "+distro)
 	w.WriteHeader(http.StatusNoContent)
 }

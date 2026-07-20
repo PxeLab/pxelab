@@ -58,7 +58,7 @@ func (h *DHCPReservationHandler) Create(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "dhcp_reservation", fmt.Sprintf("%d", res.ID), remoteIP(r), res.IP)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "dhcp_reservation", fmt.Sprintf("%d", res.ID), remoteIP(r), "新建 DHCP 预留: "+res.IP+" → "+res.MAC)
 	Created(w, res)
 }
 
@@ -82,7 +82,7 @@ func (h *DHCPReservationHandler) Update(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), res.IP)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), "更新 DHCP 预留: "+res.IP+" → "+res.MAC)
 	OK(w, res)
 }
 
@@ -131,6 +131,6 @@ func (h *DHCPReservationHandler) Delete(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), "")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), "删除 DHCP 预留")
 	w.WriteHeader(http.StatusNoContent)
 }
