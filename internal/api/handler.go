@@ -153,6 +153,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/services/nfs", h.Settings.UpdateNFS)
 		r.Post("/services/nfs/validate-path", h.Settings.ValidateNFSPath)
 		r.Get("/services/nfs/browse-path", h.Settings.BrowseNFSPath)
+		r.Get("/services/ipxe-script", h.Settings.GetIPXEScript)
+		r.Put("/services/ipxe-script", h.Settings.UpdateIPXEScript)
 		r.Get("/settings/netboot", h.Settings.GetNetboot)
 		r.Put("/settings/netboot", h.Settings.UpdateNetboot)
 		r.Get("/settings/logging", h.Settings.GetLoggingSettings)

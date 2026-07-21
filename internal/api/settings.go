@@ -272,6 +272,14 @@ type NetbootSettingsResponse struct {
 	CatalogDisplay  CatalogDisplaySettings  `json:"catalog_display"`
 }
 
+// IPXEScriptSettingsResponse iPXE 脚本配置（DHCP Option 175）
+type IPXEScriptSettingsResponse struct {
+	Enabled      bool   `json:"enabled"`
+	Port         int    `json:"port"`
+	Path         string `json:"path"`
+	FeatureFlags int    `json:"feature_flags"`
+}
+
 func generateToken() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
@@ -1537,6 +1545,69 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	}
 
 	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新网络引导配置")
+	OK(w, map[string]string{"status": "saved"})
+}
+
+// ── iPXE Script (DHCP Option 175) ──
+
+func (h *SettingsHandler) GetIPXEScript(w http.ResponseWriter, r *http.Request) {
+	cfg := h.cfg
+
+	resp := IPXEScriptSettingsResponse{
+		Enabled:      cfg.IPXEScript.Enabled,
+		Port:         cfg.IPXEScript.Port,
+		Path:         cfg.IPXEScript.Path,
+		FeatureFlags: cfg.IPXEScript.FeatureFlags,
+	}
+
+	// 设置默认值
+	if resp.Port <= 0 {
+		resp.Port = config.DefaultPortHTTP
+	}
+	if resp.Path == "" {
+		resp.Path = "/boot/ipxe/script"
+	}
+	if resp.FeatureFlags <= 0 {
+		resp.FeatureFlags = 0x01
+	}
+
+	OK(w, resp)
+}
+
+func (h *SettingsHandler) UpdateIPXEScript(w http.ResponseWriter, r *http.Request) {
+	var req IPXEScriptSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	// 参数校验
+	if req.Port < 0 {
+		req.Port = 0
+	}
+	if req.FeatureFlags < 0 {
+		req.FeatureFlags = 0
+	}
+
+	h.mu.Lock()
+	h.cfg.IPXEScript.Enabled = req.Enabled
+	if req.Port > 0 {
+		h.cfg.IPXEScript.Port = req.Port
+	}
+	if req.Path != "" {
+		h.cfg.IPXEScript.Path = req.Path
+	}
+	if req.FeatureFlags > 0 {
+		h.cfg.IPXEScript.FeatureFlags = req.FeatureFlags
+	}
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新 iPXE 脚本配置")
 	OK(w, map[string]string{"status": "saved"})
 }
 
