@@ -463,8 +463,18 @@ func appendDHCPOptions(reply *dhcpv4.DHCPv4, serverIP, nextServer net.IP, subnet
 		[]byte{6, 1, 0x0C}))
 }
 
-func iPXEScriptURL(serverIP net.IP, mac string) string {
-	return fmt.Sprintf("http://%s:8080/boot/ipxe/script?mac=%s", serverIP, mac)
+func iPXEScriptURL(serverIP net.IP, mac string, cfg *config.IPXEScriptConfig) string {
+	port := 8080
+	path := "/boot/ipxe/script"
+	if cfg != nil {
+		if cfg.Port > 0 {
+			port = cfg.Port
+		}
+		if cfg.Path != "" {
+			path = cfg.Path
+		}
+	}
+	return fmt.Sprintf("http://%s:%d%s?mac=%s", serverIP, port, path, mac)
 }
 
 func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, bootloader string, isIPXE bool) *dhcpv4.DHCPv4 {
@@ -480,9 +490,9 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 
 	// iPXE 第一阶段：返回脚本 URL 而非启动文件
 	if isIPXE {
-		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String(), &h.config.IPXEScript)
 		reply.BootFileName = scriptURL
-		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL, h.config.IPXEScript.FeatureFlags))
 		if mode == "proxy" {
 				// yiaddr=0 → iPXE 识别为 ProxyDHCP，存入 proxydhcp scope
 				appendProxyPXEOptions(reply, serverIP, nextServer)
@@ -502,7 +512,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	}
 
 	// PXE ROM 客户端：使用架构驱动的 NBP 解析
-	scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+	scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String(), &h.config.IPXEScript)
 	arch, ok := DetectClientArch(pkt)
 
 	// 使用新的架构驱动 NBP 解析
@@ -519,7 +529,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	appendProxyPXEOptions(reply, serverIP, nextServer)
 	reply.YourIPAddr = net.IP{0, 0, 0, 0}
 	reply.BootFileName = bootFile
-	reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+	reply.UpdateOption(BuildIPXEScriptOption(scriptURL, h.config.IPXEScript.FeatureFlags))
 	dhcpTracker.IncOffer()
 	if subnetCfg.CIDR != "" {
 		if _, ipnet, err := net.ParseCIDR(subnetCfg.CIDR); err == nil {
@@ -535,7 +545,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 		reply.YourIPAddr = ip
 		appendDHCPOptions(reply, serverIP, nextServer, subnetCfg)
 		reply.BootFileName = bootFile
-		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL, h.config.IPXEScript.FeatureFlags))
 		dhcpTracker.IncOffer()
 		slog.Info("DHCP Offer", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "ip", ip, "mode", mode, "bootfile", reply.BootFileName)
 	}
@@ -554,9 +564,9 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 	if mode == "proxy" {
 		if isIPXE {
 			appendProxyPXEOptions(reply, serverIP, nextServer)
-			scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+			scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String(), &h.config.IPXEScript)
 			reply.BootFileName = scriptURL
-			reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+			reply.UpdateOption(BuildIPXEScriptOption(scriptURL, h.config.IPXEScript.FeatureFlags))
 			dhcpTracker.IncAck()
 			slog.Info("iPXE ProxyDHCP Ack", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "ns", nextServer)
 			return reply
@@ -567,8 +577,8 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 			bootFile, _ := h.resolveNBPForClient(arch)
 			reply.BootFileName = bootFile
 		}
-		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
-		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String(), &h.config.IPXEScript)
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL, h.config.IPXEScript.FeatureFlags))
 		dhcpTracker.IncAck()
 		slog.Info("ProxyDHCP ACK", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "bootfile", reply.BootFileName)
 		return reply
@@ -585,15 +595,15 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 
 	// 在 ACK 中也设置启动文件/脚本 URL + Option 175.178
 	if isIPXE {
-		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
+		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String(), &h.config.IPXEScript)
 		reply.BootFileName = scriptURL
-		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL, h.config.IPXEScript.FeatureFlags))
 	} else if arch, ok := DetectClientArch(pkt); ok {
 		// 使用架构驱动的 NBP 解析
 		bootFile, _ := h.resolveNBPForClient(arch)
 		reply.BootFileName = bootFile
-		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String())
-		reply.UpdateOption(BuildIPXEScriptOption(scriptURL))
+		scriptURL := iPXEScriptURL(serverIP, pkt.ClientHWAddr.String(), &h.config.IPXEScript)
+		reply.UpdateOption(BuildIPXEScriptOption(scriptURL, h.config.IPXEScript.FeatureFlags))
 	}
 
 	dhcpTracker.IncAck()
