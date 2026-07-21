@@ -79,5 +79,11 @@ func DefaultConfig() *Config {
 		ServiceAutoStart: ServiceAutoStartConfig{
 			HTTP: true,
 		},
+		IPXEScript: IPXEScriptConfig{
+			Enabled:      true,
+			Port:         DefaultPortHTTP,
+			Path:         "/boot/ipxe/script",
+			FeatureFlags: 0x01, // HTTP 模式
+		},
 	}
 }

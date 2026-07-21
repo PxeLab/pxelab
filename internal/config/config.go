@@ -6,6 +6,14 @@ import (
 	"path/filepath"
 )
 
+// IPXEScriptConfig 定义 iPXE 脚本相关配置（用于 DHCP Option 175）
+type IPXEScriptConfig struct {
+	Enabled      bool   `yaml:"enabled" mapstructure:"enabled"`           // 是否发送 Option 175（iPXE 脚本 URL）
+	Port         int    `yaml:"port" mapstructure:"port"`                 // HTTP 端口，用于生成脚本 URL，默认 8080
+	Path         string `yaml:"path" mapstructure:"path"`                 // 脚本路径，默认 "/boot/ipxe/script"
+	FeatureFlags int    `yaml:"feature_flags" mapstructure:"feature_flags"` // 子选项 177 值，默认 0x01（HTTP 模式）
+}
+
 type Config struct {
 	ConfigPath       string                  `yaml:"-" json:"-" mapstructure:"-"` // 配置文件的完整路径，运行时追踪用
 	Global           GlobalConfig            `yaml:"global" mapstructure:"global"`
@@ -19,6 +27,7 @@ type Config struct {
 	Store            StoreConfig             `yaml:"store" mapstructure:"store"`
 	Log              LogConfig               `yaml:"log" mapstructure:"log"`
 	ServiceAutoStart ServiceAutoStartConfig  `yaml:"service_auto_start" mapstructure:"service_auto_start"`
+	IPXEScript       IPXEScriptConfig        `yaml:"ipxe_script" mapstructure:"ipxe_script"`
 	BlacklistSeeds   []MACEntry              `yaml:"blacklist,omitempty" mapstructure:"blacklist,omitempty"`
 	WhitelistSeeds   []WhitelistSeedEntry    `yaml:"whitelist,omitempty" mapstructure:"whitelist,omitempty"`
 }
