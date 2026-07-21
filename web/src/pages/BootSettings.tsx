@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { RefreshCw, CheckCircle, XCircle, Save, RotateCcw, ArrowRight } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { api, type BootloaderCheckResult, type ArchEntryData, type BootFileInfo } from '../api/client'
+import { Toggle } from '../components/ui/Toggle'
+import { api, type BootloaderCheckResult, type ArchEntryData, type BootFileInfo, type IPXEScriptSettings } from '../api/client'
 
 // NBP 类型选项
 const NBP_OPTIONS = [
@@ -11,6 +12,9 @@ const NBP_OPTIONS = [
   { value: 'pxelinux', label: 'PXELinux' },
   { value: 'grub2', label: 'GRUB2' },
 ]
+
+// 支持 Secure Boot 的架构（需要 shim + 签名 iPXE）
+const SECURE_BOOT_SUPPORTED = new Set([7, 11]) // EFI_X86_64, EFI_ARM64
 
 // 各引导加载器的原生架构支持情况
 const BOOTLOADER_SUPPORT: Record<string, Record<number, 'native' | 'fallback' | 'unsupported'>> = {
@@ -52,8 +56,14 @@ export default function BootSettings() {
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
+  // iPXE Script (Option 175)
+  const [ipxeScript, setIpxeScript] = useState<IPXEScriptSettings | null>(null)
+  const [ipxeScriptLoading, setIpxeScriptLoading] = useState(true)
+
+
   useEffect(() => { runHealthCheck() }, [])
   useEffect(() => { loadArchMap() }, [])
+  useEffect(() => { loadIPXEScript() }, [])
 
   async function runHealthCheck() {
     setLoading(true)
@@ -73,6 +83,27 @@ export default function BootSettings() {
     finally { setArchLoading(false) }
   }
 
+  async function loadIPXEScript() {
+    setIpxeScriptLoading(true)
+    try {
+      const res = await api.getIPXEScript()
+      setIpxeScript(res.data)
+    } catch { /* ignore */ }
+    finally { setIpxeScriptLoading(false) }
+  }
+
+  // ── 全局 chain_load 控制 ──
+  const nonIPXEEntries = archEntries.filter(e => e.nbp !== 'ipxe')
+  const globalChainLoad = nonIPXEEntries.length > 0 && nonIPXEEntries.every(e => e.chain_load)
+
+  function toggleGlobalChainLoad() {
+    const newVal = !globalChainLoad
+    setArchEntries(prev => prev.map(e => {
+      if (e.nbp === 'ipxe') return { ...e, chain_load: false }
+      return { ...e, chain_load: newVal }
+    }))
+  }
+
   function updateEntry(code: number, field: keyof ArchEntryData, value: string | boolean) {
     setArchEntries(prev => prev.map(e => {
       if (e.arch_code !== code) return e
@@ -85,6 +116,10 @@ export default function BootSettings() {
         } else if (value === 'grub2') {
           updated.grub = getDefaultGRUB(code)
         }
+        // 切换到 iPXE 时关闭 chain_load
+        if (value === 'ipxe') {
+          updated.chain_load = false
+        }
       }
       return updated
     }))
@@ -95,6 +130,10 @@ export default function BootSettings() {
     setSaveMsg(null)
     try {
       await api.updateArchMap({ entries: archEntries })
+      // 同时保存 iPXE 脚本配置（Option 175）
+      if (ipxeScript) {
+        await api.updateIPXEScript(ipxeScript)
+      }
       setSaveMsg({ ok: true, text: t('common.saved', '已保存') })
     } catch (err: any) {
       setSaveMsg({ ok: false, text: err.message || t('common.saveFailed', '保存失败') })
@@ -109,6 +148,8 @@ export default function BootSettings() {
       setSaveMsg({ ok: true, text: t('bootSettings.resetDefaultsHint', '已恢复默认值，点击保存生效') })
     } catch { /* ignore */ }
   }
+
+  const inputCls = 'w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500'
 
   return (
     <div className="space-y-6">
@@ -128,35 +169,33 @@ export default function BootSettings() {
             <span className="ml-3 text-sm text-[var(--text-muted)]">{t('settings.loading')}</span>
           </div>
         ) : !checkResult ? null : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <Card padding={false}>
-                <div className="p-4 text-center">
-                  <div className="text-[10px] text-[var(--text-muted)] mb-1">{t('bootloader.total')}</div>
-                  <div className="text-lg font-semibold text-[var(--text-primary)]">{checkResult.total}</div>
+                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-blue-500/40">
+                  <span className="text-base font-bold text-[var(--text-primary)]">{checkResult.total}</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.total')}</span>
                 </div>
               </Card>
               <Card padding={false}>
-                <div className="p-4 text-center">
-                  <div className="text-[10px] text-[var(--text-muted)] mb-1">{t('bootloader.present')}</div>
-                  <div className="text-lg font-semibold text-green-400">{checkResult.present}</div>
+                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-green-500/40">
+                  <span className="text-base font-bold text-green-400">{checkResult.present}</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.present')}</span>
                 </div>
               </Card>
               <Card padding={false}>
-                <div className="p-4 text-center">
-                  <div className="text-[10px] text-[var(--text-muted)] mb-1">{t('bootloader.missing')}</div>
-                  <div className="text-lg font-semibold text-red-400">{checkResult.missing}</div>
+                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-red-500/40">
+                  <span className="text-base font-bold text-red-400">{checkResult.missing}</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.missing')}</span>
                 </div>
               </Card>
               <Card padding={false}>
-                <div className="p-4 text-center">
-                  <div className="text-[10px] text-[var(--text-muted)] mb-1">{t('bootloader.status')}</div>
-                  <div className="flex items-center justify-center gap-1 mt-1">
-                    {checkResult.all_ok
-                      ? <><CheckCircle size={16} className="text-green-400" /><span className="text-sm font-semibold text-green-400">{t('bootloader.ok')}</span></>
-                      : <><XCircle size={16} className="text-red-400" /><span className="text-sm font-semibold text-red-400">{t('bootloader.issues')}</span></>
-                    }
-                  </div>
+                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-amber-500/40">
+                  {checkResult.all_ok
+                    ? <><CheckCircle size={16} className="text-green-400" /><span className="text-[11px] font-semibold text-green-400">{t('bootloader.ok')}</span></>
+                    : <><XCircle size={16} className="text-red-400" /><span className="text-[11px] font-semibold text-red-400">{t('bootloader.issues')}</span></>
+                  }
+                  <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.status')}</span>
                 </div>
               </Card>
             </div>
@@ -190,6 +229,7 @@ export default function BootSettings() {
             </Button>
           </div>
         </div>
+
         {archLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
@@ -202,7 +242,6 @@ export default function BootSettings() {
                   <th className="px-4 py-3">{t('bootSettings.arch')}</th>
                   <th className="px-4 py-3">{t('bootSettings.archCode')}</th>
                   <th className="px-4 py-3">{t('bootSettings.nbpType')}</th>
-                  <th className="px-4 py-3">{t('bootSettings.chainLoad')}</th>
                   <th className="px-4 py-3">{t('bootSettings.secureBoot', 'Secure Boot')}</th>
                   <th className="px-4 py-3">{t('bootSettings.bootFile')}</th>
                   <th className="px-4 py-3">{t('bootSettings.fileStatus')}</th>
@@ -224,12 +263,100 @@ export default function BootSettings() {
         <div className="p-4 bg-[var(--bg-card)] border-t border-[var(--bg-border)]">
           <p className="text-xs text-[var(--text-muted)]">{t('bootSettings.nbpHint')}</p>
         </div>
+
+        {/* ── 全局链式加载 + iPXE 脚本 (Option 175) ── */}
+        <div className="px-4 py-4 border-t border-[var(--bg-border)] space-y-4">
+          {/* 全局 chain_load */}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm text-[var(--text-primary)]">
+                {t('bootSettings.globalChainLoad', 'NBP 引导后链式加载到 iPXE')}
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)]">
+                {t('bootSettings.globalChainLoadHint', '开启后，所有使用 PXELinux 或 GRUB2 的架构将在引导 NBP 后自动链式加载到 iPXE 脚本')}
+              </div>
+            </div>
+            <Toggle
+              checked={globalChainLoad}
+              onChange={toggleGlobalChainLoad}
+            />
+          </div>
+
+          <div className="border-t border-[var(--bg-border)]" />
+
+          {/* Option 175 配置 */}
+          <div>
+            {ipxeScriptLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+              </div>
+            ) : ipxeScript ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-[var(--text-primary)]">
+                      {t('bootSettings.ipxeScriptEnabled', '启用 Option 175')}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      {t('bootSettings.ipxeScriptEnabledHint', 'DHCP 应答中包含 iPXE 脚本 URL，客户端可直接 chainload')}
+                    </div>
+                  </div>
+                  <Toggle
+                    checked={ipxeScript.enabled}
+                    onChange={v => setIpxeScript(prev => prev ? { ...prev, enabled: v } : prev)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                      {t('bootSettings.ipxeScriptPort', 'HTTP 端口')}
+                    </label>
+                    <input
+                      type="number"
+                      className={inputCls}
+                      value={ipxeScript.port}
+                      onChange={e => setIpxeScript(prev => prev ? { ...prev, port: parseInt(e.target.value) || 8080 } : prev)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                      {t('bootSettings.ipxeScriptPath', '脚本路径')}
+                    </label>
+                    <input
+                      type="text"
+                      className={`${inputCls} font-mono`}
+                      value={ipxeScript.path}
+                      onChange={e => setIpxeScript(prev => prev ? { ...prev, path: e.target.value } : prev)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                      {t('bootSettings.ipxeScriptFlags', '特征标志 (子选项 177)')}
+                    </label>
+                    <input
+                      type="number"
+                      className={inputCls}
+                      value={ipxeScript.feature_flags}
+                      onChange={e => setIpxeScript(prev => prev ? { ...prev, feature_flags: parseInt(e.target.value) || 1 } : prev)}
+                    />
+                    <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                      {t('bootSettings.ipxeScriptFlagsHint', '默认 0x01 = HTTP 模式')}
+                    </p>
+                  </div>
+                </div>
+
+
+              </div>
+            ) : null}
+          </div>
+        </div>
       </Card>
     </div>
   )
 }
 
-/** 架构行：NBP 选择 + 链式加载 + 引导文件 */
+/** 架构行：NBP 选择 + Secure Boot + 引导文件 */
 function ArchRow({ entry, files, onUpdate }: {
   entry: ArchEntryData
   files: BootFileInfo[]
@@ -282,41 +409,60 @@ function ArchRow({ entry, files, onUpdate }: {
         )}
       </td>
 
-      {/* 链式加载开关 */}
+      {/* Secure Boot 支持（可编辑） */}
       <td className="px-4 py-2">
-        {nbp === 'ipxe' ? (
-          <span className="text-xs text-[var(--text-muted)]">-</span>
-        ) : (
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              className="w-4 h-4 rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500"
-              checked={chainLoad}
-              onChange={v => onUpdate('chain_load', v.target.checked)}
-            />
-            <span className="text-xs text-[var(--text-secondary)]">{t('bootSettings.toIPXE', '到 iPXE')}</span>
-          </label>
-        )}
-      </td>
-
-      {/* Secure Boot 支持 */}
-      <td className="px-4 py-2">
-        {entry.secure_boot ? (
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-[10px] text-green-400">
-              <CheckCircle size={10} />
-              <span>{t('bootSettings.supported', '支持')}</span>
-            </div>
-            {entry.ipxe_sb && (
-              <div className="text-[10px] text-[var(--text-muted)] font-mono">{entry.ipxe_sb}</div>
-            )}
-            {entry.shim && (
-              <div className="text-[10px] text-[var(--text-muted)] font-mono">{entry.shim}</div>
+        <Toggle
+          checked={entry.secure_boot}
+          onChange={v => onUpdate('secure_boot', v)}
+          disabled={!SECURE_BOOT_SUPPORTED.has(entry.arch_code)}
+        />
+        {!SECURE_BOOT_SUPPORTED.has(entry.arch_code) ? (
+          <div className="text-[10px] text-[var(--text-muted)] mt-1">
+            {t('bootSettings.secureBootUnsupported', '该架构不支持 Secure Boot')}
+          </div>
+        ) : entry.secure_boot ? (
+          <div className="mt-1.5 space-y-1.5">
+            {nbp === 'grub2' ? (
+              <>
+                <div>
+                  <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.shimGrub', 'Shim (GRUB2)')}</label>
+                  <input
+                    className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[10px] font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
+                    value={entry.shim_grub}
+                    onChange={v => onUpdate('shim_grub', v.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.grubSb', 'GRUB2 SB')}</label>
+                  <input
+                    className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[10px] font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
+                    value={entry.grub_sb}
+                    onChange={v => onUpdate('grub_sb', v.target.value)}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.shimIpxe', 'Shim (iPXE)')}</label>
+                  <input
+                    className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[10px] font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
+                    value={entry.shim_ipxe}
+                    onChange={v => onUpdate('shim_ipxe', v.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.ipxeSb', 'iPXE SB')}</label>
+                  <input
+                    className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[10px] font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
+                    value={entry.ipxe_sb}
+                    onChange={v => onUpdate('ipxe_sb', v.target.value)}
+                  />
+                </div>
+              </>
             )}
           </div>
-        ) : (
-          <span className="text-xs text-[var(--text-muted)]">-</span>
-        )}
+        ) : null}
       </td>
 
       {/* 引导文件名（可编辑） */}

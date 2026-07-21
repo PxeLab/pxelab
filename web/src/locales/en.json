@@ -50,7 +50,7 @@
     "wol": "Wake-on-LAN",
     "osImages": "OS Images",
     "network": "Network Diagnostics",
-    "bootSettings": "Boot Files"
+    "bootSettings": "Boot Config"
   },
   "dashboard": {
     "title": "Dashboard",

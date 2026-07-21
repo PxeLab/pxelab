@@ -11,14 +11,37 @@ import (
 //   - chainLoadTarget: 如果需要链式加载，返回 iPXE 文件名；否则为空
 //
 // 决策逻辑：
-//  1. NBP="ipxe" → 直接返回 IPXE 文件，无链式加载
-//  2. NBP="pxelinux" 且 ChainLoad=true → 返回 PXELinux 文件，chainLoadTarget=IPXE 文件
-//  3. NBP="pxelinux" 且 ChainLoad=false → 仅返回 PXELinux 文件
-//  4. NBP="grub2" 同理
+//  1. Secure Boot 开启且有 shim → 返回 shim，由 shim 自动链到对应二进制
+//  2. NBP="ipxe" → 直接返回 IPXE 文件，无链式加载
+//  3. NBP="pxelinux" 且 ChainLoad=true → 返回 PXELinux 文件，chainLoadTarget=IPXE 文件
+//  4. NBP="pxelinux" 且 ChainLoad=false → 仅返回 PXELinux 文件
+//  5. NBP="grub2" 同理
+//
+// Secure Boot 说明：
+// DHCP 无法检测客户端是否开启 Secure Boot（没有对应 DHCP option），
+// 因此采用行业标准做法：当架构配置了 Secure Boot 时，始终下发 shim 作为引导文件。
+// shim 在 Secure Boot 关闭时也能正常工作（直接透传），因此不会影响非 SB 客户端。
 func ResolveNBP(arch iana.Arch, entry config.ArchEntry) (bootFile string, chainLoadTarget string) {
 	nbp := entry.NBP
 	if nbp == "" {
 		nbp = "ipxe" // 默认 iPXE
+	}
+
+	// Secure Boot: 根据 NBP 类型选择对应的 shim，由 shim 自动加载对应的签名二进制
+	// shim 在 Secure Boot 关闭时也能正常工作（直接透传）
+	// 仅 x86_64 (7) 和 ARM64 (11) 支持 Secure Boot
+	if entry.SecureBoot && (arch == iana.EFI_X86_64 || arch == iana.EFI_ARM64) {
+		switch nbp {
+		case "grub2":
+			if entry.ShimGRUB != "" {
+				return entry.ShimGRUB, ""
+			}
+		default: // "ipxe" 或未知类型
+			if entry.ShimIPXE != "" {
+				return entry.ShimIPXE, ""
+			}
+		}
+		// pxelinux 不支持 Secure Boot（无 shim），继续正常流程
 	}
 
 	switch nbp {

@@ -230,7 +230,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts-embed
-          pattern: *-embed-*
+          pattern: '*-embed-*'
           merge-multiple: false
 
       - name: Organize output

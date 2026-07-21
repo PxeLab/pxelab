@@ -616,7 +616,9 @@ export interface ArchEntryData {
   // Secure Boot 支持
   secure_boot: boolean
   ipxe_sb: string
-  shim: string
+  shim_ipxe: string
+  grub_sb: string
+  shim_grub: string
 }
 
 export interface ArchMapData {
@@ -633,6 +635,23 @@ export function updateArchMap(data: ArchMapData): Promise<ApiResponse<unknown>> 
 
 export function getArchMapDefaults(): Promise<ApiResponse<ArchMapData>> {
   return request<ArchMapData>('GET', '/services/archmap/defaults')
+}
+
+// ── iPXE Script (DHCP Option 175) ──
+
+export interface IPXEScriptSettings {
+  enabled: boolean
+  port: number
+  path: string
+  feature_flags: number
+}
+
+export function getIPXEScript(): Promise<ApiResponse<IPXEScriptSettings>> {
+  return request<IPXEScriptSettings>('GET', '/services/ipxe-script')
+}
+
+export function updateIPXEScript(data: IPXEScriptSettings): Promise<ApiResponse<unknown>> {
+  return request<unknown>('PUT', '/services/ipxe-script', data)
 }
 
 export function getDNSSettings(): Promise<ApiResponse<DNSSettingsData>> {
@@ -1618,6 +1637,8 @@ export const api = {
   getArchMap,
   updateArchMap,
   getArchMapDefaults,
+  getIPXEScript,
+  updateIPXEScript,
   getDNSSettings,
   updateDNSSettings,
   getNFSSettings,

@@ -39,6 +39,12 @@ var knownBootFiles = []struct {
 	{"grubaa64.efi", "GRUB2 ARM64 EFI", false},
 	{"memdisk", "MEMDISK", false},
 	{"menu.c32", "VESAMENU", false},
+	// Secure Boot 文件
+	{"shim-x86_64.efi", "Shim x86_64 (iPXE)", false},
+	{"ipxe-x86_64-sb.efi", "iPXE x86_64 Secure Boot", false},
+	{"shim-arm64.efi", "Shim ARM64 (iPXE)", false},
+	{"ipxe-arm64-sb.efi", "iPXE ARM64 Secure Boot", false},
+	{"shimx64.efi", "Shim x86_64 (GRUB2)", false},
 }
 
 type BootFileInfo struct {

@@ -150,8 +150,10 @@ type ArchEntry struct {
 
 	// Secure Boot 支持
 	SecureBoot bool   `yaml:"secure_boot" mapstructure:"secure_boot"`
-	IPXESB     string `yaml:"ipxe_sb" mapstructure:"ipxe_sb"` // Secure Boot 签名的 iPXE 二进制文件
-	Shim       string `yaml:"shim" mapstructure:"shim"`       // UEFI Shim（用于 Secure Boot 启动链）
+	IPXESB     string `yaml:"ipxe_sb" mapstructure:"ipxe_sb"`       // Secure Boot 签名的 iPXE 二进制文件（shim 加载此文件）
+	ShimIPXE   string `yaml:"shim_ipxe" mapstructure:"shim_ipxe"`   // iPXE 的 UEFI Shim（NBP=ipxe + SB 时使用）
+	GRUBSB     string `yaml:"grub_sb" mapstructure:"grub_sb"`       // Secure Boot 签名的 GRUB2 二进制文件（shim 加载此文件）
+	ShimGRUB   string `yaml:"shim_grub" mapstructure:"shim_grub"`   // GRUB2 的 UEFI Shim（NBP=grub2 + SB 时使用）
 }
 
 type BootConfig struct {

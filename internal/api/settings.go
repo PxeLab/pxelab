@@ -229,7 +229,9 @@ type ArchEntryResponse struct {
 	// Secure Boot 支持
 	SecureBoot bool   `json:"secure_boot"`
 	IPXESB     string `json:"ipxe_sb"`
-	Shim       string `json:"shim"`
+	ShimIPXE   string `json:"shim_ipxe"`   // iPXE 的 UEFI Shim
+	GRUBSB     string `json:"grub_sb"`     // Secure Boot 签名的 GRUB2 二进制
+	ShimGRUB   string `json:"shim_grub"`   // GRUB2 的 UEFI Shim
 }
 
 // ArchMapResponse 完整的架构映射表
@@ -1097,7 +1099,9 @@ func (h *SettingsHandler) GetArchMap(w http.ResponseWriter, r *http.Request) {
 			GRUBConfig: entry.GRUBConfig,
 			SecureBoot: entry.SecureBoot,
 			IPXESB:     entry.IPXESB,
-			Shim:       entry.Shim,
+			ShimIPXE:   entry.ShimIPXE,
+			GRUBSB:     entry.GRUBSB,
+			ShimGRUB:   entry.ShimGRUB,
 		})
 	}
 	slices.SortFunc(entries, func(a, b ArchEntryResponse) int {
@@ -1124,7 +1128,9 @@ func (h *SettingsHandler) UpdateArchMap(w http.ResponseWriter, r *http.Request) 
 			GRUBConfig: e.GRUBConfig,
 			SecureBoot: e.SecureBoot,
 			IPXESB:     e.IPXESB,
-			Shim:       e.Shim,
+			ShimIPXE:   e.ShimIPXE,
+			GRUBSB:     e.GRUBSB,
+			ShimGRUB:   e.ShimGRUB,
 		}
 	}
 
@@ -1158,7 +1164,9 @@ func (h *SettingsHandler) GetArchMapDefaults(w http.ResponseWriter, _ *http.Requ
 			GRUBConfig: entry.GRUBConfig,
 			SecureBoot: entry.SecureBoot,
 			IPXESB:     entry.IPXESB,
-			Shim:       entry.Shim,
+			ShimIPXE:   entry.ShimIPXE,
+			GRUBSB:     entry.GRUBSB,
+			ShimGRUB:   entry.ShimGRUB,
 		})
 	}
 	slices.SortFunc(entries, func(a, b ArchEntryResponse) int {

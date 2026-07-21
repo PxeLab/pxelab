@@ -47,10 +47,10 @@ func defaultArchMap() map[int]config.ArchEntry {
 
 		// EFI 架构
 		int(iana.EFI_IA32):    {NBP: "ipxe", IPXE: "ipxe32.efi", PXELinux: "pxelinux32.efi"},
-		int(iana.EFI_X86_64):  {NBP: "ipxe", IPXE: "ipxe.efi", PXELinux: "pxelinux.efi", GRUB: "grubx64.efi", SecureBoot: true, IPXESB: "ipxe-x86_64-sb.efi", Shim: "shim-x86_64.efi"},
+		int(iana.EFI_X86_64):  {NBP: "ipxe", IPXE: "ipxe.efi", PXELinux: "pxelinux.efi", GRUB: "grubx64.efi", SecureBoot: false, IPXESB: "ipxe-x86_64-sb.efi", ShimIPXE: "shim-x86_64.efi", GRUBSB: "grubx64.efi", ShimGRUB: "shimx64.efi"},
 		int(iana.EFI_BC):      {NBP: "ipxe", IPXE: "snponly.efi", GRUB: "grubx64.efi"},
 		int(iana.EFI_ARM32):   {NBP: "ipxe", IPXE: "ipxe-arm32.efi"},
-		int(iana.EFI_ARM64):   {NBP: "ipxe", IPXE: "ipxe-arm64.efi", GRUB: "grubaa64.efi", SecureBoot: true, IPXESB: "ipxe-arm64-sb.efi", Shim: "shim-arm64.efi"},
+		int(iana.EFI_ARM64):   {NBP: "ipxe", IPXE: "ipxe-arm64.efi", GRUB: "grubaa64.efi", SecureBoot: false, IPXESB: "ipxe-arm64-sb.efi", ShimIPXE: "shim-arm64.efi", GRUBSB: "grubaa64.efi", ShimGRUB: "shim-arm64.efi"},
 		int(iana.EFI_RISCV32): {NBP: "ipxe", IPXE: "ipxe-riscv32.efi"},
 		int(iana.EFI_RISCV64): {NBP: "ipxe", IPXE: "ipxe-riscv64.efi"},
 
