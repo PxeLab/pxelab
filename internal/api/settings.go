@@ -661,7 +661,6 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.reloader.ReloadSubnets()
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新完整配置")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -812,10 +811,6 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 	if oldDataDir != req.DataDir {
 		changes = append(changes, "数据目录: "+oldDataDir+" → "+req.DataDir)
 	}
-	detail := "通用设置已保存"
-	if len(changes) > 0 {
-		detail = strings.Join(changes, "; ")
-	}
 
 	// 服务器名称变更时同步 DNS 记录
 	if h.store != nil && h.cfg.DNS.LocalDomain != "" && oldServerName != req.ServerName {
@@ -847,7 +842,10 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "general_settings", "", remoteIP(r), detail)
+	if len(changes) > 0 {
+		detail := strings.Join(changes, "; ")
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "general_settings", "", remoteIP(r), detail)
+	}
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1025,7 +1023,6 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 		h.reloader.ReloadSubnets()
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "interface_settings", "", remoteIP(r), "接口配置已更新")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1101,11 +1098,10 @@ func (h *SettingsHandler) UpdateTFTP(w http.ResponseWriter, r *http.Request) {
 	if req.Timeout >= 0 && oldTimeout != req.Timeout {
 		changes = append(changes, fmt.Sprintf("超时: %d→%d", oldTimeout, req.Timeout))
 	}
-	detail := "更新 TFTP 配置"
 	if len(changes) > 0 {
-		detail = strings.Join(changes, "; ")
+		detail := strings.Join(changes, "; ")
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "tftp_settings", "", remoteIP(r), detail)
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "tftp_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1216,11 +1212,10 @@ func (h *SettingsHandler) UpdateArchMap(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	detail := "更新引导配置"
 	if len(changes) > 0 {
-		detail = strings.Join(changes, "; ")
+		detail := strings.Join(changes, "; ")
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "arch_map", "", remoteIP(r), detail)
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "arch_map", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1353,11 +1348,10 @@ func (h *SettingsHandler) UpdateDHCP(w http.ResponseWriter, r *http.Request) {
 	if oldDNSServers != req.DNSServers {
 		changes = append(changes, fmt.Sprintf("DNS服务器: %s→%s", oldDNSServers, req.DNSServers))
 	}
-	detail := "更新 DHCP 配置"
 	if len(changes) > 0 {
-		detail = strings.Join(changes, "; ")
+		detail := strings.Join(changes, "; ")
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "dhcp_settings", "", remoteIP(r), detail)
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dhcp_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1429,11 +1423,10 @@ func (h *SettingsHandler) UpdateDNS(w http.ResponseWriter, r *http.Request) {
 	if oldDefaultRecord != req.DefaultRecord {
 		changes = append(changes, fmt.Sprintf("默认记录: %t→%t", oldDefaultRecord, req.DefaultRecord))
 	}
-	detail := "更新 DNS 配置"
 	if len(changes) > 0 {
-		detail = strings.Join(changes, "; ")
+		detail := strings.Join(changes, "; ")
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "dns_settings", "", remoteIP(r), detail)
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dns_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1542,11 +1535,10 @@ func (h *SettingsHandler) UpdateNFS(w http.ResponseWriter, r *http.Request) {
 	if fmt.Sprint(oldLabels) != fmt.Sprint(newLabels) {
 		changes = append(changes, fmt.Sprintf("挂载点: %v→%v", oldLabels, newLabels))
 	}
-	detail := "更新 NFS 配置"
 	if len(changes) > 0 {
-		detail = strings.Join(changes, "; ")
+		detail := strings.Join(changes, "; ")
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "nfs_settings", "", remoteIP(r), detail)
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "nfs_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1745,11 +1737,10 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	if oldCatalogRedirectTargetURL != req.CatalogRedirect.TargetURL {
 		changes = append(changes, fmt.Sprintf("重定向URL: %s→%s", oldCatalogRedirectTargetURL, req.CatalogRedirect.TargetURL))
 	}
-	detail := "更新网络引导配置"
 	if len(changes) > 0 {
-		detail = strings.Join(changes, "; ")
+		detail := strings.Join(changes, "; ")
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "netboot_settings", "", remoteIP(r), detail)
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "netboot_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1833,11 +1824,10 @@ func (h *SettingsHandler) UpdateIPXEScript(w http.ResponseWriter, r *http.Reques
 		changes = append(changes, fmt.Sprintf("特征标志: 0x%x→0x%x", oldFlags, req.FeatureFlags))
 	}
 
-	detail := "更新 iPXE 脚本配置"
 	if len(changes) > 0 {
-		detail = strings.Join(changes, "; ")
+		detail := strings.Join(changes, "; ")
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "ipxe_script", "", remoteIP(r), detail)
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "ipxe_script", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1994,11 +1984,10 @@ func (h *SettingsHandler) UpdateLoggingSettings(w http.ResponseWriter, r *http.R
 	if oldCleanupInterval != req.CleanupInterval {
 		changes = append(changes, fmt.Sprintf("清理间隔: %d→%d", oldCleanupInterval, req.CleanupInterval))
 	}
-	detail := "更新日志管理配置"
 	if len(changes) > 0 {
-		detail = strings.Join(changes, "; ")
+		detail := strings.Join(changes, "; ")
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "log_settings", "", remoteIP(r), detail)
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "log_settings", "", remoteIP(r), detail)
 	OK(w, map[string]any{"message": "日志设置已保存，轮转参数将在服务重启后生效"})
 }
 

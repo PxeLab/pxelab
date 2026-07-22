@@ -8,46 +8,20 @@ import { useToast } from '../components/ui/Toast'
 import { useUIConfig } from '../contexts/UIConfigContext'
 import { api, type AuditLog } from '../api/client'
 
-const actionLabels: Record<string, string> = {
-  CREATE: '新建',
-  UPDATE: '更新',
-  DELETE: '删除',
-}
 const actionColors: Record<string, string> = {
   CREATE: 'bg-green-500/10 text-green-400 border-green-500/30',
   UPDATE: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
   DELETE: 'bg-red-500/10 text-red-400 border-red-500/30',
 }
-const resourceLabels: Record<string, string> = {
-  host: '主机',
-  profile: '引导菜单',
-  settings: '系统设置',
-  tftp_settings: 'TFTP 设置',
-  dhcp_settings: 'DHCP 设置',
-  dns_settings: 'DNS 设置',
-  nfs_settings: 'NFS 设置',
-  netboot_settings: '网络引导设置',
-  ipxe_script: 'iPXE 脚本',
-  general_settings: '通用设置',
-  interface_settings: '接口设置',
-  log_settings: '日志设置',
-  arch_map: '架构映射',
-  dns_record: 'DNS 记录',
-  bmc_config: 'BMC 配置',
-  dhcp_reservation: 'DHCP 预留',
-  answer_template: '应答模板',
-  install_task: '安装任务',
-  netboot_overlay: '网络引导覆盖',
-  blacklist: '黑名单',
-  whitelist: '白名单',
-  unauthorized_device: '未授权设备',
-  os_image: '系统镜像',
-  lease: 'DHCP 租约',
-  wol_schedule: 'WOL 调度',
-  wol_history: 'WOL 记录',
-  wol: '网络唤醒',
-  file: '文件',
-}
+const resourceKeys = [
+  'host', 'profile', 'settings', 'tftp_settings', 'dhcp_settings',
+  'dns_settings', 'nfs_settings', 'netboot_settings', 'ipxe_script',
+  'general_settings', 'interface_settings', 'log_settings', 'arch_map',
+  'dns_record', 'bmc_config', 'dhcp_reservation', 'answer_template',
+  'install_task', 'netboot_overlay', 'blacklist', 'whitelist',
+  'unauthorized_device', 'os_image', 'lease', 'wol_schedule',
+  'wol_history', 'wol', 'file',
+] as const
 
 export default function AuditLogs() {
   const { t } = useTranslation()
@@ -60,6 +34,15 @@ export default function AuditLogs() {
   const [actionFilter, setActionFilter] = useState('')
   const [resourceFilter, setResourceFilter] = useState('')
   const [searchText, setSearchText] = useState('')
+
+  const actionLabels: Record<string, string> = {
+    CREATE: t('audit.actions.create', '新建'),
+    UPDATE: t('audit.actions.update', '更新'),
+    DELETE: t('audit.actions.delete', '删除'),
+  }
+  const resourceLabels: Record<string, string> = Object.fromEntries(
+    resourceKeys.map(k => [k, t(`audit.resources.${k}`, k)])
+  )
 
   const loadLogs = useCallback(async () => {
     setLoading(true)
