@@ -11,7 +11,7 @@ import SettingsModal from './SettingsModal'
 import {
   LayoutDashboard, Server, FileCode, Activity, Settings,
   ShieldCheck, Network, Menu, ChevronRight, ChevronLeft,
-  HardDrive, Cpu, Wifi, Disc,
+  HardDrive, Cpu, Wifi, Disc, Bell, ScrollText,
 } from 'lucide-react'
 
 interface NavItem {
@@ -64,8 +64,8 @@ const navSections = [
   {
     label: 'nav.section.monitor',
     items: [
-      { path: '/events', label: 'nav.events', icon: Activity },
-      { path: '/audit-logs', label: 'nav.auditLogs', icon: Activity },
+      { path: '/events', label: 'nav.events', icon: Bell },
+      { path: '/audit-logs', label: 'nav.auditLogs', icon: ScrollText },
       { path: '/logs', label: 'nav.logs', icon: Activity },
     ] as NavItem[],
   },
