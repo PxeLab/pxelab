@@ -59,7 +59,27 @@ make release            # goreleaser release --clean
 - **布局**: `web/src/components/layout/AppShell.tsx` — 主导航栏应用外壳
 - **页面**: `web/src/pages/` — 每个路由一个文件，通过 `React.lazy()` 懒加载
 - **国际化**: `web/src/locales/en.json`、`zh-CN.json` — i18next + `react-i18next`
-- **主题**: `index.css` 中的 CSS 变量，`ThemeSwitcher.tsx` 切换亮色/暗色模式
+- **主题**: `index.css` 中的 shadcn 风格 CSS 令牌（`--background`/`--card`/`--popover`/`--foreground` 等）；`useTheme`（light/dark/system 三态 + View Transitions 动画）、`usePalette`（主色 + oklch 派生色阶）、`useRadius`（圆角基准，`rounded-*` 全站联动）
+
+### 前端组件复用约定（必须遵守）
+
+**写原生 `<input>`/`<select>`/`<textarea>`、`<table>`、弹窗、toast、确认框、`new EventSource` 之前，先查 `components/ui/` 和 `hooks/`——有就必用。** 没有对应组件且预计两处以上复用时，先封装进公共层再使用；只有单处、强定制的场景才允许页面内手写。
+
+公共组件清单（`web/src/components/ui/`）：
+
+- 基础：`Button`、`Card`、`Tag`、`StatusDot`、`Toggle`、`Pagination`、`EmptyState`
+- 表单：`FormControls`（`Input`/`Select`/`Textarea`，支持 `size="md|sm|xs"`）、`SettingsField`（components/settings/）
+- 反馈：`Toast`（`useToast()`，含 `toast.promise` loading→结果原地更新）、`ConfirmDialog`、`Modal`
+- 数据展示：`DataTable`（内建排序/骨架屏/空态，`Column.label` 支持 ReactNode）
+- 布局：`PageHeader`（title + description? + actions?）、`AppShell`、`CommandPalette`（⌘K）、`NotificationCenter`（components/ 下）
+
+公共 hooks（`web/src/hooks/`）：`useSSE`（EventSource + 重连 + 暂停缓冲，泛型）、`useFullscreen`、`useTheme`、`usePalette`、`useRadius`
+
+样式约定：
+
+- 新代码优先用语义工具类：`bg-card`、`bg-popover`、`text-foreground`、`text-foreground-secondary`、`text-foreground-muted`、`border-border`、`bg-input`、`bg-hover`（由 `@theme` 从令牌生成）；旧别名 `var(--bg-*)`/`var(--text-*)` 仅存量兼容，禁止新增
+- **状态色只用 `accent-green`/`accent-red`/`accent-yellow` 语义类**（如 `text-accent-green`、`bg-accent-red/15`），禁止硬编码 `text-green-400` 这类调色板色号；主色用 `blue-*`（调色板由 `usePalette` 从单一主色 oklch 派生，`accent-blue` 跟随主色）
+- 新增 UI 文案必须走 i18n（`locales/` 中英双语），禁止在页面里硬编码中文/英文文案
 
 ### 数据流
 
