@@ -1,4 +1,4 @@
-﻿package dhcp
+package dhcp
 
 import (
 	"context"
@@ -378,9 +378,9 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	var reply *dhcpv4.DHCPv4
 	switch mt {
 	case dhcpv4.MessageTypeDiscover:
-		reply = h.handleDiscover(pkt, dhcpMode, serverIP, nextServer, subnetCfg, "", isIPXE)
+		reply = h.handleDiscover(pkt, dhcpMode, serverIP, nextServer, subnetCfg, isIPXE)
 	case dhcpv4.MessageTypeRequest:
-		reply = h.handleRequest(pkt, dhcpMode, serverIP, nextServer, subnetCfg, "", isIPXE)
+		reply = h.handleRequest(pkt, dhcpMode, serverIP, nextServer, subnetCfg, isIPXE)
 	}
 
 	if reply != nil {
@@ -477,7 +477,7 @@ func iPXEScriptURL(serverIP net.IP, mac string, cfg *config.IPXEScriptConfig) st
 	return fmt.Sprintf("http://%s:%d%s?mac=%s", serverIP, port, path, mac)
 }
 
-func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, bootloader string, isIPXE bool) *dhcpv4.DHCPv4 {
+func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, isIPXE bool) *dhcpv4.DHCPv4 {
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil
@@ -553,7 +553,7 @@ func (h *Handler) handleDiscover(pkt *dhcpv4.DHCPv4, mode string, serverIP, next
 	return reply
 }
 
-func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, bootloader string, isIPXE bool) *dhcpv4.DHCPv4 {
+func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextServer net.IP, subnetCfg *config.SubnetConfig, isIPXE bool) *dhcpv4.DHCPv4 {
 	reply, err := dhcpv4.NewReplyFromRequest(pkt)
 	if err != nil {
 		return nil
@@ -609,22 +609,6 @@ func (h *Handler) handleRequest(pkt *dhcpv4.DHCPv4, mode string, serverIP, nextS
 	dhcpTracker.IncAck()
 	slog.Info("DHCP Ack", "service", "DHCP", "mac", pkt.ClientHWAddr.String(), "yiaddr", reply.YourIPAddr, "mode", mode, "bootfile", reply.BootFileName)
 	return reply
-}
-
-func (h *Handler) bootloaderForSubnet(target *config.SubnetConfig) string {
-	for _, iface := range h.filteredInterfaces() {
-		for _, subnet := range iface.Subnets {
-			// Handle 中 subnetCfg 可能指向循环变量副本（值拷贝），不能用指针比较
-			// 改用 CIDR + Gateway 做值比较，CIDR 在配置中应当是唯一的
-			if subnet.CIDR == target.CIDR && subnet.Gateway == target.Gateway {
-				if iface.Bootloader == "" {
-					return "ipxe"
-				}
-				return iface.Bootloader
-			}
-		}
-	}
-	return "ipxe"
 }
 
 // resolveNBPForClient 根据客户端架构和全局 ArchMap 配置，解析最终的引导文件。

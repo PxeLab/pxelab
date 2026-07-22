@@ -60,6 +60,40 @@ func defaultArchMap() map[int]config.ArchEntry {
 	}
 }
 
+// archNameToCodes 将 dhcp.ArchString 输出的架构名反查回 IANA 架构码。
+// 租约中只保存架构字符串（见 dhcp.ArchAndPlatform），HTTP 侧判断时需要反查。
+// 一对多的情况（x86_64 同时覆盖 EFI_X86_64/EFI_BC，loong64 覆盖 LoongArch32/64）
+// 保留全部候选码，由 ChainLoadForArch 逐一枚举。
+var archNameToCodes = map[string][]int{
+	"x86":     {int(iana.INTEL_X86PC)},
+	"i386":    {int(iana.EFI_IA32)},
+	"x86_64":  {int(iana.EFI_X86_64), int(iana.EFI_BC)},
+	"arm32":   {int(iana.EFI_ARM32)},
+	"arm64":   {int(iana.EFI_ARM64)},
+	"riscv32": {int(iana.EFI_RISCV32)},
+	"riscv64": {int(iana.EFI_RISCV64)},
+	"loong64": {int(EFI_LOONGARCH32), int(EFI_LOONGARCH64)},
+}
+
+// ChainLoadForArch 判断指定架构（dhcp.ArchString 输出的架构名）在 ArchMap 中
+// 是否配置了「NBP=nbpType 且 ChainLoad=true」。
+// nbpType 为 "pxelinux" 或 "grub2"。
+// 架构名未知、查无条目或未开启 ChainLoad 时返回 false。
+// 一个架构名对应多个候选码时，任一条目命中即返回 true。
+func ChainLoadForArch(archName, nbpType string) bool {
+	codes, ok := archNameToCodes[archName]
+	if !ok {
+		return false
+	}
+	archMap := GetArchMap()
+	for _, code := range codes {
+		if entry, ok := archMap[code]; ok && entry.NBP == nbpType && entry.ChainLoad {
+			return true
+		}
+	}
+	return false
+}
+
 // archEntry 读取指定架构的 ArchEntry，优先从全局映射，缺失时返回零值。
 func archEntry(arch iana.Arch) (config.ArchEntry, bool) {
 	if globalArchMap != nil {

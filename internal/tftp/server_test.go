@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pxelab/pxelab/internal/boot"
+	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/eventbus"
 )
 
@@ -13,7 +14,7 @@ func TestNewServer(t *testing.T) {
 	bus := eventbus.New()
 	bootFS := boot.NewBootFileServer(t.TempDir())
 
-	s := NewServer(0, bootFS, bus)
+	s := NewServer(config.TFTPConfig{Port: 0}, bootFS, bus)
 	if s == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -26,7 +27,7 @@ func TestServerStartStop(t *testing.T) {
 	bus := eventbus.New()
 	bootFS := boot.NewBootFileServer(t.TempDir())
 
-	s := NewServer(0, bootFS, bus)
+	s := NewServer(config.TFTPConfig{Port: 0}, bootFS, bus)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()

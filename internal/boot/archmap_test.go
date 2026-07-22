@@ -140,3 +140,35 @@ func TestGetArchMap_RoundTrip(t *testing.T) {
 		t.Error("GetArchMap 修改泄露到内部状态")
 	}
 }
+
+func TestChainLoadForArch(t *testing.T) {
+	old := globalArchMap
+	t.Cleanup(func() { globalArchMap = old })
+
+	InitArchMap(map[int]config.ArchEntry{
+		int(iana.EFI_X86_64): {NBP: "pxelinux", ChainLoad: true, PXELinux: "pxelinux.efi", IPXE: "ipxe.efi"},
+		int(iana.EFI_ARM64):  {NBP: "grub2", ChainLoad: false, GRUB: "grubaa64.efi", IPXE: "ipxe-arm64.efi"},
+	})
+
+	tests := []struct {
+		name     string
+		archName string
+		nbpType  string
+		want     bool
+	}{
+		{"命中：x86_64 NBP=pxelinux 且 ChainLoad=true", "x86_64", "pxelinux", true},
+		{"NBP 类型不匹配：pxelinux 条目查 grub2", "x86_64", "grub2", false},
+		{"ChainLoad=false：arm64 grub2 不 chain", "arm64", "grub2", false},
+		{"架构名未知：不在反查表中", "sparc", "pxelinux", false},
+		{"默认表全为 ipxe：x86 不 chain", "x86", "pxelinux", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ChainLoadForArch(tc.archName, tc.nbpType); got != tc.want {
+				t.Errorf("ChainLoadForArch(%q, %q) = %v; want %v",
+					tc.archName, tc.nbpType, got, tc.want)
+			}
+		})
+	}
+}

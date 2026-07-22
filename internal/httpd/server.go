@@ -1,4 +1,4 @@
-﻿package httpd
+package httpd
 
 import (
 	"bytes"
@@ -143,7 +143,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 					if !ok {
 						arch, platform = "x86", "pc"
 					}
-					if chainToIPXEFallback(cfgLocal, filePath, clientIP) {
+					if chainToIPXEFallback(cfgLocal, filePath, clientIP, arch) {
 						var config string
 						if filePath == grubConfigFile {
 							config = boot.GRUB2ChainloadConfig(r.Host)
@@ -570,8 +570,11 @@ func ptrStr(s *string) string {
 	return *s
 }
 
-// chainToIPXEFallback 根据客户端所在子网决定是否返回 chain-load 配置
-func chainToIPXEFallback(cfg *config.Config, filePath, clientIP string) bool {
+// chainToIPXEFallback 决定是否返回 chain-load 配置，两级判断任一命中即 chain：
+//  1. 接口级：客户端 IP 所在子网开启 ChainToIPXE，且接口 Bootloader 与配置文件类型匹配
+//  2. 架构级：客户端架构（archName，dhcp.ArchString 输出）在全局 ArchMap 中的条目
+//     NBP 与配置文件类型匹配，且 ChainLoad=true
+func chainToIPXEFallback(cfg *config.Config, filePath, clientIP, archName string) bool {
 	for _, iface := range cfg.Interfaces {
 		for _, sn := range iface.Subnets {
 			if !sn.ChainToIPXE {
@@ -591,6 +594,17 @@ func chainToIPXEFallback(cfg *config.Config, filePath, clientIP string) bool {
 				}
 			}
 		}
+	}
+	// 架构级：全局 ArchMap 的 chain_load 开关
+	var nbpType string
+	switch filePath {
+	case cfg.Boot.GRUBConfigFile:
+		nbpType = "grub2"
+	case cfg.Boot.PXEConfigFile:
+		nbpType = "pxelinux"
+	}
+	if nbpType != "" && boot.ChainLoadForArch(archName, nbpType) {
+		return true
 	}
 	return false
 }
