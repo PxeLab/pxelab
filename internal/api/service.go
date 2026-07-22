@@ -2,22 +2,27 @@
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/servicemanager"
+	"github.com/pxelab/pxelab/internal/store"
 )
 
 type ServiceHandler struct {
 	ctrl   ServiceController
 	cfg    *config.Config
+	store  store.Interface
 	saveFn func() error
 }
 
-func NewServiceHandler(ctrl ServiceController, cfg *config.Config, saveFn func() error) *ServiceHandler {
-	return &ServiceHandler{ctrl: ctrl, cfg: cfg, saveFn: saveFn}
+func NewServiceHandler(ctrl ServiceController, cfg *config.Config, store store.Interface, saveFn func() error) *ServiceHandler {
+	return &ServiceHandler{ctrl: ctrl, cfg: cfg, store: store, saveFn: saveFn}
 }
 
 // serviceNameParam 从 URL 中提取 name 参数并做 URL 解码（支持 %2F 等编码）。
@@ -66,6 +71,7 @@ func (h *ServiceHandler) StartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	svc, _ := h.ctrl.Get(name)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "service", name, remoteIP(r), "启动服务: "+name)
 	OK(w, svc)
 }
 
@@ -89,6 +95,7 @@ func (h *ServiceHandler) StopService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	svc, _ := h.ctrl.Get(name)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "service", name, remoteIP(r), "停止服务: "+name)
 	OK(w, svc)
 }
 
@@ -112,6 +119,7 @@ func (h *ServiceHandler) RestartService(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	svc, _ := h.ctrl.Get(name)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "service", name, remoteIP(r), "重启服务: "+name)
 	OK(w, svc)
 }
 
@@ -173,6 +181,7 @@ func (h *ServiceHandler) BatchOperation(w http.ResponseWriter, r *http.Request) 
 		"success": !failed,
 		"result":  result,
 	})
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "service", "", remoteIP(r), fmt.Sprintf("批量%s服务: %s", map[string]string{"start": "启动", "stop": "停止", "restart": "重启"}[action], strings.Join(filteredNames, ", ")))
 }
 
 type autoStartRequest struct {
@@ -211,6 +220,7 @@ func (h *ServiceHandler) UpdateAutoStart(w http.ResponseWriter, r *http.Request)
 	}
 
 	svc, _ := h.ctrl.Get(name)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "service", name, remoteIP(r), fmt.Sprintf("自动启动%s: %v", name, req.Enabled))
 	OK(w, svc)
 }
 

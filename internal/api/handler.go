@@ -70,7 +70,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
 		AnswerTemplate:  &AnswerTemplateHandler{store: st},
 		InstallTask:     &InstallTaskHandler{store: st},
-		Service:         NewServiceHandler(svcController, cfg, func() error { return saveConfig(configPath(cfg), cfg) }),
+		Service:         NewServiceHandler(svcController, cfg, st, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:            NewAuthHandler(cfg, sessions),
 		Access:          &AccessHandler{store: st},
 		DNSRecord:       &DNSRecordHandler{store: st, localDomain: cfg.DNS.LocalDomain},

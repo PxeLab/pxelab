@@ -83,7 +83,7 @@ func (h *OSImageHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "os_image", strconv.FormatUint(id, 10), remoteIP(r), "删除系统镜像")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "os_image", strconv.FormatUint(id, 10), remoteIP(r), "删除系统镜像: "+img.Filename)
 	w.WriteHeader(http.StatusNoContent)
 }
 

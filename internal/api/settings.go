@@ -661,6 +661,7 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.reloader.ReloadSubnets()
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "general_settings", "", remoteIP(r), "保存全局设置")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1023,10 +1024,9 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 		h.reloader.ReloadSubnets()
 	}
 
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "interfaces", "", remoteIP(r), fmt.Sprintf("保存网络接口配置: %d 个接口", len(req.Interfaces)))
 	OK(w, map[string]string{"status": "saved"})
 }
-
-// ── TFTP ──
 
 func (h *SettingsHandler) GetTFTP(w http.ResponseWriter, r *http.Request) {
 	cfg := h.cfg

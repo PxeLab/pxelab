@@ -244,11 +244,17 @@ func (h *BMCHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid ID")
 		return
 	}
+	// 保存旧值用于审计
+	oldCfg, _ := h.store.GetBMCConfig(r.Context(), id)
 	if err := h.store.DeleteBMCConfig(r.Context(), id); err != nil {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "bmc_config", fmt.Sprintf("%d", id), remoteIP(r), "删除 BMC 配置")
+	detail := "删除 BMC 配置"
+	if oldCfg != nil && oldCfg.Host != "" {
+		detail = fmt.Sprintf("删除 BMC 配置 %s (%s)", oldCfg.Host, oldCfg.Name)
+	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "bmc_config", fmt.Sprintf("%d", id), remoteIP(r), detail)
 	w.WriteHeader(http.StatusNoContent)
 }
 

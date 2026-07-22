@@ -160,7 +160,7 @@ func (h *LeaseHandler) BatchDelete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "lease", "", remoteIP(r), "批量删除租约")
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "lease", "", remoteIP(r), fmt.Sprintf("批量删除租约: %d 条 (成功 %d, 失败 %d)", len(req.MACs), len(req.MACs)-len(failed), len(failed)))
 
 	result := map[string]interface{}{
 		"success_count": len(req.MACs) - len(failed),

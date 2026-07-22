@@ -58,7 +58,7 @@ func (h *ProfileHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.Name, remoteIP(r), "新建引导配置")
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.Name, remoteIP(r), "新建引导配置: "+profile.Name+" ("+profile.Arch+")")
 	Created(w, profile)
 }
 

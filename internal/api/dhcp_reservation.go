@@ -153,10 +153,16 @@ func (h *DHCPReservationHandler) Delete(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusBadRequest, "无效的 ID")
 		return
 	}
+	// 保存旧值用于审计
+	oldRes, _ := h.store.GetDHCPReservation(r.Context(), uint(id))
 	if err := h.store.DeleteDHCPReservation(r.Context(), uint(id)); err != nil {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), "删除 DHCP 预留")
+	detail := "删除 DHCP 预留"
+	if oldRes != nil && oldRes.IP != "" {
+		detail = fmt.Sprintf("删除 DHCP 预留 %s (%s)", oldRes.IP, oldRes.MAC)
+	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), detail)
 	w.WriteHeader(http.StatusNoContent)
 }

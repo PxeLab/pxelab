@@ -38,7 +38,7 @@ func (h *InstallTaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "install_task", task.ID, remoteIP(r), "新建安装任务: "+task.DistroName)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "install_task", task.ID, remoteIP(r), "新建安装任务: "+task.DistroName+" ("+task.VersionCodename+"/"+task.Arch+")")
 	Created(w, task)
 }
 
