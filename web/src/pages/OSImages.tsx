@@ -73,11 +73,11 @@ export default function OSImages() {
       for (let i = 0; i < files.length; i++) {
         const f = files[i]
         if (!f.name.toLowerCase().endsWith('.iso')) {
-          showError(`${f.name}: only ISO files supported`)
+          showError(t('osImages.onlyIso', { name: f.name }))
           continue
         }
         await api.uploadOSImage(f)
-        success('uploaded: ' + f.name)
+        success(t('osImages.uploaded', { name: f.name }))
       }
       await loadImages()
     } catch (err: any) { showError(err.message) }
@@ -88,7 +88,7 @@ export default function OSImages() {
     if (!deleteTarget?.id) return
     try {
       await api.deleteOSImage(deleteTarget.id)
-      success('deleted')
+      success(t('osImages.deleted'))
       setDeleteTarget(null)
       await loadImages()
     } catch (err: any) { showError(err.message) }
@@ -97,7 +97,7 @@ export default function OSImages() {
   const handleExtract = async (id: number) => {
     try {
       await api.extractOSImage(id)
-      success('extracted')
+      success(t('osImages.extracted'))
       await loadImages()
     } catch (err: any) { showError(err.message) }
   }
@@ -105,7 +105,7 @@ export default function OSImages() {
   const handleMount = async (id: number) => {
     try {
       await api.mountOSImage(id)
-      success('mounted')
+      success(t('osImages.mounted'))
       await loadImages()
     } catch (err: any) { showError(err.message) }
   }
@@ -115,7 +115,7 @@ export default function OSImages() {
   const handleUnmount = async (id: number) => {
     try {
       await api.unmountOSImage(id)
-      success('unmounted')
+      success(t('osImages.unmounted'))
       await loadImages()
     } catch (err: any) { showError(err.message) }
   }
@@ -137,7 +137,7 @@ export default function OSImages() {
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             </Button>
             <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
-              <Upload size={14} /> Upload ISO
+              <Upload size={14} /> {t('osImages.uploadIso')}
             </Button>
           </>
         }
@@ -162,9 +162,9 @@ export default function OSImages() {
         onClick={() => fileRef.current?.click()}
       >
         <Upload size={32} className="mx-auto mb-2 text-[var(--text-muted)]" />
-        <p className="text-sm text-[var(--text-secondary)]">Drop ISO files here or click to upload</p>
-        <p className="text-xs text-[var(--text-muted)] mt-1">Supports ISO 9660 images (Ubuntu, Debian, CentOS, ESXi, Windows)</p>
-        {uploading && <p className="text-xs text-blue-400 mt-2">Uploading...</p>}
+        <p className="text-sm text-[var(--text-secondary)]">{t('osImages.dropHint')}</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">{t('osImages.dropSub')}</p>
+        {uploading && <p className="text-xs text-blue-400 mt-2">{t('osImages.uploading')}</p>}
       </div>
 
       <div className="relative">
@@ -172,7 +172,7 @@ export default function OSImages() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search images..."
+          placeholder={t('osImages.searchPlaceholder')}
           className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg pl-9 pr-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
         />
       </div>
@@ -182,7 +182,7 @@ export default function OSImages() {
           <RefreshCw size={24} className="animate-spin text-[var(--text-muted)]" />
         </div>
       ) : filtered.length === 0 ? (
-        <Card><div className="py-12 text-center text-sm text-[var(--text-muted)]">No images found</div></Card>
+        <Card><div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('osImages.noImages')}</div></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map(img => (
@@ -205,35 +205,35 @@ export default function OSImages() {
                 <div className="grid grid-cols-2 gap-2 text-[11px]">
                   {img.distro && (
                     <div>
-                      <span className="text-[var(--text-muted)]">Distro</span>
+                      <span className="text-[var(--text-muted)]">{t('osImages.distro')}</span>
                       <p className="text-[var(--text-primary)] font-medium">{img.distro}</p>
                     </div>
                   )}
                   {img.version && (
                     <div>
-                      <span className="text-[var(--text-muted)]">Version</span>
+                      <span className="text-[var(--text-muted)]">{t('osImages.version')}</span>
                       <p className="text-[var(--text-primary)] font-medium">{img.version}</p>
                     </div>
                   )}
                   {img.arch && (
                     <div>
-                      <span className="text-[var(--text-muted)]">Arch</span>
+                      <span className="text-[var(--text-muted)]">{t('osImages.arch')}</span>
                       <Tag color="blue">{img.arch}</Tag>
                     </div>
                   )}
                   <div>
-                    <span className="text-[var(--text-muted)]">Size</span>
+                    <span className="text-[var(--text-muted)]">{t('osImages.size')}</span>
                     <p className="text-[var(--text-primary)] font-mono text-[10px]">{formatSize(img.size || 0)}</p>
                   </div>
                   {img.mount_point && (
                     <div className="col-span-2">
-                      <span className="text-[var(--text-muted)]">Mounted</span>
+                      <span className="text-[var(--text-muted)]">{t('osImages.mountPoint')}</span>
                       <p className="text-[var(--text-primary)] font-mono text-[10px] truncate">{img.mount_point}</p>
                     </div>
                   )}
                   {img.error_message && (
                     <div className="col-span-2">
-                      <span className="text-accent-red">Error</span>
+                      <span className="text-accent-red">{t('osImages.error')}</span>
                       <p className="text-accent-red text-[10px]">{img.error_message}</p>
                     </div>
                   )}
@@ -247,25 +247,25 @@ export default function OSImages() {
                       {!img.extracted_to && (
                         <button onClick={() => handleExtract(img.id!)}
                           className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:bg-orange-500/15 hover:text-orange-400 transition-colors">
-                          <FileArchive size={11} /> Extract
+                          <FileArchive size={11} /> {t('osImages.extract')}
                         </button>
                       )}
                       {!img.mount_point ? (
                         <button onClick={() => handleMount(img.id!)}
                           className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:bg-blue-500/15 hover:text-blue-400 transition-colors">
-                          <HardDrive size={11} /> Mount
+                          <HardDrive size={11} /> {t('osImages.mount')}
                         </button>
                       ) : (
                         <button onClick={() => setUnmountTarget(img)}
                           className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:bg-accent-yellow/15 hover:text-accent-yellow transition-colors">
-                          <HardDrive size={11} /> Unmount
+                          <HardDrive size={11} /> {t('osImages.unmount')}
                         </button>
                       )}
                     </>
                   )}
                   <button onClick={() => setDeleteTarget(img)}
                     className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:bg-accent-red/15 hover:text-accent-red transition-colors ml-auto">
-                    <Trash2 size={11} /> Delete
+                    <Trash2 size={11} /> {t('osImages.delete')}
                   </button>
                 </div>
               </div>
@@ -274,13 +274,13 @@ export default function OSImages() {
         </div>
       )}
 
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Image">
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={t('osImages.deleteTitle')}>
         <p className="text-sm text-[var(--text-secondary)] mb-4">
-          Delete <strong>{deleteTarget?.name}</strong>? This will remove the ISO file and all extracted data.
+          {t('osImages.deleteConfirmPre')} <strong>{deleteTarget?.name}</strong>{t('osImages.deleteConfirmPost')}
         </p>
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-          <Button variant="danger" onClick={handleDelete}>Delete</Button>
+          <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t('osImages.cancel')}</Button>
+          <Button variant="danger" onClick={handleDelete}>{t('osImages.delete')}</Button>
         </div>
       </Modal>
 

@@ -39,7 +39,7 @@ export async function getHostBootConfig(id: string, format: string): Promise<str
   if (res.status === 401) {
     clearSession()
     window.location.href = "/login"
-    throw new Error("会话已过期，请重新登录")
+    throw new Error("Session expired")
   }
   if (!res.ok) {
     const json = await res.json().catch(() => ({}))

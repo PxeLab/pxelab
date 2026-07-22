@@ -17,17 +17,17 @@ type Tab = 'all' | string
 
 type CatalogRow = { distro: NetbootDistro; version: NetbootVersion }
 
-const GROUP_LABELS: Record<string, string> = {
-  linux: 'Linux',
-  'linux-i386': 'Linux (32-bit)',
-  'linux-arm64': 'Linux ARM64',
-  bsd: 'BSD',
-  live: 'Live CD',
-  'live-arm': 'Live CD ARM64',
-  tools: '工具',
-  unix: 'Unix',
-  dos: 'DOS',
-  windows: 'Windows',
+const GROUP_LABEL_KEYS: Record<string, string> = {
+  linux: 'netbootCatalog.groups.linux',
+  'linux-i386': 'netbootCatalog.groups.linuxI386',
+  'linux-arm64': 'netbootCatalog.groups.linuxArm64',
+  bsd: 'netbootCatalog.groups.bsd',
+  live: 'netbootCatalog.groups.live',
+  'live-arm': 'netbootCatalog.groups.liveArm',
+  tools: 'netbootCatalog.groups.tools',
+  unix: 'netbootCatalog.groups.unix',
+  dos: 'netbootCatalog.groups.dos',
+  windows: 'netbootCatalog.groups.windows',
 }
 
 const GROUP_ICONS: Record<string, React.ReactNode> = {
@@ -44,7 +44,7 @@ const GROUP_ICONS: Record<string, React.ReactNode> = {
 }
 
 const ANSWER_TYPES = [
-  { value: '', label: '无' },
+  { value: '', label: '' },
   { value: 'subiquity', label: 'Subiquity (Ubuntu 20.04+)' },
   { value: 'preseed', label: 'Preseed (Ubuntu/Debian)' },
   { value: 'kickstart', label: 'Kickstart (RHEL/CentOS/Rocky)' },
@@ -154,10 +154,10 @@ export default function NetbootCatalog() {
 
   const groups = [...new Set(distros.filter(d => d.enabled).map(d => d.menu_group))].sort()
   const tabs: { key: Tab; label: string; filter: (d: NetbootDistro) => boolean }[] = [
-    { key: 'all', label: '全部', filter: () => true },
+    { key: 'all', label: t('netbootCatalog.tabAll'), filter: () => true },
     ...groups.map(g => ({
       key: g,
-      label: GROUP_LABELS[g] || g,
+      label: GROUP_LABEL_KEYS[g] ? t(GROUP_LABEL_KEYS[g]) : g,
       filter: (d: NetbootDistro) => d.menu_group === g,
     })),
   ]
@@ -235,7 +235,7 @@ export default function NetbootCatalog() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-[var(--text-primary)]">启用覆盖配置</label>
+          <label className="text-sm font-medium text-[var(--text-primary)]">{t('netbootCatalog.overlayEnable')}</label>
           <button
             onClick={() => setEditingOverlay({ ...ov, enabled: !ov.enabled })}
             className={`relative w-10 h-5 rounded-full transition-colors ${ov.enabled ? 'bg-blue-500' : 'bg-gray-500/30'}`}
@@ -248,26 +248,26 @@ export default function NetbootCatalog() {
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">镜像源 URL</label>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('netbootCatalog.overlayMirror')}</label>
                 <Input size="sm" type="text" value={ov.mirror || ''}
                   onChange={e => setEditingOverlay({ ...ov, mirror: e.target.value })}
                   placeholder={distro.mirror || ''} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">本地路径</label>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('netbootCatalog.overlayLocalPath')}</label>
                 <Input size="sm" type="text" value={ov.local_base || ''}
                   onChange={e => setEditingOverlay({ ...ov, local_base: e.target.value })} />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">全局 Kernel 参数</label>
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('netbootCatalog.overlayKernelParams')}</label>
               <Input size="sm" type="text" value={ov.kernel_params || ''}
                 onChange={e => setEditingOverlay({ ...ov, kernel_params: e.target.value })} />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-[var(--text-muted)]">版本级覆盖</label>
+                <label className="text-xs font-medium text-[var(--text-muted)]">{t('netbootCatalog.overlayVersionOverrides')}</label>
               </div>
               {distro.versions.filter(v => v.enabled).map((ver) => {
                 const existingVo = (ov.version_overrides || []).find(
@@ -282,10 +282,10 @@ export default function NetbootCatalog() {
                       <span className="text-xs font-medium text-[var(--text-primary)]">{ver.name} ({ver.arch})</span>
                       {isExpanded ? (
                         <button onClick={() => removeVersionOverride(voIdx)}
-                          className="text-[10px] text-accent-red">移除覆盖</button>
+                          className="text-[10px] text-accent-red">{t('netbootCatalog.overlayRemove')}</button>
                       ) : (
                         <button onClick={() => addVersionOverride(ver.codename, ver.arch)}
-                          className="text-[10px] text-blue-400 hover:text-blue-300">+ 添加覆盖</button>
+                          className="text-[10px] text-blue-400 hover:text-blue-300">{t('netbootCatalog.overlayAdd')}</button>
                       )}
                     </div>
                     {isExpanded && existingVo && (() => {
@@ -295,7 +295,7 @@ export default function NetbootCatalog() {
                         <div className="mt-2 space-y-2">
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-[10px] text-[var(--text-muted)]">Kernel URL</label>
+                              <label className="block text-[10px] text-[var(--text-muted)]">{t('netbootCatalog.overlayKernelUrl')}</label>
                               <Input size="xs" className="text-[11px]" type="text" value={current.remote_kernel || ''}
                                 onChange={e => {
                                   const vo = [...(ov.version_overrides || [])]
@@ -304,7 +304,7 @@ export default function NetbootCatalog() {
                                 }} />
                             </div>
                             <div>
-                              <label className="block text-[10px] text-[var(--text-muted)]">Initrd URL</label>
+                              <label className="block text-[10px] text-[var(--text-muted)]">{t('netbootCatalog.overlayInitrdUrl')}</label>
                               <Input size="xs" className="text-[11px]" type="text" value={current.remote_initrd || ''}
                                 onChange={e => {
                                   const vo = [...(ov.version_overrides || [])]
@@ -314,7 +314,7 @@ export default function NetbootCatalog() {
                             </div>
                           </div>
                           <div>
-                            <label className="block text-[10px] text-[var(--text-muted)]">Cmdline</label>
+                            <label className="block text-[10px] text-[var(--text-muted)]">{t('netbootCatalog.overlayCmdline')}</label>
                             <Input size="xs" className="text-[11px]" type="text" value={current.cmdline || ''}
                               onChange={e => {
                                 const vo = [...(ov.version_overrides || [])]
@@ -324,7 +324,7 @@ export default function NetbootCatalog() {
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-[10px] text-[var(--text-muted)]">Answer Param</label>
+                              <label className="block text-[10px] text-[var(--text-muted)]">{t('netbootCatalog.overlayAnswerParam')}</label>
                               <Input size="xs" className="text-[11px]" type="text" value={current.answer_param || ''}
                                 onChange={e => {
                                   const vo = [...(ov.version_overrides || [])]
@@ -334,7 +334,7 @@ export default function NetbootCatalog() {
                                 placeholder="autoinstall ds=nocloud-net;s={{.AnswerURL}}" />
                             </div>
                             <div>
-                              <label className="block text-[10px] text-[var(--text-muted)]">Answer 类型</label>
+                              <label className="block text-[10px] text-[var(--text-muted)]">{t('netbootCatalog.overlayAnswerType')}</label>
                               <Select size="xs" className="text-[11px]" value={current.answer_type || ''}
                                 onChange={e => {
                                   const vo = [...(ov.version_overrides || [])]
@@ -342,7 +342,7 @@ export default function NetbootCatalog() {
                                   setEditingOverlay({ ...ov, version_overrides: vo })
                                 }}>
                                 {ANSWER_TYPES.map(at => (
-                                  <option key={at.value} value={at.value}>{at.label}</option>
+                                  <option key={at.value} value={at.value}>{at.value === '' ? t('netbootCatalog.answerNone') : at.label}</option>
                                 ))}
                               </Select>
                             </div>
@@ -368,7 +368,7 @@ export default function NetbootCatalog() {
   const columns: Column<CatalogRow>[] = [
     {
       key: 'distro',
-      label: '发行版',
+      label: t('netbootCatalog.colDistro'),
       render: ({ distro }) => (
         <div className="flex items-center gap-2">
           {GROUP_ICONS[distro.menu_group] || <Package size={16} />}
@@ -378,32 +378,32 @@ export default function NetbootCatalog() {
     },
     {
       key: 'version',
-      label: '版本',
+      label: t('netbootCatalog.colVersion'),
       render: ({ version }) => (
         <span className="text-[var(--text-primary)] text-xs whitespace-nowrap">{version.name}</span>
       ),
     },
     {
       key: 'arch',
-      label: '架构',
+      label: t('netbootCatalog.colArch'),
       className: 'whitespace-nowrap',
       render: ({ version }) => archBadge(version.arch),
     },
     {
       key: 'boot',
-      label: '引导',
+      label: t('netbootCatalog.colBoot'),
       className: 'whitespace-nowrap',
       render: ({ version }) => bootTypeTag(version.boot_type),
     },
     {
       key: 'install',
-      label: '安装',
+      label: t('netbootCatalog.colInstall'),
       className: 'whitespace-nowrap',
       render: ({ version }) => installTypeTag(version.install_type) || <span className="text-[10px] text-[var(--text-muted)]">—</span>,
     },
     {
       key: 'kernel',
-      label: 'Kernel',
+      label: t('netbootCatalog.colKernel'),
       className: 'max-w-[200px]',
       render: ({ version }) => {
         const kernelVal = version.remote?.kernel || version.local?.kernel || ''
@@ -414,7 +414,7 @@ export default function NetbootCatalog() {
     },
     {
       key: 'initrd',
-      label: 'Initrd',
+      label: t('netbootCatalog.colInitrd'),
       className: 'max-w-[200px]',
       render: ({ version }) => {
         const initrdVal = version.remote?.initrd || version.local?.initrd || ''
@@ -425,7 +425,7 @@ export default function NetbootCatalog() {
     },
     {
       key: 'cmdline',
-      label: 'Cmdline',
+      label: t('netbootCatalog.colCmdline'),
       className: 'max-w-[200px]',
       render: ({ version }) => (
         <span className="font-mono text-[10px] text-[var(--text-primary)] block truncate" title={version.cmdline || ''}>{version.cmdline || <span className="text-[var(--text-muted)]">—</span>}</span>
@@ -433,7 +433,7 @@ export default function NetbootCatalog() {
     },
     {
       key: 'cache',
-      label: <span title="Kernel/Initrd 文件是否已缓存到本地服务器">缓存</span>,
+      label: <span title={t('netbootCatalog.colCacheTitle')}>{t('netbootCatalog.colCache')}</span>,
       className: 'text-center',
       render: ({ distro, version }) => {
         const statusKey = `${distro.name}/${version.name}/${version.arch}`
@@ -445,7 +445,7 @@ export default function NetbootCatalog() {
     },
     {
       key: 'actions',
-      label: '操作',
+      label: t('netbootCatalog.colActions'),
       className: 'text-center',
       render: ({ distro, version }) => (
         <button
@@ -455,13 +455,13 @@ export default function NetbootCatalog() {
           }}
           className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded transition-colors bg-accent-green/15 text-accent-green hover:bg-accent-green/25"
         >
-          <Plus size={12} /> 创建
+          <Plus size={12} /> {t('netbootCatalog.create')}
         </button>
       ),
     },
     {
       key: 'overlay',
-      label: '覆盖',
+      label: t('netbootCatalog.colOverlay'),
       className: 'text-center',
       render: ({ distro }) => {
         const hasOverlay = !!overlays[distro.name]
@@ -487,7 +487,7 @@ export default function NetbootCatalog() {
         title={t('netbootCatalog.title')}
         actions={
           <Button variant="secondary" size="sm" onClick={loadData} disabled={loading}>
-            <RefreshCw size={14} /> 刷新
+            <RefreshCw size={14} /> {t('netbootCatalog.refresh')}
           </Button>
         }
       />
@@ -497,7 +497,7 @@ export default function NetbootCatalog() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             type="text"
-            placeholder="搜索发行版或版本..."
+            placeholder={t('netbootCatalog.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-8 pr-4 py-1.5 text-sm border border-[var(--border-color)] rounded bg-[var(--bg-primary)]"
@@ -524,7 +524,7 @@ export default function NetbootCatalog() {
         <DataTable columns={columns} data={[]} loading rowKey={rowKey} />
       ) : rows.length === 0 ? (
         <div className="text-center py-16 text-[var(--text-muted)]">
-          没有匹配的版本
+          {t('netbootCatalog.noResults')}
         </div>
       ) : (
         <div>
@@ -539,7 +539,7 @@ export default function NetbootCatalog() {
       <Modal
         open={!!overlayDistro}
         onClose={() => { setOverlayDistro(null); setEditingOverlay(null) }}
-        title={`覆盖配置 — ${overlayDistro?.name || ''}`}
+        title={t('netbootCatalog.overlayTitle', { name: overlayDistro?.name || '' })}
         width="640px"
         footer={
           <>
@@ -548,21 +548,21 @@ export default function NetbootCatalog() {
                 onClick={() => setConfirmDeleteOverlay(true)}
                 className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-red/15 text-accent-red hover:bg-accent-red/25 transition-colors"
               >
-                <Trash2 size={12} className="inline mr-1" />删除覆盖
+                <Trash2 size={12} className="inline mr-1" />{t('netbootCatalog.overlayDelete')}
               </button>
             )}
             <button
               onClick={() => { setOverlayDistro(null); setEditingOverlay(null) }}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors"
             >
-              取消
+              {t('netbootCatalog.cancel')}
             </button>
             <button
               onClick={saveOverlay}
               disabled={overlaySaving}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 disabled:opacity-40 transition-colors"
             >
-              {overlaySaving ? '保存中...' : '保存覆盖'}
+              {overlaySaving ? t('netbootCatalog.saving') : t('netbootCatalog.overlaySave')}
             </button>
           </>
         }
@@ -581,7 +581,7 @@ export default function NetbootCatalog() {
       <Modal
         open={!!createTarget}
         onClose={() => setCreateTarget(null)}
-        title="创建 Profile"
+        title={t('netbootCatalog.createProfileTitle')}
         width="400px"
         footer={
           <>
@@ -589,7 +589,7 @@ export default function NetbootCatalog() {
               onClick={() => setCreateTarget(null)}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors"
             >
-              取消
+              {t('netbootCatalog.cancel')}
             </button>
             <button
               onClick={async () => {
@@ -602,41 +602,41 @@ export default function NetbootCatalog() {
                     arch: createTarget.version.arch,
                     profile_name: createName,
                   })
-                  success('Profile 创建成功')
+                  success(t('netbootCatalog.createSuccess'))
                   setCreateTarget(null)
                   navigate('/profiles')
                 } catch {
-                  toastError('创建 Profile 失败')
+                  toastError(t('netbootCatalog.createFailed'))
                 }
                 setCreateLoading(false)
               }}
               disabled={createLoading || !createName.trim()}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 disabled:opacity-40 transition-colors"
             >
-              {createLoading ? '创建中...' : '确定创建'}
+              {createLoading ? t('netbootCatalog.creating') : t('netbootCatalog.createConfirm')}
             </button>
           </>
         }
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Profile 名称</label>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('netbootCatalog.profileName')}</label>
             <Input
               type="text"
               value={createName}
               onChange={e => setCreateName(e.target.value)}
-              placeholder="输入 Profile 名称"
+              placeholder={t('netbootCatalog.profileNamePlaceholder')}
               autoFocus
             />
           </div>
           {createTarget && (
             <div className="text-xs text-[var(--text-muted)] space-y-1">
-              <p>发行版: <span className="text-[var(--text-primary)]">{createTarget.distro.name}</span></p>
-              <p>版本: <span className="text-[var(--text-primary)]">{createTarget.version.name} ({createTarget.version.codename})</span></p>
-              <p>架构: <span className="text-[var(--text-primary)]">{createTarget.version.arch}</span></p>
+              <p>{t('netbootCatalog.colDistro')}: <span className="text-[var(--text-primary)]">{createTarget.distro.name}</span></p>
+              <p>{t('netbootCatalog.colVersion')}: <span className="text-[var(--text-primary)]">{createTarget.version.name} ({createTarget.version.codename})</span></p>
+              <p>{t('netbootCatalog.colArch')}: <span className="text-[var(--text-primary)]">{createTarget.version.arch}</span></p>
               {createTarget.version.remote?.kernel && (
                 <p className="truncate" title={createTarget.version.remote.kernel}>
-                  Kernel: <span className="text-[var(--text-primary)]">{createTarget.version.remote.kernel}</span>
+                  {t('netbootCatalog.colKernel')}: <span className="text-[var(--text-primary)]">{createTarget.version.remote.kernel}</span>
                 </p>
               )}
             </div>

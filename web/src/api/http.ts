@@ -46,12 +46,13 @@ export async function login(masterToken: string): Promise<string> {
     body: JSON.stringify({ token: masterToken }),
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: '登录失败' }))
-    throw new Error(err.error || '登录失败')
+    // 后端 error 文案原样透传；无文案时用哨兵值，由页面层映射为 i18n 文案
+    const err = await res.json().catch(() => ({} as { error?: string }))
+    throw new Error(err.error || 'ERR_LOGIN_FAILED')
   }
   const json = await res.json()
   const sessionToken = json.data?.session_token
-  if (!sessionToken) throw new Error('登录失败：未获取到会话令牌')
+  if (!sessionToken) throw new Error('ERR_LOGIN_FAILED')
   saveSession(sessionToken)
   return sessionToken
 }
@@ -120,7 +121,7 @@ export async function request<T>(method: string, path: string, body?: unknown): 
   if (res.status === 401) {
     clearSession()
     window.location.href = '/login'
-    throw new Error('会话已过期，请重新登录')
+    throw new Error('Session expired')
   }
   if (res.status === 204) return { success: true } as ApiResponse<T>
   const json = await res.json()

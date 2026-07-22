@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { login } from '../api/client'
 import { Button } from '../components/ui/Button'
@@ -23,7 +23,9 @@ export default function LoginPage({ onLogin }: LoginProps) {
       await login(token.trim())
       onLogin()
     } catch (err: any) {
-      setError(err.message || '登录失败')
+      // ERR_LOGIN_FAILED 是 api 层的通用哨兵（无后端文案时抛出），映射为本地化文案；
+      // 后端返回的具体错误（如令牌无效）原样展示
+      setError(!err?.message || err.message === 'ERR_LOGIN_FAILED' ? t('login.failed') : err.message)
     } finally {
       setLoading(false)
     }
