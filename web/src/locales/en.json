@@ -1,4 +1,4 @@
-﻿{
+{
   "app": {
     "name": "PxeLab",
     "tagline": "All-in-One PXE Server"
@@ -334,6 +334,17 @@
     "activeOnly": "Active Only",
     "totalSubnets": "Total Subnets",
     "totalLeases": "Total Leases"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications",
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{{count}} min ago",
+      "hoursAgo": "{{count}} hr ago",
+      "daysAgo": "{{count}} d ago"
+    }
   },
   "events": {
     "title": "Event Log",
@@ -700,6 +711,8 @@
     "total": "Total",
     "items": "items",
     "viewAll": "View All",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
     "serverName": "Server Name",
     "serverNameHint": "Only lowercase letters, digits, and hyphens allowed, must not start or end with a hyphen",
     "logLevel": "Log Level",
@@ -728,7 +741,10 @@
     "restart": "Restart",
     "collapseSidebar": "Collapse Sidebar",
     "expandSidebar": "Expand Sidebar",
-    "close": "Close"
+    "close": "Close",
+    "serviceOpLoading": "{{op}} {{name}}…",
+    "serviceOpSuccess": "{{name}} {{op}} succeeded",
+    "serviceCount": "{{count}} services"
   },
   "answerTemplates": {
     "title": "Answer Templates",
@@ -1002,7 +1018,14 @@
     "palette_sunset": "Sunset Amber",
     "palette_violet": "Violet Purple",
     "palette_rose": "Rose Pink",
-    "palette_midnight": "Midnight Blue"
+    "palette_midnight": "Midnight Blue",
+    "system": "System",
+    "radius": "Corner Radius",
+    "radius_none": "None",
+    "radius_sm": "S",
+    "radius_md": "M",
+    "radius_lg": "L",
+    "radius_xl": "XL"
   },
   "wol": {
     "title": "Wake-on-LAN",
@@ -1073,7 +1096,10 @@
     "statsSuccess": "Success",
     "statsFailed": "Failed",
     "activeSchedules": "Active Schedules",
-    "scheduleDeleted": "Schedule deleted"
+    "scheduleDeleted": "Schedule deleted",
+    "confirmDeleteHistory": "Delete this wake history record?",
+    "confirmDeleteSchedule": "Delete this scheduled wake task?",
+    "confirmDeleteAllHistory": "Clear all wake history records?"
   },
   "network": {
     "title": "Network Diagnostics",
@@ -1201,5 +1227,21 @@
       "wol": "Wake-on-LAN",
       "file": "File"
     }
+  },
+  "commandPalette": {
+    "placeholder": "Search menus, hosts…",
+    "recent": "Recent",
+    "navigation": "Navigation",
+    "hosts": "Hosts",
+    "empty": "No results",
+    "loading": "Searching…"
+  },
+  "netbootCatalog": {
+    "title": "OS Catalog",
+    "confirmDeleteOverlay": "Delete the overlay for {{name}}? The catalog defaults will be used instead."
+  },
+  "osImages": {
+    "title": "OS Images",
+    "confirmUnmount": "Unmount image {{name}}? Clients using this mount will lose access immediately."
   }
 }

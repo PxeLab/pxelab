@@ -1,4 +1,4 @@
-﻿{
+{
   "app": {
     "name": "PxeLab",
     "tagline": "一体化 PXE 服务器"
@@ -334,6 +334,17 @@
     "activeOnly": "仅活跃",
     "totalSubnets": "子网总数",
     "totalLeases": "租约总数"
+  },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "全部已读",
+    "empty": "暂无通知",
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{{count}} 分钟前",
+      "hoursAgo": "{{count}} 小时前",
+      "daysAgo": "{{count}} 天前"
+    }
   },
   "events": {
     "title": "事件日志",
@@ -700,6 +711,8 @@
     "total": "共",
     "items": "条",
     "viewAll": "查看全部",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出全屏",
     "serverName": "服务器名称",
     "serverNameHint": "仅支持小写字母、数字和连字符，不能以连字符开头或结尾",
     "logLevel": "日志级别",
@@ -728,7 +741,10 @@
     "restart": "重启",
     "collapseSidebar": "折叠侧边栏",
     "expandSidebar": "展开侧边栏",
-    "close": "关闭"
+    "close": "关闭",
+    "serviceOpLoading": "正在{{op}} {{name}}…",
+    "serviceOpSuccess": "{{name}}{{op}}成功",
+    "serviceCount": "{{count}} 个服务"
   },
   "answerTemplates": {
     "title": "应答模板管理",
@@ -1002,7 +1018,14 @@
     "palette_sunset": "日落暖",
     "palette_violet": "紫罗兰",
     "palette_rose": "玫瑰红",
-    "palette_midnight": "午夜深蓝"
+    "palette_midnight": "午夜深蓝",
+    "system": "跟随系统",
+    "radius": "圆角",
+    "radius_none": "无",
+    "radius_sm": "小",
+    "radius_md": "中",
+    "radius_lg": "大",
+    "radius_xl": "特大"
   },
   "wol": {
     "title": "Wake-on-LAN",
@@ -1073,7 +1096,10 @@
     "statsSuccess": "成功",
     "statsFailed": "失败",
     "activeSchedules": "活跃定时任务",
-    "scheduleDeleted": "定时任务已删除"
+    "scheduleDeleted": "定时任务已删除",
+    "confirmDeleteHistory": "确定要删除这条唤醒记录吗？",
+    "confirmDeleteSchedule": "确定要删除这个定时唤醒任务吗？",
+    "confirmDeleteAllHistory": "确定要清空所有唤醒记录吗？"
   },
   "network": {
     "title": "网络诊断",
@@ -1201,5 +1227,21 @@
       "wol": "网络唤醒",
       "file": "文件"
     }
+  },
+  "commandPalette": {
+    "placeholder": "搜索菜单、主机…",
+    "recent": "最近访问",
+    "navigation": "导航",
+    "hosts": "主机",
+    "empty": "无结果",
+    "loading": "搜索中…"
+  },
+  "netbootCatalog": {
+    "title": "OS 安装目录",
+    "confirmDeleteOverlay": "确定要删除 {{name}} 的覆盖配置吗？将恢复使用目录默认配置。"
+  },
+  "osImages": {
+    "title": "系统镜像",
+    "confirmUnmount": "确定要卸载镜像 {{name}} 吗？正在使用该挂载的客户端将立即失去访问。"
   }
 }

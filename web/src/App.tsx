@@ -1,5 +1,6 @@
-﻿import { useState, useEffect, Suspense, lazy } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { AppShell } from './components/layout/AppShell'
 import { ToastProvider } from './components/ui/Toast'
 import { UIConfigProvider } from './contexts/UIConfigContext'
@@ -32,11 +33,12 @@ const FileManager = lazy(() => import('./pages/FileManager'))
 const BootSettings = lazy(() => import('./pages/BootSettings'))
 
 function LoadingFallback() {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center justify-center py-20">
       <div className="flex flex-col items-center gap-3 text-[var(--text-muted)]">
         <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-        <span className="text-sm">加载中...</span>
+        <span className="text-sm">{t('common.loading')}</span>
       </div>
     </div>
   )

@@ -1,17 +1,21 @@
-﻿import { type FC, type ReactNode, useState, useEffect, useCallback, useRef } from 'react'
+import { type FC, type ReactNode, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../../hooks/useTheme'
 import { usePalette } from '../../hooks/usePalette'
+import { useRadius } from '../../hooks/useRadius'
 import { ThemeSwitcher } from '../ThemeSwitcher'
 import { LangSwitch } from '../LangSwitch'
 import { StatusDot } from '../ui/StatusDot'
+import { useToast } from '../ui/Toast'
 import { getServices, startService, stopService, restartService, batchService, type ServiceInfo } from '../../api/client'
 import SettingsModal from './SettingsModal'
+import { CommandPalette } from '../CommandPalette'
+import { NotificationCenter } from '../NotificationCenter'
 import {
   LayoutDashboard, Server, FileCode, Activity, Settings,
   ShieldCheck, Network, Menu, ChevronRight, ChevronLeft,
-  HardDrive, Cpu, Wifi, Disc, Bell, ScrollText,
+  HardDrive, Cpu, Wifi, Disc, Bell, ScrollText, Search,
 } from 'lucide-react'
 
 interface NavItem {
@@ -71,12 +75,53 @@ const navSections = [
   },
 ]
 
+const RECENT_NAV_KEY = 'pxelab-recent-nav'
+const RECENT_NAV_LIMIT = 5
+
+interface RecentNavEntry {
+  path: string
+  labelKey: string
+}
+
+function loadRecentNav(): RecentNavEntry[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENT_NAV_KEY) || '[]')
+    return Array.isArray(raw) ? raw.filter(r => r && typeof r.path === 'string' && typeof r.labelKey === 'string') : []
+  } catch {
+    return []
+  }
+}
+
 interface Props {
   children: ReactNode
 }
 
+// start/stop/restart 操作按钮的配色，批量操作区和单项操作区共用
+const opButtonColors = {
+  green: 'bg-accent-green/15 text-accent-green hover:bg-accent-green/25',
+  red: 'bg-accent-red/15 text-accent-red hover:bg-accent-red/25',
+  orange: 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/25',
+} as const
+
+function OpButton({ color, size = 'md', disabled, busy, label, onClick }: {
+  color: keyof typeof opButtonColors
+  size?: 'md' | 'sm'
+  disabled: boolean
+  busy: boolean
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button onClick={onClick} disabled={disabled}
+      className={`${size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1'} text-[10px] font-medium rounded ${opButtonColors[color]} disabled:opacity-40 transition-colors`}>
+      {busy ? '...' : label}
+    </button>
+  )
+}
+
 function ServiceDropdown() {
   const { t } = useTranslation()
+  const toast = useToast()
   const [services, setServices] = useState<ServiceInfo[]>([])
   const [open, setOpen] = useState(false)
   const [operating, setOperating] = useState<Set<string>>(new Set())
@@ -94,7 +139,10 @@ function ServiceDropdown() {
     try {
       const res = await getServices()
       setServices(res.data)
-    } catch { /* ignore */ }
+    } catch (err) {
+      // 轮询失败可忽略：下一次轮询会重试，不打断用户；仅记录日志便于排查
+      console.warn('service status poll failed:', err)
+    }
   }, [])
 
   useEffect(() => { load(); const iv = setInterval(load, 5000); return () => clearInterval(iv) }, [load])
@@ -105,12 +153,17 @@ function ServiceDropdown() {
 
   const runOp = async (name: string, op: 'start' | 'stop' | 'restart') => {
     setOperating(prev => new Set(prev).add(name + op))
+    const opLabel = t(`common.${op}`)
     try {
-      if (op === 'start') await startService(name)
-      else if (op === 'stop') await stopService(name)
-      else await restartService(name)
+      const p = op === 'start' ? startService(name) : op === 'stop' ? stopService(name) : restartService(name)
+      await toast.promise(p, {
+        loading: t('common.serviceOpLoading', { op: opLabel, name }),
+        success: t('common.serviceOpSuccess', { name, op: opLabel.toLowerCase() }),
+      })
       await load()
-    } catch { /* ignore */ }
+    } catch {
+      // toast.promise 已把失败原因原地展示在通知上
+    }
     setOperating(prev => { const next = new Set(prev); next.delete(name + op); return next })
   }
 
@@ -119,10 +172,17 @@ function ServiceDropdown() {
     if (targets.length === 0) return
     const names = targets.map(s => s.name)
     names.forEach(n => setOperating(prev => new Set(prev).add(n + op)))
+    const opLabel = t(`common.${op}`)
+    const name = t('common.serviceCount', { count: targets.length })
     try {
-      await batchService(op, names)
+      await toast.promise(batchService(op, names), {
+        loading: t('common.serviceOpLoading', { op: opLabel, name }),
+        success: t('common.serviceOpSuccess', { name, op: opLabel.toLowerCase() }),
+      })
       await load()
-    } catch { /* ignore */ }
+    } catch {
+      // toast.promise 已把失败原因原地展示在通知上
+    }
     names.forEach(n => setOperating(prev => { const next = new Set(prev); next.delete(n + op); return next }))
   }
 
@@ -134,9 +194,9 @@ function ServiceDropdown() {
         className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold bg-[var(--bg-card)] border border-[var(--bg-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:shadow-sm transition-all duration-200"
       >
         <div className="flex items-center gap-2.5 py-0.5">
-          <span className="flex items-center gap-1"><StatusDot color="green" /><span className="text-green-400 font-bold">{running}</span><span className="text-[10px] text-[var(--text-muted)]">{t('common.running')}</span></span>
-          <span className="flex items-center gap-1"><StatusDot color="yellow" /><span className="text-yellow-400 font-bold">{stopped}</span><span className="text-[10px] text-[var(--text-muted)]">{t('common.stopped')}</span></span>
-          <span className="flex items-center gap-1"><StatusDot color="red" /><span className="text-red-400 font-bold">{errors}</span><span className="text-[10px] text-[var(--text-muted)]">{t('common.error')}</span></span>
+          <span className="flex items-center gap-1"><StatusDot color="green" /><span className="text-accent-green font-bold">{running}</span><span className="text-[10px] text-[var(--text-muted)]">{t('common.running')}</span></span>
+          <span className="flex items-center gap-1"><StatusDot color="yellow" /><span className="text-accent-yellow font-bold">{stopped}</span><span className="text-[10px] text-[var(--text-muted)]">{t('common.stopped')}</span></span>
+          <span className="flex items-center gap-1"><StatusDot color="red" /><span className="text-accent-red font-bold">{errors}</span><span className="text-[10px] text-[var(--text-muted)]">{t('common.error')}</span></span>
         </div>
       </button>
       {open && (
@@ -145,18 +205,12 @@ function ServiceDropdown() {
             {/* 一键操作 */}
             <div className="px-4 py-3 border-b border-[var(--bg-border)] bg-[var(--bg-base)]/50">
               <div className="flex items-center gap-1.5">
-                <button onClick={() => batchAll('start')} disabled={anyOperating('start')}
-                  className="px-2.5 py-1 text-[10px] font-medium rounded bg-green-500/15 text-green-400 hover:bg-green-500/25 disabled:opacity-40 transition-colors">
-                  {anyOperating('start') ? '...' : t('common.startAll')}
-                </button>
-                <button onClick={() => batchAll('stop')} disabled={anyOperating('stop')}
-                  className="px-2.5 py-1 text-[10px] font-medium rounded bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-40 transition-colors">
-                  {anyOperating('stop') ? '...' : t('common.stopAll')}
-                </button>
-                <button onClick={() => batchAll('restart')} disabled={anyOperating('restart')}
-                  className="px-2.5 py-1 text-[10px] font-medium rounded bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-40 transition-colors">
-                  {anyOperating('restart') ? '...' : t('common.restartAll')}
-                </button>
+                <OpButton color="green" onClick={() => batchAll('start')} disabled={anyOperating('start')}
+                  busy={anyOperating('start')} label={t('common.startAll')} />
+                <OpButton color="red" onClick={() => batchAll('stop')} disabled={anyOperating('stop')}
+                  busy={anyOperating('stop')} label={t('common.stopAll')} />
+                <OpButton color="orange" onClick={() => batchAll('restart')} disabled={anyOperating('restart')}
+                  busy={anyOperating('restart')} label={t('common.restartAll')} />
               </div>
             </div>
             {/* 服务列表 */}
@@ -178,21 +232,15 @@ function ServiceDropdown() {
                       ) : (
                         <>
                           {svc.status !== 'running' && (
-                            <button onClick={() => runOp(svc.name, 'start')} disabled={operating.has(svc.name + 'start')}
-                              className="px-2 py-0.5 text-[10px] font-medium rounded bg-green-500/15 text-green-400 hover:bg-green-500/25 disabled:opacity-40">
-                              {operating.has(svc.name + 'start') ? '...' : t('common.start')}
-                            </button>
+                            <OpButton color="green" size="sm" onClick={() => runOp(svc.name, 'start')}
+                              disabled={operating.has(svc.name + 'start')} busy={operating.has(svc.name + 'start')} label={t('common.start')} />
                           )}
                           {svc.status === 'running' && (
-                            <button onClick={() => runOp(svc.name, 'stop')} disabled={operating.has(svc.name + 'stop')}
-                              className="px-2 py-0.5 text-[10px] font-medium rounded bg-red-500/15 text-red-400 hover:bg-red-500/25 disabled:opacity-40">
-                              {operating.has(svc.name + 'stop') ? '...' : t('common.stop')}
-                            </button>
+                            <OpButton color="red" size="sm" onClick={() => runOp(svc.name, 'stop')}
+                              disabled={operating.has(svc.name + 'stop')} busy={operating.has(svc.name + 'stop')} label={t('common.stop')} />
                           )}
-                          <button onClick={() => runOp(svc.name, 'restart')} disabled={operating.has(svc.name + 'restart')}
-                            className="px-2 py-0.5 text-[10px] font-medium rounded bg-orange-500/15 text-orange-400 hover:bg-orange-500/25 disabled:opacity-40">
-                            {operating.has(svc.name + 'restart') ? '...' : t('common.restart')}
-                          </button>
+                          <OpButton color="orange" size="sm" onClick={() => runOp(svc.name, 'restart')}
+                            disabled={operating.has(svc.name + 'restart')} busy={operating.has(svc.name + 'restart')} label={t('common.restart')} />
                         </>
                       )}
                     </div>
@@ -211,16 +259,66 @@ export const AppShell: FC<Props> = ({ children }) => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const { theme, toggleTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const { palette, setPalette } = usePalette()
+  const { radius, setRadius } = useRadius()
   const [macosCards, setMacosCards] = useState(() => localStorage.getItem('PxeLab-macos-cards') === 'true')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [recentNav, setRecentNav] = useState<RecentNavEntry[]>(loadRecentNav)
   useEffect(() => {
     document.documentElement.classList.toggle('theme-macos', macosCards)
     localStorage.setItem('PxeLab-macos-cards', String(macosCards))
   }, [macosCards])
+
+  // 全局 ⌘K / Ctrl+K 切换命令面板
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setPaletteOpen(v => !v)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
+  // 记录路由访问到「最近访问」（只记录精确匹配的导航路径）
+  useEffect(() => {
+    const path = location.pathname
+    let labelKey: string | undefined
+    for (const section of navSections) {
+      for (const item of section.items) {
+        if (item.path === path) labelKey = item.label
+        for (const child of item.children ?? []) {
+          if (child.path === path) labelKey = child.label
+        }
+      }
+    }
+    if (!labelKey) return
+    setRecentNav(prev => {
+      const next = [{ path, labelKey }, ...prev.filter(r => r.path !== path)].slice(0, RECENT_NAV_LIMIT)
+      localStorage.setItem(RECENT_NAV_KEY, JSON.stringify(next))
+      return next
+    })
+  }, [location.pathname])
+
+  // 命令面板的扁平化导航数据（含 children 二级项）
+  const paletteNavItems = useMemo(() =>
+    navSections.flatMap(section =>
+      section.items.flatMap(item => [
+        ...(item.path ? [{ path: item.path, label: t(item.label), group: t(section.label) }] : []),
+        ...(item.children ?? [])
+          .filter(child => child.path)
+          .map(child => ({ path: child.path!, label: t(child.label), group: t(item.label) })),
+      ])
+    ), [t])
+
+  const paletteRecentItems = useMemo(() =>
+    recentNav.map(r => ({ path: r.path, label: t(r.labelKey) })),
+  [recentNav, t])
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
@@ -376,6 +474,13 @@ export const AppShell: FC<Props> = ({ children }) => {
 
       <SettingsModal open={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} />
 
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        navItems={paletteNavItems}
+        recent={paletteRecentItems}
+      />
+
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -393,14 +498,21 @@ export const AppShell: FC<Props> = ({ children }) => {
             >
               <Menu size={20} />
             </button>
-            <div className="hidden">
-              <h1 className="text-lg font-bold tracking-tight">{pageTitle()}</h1>
-            </div>
+            <h1 className="lg:hidden text-lg font-bold tracking-tight text-[var(--text-primary)]">{pageTitle()}</h1>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--bg-border)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] transition-colors"
+            >
+              <Search size={14} />
+              <span className="hidden md:inline text-xs">{t('commandPalette.placeholder')}</span>
+              <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded border border-[var(--bg-border)] bg-[var(--bg-elevated)] text-[10px] font-mono text-[var(--text-muted)]">⌘K</kbd>
+            </button>
+            <NotificationCenter />
             <ServiceDropdown />
             <LangSwitch />
-            <ThemeSwitcher theme={theme} palette={palette} onToggleTheme={toggleTheme} onChangePalette={setPalette} macosCards={macosCards} onToggleMacOS={() => setMacosCards(v => !v)} />
+            <ThemeSwitcher theme={theme} palette={palette} onSetTheme={setTheme} onChangePalette={setPalette} radius={radius} onChangeRadius={setRadius} macosCards={macosCards} onToggleMacOS={() => setMacosCards(v => !v)} />
           </div>
         </header>
 
