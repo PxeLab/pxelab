@@ -2,8 +2,10 @@
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -59,6 +61,14 @@ func (h *HostHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *HostHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	
+	// 保存旧值
+	oldHost, err := h.store.GetHost(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusNotFound, "主机未找到")
+		return
+	}
+
 	var host models.Host
 	if err := json.NewDecoder(r.Body).Decode(&host); err != nil {
 		Error(w, http.StatusBadRequest, "无效的请求体")
@@ -69,17 +79,68 @@ func (h *HostHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "host", host.Name, remoteIP(r), "MAC: "+host.MAC+", IP: "+host.IP)
+
+	// 构建变更详情
+	var changes []string
+	if oldHost.Name != host.Name {
+		changes = append(changes, fmt.Sprintf("名称: %s→%s", oldHost.Name, host.Name))
+	}
+	if oldHost.MAC != host.MAC {
+		changes = append(changes, fmt.Sprintf("MAC: %s→%s", oldHost.MAC, host.MAC))
+	}
+	if oldHost.IP != host.IP {
+		changes = append(changes, fmt.Sprintf("IP: %s→%s", oldHost.IP, host.IP))
+	}
+	oldProfileID := ""
+	if oldHost.ProfileID != nil {
+		oldProfileID = *oldHost.ProfileID
+	}
+	newProfileID := ""
+	if host.ProfileID != nil {
+		newProfileID = *host.ProfileID
+	}
+	if oldProfileID != newProfileID {
+		changes = append(changes, fmt.Sprintf("Profile: %s→%s", oldProfileID, newProfileID))
+	}
+	if oldHost.BMCAddr != host.BMCAddr {
+		changes = append(changes, fmt.Sprintf("BMC地址: %s→%s", oldHost.BMCAddr, host.BMCAddr))
+	}
+	if oldHost.BMCUser != host.BMCUser {
+		changes = append(changes, fmt.Sprintf("BMC用户: %s→%s", oldHost.BMCUser, host.BMCUser))
+	}
+	oldMenuOverride := ""
+	if oldHost.MenuOverride != nil {
+		oldMenuOverride = *oldHost.MenuOverride
+	}
+	newMenuOverride := ""
+	if host.MenuOverride != nil {
+		newMenuOverride = *host.MenuOverride
+	}
+	if oldMenuOverride != newMenuOverride {
+		changes = append(changes, fmt.Sprintf("菜单覆盖: %s→%s", oldMenuOverride, newMenuOverride))
+	}
+
+	detail := "更新主机 " + host.Name
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "host", host.Name, remoteIP(r), detail)
 	OK(w, host)
 }
 
 func (h *HostHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	// 保存旧值用于审计
+	oldHost, _ := h.store.GetHost(r.Context(), id)
 	if err := h.store.DeleteHost(r.Context(), id); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "host", id, remoteIP(r), "删除主机")
+	detail := "删除主机"
+	if oldHost != nil && oldHost.Name != "" {
+		detail = fmt.Sprintf("删除主机 %s (MAC: %s, IP: %s)", oldHost.Name, oldHost.MAC, oldHost.IP)
+	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "host", id, remoteIP(r), detail)
 	w.WriteHeader(http.StatusNoContent)
 }
 func (h *HostHandler) PreviewBootConfig(w http.ResponseWriter, r *http.Request) {

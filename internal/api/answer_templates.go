@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/go-chi/chi/v5"
@@ -486,7 +487,26 @@ func (h *AnswerTemplateHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "answer_template", fmt.Sprintf("%d", id), remoteIP(r), "更新应答模板: "+t.Name)
+
+	// 构建变更详情
+	var changes []string
+	if old.Name != t.Name {
+		changes = append(changes, fmt.Sprintf("名称: %s→%s", old.Name, t.Name))
+	}
+	if old.Type != t.Type {
+		changes = append(changes, fmt.Sprintf("类型: %s→%s", old.Type, t.Type))
+	}
+	if old.Description != t.Description {
+		changes = append(changes, fmt.Sprintf("描述: %s→%s", old.Description, t.Description))
+	}
+	if old.Content != t.Content {
+		changes = append(changes, "内容已变更")
+	}
+	detail := "更新应答模板: " + t.Name
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "answer_template", fmt.Sprintf("%d", id), remoteIP(r), detail)
 	OK(w, t)
 }
 
@@ -496,11 +516,17 @@ func (h *AnswerTemplateHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "无效的 ID")
 		return
 	}
+	// 保存旧值用于审计
+	oldT, _ := h.store.GetAnswerTemplate(r.Context(), uint(id))
 	if err := h.store.DeleteAnswerTemplate(r.Context(), uint(id)); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "answer_template", fmt.Sprintf("%d", id), remoteIP(r), "删除应答模板")
+	detail := "删除应答模板"
+	if oldT != nil && oldT.Name != "" {
+		detail = fmt.Sprintf("删除应答模板 %s (%s)", oldT.Name, oldT.Type)
+	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "answer_template", fmt.Sprintf("%d", id), remoteIP(r), detail)
 	_ = h.store.DeleteAnswerTemplateVersions(r.Context(), uint(id))
 	w.WriteHeader(http.StatusNoContent)
 }

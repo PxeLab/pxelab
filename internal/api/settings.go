@@ -847,7 +847,7 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), detail)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "general_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1025,7 +1025,7 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 		h.reloader.ReloadSubnets()
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新接口配置")
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "interface_settings", "", remoteIP(r), "接口配置已更新")
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1059,6 +1059,12 @@ func (h *SettingsHandler) UpdateTFTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.mu.Lock()
+	oldRoot := h.cfg.Boot.RootDir
+	oldPXEConfigFile := h.cfg.Boot.PXEConfigFile
+	oldGRUBConfigFile := h.cfg.Boot.GRUBConfigFile
+	oldPort := h.cfg.TFTP.Port
+	oldTimeout := h.cfg.TFTP.Timeout
+
 	h.cfg.Boot.RootDir = req.Root
 	if req.PXEConfigFile != "" {
 		h.cfg.Boot.PXEConfigFile = req.PXEConfigFile
@@ -1079,7 +1085,27 @@ func (h *SettingsHandler) UpdateTFTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新 TFTP 配置")
+	var changes []string
+	if oldRoot != req.Root {
+		changes = append(changes, fmt.Sprintf("根目录: %s→%s", oldRoot, req.Root))
+	}
+	if req.PXEConfigFile != "" && oldPXEConfigFile != req.PXEConfigFile {
+		changes = append(changes, fmt.Sprintf("PXE配置: %s→%s", oldPXEConfigFile, req.PXEConfigFile))
+	}
+	if req.GRUBConfigFile != "" && oldGRUBConfigFile != req.GRUBConfigFile {
+		changes = append(changes, fmt.Sprintf("GRUB配置: %s→%s", oldGRUBConfigFile, req.GRUBConfigFile))
+	}
+	if req.Port > 0 && oldPort != req.Port {
+		changes = append(changes, fmt.Sprintf("端口: %d→%d", oldPort, req.Port))
+	}
+	if req.Timeout >= 0 && oldTimeout != req.Timeout {
+		changes = append(changes, fmt.Sprintf("超时: %d→%d", oldTimeout, req.Timeout))
+	}
+	detail := "更新 TFTP 配置"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "tftp_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1194,7 +1220,7 @@ func (h *SettingsHandler) UpdateArchMap(w http.ResponseWriter, r *http.Request) 
 	if len(changes) > 0 {
 		detail = strings.Join(changes, "; ")
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), detail)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "arch_map", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1262,6 +1288,23 @@ func (h *SettingsHandler) UpdateDHCP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.mu.Lock()
+	var oldEnabled bool
+	var oldRange, oldGateway, oldSubnet, oldDNSServers string
+	var oldLeaseTime int
+	if len(h.cfg.Interfaces) > 0 && len(h.cfg.Interfaces[0].Subnets) > 0 {
+		sn := h.cfg.Interfaces[0].Subnets[0]
+		oldEnabled = sn.DHCP != "" && sn.DHCP != "off"
+		if len(sn.Pools) > 0 {
+			oldRange = sn.Pools[0]
+		} else {
+			oldRange = sn.Pool
+		}
+		oldGateway = sn.Gateway
+		oldSubnet = sn.CIDR
+		oldLeaseTime = sn.LeaseTime
+		oldDNSServers = sn.DNSServers
+	}
+
 	if len(h.cfg.Interfaces) > 0 && len(h.cfg.Interfaces[0].Subnets) > 0 {
 		dhcpMode := "off"
 		if req.Enabled {
@@ -1291,7 +1334,30 @@ func (h *SettingsHandler) UpdateDHCP(w http.ResponseWriter, r *http.Request) {
 		h.reloader.ReloadSubnets()
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新 DHCP 配置")
+	var changes []string
+	if oldEnabled != req.Enabled {
+		changes = append(changes, fmt.Sprintf("启用: %t→%t", oldEnabled, req.Enabled))
+	}
+	if req.Range != "" && oldRange != req.Range {
+		changes = append(changes, fmt.Sprintf("地址池: %s→%s", oldRange, req.Range))
+	}
+	if oldGateway != req.Gateway {
+		changes = append(changes, fmt.Sprintf("网关: %s→%s", oldGateway, req.Gateway))
+	}
+	if oldSubnet != req.Subnet {
+		changes = append(changes, fmt.Sprintf("子网: %s→%s", oldSubnet, req.Subnet))
+	}
+	if req.LeaseTime > 0 && oldLeaseTime != req.LeaseTime {
+		changes = append(changes, fmt.Sprintf("租约时间: %d→%d", oldLeaseTime, req.LeaseTime))
+	}
+	if oldDNSServers != req.DNSServers {
+		changes = append(changes, fmt.Sprintf("DNS服务器: %s→%s", oldDNSServers, req.DNSServers))
+	}
+	detail := "更新 DHCP 配置"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dhcp_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1316,6 +1382,12 @@ func (h *SettingsHandler) UpdateDNS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.mu.Lock()
+	oldEnabled := h.cfg.DNS.Enabled
+	oldPort := h.cfg.DNS.Port
+	oldUpstream := h.cfg.DNS.Upstream
+	oldLocalDomain := h.cfg.DNS.LocalDomain
+	oldDefaultRecord := h.cfg.DNS.DefaultRecord
+
 	h.cfg.DNS.Enabled = req.Enabled
 	if req.Port > 0 {
 		h.cfg.DNS.Port = req.Port
@@ -1341,7 +1413,27 @@ func (h *SettingsHandler) UpdateDNS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新 DNS 配置")
+	var changes []string
+	if oldEnabled != req.Enabled {
+		changes = append(changes, fmt.Sprintf("启用: %t→%t", oldEnabled, req.Enabled))
+	}
+	if req.Port > 0 && oldPort != req.Port {
+		changes = append(changes, fmt.Sprintf("端口: %d→%d", oldPort, req.Port))
+	}
+	if oldUpstream != req.Upstream {
+		changes = append(changes, fmt.Sprintf("上游DNS: %s→%s", oldUpstream, req.Upstream))
+	}
+	if oldLocalDomain != req.LocalDomain {
+		changes = append(changes, fmt.Sprintf("本地域名: %s→%s", oldLocalDomain, req.LocalDomain))
+	}
+	if oldDefaultRecord != req.DefaultRecord {
+		changes = append(changes, fmt.Sprintf("默认记录: %t→%t", oldDefaultRecord, req.DefaultRecord))
+	}
+	detail := "更新 DNS 配置"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dns_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1397,6 +1489,14 @@ func (h *SettingsHandler) UpdateNFS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.mu.Lock()
+	oldEnabled := h.cfg.NFS.Enabled
+	oldPort := h.cfg.NFS.Port
+	oldMountPointCount := len(h.cfg.NFS.MountPoints)
+	var oldLabels []string
+	for _, mp := range h.cfg.NFS.MountPoints {
+		oldLabels = append(oldLabels, mp.Label)
+	}
+
 	h.cfg.NFS.Enabled = req.Enabled
 	if req.Port > 0 {
 		h.cfg.NFS.Port = req.Port
@@ -1425,7 +1525,28 @@ func (h *SettingsHandler) UpdateNFS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新 NFS 配置")
+	var changes []string
+	if oldEnabled != req.Enabled {
+		changes = append(changes, fmt.Sprintf("启用: %t→%t", oldEnabled, req.Enabled))
+	}
+	if req.Port > 0 && oldPort != req.Port {
+		changes = append(changes, fmt.Sprintf("端口: %d→%d", oldPort, req.Port))
+	}
+	if oldMountPointCount != len(req.MountPoints) {
+		changes = append(changes, fmt.Sprintf("挂载点数量: %d→%d", oldMountPointCount, len(req.MountPoints)))
+	}
+	var newLabels []string
+	for _, mp := range req.MountPoints {
+		newLabels = append(newLabels, mp.Label)
+	}
+	if fmt.Sprint(oldLabels) != fmt.Sprint(newLabels) {
+		changes = append(changes, fmt.Sprintf("挂载点: %v→%v", oldLabels, newLabels))
+	}
+	detail := "更新 NFS 配置"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "nfs_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1583,6 +1704,12 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	}
 
 	h.mu.Lock()
+	oldEnabled := h.cfg.Netboot.Enabled
+	oldProxyHTTPS := h.cfg.Netboot.ProxyHTTPS
+	oldCacheEnabled := h.cfg.Netboot.CacheEnabled
+	oldCatalogRedirectEnabled := h.cfg.Netboot.Boot.CatalogRedirect.Enabled
+	oldCatalogRedirectTargetURL := h.cfg.Netboot.Boot.CatalogRedirect.TargetURL
+
 	h.cfg.Netboot.Enabled = req.Enabled
 	h.cfg.Netboot.ProxyHTTPS = req.ProxyHTTPS
 	h.cfg.Netboot.CacheEnabled = req.CacheEnabled
@@ -1602,7 +1729,27 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新网络引导配置")
+	var changes []string
+	if oldEnabled != req.Enabled {
+		changes = append(changes, fmt.Sprintf("启用: %t→%t", oldEnabled, req.Enabled))
+	}
+	if oldProxyHTTPS != req.ProxyHTTPS {
+		changes = append(changes, fmt.Sprintf("HTTPS代理: %t→%t", oldProxyHTTPS, req.ProxyHTTPS))
+	}
+	if oldCacheEnabled != req.CacheEnabled {
+		changes = append(changes, fmt.Sprintf("缓存: %t→%t", oldCacheEnabled, req.CacheEnabled))
+	}
+	if oldCatalogRedirectEnabled != req.CatalogRedirect.Enabled {
+		changes = append(changes, fmt.Sprintf("目录重定向: %t→%t", oldCatalogRedirectEnabled, req.CatalogRedirect.Enabled))
+	}
+	if oldCatalogRedirectTargetURL != req.CatalogRedirect.TargetURL {
+		changes = append(changes, fmt.Sprintf("重定向URL: %s→%s", oldCatalogRedirectTargetURL, req.CatalogRedirect.TargetURL))
+	}
+	detail := "更新网络引导配置"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "netboot_settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1676,13 +1823,13 @@ func (h *SettingsHandler) UpdateIPXEScript(w http.ResponseWriter, r *http.Reques
 	if oldEnabled != req.Enabled {
 		changes = append(changes, fmt.Sprintf("启用: %t→%t", oldEnabled, req.Enabled))
 	}
-	if oldPort > 0 && oldPort != req.Port {
+	if oldPort != req.Port {
 		changes = append(changes, fmt.Sprintf("端口: %d→%d", oldPort, req.Port))
 	}
-	if oldPath != "" && oldPath != req.Path {
+	if oldPath != req.Path {
 		changes = append(changes, fmt.Sprintf("路径: %s→%s", oldPath, req.Path))
 	}
-	if oldFlags > 0 && oldFlags != req.FeatureFlags {
+	if oldFlags != req.FeatureFlags {
 		changes = append(changes, fmt.Sprintf("特征标志: 0x%x→0x%x", oldFlags, req.FeatureFlags))
 	}
 
@@ -1690,7 +1837,7 @@ func (h *SettingsHandler) UpdateIPXEScript(w http.ResponseWriter, r *http.Reques
 	if len(changes) > 0 {
 		detail = strings.Join(changes, "; ")
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), detail)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "ipxe_script", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1811,6 +1958,12 @@ func (h *SettingsHandler) UpdateLoggingSettings(w http.ResponseWriter, r *http.R
 	}
 
 	h.mu.Lock()
+	oldMaxSizeMB := h.cfg.Log.MaxSizeMB
+	oldMaxBackups := h.cfg.Log.MaxBackups
+	oldMaxAgeDays := h.cfg.Log.MaxAgeDays
+	oldCompress := h.cfg.Log.Compress
+	oldCleanupInterval := h.cfg.Log.CleanupInterval
+
 	h.cfg.Log.MaxSizeMB = req.MaxSizeMB
 	h.cfg.Log.MaxBackups = req.MaxBackups
 	h.cfg.Log.MaxAgeDays = req.MaxAgeDays
@@ -1824,7 +1977,28 @@ func (h *SettingsHandler) UpdateLoggingSettings(w http.ResponseWriter, r *http.R
 		Error(w, http.StatusInternalServerError, "保存配置失败")
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新日志管理配置")
+
+	var changes []string
+	if oldMaxSizeMB != req.MaxSizeMB {
+		changes = append(changes, fmt.Sprintf("最大大小: %d→%d MB", oldMaxSizeMB, req.MaxSizeMB))
+	}
+	if oldMaxBackups != req.MaxBackups {
+		changes = append(changes, fmt.Sprintf("最大备份数: %d→%d", oldMaxBackups, req.MaxBackups))
+	}
+	if oldMaxAgeDays != req.MaxAgeDays {
+		changes = append(changes, fmt.Sprintf("最大保留天数: %d→%d", oldMaxAgeDays, req.MaxAgeDays))
+	}
+	if oldCompress != req.Compress {
+		changes = append(changes, fmt.Sprintf("压缩: %t→%t", oldCompress, req.Compress))
+	}
+	if oldCleanupInterval != req.CleanupInterval {
+		changes = append(changes, fmt.Sprintf("清理间隔: %d→%d", oldCleanupInterval, req.CleanupInterval))
+	}
+	detail := "更新日志管理配置"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "log_settings", "", remoteIP(r), detail)
 	OK(w, map[string]any{"message": "日志设置已保存，轮转参数将在服务重启后生效"})
 }
 

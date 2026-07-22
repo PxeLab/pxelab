@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -53,6 +54,10 @@ func (h *InstallTaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 func (h *InstallTaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	
+	// 保存旧值
+	oldTask, _ := h.store.GetInstallTask(r.Context(), id)
+
 	var task models.InstallTask
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		Error(w, http.StatusBadRequest, "无效的请求体")
@@ -63,17 +68,50 @@ func (h *InstallTaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "install_task", id, remoteIP(r), "更新安装任务: "+task.DistroName)
+
+	// 构建变更详情
+	var changes []string
+	if oldTask != nil {
+		if oldTask.DistroName != task.DistroName {
+			changes = append(changes, fmt.Sprintf("发行版: %s→%s", oldTask.DistroName, task.DistroName))
+		}
+		if oldTask.VersionCodename != task.VersionCodename {
+			changes = append(changes, fmt.Sprintf("版本: %s→%s", oldTask.VersionCodename, task.VersionCodename))
+		}
+		if oldTask.Arch != task.Arch {
+			changes = append(changes, fmt.Sprintf("架构: %s→%s", oldTask.Arch, task.Arch))
+		}
+		if oldTask.Status != task.Status {
+			changes = append(changes, fmt.Sprintf("状态: %s→%s", oldTask.Status, task.Status))
+		}
+		if oldTask.ExtraCmdline != task.ExtraCmdline {
+			changes = append(changes, fmt.Sprintf("额外参数: %s→%s", oldTask.ExtraCmdline, task.ExtraCmdline))
+		}
+		if oldTask.ErrorMsg != task.ErrorMsg {
+			changes = append(changes, fmt.Sprintf("错误信息: %s→%s", oldTask.ErrorMsg, task.ErrorMsg))
+		}
+	}
+	detail := "更新安装任务: " + task.DistroName
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "install_task", id, remoteIP(r), detail)
 	OK(w, task)
 }
 
 func (h *InstallTaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	// 保存旧值用于审计
+	oldTask, _ := h.store.GetInstallTask(r.Context(), id)
 	if err := h.store.DeleteInstallTask(r.Context(), id); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "install_task", id, remoteIP(r), "删除安装任务")
+	detail := "删除安装任务"
+	if oldTask != nil && oldTask.DistroName != "" {
+		detail = fmt.Sprintf("删除安装任务 %s (%s)", oldTask.DistroName, oldTask.Status)
+	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "install_task", id, remoteIP(r), detail)
 	w.WriteHeader(http.StatusNoContent)
 }
 

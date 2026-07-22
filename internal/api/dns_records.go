@@ -114,6 +114,10 @@ func (h *DNSRecordHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "无效的 ID")
 		return
 	}
+	
+	// 保存旧值
+	oldRec, _ := h.store.GetDNSRecord(r.Context(), uint(id))
+
 	var rec models.DNSRecord
 	if err := json.NewDecoder(r.Body).Decode(&rec); err != nil {
 		Error(w, http.StatusBadRequest, "请求格式错误")
@@ -128,7 +132,34 @@ func (h *DNSRecordHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dns_record", rec.Name, remoteIP(r), "更新 DNS 记录: "+rec.Type)
+
+	// 构建变更详情
+	var changes []string
+	if oldRec != nil {
+		if oldRec.Name != rec.Name {
+			changes = append(changes, fmt.Sprintf("名称: %s→%s", oldRec.Name, rec.Name))
+		}
+		if oldRec.Type != rec.Type {
+			changes = append(changes, fmt.Sprintf("类型: %s→%s", oldRec.Type, rec.Type))
+		}
+		if oldRec.Value != rec.Value {
+			changes = append(changes, fmt.Sprintf("值: %s→%s", oldRec.Value, rec.Value))
+		}
+		if oldRec.TTL != rec.TTL {
+			changes = append(changes, fmt.Sprintf("TTL: %d→%d", oldRec.TTL, rec.TTL))
+		}
+		if oldRec.Enabled != rec.Enabled {
+			changes = append(changes, fmt.Sprintf("启用: %t→%t", oldRec.Enabled, rec.Enabled))
+		}
+		if oldRec.Subnet != rec.Subnet {
+			changes = append(changes, fmt.Sprintf("子网: %s→%s", oldRec.Subnet, rec.Subnet))
+		}
+	}
+	detail := "更新 DNS 记录"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dns_record", rec.Name, remoteIP(r), detail)
 	OK(w, rec)
 }
 
@@ -138,10 +169,16 @@ func (h *DNSRecordHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "无效的 ID")
 		return
 	}
+	// 保存旧值用于审计
+	oldRec, _ := h.store.GetDNSRecord(r.Context(), uint(id))
 	if err := h.store.DeleteDNSRecord(r.Context(), uint(id)); err != nil {
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "dns_record", fmt.Sprintf("%d", id), remoteIP(r), "删除 DNS 记录")
+	detail := "删除 DNS 记录"
+	if oldRec != nil && oldRec.Name != "" {
+		detail = fmt.Sprintf("删除 DNS 记录 %s (%s: %s)", oldRec.Name, oldRec.Type, oldRec.Value)
+	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "dns_record", fmt.Sprintf("%d", id), remoteIP(r), detail)
 	w.WriteHeader(http.StatusNoContent)
 }

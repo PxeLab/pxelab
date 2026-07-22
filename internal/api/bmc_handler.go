@@ -192,7 +192,48 @@ func (h *BMCHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "bmc_config", fmt.Sprintf("%d", id), remoteIP(r), "更新 BMC 配置: "+cfg.Host)
+
+	// 构建变更详情（不记录密码）
+	var changes []string
+	if existing.Host != cfg.Host {
+		changes = append(changes, fmt.Sprintf("主机: %s→%s", existing.Host, cfg.Host))
+	}
+	if existing.Username != cfg.Username {
+		changes = append(changes, fmt.Sprintf("用户名: %s→%s", existing.Username, cfg.Username))
+	}
+	if req.Password != "" && req.Password != existing.Password {
+		changes = append(changes, "密码已变更")
+	}
+	if existing.Protocol != cfg.Protocol {
+		changes = append(changes, fmt.Sprintf("协议: %s→%s", existing.Protocol, cfg.Protocol))
+	}
+	if existing.Vendor != cfg.Vendor {
+		changes = append(changes, fmt.Sprintf("厂商: %s→%s", existing.Vendor, cfg.Vendor))
+	}
+	if existing.Model != cfg.Model {
+		changes = append(changes, fmt.Sprintf("型号: %s→%s", existing.Model, cfg.Model))
+	}
+	if existing.Serial != cfg.Serial {
+		changes = append(changes, fmt.Sprintf("序列号: %s→%s", existing.Serial, cfg.Serial))
+	}
+	if existing.MAC != cfg.MAC {
+		changes = append(changes, fmt.Sprintf("MAC: %s→%s", existing.MAC, cfg.MAC))
+	}
+	if existing.Name != cfg.Name {
+		changes = append(changes, fmt.Sprintf("名称: %s→%s", existing.Name, cfg.Name))
+	}
+	if existing.BootMode != cfg.BootMode {
+		changes = append(changes, fmt.Sprintf("启动模式: %s→%s", existing.BootMode, cfg.BootMode))
+	}
+	if existing.Port != cfg.Port {
+		changes = append(changes, fmt.Sprintf("端口: %d→%d", existing.Port, cfg.Port))
+	}
+
+	detail := "更新 BMC 配置: " + cfg.Host
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "bmc_config", fmt.Sprintf("%d", id), remoteIP(r), detail)
 	OK(w, toBMCConfigResponse(cfg))
 }
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -63,6 +64,10 @@ func (h *ProfileHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	
+	// 保存旧值
+	oldProfile, _ := h.store.GetProfile(r.Context(), id)
+
 	var profile models.Profile
 	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
 		Error(w, http.StatusBadRequest, "无效的请求体")
@@ -79,7 +84,31 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 			h.createScriptVersion(r.Context(), id, *script)
 		}
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "profile", profile.Name, remoteIP(r), "更新引导配置")
+
+	// 构建变更详情
+	var changes []string
+	if oldProfile != nil {
+		if oldProfile.Name != profile.Name {
+			changes = append(changes, fmt.Sprintf("名称: %s→%s", oldProfile.Name, profile.Name))
+		}
+		if oldProfile.Description != profile.Description {
+			changes = append(changes, fmt.Sprintf("描述: %s→%s", oldProfile.Description, profile.Description))
+		}
+		if oldProfile.Arch != profile.Arch {
+			changes = append(changes, fmt.Sprintf("架构: %s→%s", oldProfile.Arch, profile.Arch))
+		}
+		if oldProfile.IsDefault != profile.IsDefault {
+			changes = append(changes, fmt.Sprintf("默认: %t→%t", oldProfile.IsDefault, profile.IsDefault))
+		}
+		if oldProfile.MenuJSON != profile.MenuJSON {
+			changes = append(changes, "菜单已变更")
+		}
+	}
+	detail := "更新引导配置"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "profile", profile.Name, remoteIP(r), detail)
 	OK(w, profile)
 }
 
@@ -247,11 +276,17 @@ func splitLines(s string) []string {
 
 func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	// 保存旧值用于审计
+	oldProfile, _ := h.store.GetProfile(r.Context(), id)
 	if err := h.store.DeleteProfile(r.Context(), id); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditDelete, "profile", id, remoteIP(r), "删除引导配置")
+	detail := "删除引导配置"
+	if oldProfile != nil && oldProfile.Name != "" {
+		detail = fmt.Sprintf("删除引导配置 %s", oldProfile.Name)
+	}
+	RecordAudit(r.Context(), h.store, models.AuditDelete, "profile", id, remoteIP(r), detail)
 	w.WriteHeader(http.StatusNoContent)
 }
 // CreateFromNetboot creates a profile from a netboot.xyz catalog entry.

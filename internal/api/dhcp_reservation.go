@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -68,6 +69,10 @@ func (h *DHCPReservationHandler) Update(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusBadRequest, "无效的 ID")
 		return
 	}
+
+	// 保存旧值
+	oldRes, _ := h.store.GetDHCPReservation(r.Context(), uint(id))
+
 	var res models.DHCPReservation
 	if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
 		Error(w, http.StatusBadRequest, "请求格式错误")
@@ -82,7 +87,28 @@ func (h *DHCPReservationHandler) Update(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), "更新 DHCP 预留: "+res.IP+" → "+res.MAC)
+
+	// 构建变更详情
+	var changes []string
+	if oldRes != nil {
+		if oldRes.IP != res.IP {
+			changes = append(changes, fmt.Sprintf("IP: %s→%s", oldRes.IP, res.IP))
+		}
+		if oldRes.MAC != res.MAC {
+			changes = append(changes, fmt.Sprintf("MAC: %s→%s", oldRes.MAC, res.MAC))
+		}
+		if oldRes.Hostname != res.Hostname {
+			changes = append(changes, fmt.Sprintf("主机名: %s→%s", oldRes.Hostname, res.Hostname))
+		}
+		if oldRes.SubnetCIDR != res.SubnetCIDR {
+			changes = append(changes, fmt.Sprintf("子网: %s→%s", oldRes.SubnetCIDR, res.SubnetCIDR))
+		}
+	}
+	detail := "更新 DHCP 预留: " + res.IP + " → " + res.MAC
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "dhcp_reservation", fmt.Sprintf("%d", id), remoteIP(r), detail)
 	OK(w, res)
 }
 
