@@ -101,7 +101,47 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 			changes = append(changes, fmt.Sprintf("默认: %t→%t", oldProfile.IsDefault, profile.IsDefault))
 		}
 		if oldProfile.MenuJSON != profile.MenuJSON {
-			changes = append(changes, "菜单已变更")
+			oldMenu, _ := oldProfile.GetMenu()
+			newMenu, _ := profile.GetMenu()
+			if oldMenu != nil && newMenu != nil {
+				oldLabels := make([]string, 0, len(oldMenu.Entries))
+				for _, e := range oldMenu.Entries {
+					oldLabels = append(oldLabels, e.Label)
+				}
+				newLabels := make([]string, 0, len(newMenu.Entries))
+				for _, e := range newMenu.Entries {
+					newLabels = append(newLabels, e.Label)
+				}
+				if len(oldMenu.Entries) != len(newMenu.Entries) {
+					changes = append(changes, fmt.Sprintf("菜单条目: %d→%d", len(oldMenu.Entries), len(newMenu.Entries)))
+				}
+				oldSet := make(map[string]bool, len(oldLabels))
+				for _, l := range oldLabels { oldSet[l] = true }
+				newSet := make(map[string]bool, len(newLabels))
+				for _, l := range newLabels { newSet[l] = true }
+				var added, removed []string
+				for _, l := range newLabels {
+					if !oldSet[l] {
+						added = append(added, l)
+					}
+				}
+				for _, l := range oldLabels {
+					if !newSet[l] {
+						removed = append(removed, l)
+					}
+				}
+				if len(added) > 0 {
+					changes = append(changes, fmt.Sprintf("新增: %s", strings.Join(added, ", ")))
+				}
+				if len(removed) > 0 {
+					changes = append(changes, fmt.Sprintf("移除: %s", strings.Join(removed, ", ")))
+				}
+				if len(added) == 0 && len(removed) == 0 && len(oldMenu.Entries) == len(newMenu.Entries) {
+					changes = append(changes, "菜单内容已变更")
+				}
+			} else {
+				changes = append(changes, "菜单已变更")
+			}
 		}
 	}
 	detail := "更新引导配置"
