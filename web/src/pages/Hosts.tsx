@@ -8,7 +8,9 @@ import { Pagination } from '../components/ui/Pagination'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
+import { Input } from '../components/ui/FormControls'
 import { api, type Host } from '../api/client'
 import { useUIConfig } from '../contexts/UIConfigContext'
 
@@ -42,7 +44,7 @@ export default function Hosts() {
     setLoading(true)
     try {
       const res = await api.getHosts({ page: String(page), size: String(pageSize), search })
-      setHosts(res.data.hosts)
+      setHosts(res.data.hosts ?? [])
       setTotal(res.data.meta.total)
     } catch (err: any) {
       error(err.message || t('hosts.loadError'))
@@ -95,14 +97,14 @@ export default function Hosts() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('hosts.title')}</h1>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title={t('hosts.title')}
+        actions={
           <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
             <Plus size={14} /> {t('hosts.addHost')}
           </Button>
-        </div>
-      </div>
+        }
+      />
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -145,16 +147,16 @@ export default function Hosts() {
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">MAC {t('hosts.columns.mac')}</label>
-            <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="00:11:22:33:44:55" value={newHost.mac} onChange={e => setNewHost({...newHost, mac: e.target.value})} />
+            <Input placeholder="00:11:22:33:44:55" value={newHost.mac} onChange={e => setNewHost({...newHost, mac: e.target.value})} />
           </div>
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.hostname')}</label>
-            <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="node-01" value={newHost.name} onChange={e => setNewHost({...newHost, name: e.target.value})} />
+            <Input placeholder="node-01" value={newHost.name} onChange={e => setNewHost({...newHost, name: e.target.value})} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.ip')}</label>
-              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="192.168.1.100" value={newHost.ip} onChange={e => setNewHost({...newHost, ip: e.target.value})} />
+              <Input placeholder="192.168.1.100" value={newHost.ip} onChange={e => setNewHost({...newHost, ip: e.target.value})} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('profiles.title')}</label>

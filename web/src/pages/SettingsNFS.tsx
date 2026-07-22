@@ -5,9 +5,11 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageHeader } from '../components/ui/PageHeader'
 import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
 import { SettingsField, SettingsInput } from '../components/settings/SettingsField'
+import { Textarea } from '../components/ui/FormControls'
 import { api, type NFSSettingsData, type NFSMountPointData, type NFSClientInfo } from '../api/client'
 import { DataTable, type Column } from '../components/ui/DataTable'
 
@@ -242,7 +244,7 @@ export default function SettingsNFS() {
           {(mp.connection_count || 0) > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); setClientsModalIndex(mp._index) }}
-              className="px-1.5 py-0.5 text-xs rounded-full bg-green-500/20 text-green-400 flex items-center gap-1 hover:bg-green-500/30 transition-colors cursor-pointer"
+              className="px-1.5 py-0.5 text-xs rounded-full bg-accent-green/20 text-accent-green flex items-center gap-1 hover:bg-accent-green/30 transition-colors cursor-pointer"
             >
               <Users size={10} />
               {mp.connection_count}
@@ -273,7 +275,7 @@ export default function SettingsNFS() {
         <span className={`px-2 py-0.5 text-xs rounded-full ${
           mp.read_only
             ? 'bg-blue-500/20 text-blue-400'
-            : 'bg-amber-500/20 text-amber-400'
+            : 'bg-accent-yellow/20 text-accent-yellow'
         }`}>
           {mp.read_only ? t('settings.nfsReadOnlyYes') : t('settings.nfsReadOnlyNo')}
         </span>
@@ -313,7 +315,7 @@ export default function SettingsNFS() {
             variant="ghost"
             size="sm"
             onClick={() => handleDeleteClick(mp._index)}
-            className="text-red-400 hover:text-red-300"
+            className="text-accent-red"
           >
             <Trash2 size={14} />
           </Button>
@@ -331,17 +333,20 @@ export default function SettingsNFS() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('settings.nfsTitle')}</h1>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" disabled={loading} onClick={loadSettings}>
-            <RefreshCw size={14} /> {t('settings.refresh')}
-          </Button>
-          <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
-            <Save size={14} /> {saving ? t('settings.saving') : t('settings.save')}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('settings.nfsTitle')}
+        className="mb-4"
+        actions={
+          <>
+            <Button variant="secondary" size="sm" disabled={loading} onClick={loadSettings}>
+              <RefreshCw size={14} /> {t('settings.refresh')}
+            </Button>
+            <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
+              <Save size={14} /> {saving ? t('settings.saving') : t('settings.save')}
+            </Button>
+          </>
+        }
+      />
 
       {loading ? (
         <Card>
@@ -382,7 +387,7 @@ export default function SettingsNFS() {
                 </span>
               </div>
               <div className="ml-auto flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${config.running ? 'bg-green-500' : 'bg-gray-400'}`} />
+                <div className={`w-2 h-2 rounded-full ${config.running ? 'bg-accent-green' : 'bg-gray-400'}`} />
                 <span className="text-xs text-[var(--text-muted)]">{t(`settings.${config.running ? 'nfsRunning' : 'nfsStopped'}`)}</span>
               </div>
             </div>
@@ -439,12 +444,12 @@ export default function SettingsNFS() {
                       {validatingPath ? (
                         <Loader2 size={14} className="animate-spin text-[var(--text-muted)]" />
                       ) : pathValidation?.exists ? (
-                        <span className="flex items-center gap-1 text-xs text-green-400">
+                        <span className="flex items-center gap-1 text-xs text-accent-green">
                           <CheckCircle size={12} />
                           {t('settings.nfsPathExists')}{pathValidation.writable ? ` · ${t('settings.nfsPathWritable')}` : ` · ${t('settings.nfsPathNotWritable')}`}
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-xs text-amber-400">
+                        <span className="flex items-center gap-1 text-xs text-accent-yellow">
                           <XCircle size={12} />
                           {t('settings.nfsPathNotExist')}
                         </span>
@@ -476,8 +481,8 @@ export default function SettingsNFS() {
           </SettingsField>
 
           <SettingsField label={t('settings.nfsAllowIPs')} help={t('settings.nfsAllowIPsHelp')}>
-            <textarea
-              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-y"
+            <Textarea
+              className="font-mono"
               rows={3}
               value={(modalData.allow_ips || []).join('\n')}
               onChange={e => setModalData({
@@ -527,39 +532,47 @@ export default function SettingsNFS() {
           if (clients.length === 0) {
             return <p className="text-sm text-[var(--text-muted)] py-8 text-center">{t('settings.nfsNoConnections')}</p>
           }
+          interface ClientRow {
+            _key: string
+            ip: string
+            connectedAt: string
+            lastActivity: string
+            duration: string
+          }
+          const now = new Date()
+          const rows: ClientRow[] = clients.map((c, i) => {
+            const connectedAt = new Date(c.connected_at)
+            const lastActivity = new Date(c.last_activity)
+            const durationMs = now.getTime() - connectedAt.getTime()
+            const durationMin = Math.floor(durationMs / 60000)
+            const durationStr = durationMin < 60
+              ? `${durationMin}m`
+              : `${Math.floor(durationMin / 60)}h ${durationMin % 60}m`
+            return {
+              _key: `${c.ip}-${i}`,
+              ip: c.ip,
+              connectedAt: connectedAt.toLocaleString(),
+              lastActivity: lastActivity.toLocaleString(),
+              duration: durationStr,
+            }
+          })
+          const clientColumns: Column<ClientRow>[] = [
+            {
+              key: 'ip',
+              label: t('settings.nfsClientIP'),
+              render: (row) => <span className="font-mono text-[var(--text-primary)]">{row.ip}</span>,
+            },
+            { key: 'connectedAt', label: t('settings.nfsClientConnectedAt') },
+            { key: 'lastActivity', label: t('settings.nfsClientLastActivity') },
+            { key: 'duration', label: t('settings.nfsClientDuration') },
+          ]
           return (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--bg-border)]">
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-[var(--text-muted)]">{t('settings.nfsClientIP')}</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-[var(--text-muted)]">{t('settings.nfsClientConnectedAt')}</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-[var(--text-muted)]">{t('settings.nfsClientLastActivity')}</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-[var(--text-muted)]">{t('settings.nfsClientDuration')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clients.map((c, i) => {
-                    const connectedAt = new Date(c.connected_at)
-                    const lastActivity = new Date(c.last_activity)
-                    const now = new Date()
-                    const durationMs = now.getTime() - connectedAt.getTime()
-                    const durationMin = Math.floor(durationMs / 60000)
-                    const durationStr = durationMin < 60
-                      ? `${durationMin}m`
-                      : `${Math.floor(durationMin / 60)}h ${durationMin % 60}m`
-                    return (
-                      <tr key={i} className="border-b border-[var(--bg-border)] last:border-b-0">
-                        <td className="py-2 px-3 font-mono text-[var(--text-primary)]">{c.ip}</td>
-                        <td className="py-2 px-3 text-[var(--text-secondary)]">{connectedAt.toLocaleString()}</td>
-                        <td className="py-2 px-3 text-[var(--text-secondary)]">{lastActivity.toLocaleString()}</td>
-                        <td className="py-2 px-3 text-[var(--text-secondary)]">{durationStr}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              columns={clientColumns}
+              data={rows}
+              emptyText={t('settings.nfsNoConnections')}
+              rowKey={(row) => row._key}
+            />
           )
         })()}
       </Modal>
@@ -614,7 +627,7 @@ export default function SettingsNFS() {
                 <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
               </div>
             ) : browseError ? (
-              <div className="py-8 text-center text-sm text-amber-400">{browseError}</div>
+              <div className="py-8 text-center text-sm text-accent-yellow">{browseError}</div>
             ) : browseEntries.length === 0 ? (
               <div className="py-8 text-center text-sm text-[var(--text-muted)]">{t('settings.nfsBrowseEmpty')}</div>
             ) : (
@@ -625,7 +638,7 @@ export default function SettingsNFS() {
                     onClick={() => loadBrowseDir(entry.path)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--bg-input)] transition-colors border-b border-[var(--bg-border)] last:border-b-0"
                   >
-                    <FolderOpen size={14} className="text-amber-400 shrink-0" />
+                    <FolderOpen size={14} className="text-accent-yellow shrink-0" />
                     <span className="text-[var(--text-primary)]">{entry.name}</span>
                     <span className="ml-auto text-xs text-[var(--text-muted)] font-mono">{entry.path}</span>
                   </button>

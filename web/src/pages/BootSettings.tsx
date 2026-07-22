@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { RefreshCw, CheckCircle, XCircle, Save, RotateCcw, ArrowRight } from 'lucide-react'
 import { Card } from '../components/ui/Card'
+import { DataTable, type Column } from '../components/ui/DataTable'
+import { PageHeader } from '../components/ui/PageHeader'
 import { Button } from '../components/ui/Button'
 import { Toggle } from '../components/ui/Toggle'
+import { Input, Select } from '../components/ui/FormControls'
 import { api, type BootloaderCheckResult, type ArchEntryData, type BootFileInfo, type IPXEScriptSettings } from '../api/client'
 
 // NBP 类型选项
@@ -149,17 +153,20 @@ export default function BootSettings() {
     } catch { /* ignore */ }
   }
 
-  const inputCls = 'w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500'
+  const archColumns = buildArchColumns(t, checkResult?.files ?? [], updateEntry)
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('bootSettings.title')}</h1>
-        <Button variant="secondary" size="sm" onClick={runHealthCheck} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          {t('common.refresh', '刷新')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('bootSettings.title')}
+        className="mb-0"
+        actions={
+          <Button variant="secondary" size="sm" onClick={runHealthCheck} disabled={loading}>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            {t('common.refresh', '刷新')}
+          </Button>
+        }
+      />
 
       {/* ── 汇总统计 ── */}
       <Card>
@@ -178,22 +185,22 @@ export default function BootSettings() {
                 </div>
               </Card>
               <Card padding={false}>
-                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-green-500/40">
-                  <span className="text-base font-bold text-green-400">{checkResult.present}</span>
+                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-accent-green/40">
+                  <span className="text-base font-bold text-accent-green">{checkResult.present}</span>
                   <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.present')}</span>
                 </div>
               </Card>
               <Card padding={false}>
-                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-red-500/40">
-                  <span className="text-base font-bold text-red-400">{checkResult.missing}</span>
+                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-accent-red/40">
+                  <span className="text-base font-bold text-accent-red">{checkResult.missing}</span>
                   <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.missing')}</span>
                 </div>
               </Card>
               <Card padding={false}>
-                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-amber-500/40">
+                <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-accent-yellow/40">
                   {checkResult.all_ok
-                    ? <><CheckCircle size={16} className="text-green-400" /><span className="text-[11px] font-semibold text-green-400">{t('bootloader.ok')}</span></>
-                    : <><XCircle size={16} className="text-red-400" /><span className="text-[11px] font-semibold text-red-400">{t('bootloader.issues')}</span></>
+                    ? <><CheckCircle size={16} className="text-accent-green" /><span className="text-[11px] font-semibold text-accent-green">{t('bootloader.ok')}</span></>
+                    : <><XCircle size={16} className="text-accent-red" /><span className="text-[11px] font-semibold text-accent-red">{t('bootloader.issues')}</span></>
                   }
                   <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.status')}</span>
                 </div>
@@ -215,7 +222,7 @@ export default function BootSettings() {
           </div>
           <div className="flex items-center gap-2">
             {saveMsg && (
-              <span className={`text-xs ${saveMsg.ok ? 'text-green-400' : 'text-red-400'}`}>
+              <span className={`text-xs ${saveMsg.ok ? 'text-accent-green' : 'text-accent-red'}`}>
                 {saveMsg.text}
               </span>
             )}
@@ -230,36 +237,12 @@ export default function BootSettings() {
           </div>
         </div>
 
-        {archLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs font-semibold text-[var(--text-secondary)] border-b border-[var(--bg-border)]">
-                  <th className="px-4 py-3">{t('bootSettings.arch')}</th>
-                  <th className="px-4 py-3">{t('bootSettings.archCode')}</th>
-                  <th className="px-4 py-3">{t('bootSettings.nbpType')}</th>
-                  <th className="px-4 py-3">{t('bootSettings.secureBoot', 'Secure Boot')}</th>
-                  <th className="px-4 py-3">{t('bootSettings.bootFile')}</th>
-                  <th className="px-4 py-3">{t('bootSettings.fileStatus')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--bg-border)]">
-                {archEntries.map(e => (
-                  <ArchRow
-                    key={e.arch_code}
-                    entry={e}
-                    files={checkResult?.files ?? []}
-                    onUpdate={(field, value) => updateEntry(e.arch_code, field, value)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={archColumns}
+          data={archEntries}
+          loading={archLoading}
+          rowKey={e => String(e.arch_code)}
+        />
         <div className="p-4 bg-[var(--bg-card)] border-t border-[var(--bg-border)]">
           <p className="text-xs text-[var(--text-muted)]">{t('bootSettings.nbpHint')}</p>
         </div>
@@ -312,9 +295,9 @@ export default function BootSettings() {
                     <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                       {t('bootSettings.ipxeScriptPort', 'HTTP 端口')}
                     </label>
-                    <input
+                    <Input size="xs"
                       type="number"
-                      className={inputCls}
+                      className="py-1.5"
                       value={ipxeScript.port}
                       onChange={e => setIpxeScript(prev => prev ? { ...prev, port: parseInt(e.target.value) || 8080 } : prev)}
                     />
@@ -323,9 +306,9 @@ export default function BootSettings() {
                     <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                       {t('bootSettings.ipxeScriptPath', '脚本路径')}
                     </label>
-                    <input
+                    <Input size="xs"
                       type="text"
-                      className={`${inputCls} font-mono`}
+                      className="py-1.5 font-mono"
                       value={ipxeScript.path}
                       onChange={e => setIpxeScript(prev => prev ? { ...prev, path: e.target.value } : prev)}
                     />
@@ -334,9 +317,9 @@ export default function BootSettings() {
                     <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                       {t('bootSettings.ipxeScriptFlags', '特征标志 (子选项 177)')}
                     </label>
-                    <input
+                    <Input size="xs"
                       type="number"
-                      className={inputCls}
+                      className="py-1.5"
                       value={ipxeScript.feature_flags}
                       onChange={e => setIpxeScript(prev => prev ? { ...prev, feature_flags: parseInt(e.target.value) || 1 } : prev)}
                     />
@@ -356,13 +339,8 @@ export default function BootSettings() {
   )
 }
 
-/** 架构行：NBP 选择 + Secure Boot + 引导文件 */
-function ArchRow({ entry, files, onUpdate }: {
-  entry: ArchEntryData
-  files: BootFileInfo[]
-  onUpdate: (field: keyof ArchEntryData, value: string | boolean) => void
-}) {
-  const { t } = useTranslation()
+/** 每行派生数据：NBP、链式加载目标、文件信息 */
+function getArchRowData(entry: ArchEntryData, files: BootFileInfo[]) {
   const nbp = entry.nbp || 'ipxe'
   const chainLoad = entry.chain_load || false
   const support = nbp === 'pxelinux' ? BOOTLOADER_SUPPORT.pxelinux[entry.arch_code]
@@ -380,121 +358,169 @@ function ArchRow({ entry, files, onUpdate }: {
   const fileInfo = bootFile ? findFileInfo(files, bootFile) : undefined
   const chainFileInfo = chainTarget ? findFileInfo(files, chainTarget) : undefined
 
-  return (
-    <tr className="hover:bg-[var(--bg-hover)]/30">
-      <td className="px-4 py-3 text-[var(--text-primary)] font-mono text-xs">{entry.arch_name}</td>
-      <td className="px-4 py-3 text-[var(--text-secondary)] font-mono text-xs">{entry.arch_code}</td>
+  return { nbp, chainLoad, support, bootFile, chainTarget, fileInfo, chainFileInfo }
+}
 
-      {/* NBP 类型选择 */}
-      <td className="px-4 py-2">
-        <select
-          className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500"
-          value={nbp}
-          onChange={v => onUpdate('nbp', v.target.value)}
-        >
-          {NBP_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        {support === 'fallback' && (
-          <div className="flex items-center gap-1 text-[10px] text-blue-400 mt-1">
-            <ArrowRight size={10} />
-            <span>{t('bootSettings.willFallback', '运行时自动回退')}</span>
-          </div>
-        )}
-        {support === 'unsupported' && (
-          <div className="flex items-center gap-1 text-[10px] text-yellow-400 mt-1">
-            <span>{t('bootSettings.notNative', '非原生支持')}</span>
-          </div>
-        )}
-      </td>
-
-      {/* Secure Boot 支持（可编辑） */}
-      <td className="px-4 py-2">
-        <Toggle
-          checked={entry.secure_boot}
-          onChange={v => onUpdate('secure_boot', v)}
-          disabled={!SECURE_BOOT_SUPPORTED.has(entry.arch_code)}
-        />
-        {!SECURE_BOOT_SUPPORTED.has(entry.arch_code) ? (
-          <div className="text-[10px] text-[var(--text-muted)] mt-1">
-            {t('bootSettings.secureBootUnsupported', '该架构不支持 Secure Boot')}
-          </div>
-        ) : entry.secure_boot ? (
-          <div className="mt-1.5 space-y-1.5">
-            {nbp === 'grub2' ? (
-              <>
-                <div>
-                  <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.shimGrub', 'Shim (GRUB2)')}</label>
-                  <input
-                    className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[10px] font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
-                    value={entry.shim_grub}
-                    onChange={v => onUpdate('shim_grub', v.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.grubSb', 'GRUB2 SB')}</label>
-                  <input
-                    className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[10px] font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
-                    value={entry.grub_sb}
-                    onChange={v => onUpdate('grub_sb', v.target.value)}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.shimIpxe', 'Shim (iPXE)')}</label>
-                  <input
-                    className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[10px] font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
-                    value={entry.shim_ipxe}
-                    onChange={v => onUpdate('shim_ipxe', v.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.ipxeSb', 'iPXE SB')}</label>
-                  <input
-                    className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[10px] font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
-                    value={entry.ipxe_sb}
-                    onChange={v => onUpdate('ipxe_sb', v.target.value)}
-                  />
-                </div>
-              </>
+/** 架构引导配置表的列定义：NBP 选择 + Secure Boot + 引导文件 */
+function buildArchColumns(
+  t: TFunction,
+  files: BootFileInfo[],
+  onUpdate: (code: number, field: keyof ArchEntryData, value: string | boolean) => void,
+): Column<ArchEntryData>[] {
+  return [
+    {
+      key: 'arch_name',
+      label: t('bootSettings.arch'),
+      render: e => <span className="text-[var(--text-primary)] font-mono text-xs">{e.arch_name}</span>,
+    },
+    {
+      key: 'arch_code',
+      label: t('bootSettings.archCode'),
+      render: e => <span className="font-mono text-xs">{e.arch_code}</span>,
+    },
+    {
+      // NBP 类型选择
+      key: 'nbp',
+      label: t('bootSettings.nbpType'),
+      render: e => {
+        const { nbp, support } = getArchRowData(e, files)
+        return (
+          <>
+            <Select
+              size="xs"
+              className="py-1.5"
+              value={nbp}
+              onChange={v => onUpdate(e.arch_code, 'nbp', v.target.value)}
+            >
+              {NBP_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </Select>
+            {support === 'fallback' && (
+              <div className="flex items-center gap-1 text-[10px] text-blue-400 mt-1">
+                <ArrowRight size={10} />
+                <span>{t('bootSettings.willFallback', '运行时自动回退')}</span>
+              </div>
             )}
-          </div>
-        ) : null}
-      </td>
-
-      {/* 引导文件名（可编辑） */}
-      <td className="px-4 py-2">
-        <input
-          className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-blue-500"
-          value={bootFile}
-          onChange={v => {
-            if (nbp === 'pxelinux') onUpdate('pxelinux', v.target.value)
-            else if (nbp === 'grub2') onUpdate('grub', v.target.value)
-            else onUpdate('ipxe', v.target.value)
-          }}
-        />
-        {chainLoad && chainTarget && (
-          <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] mt-1">
-            <ArrowRight size={10} />
-            <span className="font-mono">{chainTarget}</span>
-          </div>
-        )}
-      </td>
-
-      {/* 文件状态 */}
-      <td className="px-4 py-2">
-        <FileStatus info={fileInfo} />
-        {chainLoad && chainTarget && (
-          <div className="mt-1">
-            <FileStatus info={chainFileInfo} />
-          </div>
-        )}
-      </td>
-    </tr>
-  )
+            {support === 'unsupported' && (
+              <div className="flex items-center gap-1 text-[10px] text-accent-yellow mt-1">
+                <span>{t('bootSettings.notNative', '非原生支持')}</span>
+              </div>
+            )}
+          </>
+        )
+      },
+    },
+    {
+      // Secure Boot 支持（可编辑）
+      key: 'secure_boot',
+      label: t('bootSettings.secureBoot', 'Secure Boot'),
+      render: e => {
+        const { nbp } = getArchRowData(e, files)
+        return (
+          <>
+            <Toggle
+              checked={e.secure_boot}
+              onChange={v => onUpdate(e.arch_code, 'secure_boot', v)}
+              disabled={!SECURE_BOOT_SUPPORTED.has(e.arch_code)}
+            />
+            {!SECURE_BOOT_SUPPORTED.has(e.arch_code) ? (
+              <div className="text-[10px] text-[var(--text-muted)] mt-1">
+                {t('bootSettings.secureBootUnsupported', '该架构不支持 Secure Boot')}
+              </div>
+            ) : e.secure_boot ? (
+              <div className="mt-1.5 space-y-1.5">
+                {nbp === 'grub2' ? (
+                  <>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.shimGrub', 'Shim (GRUB2)')}</label>
+                      <Input size="xs"
+                        className="text-[10px] font-mono"
+                        value={e.shim_grub}
+                        onChange={v => onUpdate(e.arch_code, 'shim_grub', v.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.grubSb', 'GRUB2 SB')}</label>
+                      <Input size="xs"
+                        className="text-[10px] font-mono"
+                        value={e.grub_sb}
+                        onChange={v => onUpdate(e.arch_code, 'grub_sb', v.target.value)}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.shimIpxe', 'Shim (iPXE)')}</label>
+                      <Input size="xs"
+                        className="text-[10px] font-mono"
+                        value={e.shim_ipxe}
+                        onChange={v => onUpdate(e.arch_code, 'shim_ipxe', v.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-muted)]">{t('bootSettings.ipxeSb', 'iPXE SB')}</label>
+                      <Input size="xs"
+                        className="text-[10px] font-mono"
+                        value={e.ipxe_sb}
+                        onChange={v => onUpdate(e.arch_code, 'ipxe_sb', v.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </>
+        )
+      },
+    },
+    {
+      // 引导文件名（可编辑）
+      key: 'boot_file',
+      label: t('bootSettings.bootFile'),
+      render: e => {
+        const { nbp, chainLoad, bootFile, chainTarget } = getArchRowData(e, files)
+        return (
+          <>
+            <Input size="xs"
+              className="py-1.5 font-mono"
+              value={bootFile}
+              onChange={v => {
+                if (nbp === 'pxelinux') onUpdate(e.arch_code, 'pxelinux', v.target.value)
+                else if (nbp === 'grub2') onUpdate(e.arch_code, 'grub', v.target.value)
+                else onUpdate(e.arch_code, 'ipxe', v.target.value)
+              }}
+            />
+            {chainLoad && chainTarget && (
+              <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] mt-1">
+                <ArrowRight size={10} />
+                <span className="font-mono">{chainTarget}</span>
+              </div>
+            )}
+          </>
+        )
+      },
+    },
+    {
+      // 文件状态
+      key: 'file_status',
+      label: t('bootSettings.fileStatus'),
+      render: e => {
+        const { chainLoad, chainTarget, fileInfo, chainFileInfo } = getArchRowData(e, files)
+        return (
+          <>
+            <FileStatus info={fileInfo} />
+            {chainLoad && chainTarget && (
+              <div className="mt-1">
+                <FileStatus info={chainFileInfo} />
+              </div>
+            )}
+          </>
+        )
+      },
+    },
+  ]
 }
 
 /** 文件状态指示器 */
@@ -502,7 +528,7 @@ function FileStatus({ info }: { info?: BootFileInfo }) {
   if (!info) {
     return (
       <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
-        <XCircle size={10} className="text-yellow-400" />
+        <XCircle size={10} className="text-accent-yellow" />
         <span>-</span>
       </div>
     )
@@ -510,8 +536,8 @@ function FileStatus({ info }: { info?: BootFileInfo }) {
   return (
     <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)]">
       {info.present
-        ? <CheckCircle size={10} className="text-green-400 shrink-0" />
-        : <XCircle size={10} className={info.required ? 'text-red-400' : 'text-yellow-400'} />
+        ? <CheckCircle size={10} className="text-accent-green shrink-0" />
+        : <XCircle size={10} className={info.required ? 'text-accent-red' : 'text-accent-yellow'} />
       }
       <span className="font-mono">{info.present ? formatSize(info.size ?? 0) : '-'}</span>
     </div>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Monitor, Loader2, Search, ExternalLink } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
+import { Input, Select } from '../components/ui/FormControls'
 import { api, type BMCConfig as BMCConfigType, type BMCProbeResult } from '../api/client'
 
 interface Props {
@@ -122,30 +123,29 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
       <div className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">{t('bmc.addr')} *</label>
-          <input
+          <Input
             type="text" value={host} onChange={e => setHost(e.target.value)}
             placeholder="10.0.0.1"
-            className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
+            className="font-mono"
           />
         </div>
 
         <div className="grid grid-cols-[1fr_120px] gap-3">
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">{t('bmc.protocol')}</label>
-            <select
+            <Select
               value={protocol} onChange={e => setProtocol(e.target.value)}
-              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
             >
               {PROTOCOL_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">{t('bmc.port')}</label>
-            <input
+            <Input
               type="number" value={port} onChange={e => setPort(Number(e.target.value))}
-              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
+              className="font-mono"
             />
           </div>
         </div>
@@ -153,20 +153,18 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">{t('bmc.username')} *</label>
-            <input
+            <Input
               type="text" value={username} onChange={e => setUsername(e.target.value)}
               placeholder="admin"
-              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
               {t('bmc.password')}{isEdit ? '' : ' *'}
             </label>
-            <input
+            <Input
               type="password" value={password} onChange={e => setPassword(e.target.value)}
               placeholder={isEdit ? t('bmc.editPasswordHint') : ''}
-              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
             />
           </div>
         </div>
@@ -187,8 +185,8 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
         )}
 
         {probeError && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-            <span className="text-xs text-red-400 flex-1">{probeError}</span>
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-accent-red/5 border border-accent-red/10">
+            <span className="text-xs text-accent-red flex-1">{probeError}</span>
             <button onClick={() => { setProbeError(''); skipProbe() }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] underline shrink-0">
               {t('bmc.skipProbe')}
             </button>
@@ -204,42 +202,42 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <span className="text-[var(--text-muted)]">{t('bmc.deviceName')}</span>
-                <input
+                <Input size="xs"
                   type="text" value={probeResult?.name || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, name: e.target.value } : { name: e.target.value, vendor: '', model: '', serial: '', mac: '' })}
-                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
+                  className="mt-1"
                 />
               </div>
               <div>
                 <span className="text-[var(--text-muted)]">{t('bmc.brand')}</span>
-                <input
+                <Input size="xs"
                   type="text" value={probeResult?.vendor || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, vendor: e.target.value } : null)}
-                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
+                  className="mt-1"
                 />
               </div>
               <div>
                 <span className="text-[var(--text-muted)]">{t('bmc.model')}</span>
-                <input
+                <Input size="xs"
                   type="text" value={probeResult?.model || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, model: e.target.value } : null)}
-                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
+                  className="mt-1"
                 />
               </div>
               <div>
                 <span className="text-[var(--text-muted)]">SN</span>
-                <input
+                <Input size="xs"
                   type="text" value={probeResult?.serial || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, serial: e.target.value } : null)}
-                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1"
+                  className="mt-1"
                 />
               </div>
               <div className="col-span-2">
                 <span className="text-[var(--text-muted)]">MAC</span>
-                <input
+                <Input size="xs"
                   type="text" value={probeResult?.mac || ''}
                   onChange={e => setProbeResult(prev => prev ? { ...prev, mac: e.target.value } : null)}
-                  className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2 py-1 text-[var(--text-primary)] outline-none focus:border-blue-500 mt-1 font-mono"
+                  className="mt-1 font-mono"
                 />
               </div>
             </div>
@@ -262,7 +260,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
         )}
 
         {error && (
-          <div className="p-2 rounded bg-red-500/5 border border-red-500/10 text-xs text-red-400">
+          <div className="p-2 rounded bg-accent-red/5 border border-accent-red/10 text-xs text-accent-red">
             {error}
           </div>
         )}

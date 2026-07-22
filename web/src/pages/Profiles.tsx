@@ -6,8 +6,10 @@ import { DataTable, type Column } from '../components/ui/DataTable'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageHeader } from '../components/ui/PageHeader'
 import { Tag } from '../components/ui/Tag'
 import { useToast } from '../components/ui/Toast'
+import { Input, Select, Textarea } from '../components/ui/FormControls'
 import { api, getNetbootCatalog, type Profile, type MenuEntry, type NetbootDistro, type ProfileScriptVersion } from '../api/client'
 
 export default function Profiles() {
@@ -272,12 +274,14 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('profiles.title')}</h1>
-        <Button variant="primary" size="sm" onClick={openCreate}>
-          <Plus size={14} /> {t('profiles.addProfile')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('profiles.title')}
+        actions={
+          <Button variant="primary" size="sm" onClick={openCreate}>
+            <Plus size={14} /> {t('profiles.addProfile')}
+          </Button>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
@@ -323,22 +327,22 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.name')}</label>
-                <input autoFocus className={`w-full bg-[var(--bg-input)] border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors ${nameError ? 'border-red-500 focus:border-red-500' : 'border-[var(--bg-border)] focus:border-blue-500'}`} value={form.name} onChange={e => { setNameError(false); setForm({...form, name: e.target.value}) }} placeholder={t('profiles.namePlaceholder')} />
-                {nameError && <p className="text-xs text-red-400 mt-1">{t('profiles.nameRequired')}</p>}
+                <input autoFocus className={`w-full bg-[var(--bg-input)] border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors ${nameError ? 'border-accent-red focus:border-accent-red' : 'border-[var(--bg-border)] focus:border-blue-500'}`} value={form.name} onChange={e => { setNameError(false); setForm({...form, name: e.target.value}) }} placeholder={t('profiles.namePlaceholder')} />
+                {nameError && <p className="text-xs text-accent-red mt-1">{t('profiles.nameRequired')}</p>}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.arch')} <span className="text-[var(--text-muted)] font-normal">{t('profiles.archHint')}</span></label>
-                <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={form.arch} onChange={e => setForm({...form, arch: e.target.value})}>
+                <Select value={form.arch} onChange={e => setForm({...form, arch: e.target.value})}>
                   <option value="">{t('profiles.auto')}</option>
                   <option>x86_64</option>
                   <option>arm64</option>
                   <option>i386</option>
-                </select>
+                </Select>
               </div>
             </div>
             <div className="mt-3">
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.description')}</label>
-              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+              <Input value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
             </div>
             <label className="flex items-center gap-2.5 cursor-pointer mt-3">
               <button type="button" onClick={() => setForm({...form, is_default: !form.is_default})} className={`relative w-10 h-5.5 rounded-full transition-colors ${form.is_default ? 'bg-blue-500' : 'bg-[var(--bg-border)]'}`}>
@@ -377,7 +381,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
                     <textarea className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} placeholder={t('profiles.cmdlinePlaceholder')} />
                   </div>
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2 text-xs text-amber-300 leading-relaxed">
+                  <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 text-xs text-accent-yellow leading-relaxed">
                     {t('profiles.uefiInitrdHint')}
                   </div>
                 </>
@@ -385,7 +389,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
               {form.entry.type === 'chain' && (
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.url')}</label>
-                  <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder={t('profiles.chainUrlPlaceholder')} />
+                  <Input size="xs" className="px-2.5 py-1.5 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder={t('profiles.chainUrlPlaceholder')} />
                 </div>
               )}
               {form.entry.type === 'sanboot' && (
@@ -402,7 +406,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                   {form.entry.san_action !== 'unhook' && (
                     <div>
                       <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.targetUrl')}</label>
-                      <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder={t('profiles.sanUrlPlaceholder')} />
+                      <Input size="xs" className="px-2.5 py-1.5 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder={t('profiles.sanUrlPlaceholder')} />
                     </div>
                   )}
                   <div className="flex gap-4">
@@ -428,7 +432,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
               {form.entry.type === 'custom' && (
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.ipxeScript')} <span className="text-[var(--text-muted)] font-normal">{t('profiles.scriptHint')}</span></label>
-                  <textarea className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-y" rows={6} value={form.entry.script || ''} onChange={e => updateEntry('script', e.target.value)} placeholder={"set keep-san 1\\nsanboot --drive 0x80 http://${next-server}/winpe.iso"} />
+                  <Textarea size="xs" className="px-2.5 py-1.5 font-mono" rows={6} value={form.entry.script || ''} onChange={e => updateEntry('script', e.target.value)} placeholder={"set keep-san 1\\nsanboot --drive 0x80 http://${next-server}/winpe.iso"} />
                   {editing && (
                     <button type="button" onClick={openHistory} className="mt-1.5 flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-blue-400 transition-colors">
                       <HistoryIcon size={12} />
@@ -453,7 +457,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                             </div>
                             <div className="flex items-center gap-1 ml-2 shrink-0">
                               <button type="button" onClick={() => handleDiff(editing.id, v.id)} className="px-1.5 py-0.5 text-[10px] rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">{t('profiles.scriptDiff')}</button>
-                              <button type="button" onClick={() => handleRollback(editing.id, v.id)} className="px-1.5 py-0.5 text-[10px] rounded bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors">{t('profiles.scriptRollback')}</button>
+                              <button type="button" onClick={() => handleRollback(editing.id, v.id)} className="px-1.5 py-0.5 text-[10px] rounded bg-accent-yellow/10 text-accent-yellow hover:bg-accent-yellow/20 transition-colors">{t('profiles.scriptRollback')}</button>
                             </div>
                           </div>
                         ))
@@ -465,7 +469,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
               {form.entry.type === 'wds' && (
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wim')}</label>
-                  <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} />
+                  <Input size="xs" className="px-2.5 py-1.5 font-mono" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} />
                 </div>
               )}
 
@@ -535,7 +539,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
             <div className="max-h-80 overflow-y-auto space-y-1">
               {osCatalog.filter(d => d.enabled).map(distro => (
                 <div key={distro.name}>
-                  <div className="font-medium text-sm px-2 py-1 bg-[var(--bg-secondary)] rounded mb-1">
+                  <div className="font-medium text-sm px-2 py-1 bg-[var(--hover)] rounded mb-1">
                     {distro.name}
                   </div>
                   {distro.versions.filter(v => v.enabled).map(ver => (
@@ -572,7 +576,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                           'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                         }`}>{ver.boot_type}</span>
                       )}
-                      {ver.local && <span className="text-green-500 ml-2 text-xs">{t('profiles.local')}</span>}
+                      {ver.local && <span className="text-accent-green ml-2 text-xs">{t('profiles.local')}</span>}
                     </button>
                   ))}
                 </div>
@@ -717,8 +721,8 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
         <pre className="p-3 bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg text-xs font-mono whitespace-pre-wrap break-all max-h-96 overflow-y-auto leading-relaxed">
           {diffContent.split('\n').map((line, i) => {
             let cls = 'text-[var(--text-primary)]'
-            if (line.startsWith('+')) cls = 'text-green-400'
-            else if (line.startsWith('-')) cls = 'text-red-400'
+            if (line.startsWith('+')) cls = 'text-accent-green'
+            else if (line.startsWith('-')) cls = 'text-accent-red'
             return <div key={i} className={cls}>{line || ' '}</div>
           })}
         </pre>

@@ -4,8 +4,9 @@ import { Upload, RefreshCw, Folder, File, Trash2, Search, Info } from 'lucide-re
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Tag } from '../components/ui/Tag'
-import { EmptyState } from '../components/ui/EmptyState'
+import { DataTable, type Column } from '../components/ui/DataTable'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { api, type FileInfo } from '../api/client'
 
@@ -91,6 +92,65 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
 
   const displayPath = currentDir === '.' ? (rootPath || '') : (rootPath ? rootPath + '/' + currentDir : currentDir)
 
+  const columns: Column<FileInfo>[] = [
+    {
+      key: 'icon',
+      label: '',
+      width: '2rem',
+      render: f => f.is_dir
+        ? <Folder size={16} className="text-accent-yellow" />
+        : <File size={16} className="text-blue-500" />,
+    },
+    {
+      key: 'name',
+      label: t('files.colName'),
+      render: f => f.is_dir ? `${f.name}/` : f.name,
+    },
+    {
+      key: 'size',
+      label: t('files.colSize'),
+      width: '6rem',
+      className: 'text-right text-[var(--text-muted)] font-mono text-xs',
+      render: f => f.is_dir ? '—' : sizeStr(f.size),
+    },
+    {
+      key: 'modtime',
+      label: t('files.colModified'),
+      width: '8rem',
+      className: 'text-[var(--text-muted)] text-xs',
+      render: f => timeStr(f.modtime),
+    },
+    {
+      key: 'md5',
+      label: 'MD5',
+      width: '7rem',
+      render: f => {
+        if (f.is_dir) return <span className="text-xs text-[var(--text-muted)] font-mono">—</span>
+        return f.md5 ? (
+          <span className="text-[10px] text-[var(--text-muted)] font-mono" title={f.md5}>{f.md5.slice(0, 16)}</span>
+        ) : (
+          <span className="text-[10px] text-[var(--text-muted)]">—</span>
+        )
+      },
+    },
+    {
+      key: 'actions',
+      label: '',
+      width: '2.5rem',
+      className: 'group',
+      render: f => f.is_dir ? (
+        <Tag color="yellow">dir</Tag>
+      ) : (
+        <button
+          onClick={e => { e.stopPropagation(); handleDelete(f.name) }}
+          className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-accent-red transition-all"
+        >
+          <Trash2 size={14} />
+        </button>
+      ),
+    },
+  ]
+
   return (
     <div>
       {hideHeader ? (
@@ -115,18 +175,20 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('files.title')}</h1>
-            <div className="flex gap-2">
-              <Button variant="secondary" size="sm" onClick={loadFiles}>
-                <RefreshCw size={14} /> {t('common.refresh', '刷新')}
-              </Button>
-              <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload size={14} /> {t('files.upload')}
-              </Button>
-              <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
-            </div>
-          </div>
+          <PageHeader
+            title={t('files.title')}
+            actions={
+              <>
+                <Button variant="secondary" size="sm" onClick={loadFiles}>
+                  <RefreshCw size={14} /> {t('common.refresh', '刷新')}
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Upload size={14} /> {t('files.upload')}
+                </Button>
+                <input ref={fileInputRef} type="file" className="hidden" onChange={handleUpload} />
+              </>
+            }
+          />
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -160,67 +222,14 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
             {t('files.backToParent')}
           </button>
         )}
-        {loading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-9 bg-[var(--bg-card)] rounded animate-shimmer" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState title={t('files.empty')} />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-[var(--bg-border)]">
-                <tr className="text-left text-xs font-semibold text-[var(--text-secondary)]">
-                  <th className="px-3 py-2 w-8"></th>
-                  <th className="px-3 py-2">{t('files.colName')}</th>
-                  <th className="px-3 py-2 w-24 text-right">{t('files.colSize')}</th>
-                  <th className="px-3 py-2 w-32">{t('files.colModified')}</th>
-                  <th className="px-3 py-2 w-28">MD5</th>
-                  <th className="px-3 py-2 w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--bg-border)]">
-                {folders.map(f => (
-                  <tr key={f.name}
-                    onClick={() => enterDir(f.name)}
-                    className="cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
-                  >
-                    <td className="px-3 py-2"><Folder size={16} className="text-yellow-500" /></td>
-                    <td className="px-3 py-2 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{f.name}/</td>
-                    <td className="px-3 py-2 text-right text-[var(--text-muted)] font-mono text-xs">—</td>
-                    <td className="px-3 py-2 text-[var(--text-muted)] text-xs">{timeStr(f.modtime)}</td>
-                    <td className="px-3 py-2 text-[var(--text-muted)] text-xs font-mono">—</td>
-                    <td className="px-3 py-2"><Tag color="yellow">dir</Tag></td>
-                  </tr>
-                ))}
-                {fileItems.map(f => (
-                  <tr key={f.name} className="hover:bg-[var(--bg-hover)] transition-colors group">
-                    <td className="px-3 py-2"><File size={16} className="text-blue-500" /></td>
-                    <td className="px-3 py-2 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">{f.name}</td>
-                    <td className="px-3 py-2 text-right text-[var(--text-muted)] font-mono text-xs">{sizeStr(f.size)}</td>
-                    <td className="px-3 py-2 text-[var(--text-muted)] text-xs">{timeStr(f.modtime)}</td>
-                    <td className="px-3 py-2">
-                      {f.md5 ? (
-                        <span className="text-[10px] text-[var(--text-muted)] font-mono" title={f.md5}>{f.md5.slice(0, 16)}</span>
-                      ) : (
-                        <span className="text-[10px] text-[var(--text-muted)]">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      <button onClick={() => handleDelete(f.name)}
-                        className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-red-400 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={columns}
+          data={[...folders, ...fileItems]}
+          loading={loading}
+          onRowClick={f => { if (f.is_dir) enterDir(f.name) }}
+          emptyText={t('files.empty')}
+          rowKey={f => (f.is_dir ? 'd:' : 'f:') + f.name}
+        />
         {rootPath && (
           <p className="px-1 pt-3 text-xs text-[var(--text-muted)] font-mono">{t('files.path')}:{displayPath}</p>
         )}

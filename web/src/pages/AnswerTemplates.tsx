@@ -4,6 +4,9 @@ import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageHeader } from '../components/ui/PageHeader'
+import { Input, Select, Textarea } from '../components/ui/FormControls'
+import { DataTable, type Column } from '../components/ui/DataTable'
 import { api, type AnswerTemplate, type AnswerTemplateVersion } from '../api/client'
 
 const TEMPLATE_TYPES = ['kickstart', 'preseed', 'subiquity', 'autoyast', 'autounattend']
@@ -363,24 +366,101 @@ export default function AnswerTemplates() {
     e.target.value = ''
   }
 
+  const selectAllCheckbox = (
+    <input
+      type="checkbox"
+      checked={selected.size === templates.length && templates.length > 0}
+      onChange={toggleSelectAll}
+      className="accent-blue-500"
+    />
+  )
+
+  const columns: Column<AnswerTemplate>[] = [
+    {
+      key: 'select',
+      label: selectAllCheckbox,
+      width: '2.5rem',
+      className: 'text-center',
+      render: (tpl) => (
+        <input
+          type="checkbox"
+          checked={tpl.id ? selected.has(tpl.id) : false}
+          onChange={() => tpl.id && toggleSelect(tpl.id)}
+          className="accent-blue-500"
+        />
+      ),
+    },
+    {
+      key: 'name',
+      label: t('answerTemplates.name'),
+      render: (tpl) => (
+        <>
+          <span className="text-sm font-medium text-[var(--text-primary)]">{tpl.name}</span>
+          {tpl.current_version && tpl.current_version > 1 && (
+            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono rounded bg-blue-500/10 text-blue-400">
+              v{tpl.current_version}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'type',
+      label: t('answerTemplates.type'),
+      render: (tpl) => (
+        <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[var(--hover)] text-[var(--text-muted)]">
+          {tpl.type}
+        </span>
+      ),
+    },
+    {
+      key: 'description',
+      label: t('answerTemplates.description'),
+      render: (tpl) => (
+        <span className="text-xs text-[var(--text-muted)]">{tpl.description || '-'}</span>
+      ),
+    },
+    {
+      key: 'updated_at',
+      label: t('answerTemplates.updatedAt'),
+      render: (tpl) => (
+        <span className="text-xs text-[var(--text-muted)]">{tpl.updated_at ? new Date(tpl.updated_at).toLocaleString() : '-'}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: t('answerTemplates.actions'),
+      className: 'text-right',
+      render: (tpl) => (
+        <>
+          <Button variant="ghost" size="sm" onClick={() => openEdit(tpl)}>{t('common.edit')}</Button>
+          <Button variant="ghost" size="sm" onClick={() => exportSingle(tpl)}>{t('answerTemplates.export')}</Button>
+          <Button variant="ghost" size="sm" onClick={() => tpl.id && openVersions(tpl.id)}>{t('answerTemplates.versions')}</Button>
+          <Button variant="danger" size="sm" onClick={() => tpl.id && remove(tpl.id)}>{t('common.delete')}</Button>
+        </>
+      ),
+    },
+  ]
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('answerTemplates.title')}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={load}>{t('common.refresh')}</Button>
-          <input ref={importRef} type="file" accept=".json,.cfg,.ks,.preseed,.xml,.yaml,.yml,.txt" onChange={handleImport} className="hidden" />
-          <Button variant="secondary" size="sm" onClick={() => importRef.current?.click()}>{t('answerTemplates.import')}</Button>
-          <Button variant="primary" size="sm" onClick={openNew}>+ {t('answerTemplates.newTemplate')}</Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('answerTemplates.title')}
+        className="mb-5"
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={load}>{t('common.refresh')}</Button>
+            <input ref={importRef} type="file" accept=".json,.cfg,.ks,.preseed,.xml,.yaml,.yml,.txt" onChange={handleImport} className="hidden" />
+            <Button variant="secondary" size="sm" onClick={() => importRef.current?.click()}>{t('answerTemplates.import')}</Button>
+            <Button variant="primary" size="sm" onClick={openNew}>+ {t('answerTemplates.newTemplate')}</Button>
+          </>
+        }
+      />
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+        <div className="mb-4 px-4 py-3 rounded-lg bg-accent-red/10 border border-accent-red/20 text-sm text-accent-red">
           {error}
-          <button onClick={() => setError('')} className="float-right text-red-400/60 hover:text-red-400">✕</button>
+          <button onClick={() => setError('')} className="float-right text-accent-red/60 hover:text-accent-red">✕</button>
         </div>
       )}
 
@@ -419,24 +499,25 @@ export default function AnswerTemplates() {
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.name')}</label>
-                <input
+                <Input
+                  size="sm"
                   type="text" value={editing.name}
                   onChange={e => setEditing({ ...editing, name: e.target.value })}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
                 />
               </div>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.type')}</label>
                 <div className="flex gap-1">
-                  <select
+                  <Select
+                    size="sm"
+                    className="flex-1"
                     value={editing.type}
                     onChange={e => setEditing({ ...editing, type: e.target.value })}
-                    className="flex-1 px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
                   >
                     {TEMPLATE_TYPES.map(tp => (
                       <option key={tp} value={tp}>{TYPE_LABELS[tp] || tp}</option>
                     ))}
-                  </select>
+                  </Select>
                   <button
                     onClick={() => openPresets(editing.type)}
                     className="px-2 py-1 text-[10px] rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
@@ -450,10 +531,10 @@ export default function AnswerTemplates() {
 
             <div className="mb-4">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.description')}</label>
-              <input
+              <Input
+                size="sm"
                 type="text" value={editing.description || ''}
                 onChange={e => setEditing({ ...editing, description: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
               />
             </div>
 
@@ -461,8 +542,8 @@ export default function AnswerTemplates() {
             {validationResult && (
               <div className={`mb-4 px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${
                 validationResult.valid
-                  ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                  : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                  ? 'bg-accent-green/10 text-accent-green border border-accent-green/20'
+                  : 'bg-accent-red/10 text-accent-red border border-accent-red/20'
               }`}>
                 <span>{validationResult.valid ? t('answerTemplates.validTemplate') : t('answerTemplates.validationError')}</span>
                 {validationResult.error && <code className="ml-1 font-mono text-[10px] opacity-70">{validationResult.error}</code>}
@@ -471,11 +552,12 @@ export default function AnswerTemplates() {
 
             <div className="mb-4">
               <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.content')}</label>
-              <textarea
+              <Textarea
+                size="sm"
+                className="font-mono"
                 value={editing.content}
                 onChange={e => { setEditing({ ...editing, content: e.target.value }); setValidationResult(null) }}
                 rows={16}
-                className="w-full px-3 py-2 text-xs font-mono rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)] resize-y"
               />
             </div>
 
@@ -550,7 +632,7 @@ export default function AnswerTemplates() {
                 {p.variables?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {p.variables.map(v => (
-                      <span key={v} className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-yellow-500/10 text-yellow-400">
+                      <span key={v} className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-accent-yellow/10 text-accent-yellow">
                         {v}
                       </span>
                     ))}
@@ -564,72 +646,13 @@ export default function AnswerTemplates() {
 
       {/* Template list */}
       <Card padding={false}>
-        {loading ? (
-          <div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('common.loading')}</div>
-        ) : templates.length === 0 ? (
-          <div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('answerTemplates.empty')}</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="w-10 px-2 py-3 border-b border-[var(--bg-border)]">
-                    <input
-                      type="checkbox"
-                      checked={selected.size === templates.length && templates.length > 0}
-                      onChange={toggleSelectAll}
-                      className="accent-blue-500"
-                    />
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.name')}</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.type')}</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.description')}</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.updatedAt')}</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('answerTemplates.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {templates.map(tpl => (
-                  <tr key={tpl.id} className="hover:bg-[var(--bg-hover)]/50 transition-colors">
-                    <td className="px-2 py-3 border-b border-[var(--bg-border)] text-center">
-                      <input
-                        type="checkbox"
-                        checked={tpl.id ? selected.has(tpl.id) : false}
-                        onChange={() => tpl.id && toggleSelect(tpl.id)}
-                        className="accent-blue-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                      <span className="text-sm font-medium text-[var(--text-primary)]">{tpl.name}</span>
-                      {tpl.current_version && tpl.current_version > 1 && (
-                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono rounded bg-blue-500/10 text-blue-400">
-                          v{tpl.current_version}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                      <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[var(--bg-muted)] text-[var(--text-muted)]">
-                        {tpl.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                      <span className="text-xs text-[var(--text-muted)]">{tpl.description || '-'}</span>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                      <span className="text-xs text-[var(--text-muted)]">{tpl.updated_at ? new Date(tpl.updated_at).toLocaleString() : '-'}</span>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[var(--bg-border)] text-right">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(tpl)}>{t('common.edit')}</Button>
-                      <Button variant="ghost" size="sm" onClick={() => exportSingle(tpl)}>{t('answerTemplates.export')}</Button>
-                      <Button variant="ghost" size="sm" onClick={() => tpl.id && openVersions(tpl.id)}>{t('answerTemplates.versions')}</Button>
-                      <Button variant="danger" size="sm" onClick={() => tpl.id && remove(tpl.id)}>{t('common.delete')}</Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={columns}
+          data={templates}
+          loading={loading}
+          emptyText={t('answerTemplates.empty')}
+          rowKey={(tpl) => String(tpl.id ?? tpl.name)}
+        />
       </Card>
 
       {/* Version History Modal */}
@@ -660,7 +683,7 @@ export default function AnswerTemplates() {
                   </span>
                   <button
                     onClick={() => handleRollback(v.version)}
-                    className="px-2 py-1 text-[11px] font-medium rounded bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors"
+                    className="px-2 py-1 text-[11px] font-medium rounded bg-accent-yellow/10 text-accent-yellow hover:bg-accent-yellow/20 transition-colors"
                   >
                     {t('answerTemplates.rollback')}
                   </button>
@@ -708,8 +731,8 @@ export default function AnswerTemplates() {
                       <div
                         key={idx}
                         className={`px-3 whitespace-pre-wrap ${
-                          d.type === 'add' ? 'bg-green-500/10 text-green-300 border-l-2 border-green-500' :
-                          d.type === 'remove' ? 'bg-red-500/10 text-red-300 border-l-2 border-red-500' :
+                          d.type === 'add' ? 'bg-accent-green/10 text-accent-green border-l-2 border-accent-green' :
+                          d.type === 'remove' ? 'bg-accent-red/10 text-accent-red border-l-2 border-accent-red' :
                           'text-[var(--text-muted)] border-l-2 border-transparent'
                         }`}
                       >

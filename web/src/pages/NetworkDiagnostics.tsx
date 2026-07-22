@@ -3,8 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { StatusDot } from '../components/ui/StatusDot'
+import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
-import { api, type PingPacket, type PingResult, type TracerouteResult, type NetworkInterface } from '../api/client'
+import { Input, Select } from '../components/ui/FormControls'
+import { DataTable, type Column } from '../components/ui/DataTable'
+import { api, type PingPacket, type PingResult, type TracerouteHop, type TracerouteResult, type NetworkInterface } from '../api/client'
 
 type Tab = 'ping' | 'traceroute'
 
@@ -19,9 +22,7 @@ export default function NetworkDiagnostics() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('network.title')}</h1>
-      </div>
+      <PageHeader title={t('network.title')} className="mb-0" />
 
       {/* ── Tabs ── */}
       <div className="flex gap-1 border-b border-[var(--bg-border)]">
@@ -120,6 +121,18 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
     return `${rtt.toFixed(2)}ms`
   }
 
+  const packetColumns: Column<PingPacket>[] = [
+    { key: 'seq', label: '#', render: pkt => <span className="font-mono text-[var(--text-primary)]">{pkt.seq}</span> },
+    { key: 'rtt', label: t('network.rtt'), render: pkt => <span className="font-mono text-[var(--text-primary)]">{pkt.error ? '-' : formatRTT(pkt.rtt)}</span> },
+    { key: 'ttl', label: 'TTL', render: pkt => pkt.ttl || '-' },
+    { key: 'bytes', label: 'Bytes', render: pkt => pkt.bytes || '-' },
+    { key: 'status', label: t('network.status'), render: pkt => pkt.error ? (
+      <span className="text-accent-red">{pkt.error}</span>
+    ) : (
+      <StatusDot color="green" />
+    ) },
+  ]
+
   return (
     <Card>
       <div className="p-5">
@@ -127,31 +140,34 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
         <div className="flex flex-wrap gap-3 items-end">
           <div className="w-48">
             <label className="text-[11px] font-medium text-[var(--text-muted)] mb-1 block">{t('network.target')}</label>
-            <input
+            <Input
+              size="xs"
+              className="px-2.5 py-1.5 rounded-lg font-mono"
               type="text"
               value={host}
               onChange={e => setHost(e.target.value)}
               placeholder={t('network.hostPlaceholder')}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--bg-input)] border border-[var(--bg-border)] text-[var(--text-primary)] text-sm font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
               onKeyDown={e => e.key === 'Enter' && !loading && doPing()}
             />
           </div>
           <div className="w-16">
             <label className="text-[11px] font-medium text-[var(--text-muted)] mb-1 block">{t('network.count')}</label>
-            <input
+            <Input
+              size="xs"
+              className="px-2.5 py-1.5 rounded-lg font-mono disabled:opacity-40"
               type="number"
               value={count}
               onChange={e => setCount(Math.max(1, parseInt(e.target.value) || 1))}
               disabled={continuous}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--bg-input)] border border-[var(--bg-border)] text-[var(--text-primary)] text-sm font-mono disabled:opacity-40 focus:outline-none focus:border-blue-500"
             />
           </div>
           <div className="w-44">
             <label className="text-[11px] font-medium text-[var(--text-muted)] mb-1 block">{t('network.interface')}</label>
-            <select
+            <Select
+              size="xs"
+              className="px-2.5 py-1.5 rounded-lg"
               value={iface}
               onChange={e => setIface(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--bg-input)] border border-[var(--bg-border)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-blue-500"
             >
               <option value="">{t('network.auto')}</option>
               {interfaces.map(iface => (
@@ -159,7 +175,7 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
                   {iface.name} ({iface.ips[0]})
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <label className="flex items-center gap-1.5 cursor-pointer select-none pb-0.5">
             <input
@@ -245,11 +261,11 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-base)]">
                   <div className="text-[var(--text-muted)] text-xs">{t('network.received')}</div>
-                  <div className="text-green-400 font-semibold">{result.received}/{result.sent}</div>
+                  <div className="text-accent-green font-semibold">{result.received}/{result.sent}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-base)]">
                   <div className="text-[var(--text-muted)] text-xs">{t('network.lost')}</div>
-                  <div className="text-red-400 font-semibold">{result.lost}</div>
+                  <div className="text-accent-red font-semibold">{result.lost}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-base)]">
                   <div className="text-[var(--text-muted)] text-xs">{t('network.avgRTT')}</div>
@@ -268,35 +284,8 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
 
         {/* Packet Table */}
         {packets.length > 0 && (
-          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-            <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-[var(--bg-card)]">
-                <tr className="text-[var(--text-muted)] border-b border-[var(--bg-border)]">
-                  <th className="text-left py-2 px-2">#</th>
-                  <th className="text-left py-2 px-2">{t('network.rtt')}</th>
-                  <th className="text-left py-2 px-2">TTL</th>
-                  <th className="text-left py-2 px-2">Bytes</th>
-                  <th className="text-left py-2 px-2">{t('network.status')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {packets.map((pkt, i) => (
-                  <tr key={i} className="border-b border-[var(--bg-border)] last:border-0 hover:bg-[var(--bg-hover)]/30">
-                    <td className="py-1.5 px-2 font-mono text-[var(--text-primary)]">{pkt.seq}</td>
-                    <td className="py-1.5 px-2 font-mono text-[var(--text-primary)]">{pkt.error ? '-' : formatRTT(pkt.rtt)}</td>
-                    <td className="py-1.5 px-2 text-[var(--text-secondary)]">{pkt.ttl || '-'}</td>
-                    <td className="py-1.5 px-2 text-[var(--text-secondary)]">{pkt.bytes || '-'}</td>
-                    <td className="py-1.5 px-2">
-                      {pkt.error ? (
-                        <span className="text-red-400">{pkt.error}</span>
-                      ) : (
-                        <StatusDot color="green" />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="max-h-[400px] overflow-y-auto">
+            <DataTable columns={packetColumns} data={packets} stickyHeader />
           </div>
         )}
       </div>
@@ -350,6 +339,26 @@ function TraceroutePanel({ interfaces }: { interfaces: NetworkInterface[] }) {
     return rtts.reduce((a, b) => a + b, 0) / rtts.length
   }
 
+  const hopColumns: Column<TracerouteHop>[] = [
+    { key: 'ttl', label: '#', render: hop => <span className="font-mono text-[var(--text-primary)]">{hop.ttl}</span> },
+    { key: 'ip', label: t('network.ip'), render: hop => <span className="font-mono text-[var(--text-primary)]">{hop.timeout ? '*' : hop.ip}</span> },
+    { key: 'host', label: t('network.host'), className: 'truncate max-w-[200px]', render: hop => (
+      <span className="text-[var(--text-muted)]">{hop.timeout ? '' : hop.host || '-'}</span>
+    ) },
+    { key: 'rtt', label: '1', className: 'text-right font-mono text-[var(--text-primary)]', render: hop => hop.rtt ? (
+      formatRTT(hop.rtt)
+    ) : (
+      <span className="text-accent-red">*</span>
+    ) },
+  ]
+  if (probes > 1) {
+    hopColumns.push({ key: 'rtt2', label: '2', className: 'text-right font-mono text-[var(--text-primary)]', render: hop => (hop.rtts?.[1] ? formatRTT(hop.rtts[1]) : hop.timeout ? '*' : '-') })
+  }
+  if (probes > 2) {
+    hopColumns.push({ key: 'rtt3', label: '3', className: 'text-right font-mono text-[var(--text-primary)]', render: hop => (hop.rtts?.[2] ? formatRTT(hop.rtts[2]) : hop.timeout ? '*' : '-') })
+  }
+  hopColumns.push({ key: 'avg_rtt', label: t('network.avgRTT'), className: 'text-right font-mono text-[var(--text-primary)]', render: hop => (hop.timeout ? '' : formatRTT(hopAvgRTT(hop.rtts))) })
+
   return (
     <Card>
       <div className="p-5">
@@ -357,21 +366,23 @@ function TraceroutePanel({ interfaces }: { interfaces: NetworkInterface[] }) {
         <div className="flex flex-wrap gap-3 items-end">
           <div className="w-48">
             <label className="text-[11px] font-medium text-[var(--text-muted)] mb-1 block">{t('network.target')}</label>
-            <input
+            <Input
+              size="xs"
+              className="px-2.5 py-1.5 rounded-lg font-mono"
               type="text"
               value={host}
               onChange={e => setHost(e.target.value)}
               placeholder={t('network.hostPlaceholder')}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--bg-input)] border border-[var(--bg-border)] text-[var(--text-primary)] text-sm font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
               onKeyDown={e => e.key === 'Enter' && !loading && doTraceroute()}
             />
           </div>
           <div className="w-44">
             <label className="text-[11px] font-medium text-[var(--text-muted)] mb-1 block">{t('network.interface')}</label>
-            <select
+            <Select
+              size="xs"
+              className="px-2.5 py-1.5 rounded-lg"
               value={iface}
               onChange={e => setIface(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--bg-input)] border border-[var(--bg-border)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-blue-500"
             >
               <option value="">{t('network.auto')}</option>
               {interfaces.map(iface => (
@@ -379,7 +390,7 @@ function TraceroutePanel({ interfaces }: { interfaces: NetworkInterface[] }) {
                   {iface.name} ({iface.ips[0]})
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <button
             onClick={() => setAdvanced(!advanced)}
@@ -437,52 +448,7 @@ function TraceroutePanel({ interfaces }: { interfaces: NetworkInterface[] }) {
               <span>{result.hops.length} {t('network.hops')}</span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-[var(--text-muted)] border-b border-[var(--bg-border)]">
-                    <th className="text-left py-2 px-2">#</th>
-                    <th className="text-left py-2 px-2">{t('network.ip')}</th>
-                    <th className="text-left py-2 px-2">{t('network.host')}</th>
-                    <th className="text-right py-2 px-2">1</th>
-                    {probes > 1 && <th className="text-right py-2 px-2">2</th>}
-                    {probes > 2 && <th className="text-right py-2 px-2">3</th>}
-                    <th className="text-right py-2 px-2">{t('network.avgRTT')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.hops.map((hop, i) => (
-                    <tr key={i} className="border-b border-[var(--bg-border)] last:border-0 hover:bg-[var(--bg-hover)]/30">
-                      <td className="py-2 px-2 font-mono text-[var(--text-primary)]">{hop.ttl}</td>
-                      <td className="py-2 px-2 font-mono text-[var(--text-primary)]">
-                        {hop.timeout ? '*' : hop.ip}
-                      </td>
-                      <td className="py-2 px-2 text-[var(--text-muted)] truncate max-w-[200px]">
-                        {hop.timeout ? '' : hop.host || '-'}
-                      </td>
-                      {hop.rtt ? (
-                        <td className="py-2 px-2 text-right font-mono text-[var(--text-primary)]">{formatRTT(hop.rtt)}</td>
-                      ) : (
-                        <td className="py-2 px-2 text-right text-red-400">*</td>
-                      )}
-                      {probes > 1 && (
-                        <td className="py-2 px-2 text-right font-mono text-[var(--text-primary)]">
-                          {hop.rtts?.[1] ? formatRTT(hop.rtts[1]) : hop.timeout ? '*' : '-'}
-                        </td>
-                      )}
-                      {probes > 2 && (
-                        <td className="py-2 px-2 text-right font-mono text-[var(--text-primary)]">
-                          {hop.rtts?.[2] ? formatRTT(hop.rtts[2]) : hop.timeout ? '*' : '-'}
-                        </td>
-                      )}
-                      <td className="py-2 px-2 text-right font-mono text-[var(--text-primary)]">
-                        {hop.timeout ? '' : formatRTT(hopAvgRTT(hop.rtts))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable columns={hopColumns} data={result.hops} />
           </div>
         )}
       </div>

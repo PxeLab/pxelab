@@ -9,6 +9,8 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { Tag } from '../components/ui/Tag'
 import { StatusDot } from '../components/ui/StatusDot'
 import { useToast } from '../components/ui/Toast'
+import { Input, Select } from '../components/ui/FormControls'
+import { DataTable } from '../components/ui/DataTable'
 import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord } from '../api/client'
 
 export default function HostDetail() {
@@ -210,9 +212,9 @@ export default function HostDetail() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { action: 'on', label: t('hosts.detail.powerOn'), icon: Power, color: 'text-green-400 hover:border-green-500/30' },
-              { action: 'off', label: t('hosts.detail.powerOff'), icon: PowerOff, color: 'text-red-400 hover:border-red-500/30' },
-              { action: 'cycle', label: t('hosts.detail.powerRestart'), icon: RefreshCw, color: 'text-yellow-400 hover:border-yellow-500/30' },
+              { action: 'on', label: t('hosts.detail.powerOn'), icon: Power, color: 'text-accent-green hover:border-accent-green/30' },
+              { action: 'off', label: t('hosts.detail.powerOff'), icon: PowerOff, color: 'text-accent-red hover:border-accent-red/30' },
+              { action: 'cycle', label: t('hosts.detail.powerRestart'), icon: RefreshCw, color: 'text-accent-yellow hover:border-accent-yellow/30' },
               { action: 'status', label: t('hosts.detail.powerStatus'), icon: Activity, color: 'text-blue-400 hover:border-blue-500/30' },
             ].map(({ action, label, icon: Icon, color }) => {
               const bmcMissing = !host.bmc_addr
@@ -236,36 +238,35 @@ export default function HostDetail() {
       {/* Boot History */}
       <div className="mt-5">
         <Card title={t('hosts.detail.bootHistory')}>
-          {hostEvents.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('events.noEvents')}</p>
-          ) : (
-            <div className="overflow-x-auto -mx-5">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('events.time')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('events.type')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('events.message')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {hostEvents.map((e, i) => (
-                    <tr key={i}>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] font-mono text-xs text-[var(--text-muted)]">
-                        {new Date(e.timestamp).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                        <Tag color={e.type.includes('dhcp') ? 'cyan' : e.type.includes('tftp') ? 'orange' : e.type.includes('boot') ? 'green' : 'blue'}>
-                          {e.type}
-                        </Tag>
-                      </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] text-[var(--text-secondary)]">{e.message}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="-mx-5">
+            <DataTable
+              columns={[
+                {
+                  key: 'time',
+                  label: t('events.time'),
+                  render: (e: Event) => (
+                    <span className="font-mono text-xs text-[var(--text-muted)]">{new Date(e.timestamp).toLocaleString()}</span>
+                  ),
+                },
+                {
+                  key: 'type',
+                  label: t('events.type'),
+                  render: (e: Event) => (
+                    <Tag color={e.type.includes('dhcp') ? 'cyan' : e.type.includes('tftp') ? 'orange' : e.type.includes('boot') ? 'green' : 'blue'}>
+                      {e.type}
+                    </Tag>
+                  ),
+                },
+                {
+                  key: 'message',
+                  label: t('events.message'),
+                  render: (e: Event) => <span className="text-[var(--text-secondary)]">{e.message}</span>,
+                },
+              ]}
+              data={hostEvents}
+              emptyText={t('events.noEvents')}
+            />
+          </div>
         </Card>
       </div>
 
@@ -286,32 +287,37 @@ export default function HostDetail() {
             <div className="py-8 text-center text-sm text-[var(--text-muted)]">
               <Button variant="ghost" size="sm" onClick={loadWOLHistory}>{t('hosts.detail.loadWOLHistory')}</Button>
             </div>
-          ) : wolHistory.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('hosts.detail.noWOLHistory')}</p>
           ) : (
-            <div className="overflow-x-auto -mx-5">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('wol.broadcast')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('wol.source')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('wol.status')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('wol.time')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {wolHistory.map(r => (
-                    <tr key={r.id} className="hover:bg-[var(--bg-hover)]/50">
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] font-mono text-xs text-[var(--text-secondary)]">{r.broadcast}</td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] font-mono text-xs text-[var(--text-secondary)]">{r.source_ip || '-'}</td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                        <Tag color={r.success ? 'green' : 'red'}>{r.success ? t('wol.success') : (r.error_msg || t('wol.failed'))}</Tag>
-                      </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] font-mono text-xs text-[var(--text-muted)]">{new Date(r.created_at).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="-mx-5">
+              <DataTable
+                columns={[
+                  {
+                    key: 'broadcast',
+                    label: t('wol.broadcast'),
+                    render: (r: WOLHistoryRecord) => <span className="font-mono text-xs text-[var(--text-secondary)]">{r.broadcast}</span>,
+                  },
+                  {
+                    key: 'source',
+                    label: t('wol.source'),
+                    render: (r: WOLHistoryRecord) => <span className="font-mono text-xs text-[var(--text-secondary)]">{r.source_ip || '-'}</span>,
+                  },
+                  {
+                    key: 'status',
+                    label: t('wol.status'),
+                    render: (r: WOLHistoryRecord) => (
+                      <Tag color={r.success ? 'green' : 'red'}>{r.success ? t('wol.success') : (r.error_msg || t('wol.failed'))}</Tag>
+                    ),
+                  },
+                  {
+                    key: 'time',
+                    label: t('wol.time'),
+                    render: (r: WOLHistoryRecord) => <span className="font-mono text-xs text-[var(--text-muted)]">{new Date(r.created_at).toLocaleString()}</span>,
+                  },
+                ]}
+                data={wolHistory}
+                emptyText={t('hosts.detail.noWOLHistory')}
+                rowKey={(r: WOLHistoryRecord) => String(r.id)}
+              />
             </div>
           )}
         </Card>
@@ -337,55 +343,67 @@ export default function HostDetail() {
             </Button>
           </div>
         }>
-          {taskLoading ? (
-            <div className="py-8 text-center text-sm text-[var(--text-muted)]">{t('common.loading')}</div>
-          ) : hostTasks.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('hosts.detail.noTasks')}</p>
-          ) : (
-            <div className="overflow-x-auto -mx-5">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.distro')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.version')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.status')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.extraParams')}</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.createdAt')}</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)]">{t('hosts.detail.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {hostTasks.map(task => (
-                    <tr key={task.id} className="hover:bg-[var(--bg-hover)]/50">
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] text-sm text-[var(--text-primary)]">{task.distro_name}</td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] text-xs text-[var(--text-muted)]">{task.version_codename}</td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)]">
-                        <Tag color={task.status === 'done' ? 'green' : task.status === 'failed' ? 'red' : task.status === 'installing' ? 'orange' : 'blue'}>
-                          {task.status}
-                        </Tag>
-                      </td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] text-xs font-mono text-[var(--text-muted)] max-w-[200px] truncate">{task.extra_cmdline || '-'}</td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] text-xs text-[var(--text-muted)]">{new Date(task.created_at!).toLocaleString()}</td>
-                      <td className="px-4 py-3 border-b border-[var(--bg-border)] text-right">
-                        {task.status === 'pending' && (
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => setConfirmDeleteTask(task)}
-                          >
-                            {t('common.delete')}
-                          </Button>
-                        )}
-                        {task.status === 'failed' && task.error_msg && (
-                          <span className="text-[10px] text-red-400/60" title={task.error_msg}>{t('common.error')}</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="-mx-5">
+            <DataTable
+              columns={[
+                {
+                  key: 'distro',
+                  label: t('hosts.detail.distro'),
+                  render: (task: InstallTask) => <span className="text-sm text-[var(--text-primary)]">{task.distro_name}</span>,
+                },
+                {
+                  key: 'version',
+                  label: t('hosts.detail.version'),
+                  render: (task: InstallTask) => <span className="text-xs text-[var(--text-muted)]">{task.version_codename}</span>,
+                },
+                {
+                  key: 'status',
+                  label: t('hosts.detail.status'),
+                  render: (task: InstallTask) => (
+                    <Tag color={task.status === 'done' ? 'green' : task.status === 'failed' ? 'red' : task.status === 'installing' ? 'orange' : 'blue'}>
+                      {task.status}
+                    </Tag>
+                  ),
+                },
+                {
+                  key: 'extra',
+                  label: t('hosts.detail.extraParams'),
+                  render: (task: InstallTask) => (
+                    <span className="block text-xs font-mono text-[var(--text-muted)] max-w-[200px] truncate">{task.extra_cmdline || '-'}</span>
+                  ),
+                },
+                {
+                  key: 'created',
+                  label: t('hosts.detail.createdAt'),
+                  render: (task: InstallTask) => <span className="text-xs text-[var(--text-muted)]">{new Date(task.created_at!).toLocaleString()}</span>,
+                },
+                {
+                  key: 'actions',
+                  label: t('hosts.detail.actions'),
+                  render: (task: InstallTask) => (
+                    <div className="text-right">
+                      {task.status === 'pending' && (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => setConfirmDeleteTask(task)}
+                        >
+                          {t('common.delete')}
+                        </Button>
+                      )}
+                      {task.status === 'failed' && task.error_msg && (
+                        <span className="text-[10px] text-accent-red/60" title={task.error_msg}>{t('common.error')}</span>
+                      )}
+                    </div>
+                  ),
+                },
+              ]}
+              data={hostTasks}
+              loading={taskLoading}
+              emptyText={t('hosts.detail.noTasks')}
+              rowKey={(task: InstallTask) => String(task.id)}
+            />
+          </div>
         </Card>
       </div>
 
@@ -433,27 +451,28 @@ export default function HostDetail() {
         }
       >
         {taskError && (
-          <div className="mb-4 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">{taskError}</div>
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">{taskError}</div>
         )}
 
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('hosts.detail.distro')}</label>
-            <select
+            <Select
+              size="sm"
               value={newTask.distro_name || ''}
               onChange={e => setNewTask({ ...newTask, distro_name: e.target.value, version_codename: '' })}
-              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
             >
               <option value="">{t('hosts.detail.selectDistro')}</option>
               {distros.filter(d => d.enabled).map(d => (
                 <option key={d.name} value={d.name}>{d.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('hosts.detail.version')}</label>
-            <select
+            <Select
+              size="sm"
               value={newTask.version_codename || ''}
               onChange={e => {
                 const codename = e.target.value
@@ -461,7 +480,6 @@ export default function HostDetail() {
                 const ver = distro?.versions.find(v => v.codename === codename)
                 setNewTask({ ...newTask, version_codename: codename, arch: ver?.arch || '' })
               }}
-              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
             >
               <option value="">{t('hosts.detail.selectVersion')}</option>
               {distros
@@ -472,31 +490,31 @@ export default function HostDetail() {
                   <option key={v.codename} value={v.codename}>{v.name} ({v.arch})</option>
                 ))
               }
-            </select>
+            </Select>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('hosts.detail.answerTemplate')}</label>
-            <select
+            <Select
+              size="sm"
               value={newTask.answer_template_id || ''}
               onChange={e => setNewTask({ ...newTask, answer_template_id: e.target.value ? Number(e.target.value) : null })}
-              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
             >
               <option value="">{t('hosts.detail.none')}</option>
               {templates.map(t => (
                 <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('hosts.detail.extraKernelParams')}</label>
-            <input
+            <Input
+              size="sm"
               type="text"
               value={newTask.extra_cmdline || ''}
               onChange={e => setNewTask({ ...newTask, extra_cmdline: e.target.value })}
               placeholder="net.ifnames=0 biosdevname=0"
-              className="w-full px-3 py-2 text-xs rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
             />
           </div>
         </div>
@@ -520,7 +538,7 @@ export default function HostDetail() {
           </div>
 
           {bootConfigError && (
-            <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+            <div className="px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">
               {bootConfigError}
             </div>
           )}

@@ -4,6 +4,9 @@ import { Wifi, Plus, Trash2, RefreshCw, Clock, History } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageHeader } from '../components/ui/PageHeader'
+import { DataTable, type Column } from '../components/ui/DataTable'
 import { useToast } from '../components/ui/Toast'
 import { api, type WOLHistoryRecord, type WOLSchedule } from '../api/client'
 
@@ -135,6 +138,8 @@ export default function WolView() {
     setCreatingSchedule(false)
   }
 
+  const [confirmDelete, setConfirmDelete] = useState<{ kind: 'history' | 'schedule' | 'allHistory'; id?: number } | null>(null)
+
   const doDeleteSchedule = async (id: number) => {
     try {
       await api.deleteWOLSchedule(id)
@@ -186,17 +191,76 @@ export default function WolView() {
     } catch (e: any) { showError(e?.message || t('common.error')) }
   }
 
+  const confirmDeleteMessages = {
+    history: t('wol.confirmDeleteHistory'),
+    schedule: t('wol.confirmDeleteSchedule'),
+    allHistory: t('wol.confirmDeleteAllHistory'),
+  }
+
+  const handleConfirmDelete = async () => {
+    const c = confirmDelete
+    setConfirmDelete(null)
+    if (!c) return
+    if (c.kind === 'history' && c.id != null) await doDeleteHistory(c.id)
+    else if (c.kind === 'schedule' && c.id != null) await doDeleteSchedule(c.id)
+    else if (c.kind === 'allHistory') await doDeleteAllHistory()
+  }
+
+  const historyColumns: Column<WOLHistoryRecord>[] = [
+    { key: 'mac', label: t('wol.mac'), render: r => <span className="font-mono text-[var(--text-primary)]">{r.mac}</span> },
+    { key: 'host', label: t('wol.host'), render: r => r.host_name || '-' },
+    { key: 'broadcast', label: t('wol.broadcast'), render: r => <span className="font-mono">{r.broadcast}</span> },
+    { key: 'interface', label: t('wol.interface'), render: r => <span className="font-mono">{r.interface || r.source_ip || '-'}</span> },
+    { key: 'status', label: t('wol.status'), render: r => (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${r.success ? 'bg-accent-green/15 text-accent-green' : 'bg-accent-red/15 text-accent-red'}`}>
+        {r.success ? t('wol.success') : (r.error_msg || t('wol.failed'))}
+      </span>
+    )},
+    { key: 'time', label: t('wol.time'), render: r => <span className="text-[var(--text-muted)]">{formatTime(r.created_at)}</span> },
+    { key: 'actions', label: t('common.actions'), render: r => (
+      <div className="flex items-center justify-end gap-1">
+        <button onClick={() => doWakeAgain(r)} className="p-1.5 rounded-lg text-blue-400 hover:bg-blue-500/15 transition-colors" title={t('wol.wakeAgain')}>
+          <Wifi size={14} />
+        </button>
+        <button onClick={() => setConfirmDelete({ kind: 'history', id: r.id })} className="p-1.5 rounded-lg text-accent-red hover:bg-accent-red/15 transition-colors" title={t('common.delete')}>
+          <Trash2 size={14} />
+        </button>
+      </div>
+    )},
+  ]
+
+  const scheduleColumns: Column<WOLSchedule>[] = [
+    { key: 'mac', label: t('wol.mac'), render: s => <span className="font-mono text-[var(--text-primary)]">{s.mac}</span> },
+    { key: 'host', label: t('wol.host'), render: s => s.host_name || '-' },
+    { key: 'schedule_at', label: t('wol.scheduleAt'), render: s => formatTime(s.schedule_at) },
+    { key: 'repeat', label: t('wol.repeat'), render: s => s.cron_expr || s.repeat_type },
+    { key: 'status', label: t('wol.status'), render: s => (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${s.enabled ? 'bg-accent-green/15 text-accent-green' : 'bg-accent-yellow/15 text-accent-yellow'}`}>
+        {s.enabled ? t('wol.enabled') : t('wol.disabled')}
+      </span>
+    )},
+    { key: 'last_run', label: t('wol.lastRun'), render: s => <span className="text-[var(--text-muted)]">{s.last_run ? formatTime(s.last_run) : '-'}</span> },
+    { key: 'actions', label: t('common.actions'), render: s => (
+      <div className="flex items-center justify-end">
+        <button onClick={() => setConfirmDelete({ kind: 'schedule', id: s.id })} className="p-1.5 rounded-lg text-accent-red hover:bg-accent-red/15 transition-colors">
+          <Trash2 size={14} />
+        </button>
+      </div>
+    )},
+  ]
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">{t('wol.title')}</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">{t('wol.description')}</p>
-        </div>
-        <Button onClick={loadData} variant="secondary" size="sm">
-          <RefreshCw size={14} className="mr-1.5" />{t('common.refresh')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('wol.title')}
+        description={t('wol.description')}
+        className="mb-0"
+        actions={
+          <Button onClick={loadData} variant="secondary" size="sm">
+            <RefreshCw size={14} className="mr-1.5" />{t('common.refresh')}
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="p-4 lg:col-span-2">
@@ -255,11 +319,11 @@ export default function WolView() {
               <div className="text-[10px] text-[var(--text-muted)] mt-1">{t('wol.statsTotal')}</div>
             </div>
             <div className="bg-[var(--bg-input)] rounded-lg p-3">
-              <div className="text-2xl font-bold text-green-400">{history.filter(r => r.success).length}</div>
+              <div className="text-2xl font-bold text-accent-green">{history.filter(r => r.success).length}</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-1">{t('wol.statsSuccess')}</div>
             </div>
             <div className="bg-[var(--bg-input)] rounded-lg p-3">
-              <div className="text-2xl font-bold text-red-400">{history.filter(r => !r.success).length}</div>
+              <div className="text-2xl font-bold text-accent-red">{history.filter(r => !r.success).length}</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-1">{t('wol.statsFailed')}</div>
             </div>
             <div className="bg-[var(--bg-input)] rounded-lg p-3">
@@ -292,7 +356,7 @@ export default function WolView() {
                 <Button variant="secondary" size="sm" onClick={doWakeAllHistory}>
                   <Wifi size={12} className="mr-1" />{t('wol.wakeAllHistory')}
                 </Button>
-                <Button variant="secondary" size="sm" onClick={doDeleteAllHistory} className="text-red-400 hover:text-red-300">
+                <Button variant="secondary" size="sm" onClick={() => setConfirmDelete({ kind: 'allHistory' })} className="text-accent-red">
                   <Trash2 size={12} className="mr-1" />{t('wol.deleteAllHistory')}
                 </Button>
               </>
@@ -306,49 +370,13 @@ export default function WolView() {
         </div>
 
         {tab === 'history' ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-[var(--bg-border)] text-[var(--text-muted)]">
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.mac')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.host')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.broadcast')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.interface')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.status')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.time')}</th>
-                  <th className="text-right py-2 px-3 font-medium">{t('common.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map(r => (
-                  <tr key={r.id} className="border-b border-[var(--bg-border)]/50 hover:bg-[var(--bg-hover)]/30">
-                    <td className="py-2 px-3 font-mono text-[var(--text-primary)]">{r.mac}</td>
-                    <td className="py-2 px-3 text-[var(--text-secondary)]">{r.host_name || '-'}</td>
-                    <td className="py-2 px-3 font-mono text-[var(--text-secondary)]">{r.broadcast}</td>
-                    <td className="py-2 px-3 font-mono text-[var(--text-secondary)]">{r.interface || r.source_ip || '-'}</td>
-                    <td className="py-2 px-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${r.success ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
-                        {r.success ? t('wol.success') : (r.error_msg || t('wol.failed'))}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-[var(--text-muted)]">{formatTime(r.created_at)}</td>
-                    <td className="py-2 px-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => doWakeAgain(r)} className="p-1.5 rounded-lg text-blue-400 hover:bg-blue-500/15 transition-colors" title={t('wol.wakeAgain')}>
-                          <Wifi size={14} />
-                        </button>
-                        <button onClick={() => doDeleteHistory(r.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/15 transition-colors" title={t('common.delete')}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {history.length === 0 && (
-                  <tr><td colSpan={7} className="py-8 text-center text-[var(--text-muted)] text-xs">{t('wol.noHistory')}</td></tr>
-                )}
-              </tbody>
-            </table>
+          <div>
+            <DataTable<WOLHistoryRecord>
+              columns={historyColumns}
+              data={history}
+              emptyText={t('wol.noHistory')}
+              rowKey={r => String(r.id)}
+            />
             {total > 20 && (
               <div className="flex items-center justify-between pt-3">
                 <span className="text-xs text-[var(--text-muted)]">{t('wol.pageInfo', { page, total })}</span>
@@ -360,45 +388,12 @@ export default function WolView() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-[var(--bg-border)] text-[var(--text-muted)]">
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.mac')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.host')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.scheduleAt')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.repeat')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.status')}</th>
-                  <th className="text-left py-2 px-3 font-medium">{t('wol.lastRun')}</th>
-                  <th className="text-right py-2 px-3 font-medium">{t('common.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {schedules.map(s => (
-                  <tr key={s.id} className="border-b border-[var(--bg-border)]/50 hover:bg-[var(--bg-hover)]/30">
-                    <td className="py-2 px-3 font-mono text-[var(--text-primary)]">{s.mac}</td>
-                    <td className="py-2 px-3 text-[var(--text-secondary)]">{s.host_name || '-'}</td>
-                    <td className="py-2 px-3 text-[var(--text-secondary)]">{formatTime(s.schedule_at)}</td>
-                    <td className="py-2 px-3 text-[var(--text-secondary)]">{s.cron_expr || s.repeat_type}</td>
-                    <td className="py-2 px-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${s.enabled ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'}`}>
-                        {s.enabled ? t('wol.enabled') : t('wol.disabled')}
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-[var(--text-muted)]">{s.last_run ? formatTime(s.last_run) : '-'}</td>
-                    <td className="py-2 px-3 text-right">
-                      <button onClick={() => doDeleteSchedule(s.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/15 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {schedules.length === 0 && (
-                  <tr><td colSpan={7} className="py-8 text-center text-[var(--text-muted)] text-xs">{t('wol.noSchedules')}</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<WOLSchedule>
+            columns={scheduleColumns}
+            data={schedules}
+            emptyText={t('wol.noSchedules')}
+            rowKey={s => String(s.id)}
+          />
         )}
       </Card>
 
@@ -547,6 +542,13 @@ export default function WolView() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleConfirmDelete}
+        message={confirmDelete ? confirmDeleteMessages[confirmDelete.kind] : ''}
+      />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Save, RefreshCw } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { SettingsField, SettingsInput } from '../components/settings/SettingsField'
 import { api, type TFTPSettingsData } from '../api/client'
@@ -54,17 +55,19 @@ export default function SettingsTFTP() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('settings.tftpTitle')}</h1>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" disabled={loading} onClick={loadSettings}>
-            <RefreshCw size={14} /> {t('settings.refresh')}
-          </Button>
-          <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
-            <Save size={14} /> {saving ? t('settings.saving') : t('settings.save')}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('settings.tftpTitle')}
+        actions={
+          <>
+            <Button variant="secondary" size="sm" disabled={loading} onClick={loadSettings}>
+              <RefreshCw size={14} /> {t('settings.refresh')}
+            </Button>
+            <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
+              <Save size={14} /> {saving ? t('settings.saving') : t('settings.save')}
+            </Button>
+          </>
+        }
+      />
 
       <Card>
         {loading ? (

@@ -4,14 +4,15 @@ import { Search, Filter } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
+import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { useUIConfig } from '../contexts/UIConfigContext'
 import { api, type AuditLog } from '../api/client'
 
 const actionColors: Record<string, string> = {
-  CREATE: 'bg-green-500/10 text-green-400 border-green-500/30',
+  CREATE: 'bg-accent-green/10 text-accent-green border-accent-green/30',
   UPDATE: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-  DELETE: 'bg-red-500/10 text-red-400 border-red-500/30',
+  DELETE: 'bg-accent-red/10 text-accent-red border-accent-red/30',
 }
 const resourceKeys = [
   'host', 'profile', 'settings', 'tftp_settings', 'dhcp_settings',
@@ -71,9 +72,7 @@ export default function AuditLogs() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('audit.title', '审计日志')}</h1>
-      </div>
+      <PageHeader title={t('audit.title', '审计日志')} />
 
       {/* Filters */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">

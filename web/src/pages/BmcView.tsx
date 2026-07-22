@@ -9,6 +9,9 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
+import { Select } from '../components/ui/FormControls'
+import { DataTable, type Column } from '../components/ui/DataTable'
+import { PageHeader } from '../components/ui/PageHeader'
 import { api, type BMCConfig as BMCConfigType } from '../api/client'
 import BMCConfigForm from './BmcConfigForm'
 
@@ -207,8 +210,8 @@ export default function BmcView() {
 
   const statusColor = (cfg: BMCConfigType) => {
     const s = statusMap[cfg.id!]
-    if (s === 'on') return 'text-green-400'
-    if (s === 'off') return 'text-red-400'
+    if (s === 'on') return 'text-accent-green'
+    if (s === 'off') return 'text-accent-red'
     return 'text-[var(--text-muted)]'
   }
 
@@ -226,6 +229,129 @@ export default function BmcView() {
     return t('common.unknown')
   }
 
+  const columns: Column<BMCConfigType>[] = [
+    {
+      key: 'select',
+      width: '2.5rem',
+      label: (
+        <input type="checkbox" checked={selectedIds.size === configs.length && configs.length > 0} onChange={selectAll} className="accent-blue-500 cursor-pointer" />
+      ),
+      render: cfg => (
+        <input type="checkbox" checked={selectedIds.has(cfg.id!)} onChange={() => toggleSelect(cfg.id!)} className="accent-blue-500 cursor-pointer" />
+      ),
+    },
+    {
+      key: 'name',
+      label: t('bmc.colName'),
+      render: cfg => <span className="text-sm font-medium">{cfg.name || '—'}</span>,
+    },
+    {
+      key: 'host',
+      label: t('bmc.colHost'),
+      render: cfg => (
+        <div className="flex items-center gap-2">
+          <code className="text-sm font-mono text-blue-400">{cfg.host}:{cfg.port}</code>
+          <a
+            href={bmcWebURL(cfg.host)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors"
+            title={t('bmc.openWeb')}
+          >
+            <ExternalLink size={12} />
+          </a>
+        </div>
+      ),
+    },
+    {
+      key: 'protocol',
+      label: t('bmc.colProtocol'),
+      render: cfg => (
+        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/5 text-blue-400 border border-blue-500/10">
+          {cfg.protocol?.toUpperCase()}
+        </span>
+      ),
+    },
+    {
+      key: 'brand',
+      label: t('bmc.colBrand'),
+      render: cfg => (
+        <span className="text-xs text-[var(--text-secondary)]">
+          {[cfg.vendor, cfg.model].filter(Boolean).join(' / ') || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'sn',
+      label: t('bmc.colSn'),
+      render: cfg => <code className="text-xs font-mono text-[var(--text-muted)]">{cfg.serial || '—'}</code>,
+    },
+    {
+      key: 'boot_mode',
+      label: t('bmc.colBootMode'),
+      render: cfg => (
+        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/5 text-purple-400 border border-purple-500/10">
+          {cfg.boot_mode || 'auto'}
+        </span>
+      ),
+    },
+    {
+      key: 'next_boot',
+      label: t('bmc.colNextBoot'),
+      render: cfg => (
+        <span className="text-xs">{cfg.next_boot_device ? t(BOOT_DEVICES.find(d => d.value === cfg.next_boot_device)?.key || '') || cfg.next_boot_device : '—'}</span>
+      ),
+    },
+    {
+      key: 'power',
+      label: t('bmc.colPower'),
+      render: cfg => (
+        <div className="flex items-center gap-1.5">
+          <span className={`inline-block w-2 h-2 rounded-full ${statusColor(cfg)}`} style={{
+            backgroundColor: statusDotColor(cfg) === 'green' ? '#22c55e' : statusDotColor(cfg) === 'red' ? '#ef4444' : '#6b7280'
+          }} />
+          <span className="text-xs">{statusText(cfg)}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: t('bmc.colActions'),
+      render: cfg => (
+        <div className="flex items-center justify-end gap-1">
+          <button onClick={() => powerAction(cfg, 'on')} className="p-1.5 rounded hover:bg-accent-green/10 text-[var(--text-muted)] hover:text-accent-green transition-colors" title={t('bmc.powerOn')}>
+            <Play size={14} />
+          </button>
+          <button onClick={() => powerAction(cfg, 'off')} className="p-1.5 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors" title={t('bmc.powerOff')}>
+            <Square size={14} />
+          </button>
+          <button onClick={() => powerAction(cfg, 'restart')} className="p-1.5 rounded hover:bg-accent-yellow/10 text-[var(--text-muted)] hover:text-accent-yellow transition-colors" title={t('bmc.powerRestart')}>
+            <RotateCcw size={14} />
+          </button>
+          <button
+            onClick={() => { setBootDeviceCfg(cfg); setBootDevice('pxe') }}
+            className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors"
+            title={t('bmc.bootDevice')}
+          >
+            <Disc size={14} />
+          </button>
+          <button
+            onClick={() => refreshSingle(cfg)}
+            disabled={refreshingIds.has(cfg.id!)}
+            className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors disabled:opacity-40"
+            title={t('bmc.refreshDevice')}
+          >
+            <RefreshCw size={14} className={refreshingIds.has(cfg.id!) ? 'animate-spin' : ''} />
+          </button>
+          <button onClick={() => openEdit(cfg)} className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors" title={t('bmc.edit')}>✎</button>
+          <button onClick={() => handleDelete(cfg)} className="p-1.5 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors" title={t('bmc.delete')}>
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ),
+    },
+  ]
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -239,22 +365,25 @@ export default function BmcView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('bmc.title')}</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={loadConfigs}>
-            <RefreshCw size={14} />
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => setCsvOpen(true)}>
-            <Upload size={14} />
-            {t('bmc.importCsv')}
-          </Button>
-          <Button variant="primary" size="sm" onClick={openCreate}>
-            <Plus size={14} />
-            {t('bmc.newConfig')}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('bmc.title')}
+        className="mb-0"
+        actions={
+          <>
+            <Button variant="ghost" size="sm" onClick={loadConfigs}>
+              <RefreshCw size={14} />
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setCsvOpen(true)}>
+              <Upload size={14} />
+              {t('bmc.importCsv')}
+            </Button>
+            <Button variant="primary" size="sm" onClick={openCreate}>
+              <Plus size={14} />
+              {t('bmc.newConfig')}
+            </Button>
+          </>
+        }
+      />
 
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/5 border border-blue-500/10">
@@ -276,120 +405,12 @@ export default function BmcView() {
       )}
 
       <Card padding={false}>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[var(--bg-border)]">
-                <th className="px-4 py-3 w-10">
-                  <input type="checkbox" checked={selectedIds.size === configs.length && configs.length > 0} onChange={selectAll} className="accent-blue-500 cursor-pointer" />
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('bmc.colName')}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('bmc.colHost')}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('bmc.colProtocol')}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('bmc.colBrand')}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('bmc.colSn')}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('bmc.colBootMode')}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('bmc.colNextBoot')}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('bmc.colPower')}</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{t('bmc.colActions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {configs.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="px-4 py-16 text-center text-sm text-[var(--text-muted)]">
-                    {t('bmc.noConfigs')}
-                  </td>
-                </tr>
-              ) : (
-                configs.map(cfg => (
-                  <tr key={cfg.id} className="border-b border-[var(--bg-border)] last:border-0 hover:bg-[var(--bg-card)]/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={selectedIds.has(cfg.id!)} onChange={() => toggleSelect(cfg.id!)} className="accent-blue-500 cursor-pointer" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm font-medium">{cfg.name || '—'}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm font-mono text-blue-400">{cfg.host}:{cfg.port}</code>
-                        <a
-                          href={bmcWebURL(cfg.host)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors"
-                          title={t('bmc.openWeb')}
-                        >
-                          <ExternalLink size={12} />
-                        </a>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/5 text-blue-400 border border-blue-500/10">
-                        {cfg.protocol?.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-[var(--text-secondary)]">
-                        {[cfg.vendor, cfg.model].filter(Boolean).join(' / ') || '—'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <code className="text-xs font-mono text-[var(--text-muted)]">{cfg.serial || '—'}</code>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/5 text-purple-400 border border-purple-500/10">
-                        {cfg.boot_mode || 'auto'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs">{cfg.next_boot_device ? t(BOOT_DEVICES.find(d => d.value === cfg.next_boot_device)?.key || '') || cfg.next_boot_device : '—'}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`inline-block w-2 h-2 rounded-full ${statusColor(cfg)}`} style={{
-                          backgroundColor: statusDotColor(cfg) === 'green' ? '#22c55e' : statusDotColor(cfg) === 'red' ? '#ef4444' : '#6b7280'
-                        }} />
-                        <span className="text-xs">{statusText(cfg)}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => powerAction(cfg, 'on')} className="p-1.5 rounded hover:bg-green-500/10 text-[var(--text-muted)] hover:text-green-400 transition-colors" title={t('bmc.powerOn')}>
-                          <Play size={14} />
-                        </button>
-                        <button onClick={() => powerAction(cfg, 'off')} className="p-1.5 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors" title={t('bmc.powerOff')}>
-                          <Square size={14} />
-                        </button>
-                        <button onClick={() => powerAction(cfg, 'restart')} className="p-1.5 rounded hover:bg-yellow-500/10 text-[var(--text-muted)] hover:text-yellow-400 transition-colors" title={t('bmc.powerRestart')}>
-                          <RotateCcw size={14} />
-                        </button>
-                        <button
-                          onClick={() => { setBootDeviceCfg(cfg); setBootDevice('pxe') }}
-                          className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors"
-                          title={t('bmc.bootDevice')}
-                        >
-                          <Disc size={14} />
-                        </button>
-                        <button
-                          onClick={() => refreshSingle(cfg)}
-                          disabled={refreshingIds.has(cfg.id!)}
-                          className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors disabled:opacity-40"
-                          title={t('bmc.refreshDevice')}
-                        >
-                          <RefreshCw size={14} className={refreshingIds.has(cfg.id!) ? 'animate-spin' : ''} />
-                        </button>
-                        <button onClick={() => openEdit(cfg)} className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors" title={t('bmc.edit')}>✎</button>
-                        <button onClick={() => handleDelete(cfg)} className="p-1.5 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors" title={t('bmc.delete')}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )))}
-              </tbody>
-            </table>
-        </div>
+        <DataTable
+          columns={columns}
+          data={configs}
+          emptyText={t('bmc.noConfigs')}
+          rowKey={cfg => String(cfg.id)}
+        />
       </Card>
 
       <BMCConfigForm
@@ -413,15 +434,14 @@ export default function BmcView() {
           </>
         }
       >
-        <select
+        <Select
           value={bootDevice}
           onChange={e => setBootDevice(e.target.value)}
-          className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
         >
           {BOOT_DEVICES.map(d => (
             <option key={d.value} value={d.value}>{t(d.key)}</option>
           ))}
-        </select>
+        </Select>
       </Modal>
 
       <Modal

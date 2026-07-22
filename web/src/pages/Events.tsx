@@ -1,14 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pause, Play } from 'lucide-react'
+import { Pause, Play, Maximize, Minimize } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Tag } from '../components/ui/Tag'
 import { StatusDot } from '../components/ui/StatusDot'
 import { Button } from '../components/ui/Button'
 import { Pagination } from '../components/ui/Pagination'
+import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { api, type Event } from '../api/client'
 import { useUIConfig } from '../contexts/UIConfigContext'
+import { useSSE } from '../hooks/useSSE'
+import { useFullscreen } from '../hooks/useFullscreen'
 
 const filterChips = [
   { key: '', label: 'events.all', color: 'blue' as const },
@@ -28,21 +31,23 @@ export default function Events() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [filter, setFilter] = useState('')
-  const [paused, setPaused] = useState(false)
-  const [liveEvents, setLiveEvents] = useState<Event[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
-  const esRef = useRef<EventSource | null>(null)
+  const { ref: fullscreenRef, isFullscreen, toggle: toggleFullscreen } = useFullscreen<HTMLDivElement>()
 
   const { pageSize } = useUIConfig()
+
+  const { connected, pause, resume, paused } = useSSE<Event>(
+    '/api/v1/events/stream',
+    (evt) => {
+      if (filter && !evt.type.toLowerCase().includes(filter)) return
+      setEvents(prev => [evt, ...prev].slice(0, pageSize * 3))
+    },
+    { bufferLimit: 100 },
+  )
 
   useEffect(() => {
     loadEvents()
   }, [page, filter])
-
-  useEffect(() => {
-    connectSSE()
-    return () => { esRef.current?.close() }
-  }, [filter])
 
   async function loadEvents() {
     setLoading(true)
@@ -55,38 +60,6 @@ export default function Events() {
     } catch { toastError(t('events.loadFailed')) }
     finally { setLoading(false) }
   }
-
-  function connectSSE() {
-    esRef.current?.close()
-    const es = new EventSource('/api/v1/events/stream')
-    es.onmessage = (e) => {
-      try {
-        const evt: Event = JSON.parse(e.data)
-        if (filter && !evt.type.toLowerCase().includes(filter)) return
-        if (paused) {
-          setLiveEvents(prev => [evt, ...prev].slice(0, 100))
-          return
-        }
-        setEvents(prev => [evt, ...prev].slice(0, pageSize * 3))
-      } catch { /* ignore */ }
-    }
-    es.onerror = () => {
-      es.close()
-      setTimeout(connectSSE, 3000)
-    }
-    esRef.current = es
-  }
-
-  const togglePause = useCallback(() => {
-    if (paused) {
-      setPaused(false)
-      const batch = liveEvents
-      setLiveEvents([])
-      setEvents(prev => [...batch, ...prev].slice(0, pageSize * 3))
-    } else {
-      setPaused(true)
-    }
-  }, [paused, liveEvents])
 
   const eventIcon = (type: string) => {
     const lowerType = type.toLowerCase()
@@ -101,21 +74,28 @@ export default function Events() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('events.title')}</h1>
-        <div className="flex items-center gap-3">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-mono font-semibold ${!paused ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
-            <StatusDot color={!paused ? 'green' : 'yellow'} pulse={!paused} />
-            {!paused ? t('events.live') : t('events.paused')}
-            <span className="text-[var(--text-muted)] font-normal mx-0.5">·</span>
-            <span className="text-[var(--text-muted)] font-normal">{total}+</span>
-          </span>
-          <Button variant={paused ? 'primary' : 'secondary'} size="sm" onClick={togglePause}>
-            {paused ? <Play size={14} /> : <Pause size={14} />}
-            {paused ? t('events.resume') : t('events.pause')}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('events.title')}
+        actions={
+          <>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-mono font-semibold ${paused ? 'bg-accent-yellow/10 text-accent-yellow' : connected ? 'bg-accent-green/10 text-accent-green' : 'bg-accent-red/10 text-accent-red'}`}>
+              <StatusDot color={paused ? 'yellow' : connected ? 'green' : 'red'} pulse={!paused && connected} />
+              {paused ? t('events.paused') : connected ? t('events.live') : t('settings.disconnected')}
+              <span className="text-[var(--text-muted)] font-normal mx-0.5">·</span>
+              <span className="text-[var(--text-muted)] font-normal">{total}+</span>
+            </span>
+            <Button variant={paused ? 'primary' : 'secondary'} size="sm" onClick={paused ? resume : pause}>
+              {paused ? <Play size={14} /> : <Pause size={14} />}
+              {paused ? t('events.resume') : t('events.pause')}
+            </Button>
+            <span title={isFullscreen ? t('common.exitFullscreen') : t('common.fullscreen')}>
+              <Button variant="ghost" size="sm" onClick={toggleFullscreen}>
+                {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
+              </Button>
+            </span>
+          </>
+        }
+      />
 
       {/* Filter chips */}
       <div className="flex gap-2 flex-wrap mb-5">
@@ -136,7 +116,10 @@ export default function Events() {
       </div>
 
       {/* Event list */}
-      <div ref={scrollRef}>
+      <div
+        ref={el => { scrollRef.current = el; fullscreenRef.current = el }}
+        className={isFullscreen ? 'h-full overflow-y-auto bg-[var(--background)] p-4' : ''}
+      >
         <Card padding={false}>
           {loading ? (
             <div className="p-5 space-y-3">
@@ -167,8 +150,8 @@ export default function Events() {
                         ic.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
                         ic.color === 'orange' ? 'bg-orange-500/10 text-orange-400' :
                         ic.color === 'purple' ? 'bg-purple-500/10 text-purple-400' :
-                        ic.color === 'green' ? 'bg-green-500/10 text-green-400' :
-                        ic.color === 'yellow' ? 'bg-yellow-500/10 text-yellow-400' :
+                        ic.color === 'green' ? 'bg-accent-green/10 text-accent-green' :
+                        ic.color === 'yellow' ? 'bg-accent-yellow/10 text-accent-yellow' :
                         'bg-blue-500/10 text-blue-400'
                       }`}>{ic.label}</div>
                       <span className="w-14 shrink-0 font-semibold text-[var(--text-primary)]">{e.type}</span>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Save, RefreshCw, Plus, Eye, Trash2 } from 'lucide-react'
 import { Card } from '../components/ui/Card'
@@ -7,8 +7,10 @@ import { Toggle } from '../components/ui/Toggle'
 import { Modal } from '../components/ui/Modal'
 import { Tag, type TagColor } from '../components/ui/Tag'
 import { DataTable, type Column } from '../components/ui/DataTable'
+import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { SettingsField, SettingsInput } from '../components/settings/SettingsField'
+import { Input, Select } from '../components/ui/FormControls'
 import { api, type DNSSettingsData, type DNSRecord } from '../api/client'
 
 const typeColors: Record<string, TagColor> = {
@@ -164,17 +166,20 @@ export default function SettingsDNS() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('settings.dnsTitle')}</h1>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" disabled={settingsLoading} onClick={loadSettings}>
-            <RefreshCw size={14} /> {t('common.reload', '重载配置')}
-          </Button>
-          <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
-            <Save size={14} /> {saving ? t('settings.saving') : t('settings.save')}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('settings.dnsTitle')}
+        className="mb-4"
+        actions={
+          <>
+            <Button variant="secondary" size="sm" disabled={settingsLoading} onClick={loadSettings}>
+              <RefreshCw size={14} /> {t('common.reload', '重载配置')}
+            </Button>
+            <Button variant="primary" size="sm" disabled={saving} onClick={handleSave}>
+              <Save size={14} /> {saving ? t('settings.saving') : t('settings.save')}
+            </Button>
+          </>
+        }
+      />
 
       <Card>
         {settingsLoading ? (
@@ -226,7 +231,7 @@ export default function SettingsDNS() {
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.name')}</label>
             <div className="flex items-center gap-2">
-              <input className="flex-1 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder={t('settings.namePlaceholder')} />
+              <Input className="flex-1" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder={t('settings.namePlaceholder')} />
               {localDomain && (
                 <span className="text-sm text-[var(--text-muted)] font-mono whitespace-nowrap">.{localDomain}</span>
               )}
@@ -235,28 +240,28 @@ export default function SettingsDNS() {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.type')}</label>
-              <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
+              <Select value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
                 <option value="A">A</option>
                 <option value="AAAA">AAAA</option>
                 <option value="CNAME">CNAME</option>
                 <option value="TXT">TXT</option>
                 <option value="MX">MX</option>
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.ttl')}</label>
-              <input type="number" className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500" value={form.ttl} onChange={e => setForm({...form, ttl: parseInt(e.target.value) || 300})} />
+              <Input type="number" value={form.ttl} onChange={e => setForm({...form, ttl: parseInt(e.target.value) || 300})} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.subnet')}</label>
-              <select className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 appearance-none" value={form.subnet || ''} onChange={e => setForm({...form, subnet: e.target.value})}>
+              <Select value={form.subnet || ''} onChange={e => setForm({...form, subnet: e.target.value})}>
                 <option value="">{t('common.none')}</option>
                 {subnetOptions.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('settings.value')}</label>
-              <input className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono" value={form.value} onChange={e => setForm({...form, value: e.target.value})} placeholder={form.type === 'A' ? '192.168.1.100' : ''} />
+              <Input className="font-mono" value={form.value} onChange={e => setForm({...form, value: e.target.value})} placeholder={form.type === 'A' ? '192.168.1.100' : ''} />
             </div>
           </div>
           <label className="flex items-center gap-2.5 cursor-pointer pt-1">

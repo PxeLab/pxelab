@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Upload, Trash2, RefreshCw, Disc, FileArchive, HardDrive, Search, AlertCircle, CheckCircle, Clock } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Modal } from '../components/ui/Modal'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PageHeader } from '../components/ui/PageHeader'
 import { Tag } from '../components/ui/Tag'
 import { useToast } from '../components/ui/Toast'
 import { api, type OSImage } from '../api/client'
@@ -30,15 +33,16 @@ function statusColor(status: string) {
 
 function statusIcon(status: string) {
   switch (status) {
-    case 'ready': return <CheckCircle size={14} className="text-green-400" />
+    case 'ready': return <CheckCircle size={14} className="text-accent-green" />
     case 'uploading':
-    case 'validating': return <Clock size={14} className="text-yellow-400" />
-    case 'error': return <AlertCircle size={14} className="text-red-400" />
+    case 'validating': return <Clock size={14} className="text-accent-yellow" />
+    case 'error': return <AlertCircle size={14} className="text-accent-red" />
     default: return <Clock size={14} className="text-gray-400" />
   }
 }
 
 export default function OSImages() {
+  const { t } = useTranslation()
   const { success, error: showError } = useToast()
 
   const [images, setImages] = useState<OSImage[]>([])
@@ -106,6 +110,8 @@ export default function OSImages() {
     } catch (err: any) { showError(err.message) }
   }
 
+  const [unmountTarget, setUnmountTarget] = useState<OSImage | null>(null)
+
   const handleUnmount = async (id: number) => {
     try {
       await api.unmountOSImage(id)
@@ -122,17 +128,20 @@ export default function OSImages() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">OS Images</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={loadImages} disabled={loading}>
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
-            <Upload size={14} /> Upload ISO
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('osImages.title')}
+        className="mb-0"
+        actions={
+          <>
+            <Button variant="secondary" size="sm" onClick={loadImages} disabled={loading}>
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => fileRef.current?.click()}>
+              <Upload size={14} /> Upload ISO
+            </Button>
+          </>
+        }
+      />
 
       <input
         ref={fileRef}
@@ -224,8 +233,8 @@ export default function OSImages() {
                   )}
                   {img.error_message && (
                     <div className="col-span-2">
-                      <span className="text-red-400">Error</span>
-                      <p className="text-red-400 text-[10px]">{img.error_message}</p>
+                      <span className="text-accent-red">Error</span>
+                      <p className="text-accent-red text-[10px]">{img.error_message}</p>
                     </div>
                   )}
                 </div>
@@ -247,15 +256,15 @@ export default function OSImages() {
                           <HardDrive size={11} /> Mount
                         </button>
                       ) : (
-                        <button onClick={() => handleUnmount(img.id!)}
-                          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:bg-yellow-500/15 hover:text-yellow-400 transition-colors">
+                        <button onClick={() => setUnmountTarget(img)}
+                          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:bg-accent-yellow/15 hover:text-accent-yellow transition-colors">
                           <HardDrive size={11} /> Unmount
                         </button>
                       )}
                     </>
                   )}
                   <button onClick={() => setDeleteTarget(img)}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:bg-red-500/15 hover:text-red-400 transition-colors ml-auto">
+                    className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:bg-accent-red/15 hover:text-accent-red transition-colors ml-auto">
                     <Trash2 size={11} /> Delete
                   </button>
                 </div>
@@ -274,6 +283,17 @@ export default function OSImages() {
           <Button variant="danger" onClick={handleDelete}>Delete</Button>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!unmountTarget}
+        onClose={() => setUnmountTarget(null)}
+        onConfirm={() => {
+          const id = unmountTarget?.id
+          setUnmountTarget(null)
+          if (id != null) handleUnmount(id)
+        }}
+        message={t('osImages.confirmUnmount', { name: unmountTarget?.name })}
+      />
     </div>
   )
 }

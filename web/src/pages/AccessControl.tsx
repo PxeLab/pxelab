@@ -5,7 +5,10 @@ import { Plus, Trash2, ShieldPlus, ShieldX, AlertTriangle, RefreshCw } from 'luc
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
+import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
+import { Input, Select } from '../components/ui/FormControls'
+import { DataTable, type Column } from '../components/ui/DataTable'
 import {
   api,
   type BlacklistEntry,
@@ -289,6 +292,140 @@ export default function AccessControl() {
     { key: 'unauthorized', label: t('accessControl.tabUnauthorized'), count: unauthorized.length, badge: unauthorized.length > 0 ? undefined : whitelistEnabled ? undefined : t('accessControl.tabDisabled') },
   ]
 
+  const combinedColumns: Column<CombinedEntry>[] = [
+    { key: 'mac', label: t('accessControl.colMac'), render: entry => (
+      <span className="font-mono text-sm">{entry.mac}</span>
+    ) },
+    { key: 'type', label: t('accessControl.colType'), render: entry => (
+      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+        entry.type === 'blacklist'
+          ? 'bg-accent-red/10 text-accent-red'
+          : 'bg-accent-green/10 text-accent-green'
+      }`}>
+        {entry.type === 'blacklist' ? t('accessControl.typeBlacklist') : t('accessControl.typeWhitelist')}
+      </span>
+    ) },
+    { key: 'subnet_cidr', label: t('accessControl.colSubnet'), render: entry => (
+      <span className="font-mono text-xs text-blue-400">{entry.subnet_cidr || '-'}</span>
+    ) },
+    { key: 'reason', label: t('accessControl.colReason'), render: entry => (
+      <span className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>
+    ) },
+    { key: 'created_at', label: t('accessControl.colCreatedAt'), render: entry => (
+      <span className="text-xs text-[var(--text-muted)]">{formatTime(entry.created_at)}</span>
+    ) },
+    { key: 'actions', label: t('accessControl.colActions'), render: entry => (
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => entry.type === 'blacklist'
+            ? handleDeleteBlacklist(Number(entry.id.replace('bl-', '')))
+            : handleDeleteWhitelist(Number(entry.id.replace('wl-', '')))
+          }
+          className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+          title={t('accessControl.titleDelete')}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    ) },
+  ]
+
+  const whitelistColumns: Column<WhitelistEntry>[] = [
+    { key: 'mac', label: t('accessControl.colMac'), render: entry => (
+      <span className="font-mono text-sm">{entry.mac}</span>
+    ) },
+    { key: 'subnet_cidr', label: t('accessControl.colSubnet'), render: entry => (
+      <span className="font-mono text-xs text-blue-400">{entry.subnet_cidr || t('accessControl.allSubnets')}</span>
+    ) },
+    { key: 'reason', label: t('accessControl.colReason'), render: entry => (
+      <span className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>
+    ) },
+    { key: 'created_at', label: t('accessControl.colCreatedAt'), render: entry => (
+      <span className="text-xs text-[var(--text-muted)]">{formatTime(entry.created_at)}</span>
+    ) },
+    { key: 'actions', label: t('accessControl.colActions'), render: entry => (
+      <button
+        onClick={() => handleDeleteWhitelist(entry.id)}
+        className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+        title={t('accessControl.titleDelete')}
+      >
+        <Trash2 size={14} />
+      </button>
+    ) },
+  ]
+
+  const blacklistColumns: Column<BlacklistEntry>[] = [
+    { key: 'mac', label: t('accessControl.colMac'), render: entry => (
+      <span className="font-mono text-sm">{entry.mac}</span>
+    ) },
+    { key: 'reason', label: t('accessControl.colReason'), render: entry => (
+      <span className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>
+    ) },
+    { key: 'created_at', label: t('accessControl.colCreatedAt'), render: entry => (
+      <span className="text-xs text-[var(--text-muted)]">{formatTime(entry.created_at)}</span>
+    ) },
+    { key: 'actions', label: t('accessControl.colActions'), render: entry => (
+      <button
+        onClick={() => handleDeleteBlacklist(entry.id)}
+        className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+        title={t('accessControl.titleDelete')}
+      >
+        <Trash2 size={14} />
+      </button>
+    ) },
+  ]
+
+  const unauthorizedColumns: Column<UnauthorizedDevice>[] = [
+    { key: 'select', label: '', render: entry => (
+      <input
+        type="checkbox"
+        checked={selected.has(entry.id)}
+        onChange={() => toggleSelect(entry.id)}
+        className="accent-blue-500 cursor-pointer"
+      />
+    ) },
+    { key: 'mac', label: t('accessControl.colMac'), render: entry => (
+      <span className="font-mono text-sm">{entry.mac}</span>
+    ) },
+    { key: 'subnet_cidr', label: t('accessControl.colSubnet'), render: entry => (
+      <span className="font-mono text-xs text-blue-400">{entry.subnet_cidr}</span>
+    ) },
+    { key: 'reason', label: t('accessControl.colRejectReason'), render: entry => (
+      <span className="text-xs text-[var(--text-muted)]">{entry.reason}</span>
+    ) },
+    { key: 'count', label: t('accessControl.colRequestCount'), render: entry => (
+      <span className="text-xs font-mono text-accent-yellow">{entry.count}</span>
+    ) },
+    { key: 'last_seen', label: t('accessControl.colLastRequest'), render: entry => (
+      <span className="text-xs text-[var(--text-muted)]">{formatTime(entry.last_seen)}</span>
+    ) },
+    { key: 'actions', label: t('accessControl.colActions'), render: entry => (
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => handleAddToWhitelist(entry.mac, entry.subnet_cidr)}
+          className="p-1 rounded hover:bg-accent-green/10 text-[var(--text-muted)] hover:text-accent-green transition-colors"
+          title={t('accessControl.titleAddToWhitelist')}
+        >
+          <ShieldPlus size={14} />
+        </button>
+        <button
+          onClick={() => handleAddToBlacklist(entry.mac, entry.subnet_cidr)}
+          className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+          title={t('accessControl.titleAddToBlacklist')}
+        >
+          <ShieldX size={14} />
+        </button>
+        <button
+          onClick={() => handleDeleteUnauthorized(entry.id)}
+          className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+          title={t('accessControl.titleIgnore')}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    ) },
+  ]
+
   const parsedMACs = parseMACs(addInput)
   const macsValid = parsedMACs.length > 0 && parsedMACs.every(m => MAC_RE.test(m))
 
@@ -306,24 +443,25 @@ export default function AccessControl() {
   return (
     <div className="space-y-6">
       {/* ── Page Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('accessControl.title')}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={loadAll}>
-            <RefreshCw size={14} />
-          </Button>
-          <Button variant="danger" size="sm" onClick={() => openAddModal('blacklist')}>
-            <Plus size={14} />
-            {t('accessControl.btnBlacklist')}
-          </Button>
-          <Button variant="primary" size="sm" onClick={() => openAddModal('whitelist')}>
-            <Plus size={14} />
-            {t('accessControl.btnWhitelist')}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('accessControl.title')}
+        className="mb-0"
+        actions={
+          <>
+            <Button variant="ghost" size="sm" onClick={loadAll}>
+              <RefreshCw size={14} />
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => openAddModal('blacklist')}>
+              <Plus size={14} />
+              {t('accessControl.btnBlacklist')}
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => openAddModal('whitelist')}>
+              <Plus size={14} />
+              {t('accessControl.btnWhitelist')}
+            </Button>
+          </>
+        }
+      />
 
       {/* ── Tabs ── */}
       <div className="flex gap-1 border-b border-[var(--bg-border)]">
@@ -337,10 +475,10 @@ export default function AccessControl() {
                 : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
-            {tab.key === 'unauthorized' && <AlertTriangle size={14} className="text-amber-400" />}
+            {tab.key === 'unauthorized' && <AlertTriangle size={14} className="text-accent-yellow" />}
             {tab.label}
             {tab.badge ? (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-yellow/10 text-accent-yellow">
                 {tab.badge}
               </span>
             ) : tab.count !== undefined ? (
@@ -357,84 +495,29 @@ export default function AccessControl() {
       {/* ── Table ── */}
       <Card padding={false}>
         {activeTab === 'all' && (
-          <AccessTable
-            columns={[t('accessControl.colMac'), t('accessControl.colType'), t('accessControl.colSubnet'), t('accessControl.colReason'), t('accessControl.colCreatedAt'), t('accessControl.colActions')]}
-            rows={combinedList().map(entry => ({
-              key: entry.id,
-              cells: [
-                <span key="mac" className="font-mono text-sm">{entry.mac}</span>,
-                <span key="type" className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  entry.type === 'blacklist'
-                    ? 'bg-red-500/10 text-red-400'
-                    : 'bg-green-500/10 text-green-400'
-                }`}>
-                  {entry.type === 'blacklist' ? t('accessControl.typeBlacklist') : t('accessControl.typeWhitelist')}
-                </span>,
-                <span key="cidr" className="font-mono text-xs text-blue-400">{entry.subnet_cidr || '-'}</span>,
-                <span key="reason" className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>,
-                <span key="time" className="text-xs text-[var(--text-muted)]">{formatTime(entry.created_at)}</span>,
-                <div key="actions" className="flex items-center gap-1">
-                  <button
-                    onClick={() => entry.type === 'blacklist'
-                      ? handleDeleteBlacklist(Number(entry.id.replace('bl-', '')))
-                      : handleDeleteWhitelist(Number(entry.id.replace('wl-', '')))
-                    }
-                    className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                    title={t('accessControl.titleDelete')}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>,
-              ],
-            }))}
-            emptyMessage={t('accessControl.emptyAll')}
+          <DataTable
+            columns={combinedColumns}
+            data={combinedList()}
+            rowKey={entry => entry.id}
+            emptyText={t('accessControl.emptyAll')}
           />
         )}
 
         {activeTab === 'whitelist' && (
-          <AccessTable
-            columns={[t('accessControl.colMac'), t('accessControl.colSubnet'), t('accessControl.colReason'), t('accessControl.colCreatedAt'), t('accessControl.colActions')]}
-            rows={whitelist.map(entry => ({
-              key: `wl-${entry.id}`,
-              cells: [
-                <span key="mac" className="font-mono text-sm">{entry.mac}</span>,
-                <span key="cidr" className="font-mono text-xs text-blue-400">{entry.subnet_cidr || t('accessControl.allSubnets')}</span>,
-                <span key="reason" className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>,
-                <span key="time" className="text-xs text-[var(--text-muted)]">{formatTime(entry.created_at)}</span>,
-                <button
-                  key="del"
-                  onClick={() => handleDeleteWhitelist(entry.id)}
-                  className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  title={t('accessControl.titleDelete')}
-                >
-                  <Trash2 size={14} />
-                </button>,
-              ],
-            }))}
-            emptyMessage={t('accessControl.emptyWhitelist')}
+          <DataTable
+            columns={whitelistColumns}
+            data={whitelist}
+            rowKey={entry => `wl-${entry.id}`}
+            emptyText={t('accessControl.emptyWhitelist')}
           />
         )}
 
         {activeTab === 'blacklist' && (
-          <AccessTable
-            columns={[t('accessControl.colMac'), t('accessControl.colReason'), t('accessControl.colCreatedAt'), t('accessControl.colActions')]}
-            rows={blacklist.map(entry => ({
-              key: `bl-${entry.id}`,
-              cells: [
-                <span key="mac" className="font-mono text-sm">{entry.mac}</span>,
-                <span key="reason" className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>,
-                <span key="time" className="text-xs text-[var(--text-muted)]">{formatTime(entry.created_at)}</span>,
-                <button
-                  key="del"
-                  onClick={() => handleDeleteBlacklist(entry.id)}
-                  className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                  title={t('accessControl.titleDelete')}
-                >
-                  <Trash2 size={14} />
-                </button>,
-              ],
-            }))}
-            emptyMessage={t('accessControl.emptyBlacklist')}
+          <DataTable
+            columns={blacklistColumns}
+            data={blacklist}
+            rowKey={entry => `bl-${entry.id}`}
+            emptyText={t('accessControl.emptyBlacklist')}
           />
         )}
 
@@ -442,7 +525,7 @@ export default function AccessControl() {
           <>
             {/* Batch action bar */}
             {selected.size > 0 && (
-              <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--bg-border)] bg-amber-500/5">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--bg-border)] bg-accent-yellow/5">
                 <span className="text-xs text-[var(--text-muted)]">
                   {t('accessControl.selectedCount', { count: selected.size })}
                 </span>
@@ -476,49 +559,11 @@ export default function AccessControl() {
                 </Button>
               </div>
             )}
-            <AccessTable
-              columns={['', t('accessControl.colMac'), t('accessControl.colSubnet'), t('accessControl.colRejectReason'), t('accessControl.colRequestCount'), t('accessControl.colLastRequest'), t('accessControl.colActions')]}
-              rows={unauthorized.map(entry => ({
-                key: `ua-${entry.id}`,
-                cells: [
-                  <input
-                    key="cb"
-                    type="checkbox"
-                    checked={selected.has(entry.id)}
-                    onChange={() => toggleSelect(entry.id)}
-                    className="accent-blue-500 cursor-pointer"
-                  />,
-                  <span key="mac" className="font-mono text-sm">{entry.mac}</span>,
-                  <span key="cidr" className="font-mono text-xs text-blue-400">{entry.subnet_cidr}</span>,
-                  <span key="reason" className="text-xs text-[var(--text-muted)]">{entry.reason}</span>,
-                  <span key="count" className="text-xs font-mono text-amber-400">{entry.count}</span>,
-                  <span key="time" className="text-xs text-[var(--text-muted)]">{formatTime(entry.last_seen)}</span>,
-                  <div key="actions" className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleAddToWhitelist(entry.mac, entry.subnet_cidr)}
-                      className="p-1 rounded hover:bg-green-500/10 text-[var(--text-muted)] hover:text-green-400 transition-colors"
-                      title={t('accessControl.titleAddToWhitelist')}
-                    >
-                      <ShieldPlus size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleAddToBlacklist(entry.mac, entry.subnet_cidr)}
-                      className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                      title={t('accessControl.titleAddToBlacklist')}
-                    >
-                      <ShieldX size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUnauthorized(entry.id)}
-                      className="p-1 rounded hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                      title={t('accessControl.titleIgnore')}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>,
-                ],
-              }))}
-              emptyMessage={whitelistEnabled ? t('accessControl.emptyUnauthorizedEnabled') : t('accessControl.emptyUnauthorizedDisabled')}
+            <DataTable
+              columns={unauthorizedColumns}
+              data={unauthorized}
+              rowKey={entry => `ua-${entry.id}`}
+              emptyText={whitelistEnabled ? t('accessControl.emptyUnauthorizedEnabled') : t('accessControl.emptyUnauthorizedDisabled')}
             />
           </>
         )}
@@ -582,7 +627,7 @@ export default function AccessControl() {
                 onClick={() => setAddType('blacklist')}
                 className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
                   addType === 'blacklist'
-                    ? 'bg-red-500/15 text-red-400 shadow-sm'
+                    ? 'bg-accent-red/15 text-accent-red shadow-sm'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -592,7 +637,7 @@ export default function AccessControl() {
                 onClick={() => setAddType('whitelist')}
                 className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
                   addType === 'whitelist'
-                    ? 'bg-green-500/15 text-green-400 shadow-sm'
+                    ? 'bg-accent-green/15 text-accent-green shadow-sm'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -618,7 +663,7 @@ export default function AccessControl() {
             />
             {addInput.trim() && (
               <div className="mt-2 flex items-center gap-2">
-                <span className={`text-xs ${macsValid ? 'text-green-400' : 'text-red-400'}`}>
+                <span className={`text-xs ${macsValid ? 'text-accent-green' : 'text-accent-red'}`}>
                   {macsValid
                     ? t('accessControl.macValid', { count: parsedMACs.length })
                     : t('accessControl.macInvalid', { count: parsedMACs.length })}
@@ -640,16 +685,16 @@ export default function AccessControl() {
           {addType === 'whitelist' && (
             <div>
               <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">{t('accessControl.labelSubnetCidr')}</label>
-              <select
+              <Select
+                className="font-mono"
                 value={addCIDR}
                 onChange={e => setAddCIDR(e.target.value)}
-                className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono"
               >
                 <option value="">{t('accessControl.subnetAllOption')}</option>
                 {subnetOptions.map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
 
@@ -659,61 +704,15 @@ export default function AccessControl() {
               {t('accessControl.labelReason')}
               <span className="ml-2 font-normal text-[var(--text-muted)] opacity-60">{t('accessControl.reasonOptional')}</span>
             </label>
-            <input
+            <Input
               type="text"
               value={addReason}
               onChange={e => setAddReason(e.target.value)}
               placeholder={t('accessControl.reasonPlaceholder')}
-              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500 placeholder-[var(--text-muted)]"
             />
           </div>
         </div>
       </Modal>
-    </div>
-  )
-}
-
-// ── Table Component ──
-
-interface TableProps {
-  columns: string[]
-  rows: { key: string; cells: React.ReactNode[] }[]
-  emptyMessage: string
-}
-
-function AccessTable({ columns, rows, emptyMessage }: TableProps) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-[var(--bg-border)]">
-            {columns.map(col => (
-              <th key={col} className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                {col}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className="text-center py-12 text-sm text-[var(--text-muted)]">
-                {emptyMessage}
-              </td>
-            </tr>
-          ) : (
-            rows.map(row => (
-              <tr key={row.key} className="border-b border-[var(--bg-border)] last:border-0 hover:bg-[var(--bg-card)]/50 transition-colors">
-                {row.cells.map((cell, i) => (
-                  <td key={i} className="px-4 py-3">
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
     </div>
   )
 }

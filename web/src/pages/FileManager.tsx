@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { PageHeader } from '../components/ui/PageHeader'
 import Files from './Files'
 
 export default function FileManager() {
@@ -6,9 +7,7 @@ export default function FileManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-[var(--text-primary)]">{t('files.title')}</h1>
-      </div>
+      <PageHeader title={t('files.title')} className="mb-0" />
 
       <Files hideHeader />
     </div>

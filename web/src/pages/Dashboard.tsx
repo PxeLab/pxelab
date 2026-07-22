@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Activity, Server, Zap, ChevronRight, Wifi, BarChart3, Users, FileText, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { StatusDot } from '../components/ui/StatusDot'
 import { Card } from '../components/ui/Card'
+import { PageHeader } from '../components/ui/PageHeader'
 import { api, type Host, type Event, type MetricsSnapshot, type TimeBucket, getServices, type ServiceInfo } from '../api/client'
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, CartesianGrid, type PieLabelRenderProps } from 'recharts'
 
@@ -44,7 +45,11 @@ function fmtUptime(startedAt: string | null): string {
   return `${day}d ${hr % 24}h`
 }
 
-const PIE_COLORS = ['#22d3ee', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#f97316', '#06b6d4', '#84cc16']
+// 分类色板：尽量用语义 accent 变量；pink/lime 无对应 accent 变量，保留 hex
+const PIE_COLORS = [
+  'var(--color-accent-cyan)', 'var(--color-accent-yellow)', 'var(--color-accent-purple)', 'var(--color-accent-green)',
+  '#f472b6', 'var(--color-accent-orange)', 'var(--color-accent-blue)', '#84cc16',
+]
 
 const HTTP_RANGE_CFG: Record<string, { seconds: number }> = {
   '5m': { seconds: 300 },
@@ -55,10 +60,10 @@ const HTTP_RANGE_CFG: Record<string, { seconds: number }> = {
 function ChartTooltip({ active, payload, label, formatter }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12, padding: '8px 12px' }}>
-      <p style={{ margin: 0, marginBottom: 4, fontWeight: 600, color: '#e2e8f0' }}>{label}</p>
+    <div style={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, padding: '8px 12px' }}>
+      <p style={{ margin: 0, marginBottom: 4, fontWeight: 600, color: 'var(--foreground)' }}>{label}</p>
       {payload.map((entry: any, i: number) => (
-        <p key={i} style={{ margin: 0, color: '#e2e8f0' }}>
+        <p key={i} style={{ margin: 0, color: 'var(--foreground)' }}>
           {entry.name}: {formatter ? formatter(entry.value) : typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
         </p>
       ))}
@@ -173,7 +178,7 @@ export default function Dashboard() {
     : []
 
   const trafficServices = ['tftp', 'http', 'nfs']
-  const trafficColors: Record<string, string> = { tftp: '#f59e0b', http: '#a78bfa', nfs: '#34d399' }
+  const trafficColors: Record<string, string> = { tftp: 'var(--color-accent-yellow)', http: 'var(--color-accent-purple)', nfs: 'var(--color-accent-green)' }
   const trafficLabels: Record<string, string> = { tftp: 'TFTP', http: 'HTTP', nfs: 'NFS' }
 
   const trafficRangeCfg: Record<string, { seconds: number; agg: number }> = {
@@ -233,10 +238,10 @@ export default function Dashboard() {
 
   const httpStatusData = httpRecent.status2xx > 0 || httpRecent.status3xx > 0 || httpRecent.status4xx > 0 || httpRecent.status5xx > 0
     ? [
-        { name: '2xx', value: httpRecent.status2xx, fill: '#34d399' },
-        { name: '3xx', value: httpRecent.status3xx, fill: '#22d3ee' },
-        { name: '4xx', value: httpRecent.status4xx, fill: '#f59e0b' },
-        { name: '5xx', value: httpRecent.status5xx, fill: '#ef4444' },
+        { name: '2xx', value: httpRecent.status2xx, fill: 'var(--color-accent-green)' },
+        { name: '3xx', value: httpRecent.status3xx, fill: 'var(--color-accent-cyan)' },
+        { name: '4xx', value: httpRecent.status4xx, fill: 'var(--color-accent-yellow)' },
+        { name: '5xx', value: httpRecent.status5xx, fill: 'var(--color-accent-red)' },
       ]
     : []
 
@@ -245,8 +250,8 @@ export default function Dashboard() {
     if (t.includes('dhcp')) return { label: 'DHCP', color: 'bg-cyan-500/10 text-cyan-400' }
     if (t.includes('tftp')) return { label: 'TFTP', color: 'bg-orange-500/10 text-orange-400' }
     if (t.includes('http')) return { label: 'HTTP', color: 'bg-purple-500/10 text-purple-400' }
-    if (t.includes('boot')) return { label: 'BOOT', color: 'bg-green-500/10 text-green-400' }
-    if (t.includes('ipmi')) return { label: 'IPMI', color: 'bg-yellow-500/10 text-yellow-400' }
+    if (t.includes('boot')) return { label: 'BOOT', color: 'bg-accent-green/10 text-accent-green' }
+    if (t.includes('ipmi')) return { label: 'IPMI', color: 'bg-accent-yellow/10 text-accent-yellow' }
     if (t.includes('dns')) return { label: 'DNS', color: 'bg-violet-500/10 text-violet-400' }
     return { label: 'EVT', color: 'bg-blue-500/10 text-blue-400' }
   }
@@ -254,10 +259,12 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">{t('dashboard.title')}</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">{t('dashboard.description')}</p>
-      </div>
+      <PageHeader
+        title={t('dashboard.title')}
+        description={t('dashboard.description')}
+        size="lg"
+        className="mb-0"
+      />
 
       {/* Service Status Bar */}
       <div className="relative overflow-hidden rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] shadow-sm">
@@ -271,7 +278,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-1.5">
               {services.map(svc => {
                 const st = serviceStatus(svc.key)
-                const colorMap: Record<string, string> = { running: 'bg-green-500', stopped: 'bg-gray-400', error: 'bg-red-500' }
+                const colorMap: Record<string, string> = { running: 'bg-accent-green', stopped: 'bg-gray-400', error: 'bg-accent-red' }
                 return <span key={svc.key} className={`w-2 h-2 rounded-full ${colorMap[st]}`} />
               })}
             </div>
@@ -296,7 +303,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex flex-col items-end gap-0.5">
                     <span className={`text-[10px] font-semibold tracking-wide ${
-                      st === 'running' ? 'text-green-400' : st === 'error' ? 'text-red-400' : 'text-[var(--text-muted)]'
+                      st === 'running' ? 'text-accent-green' : st === 'error' ? 'text-accent-red' : 'text-[var(--text-muted)]'
                     }`}>
                       {st === 'running' ? t('common.running') : st === 'error' ? t('common.error') : t('common.stopped')}
                     </span>
@@ -328,7 +335,7 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">{s.label}</span>
                     <span className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${
-                      s.color === 'green' ? 'bg-green-500/10 text-green-400' :
+                      s.color === 'green' ? 'bg-accent-green/10 text-accent-green' :
                       s.color === 'blue' ? 'bg-blue-500/10 text-blue-400' :
                       s.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
                       s.color === 'violet' ? 'bg-violet-500/10 text-violet-400' :
@@ -357,8 +364,8 @@ export default function Dashboard() {
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.offerAckNak')}</span><span className="font-mono text-[var(--text-primary)]">{dhcpData.offers}/{dhcpData.acks}/{dhcpData.naks}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.discoverRequest')}</span><span className="font-mono text-[var(--text-primary)]">{dhcpData.discovers}/{dhcpData.requests}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.decline')}</span><span className="font-mono text-red-400">{dhcpData.declines}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.unauthorized')}</span><span className="font-mono text-yellow-400">{dhcpData.unauthorized}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.decline')}</span><span className="font-mono text-accent-red">{dhcpData.declines}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.unauthorized')}</span><span className="font-mono text-accent-yellow">{dhcpData.unauthorized}</span></div>
             </div>
           ) : (
             <p className="text-xs text-[var(--text-muted)]">{serviceStatus('dhcp') === 'stopped' ? t('dashboard.serviceNotRunning') : t('dashboard.noMetrics')}</p>
@@ -374,7 +381,7 @@ export default function Dashboard() {
           {dm('tftp') ? (
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRequests')}</span><span className="font-mono text-[var(--text-primary)]">{dm('tftp')?.requests ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelErrors')}</span><span className="font-mono text-red-400">{dm('tftp')?.errors ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelErrors')}</span><span className="font-mono text-accent-red">{dm('tftp')?.errors ?? 0}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelTrafficOut')}</span><span className="font-mono text-[var(--text-primary)]">{fmtBytes(dm('tftp')?.bytesOut ?? 0)}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRate')}</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('tftp')?.requestRate ?? [])}/s</span></div>
             </div>
@@ -393,7 +400,7 @@ export default function Dashboard() {
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelDnsRecords')}</span><span className="font-mono text-[var(--text-primary)]">{dnsCount}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelQueryCount')}</span><span className="font-mono text-[var(--text-primary)]">{dm('dns')?.requests ?? 0}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelErrors')}</span><span className="font-mono text-red-400">{dm('dns')?.errors ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelErrors')}</span><span className="font-mono text-accent-red">{dm('dns')?.errors ?? 0}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelQueryRate')}</span><span className="font-mono text-[var(--text-primary)]">{avgRate(dm('dns')?.requestRate ?? [])}/s</span></div>
             </div>
           ) : (
@@ -412,7 +419,7 @@ export default function Dashboard() {
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRequests')}</span><span className="font-mono text-[var(--text-primary)]">{dm('http')?.requests ?? 0}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelActiveConns')}</span><span className="font-mono text-[var(--text-primary)]">{dm('http')?.activeConns ?? 0}</span></div>
               <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelStatusCodes')}</span><span className="font-mono text-[var(--text-primary)]">{httpRecent.status2xx}/{httpRecent.status4xx}/{httpRecent.status5xx}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRejected')}</span><span className="font-mono text-yellow-400">{dm('http')?.rejected ?? 0}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--text-muted)]">{t('dashboard.labelRejected')}</span><span className="font-mono text-accent-yellow">{dm('http')?.rejected ?? 0}</span></div>
             </div>
           ) : (
             <p className="text-xs text-[var(--text-muted)]">{serviceStatus('http') === 'stopped' ? t('dashboard.serviceNotRunning') : t('dashboard.noMetrics')}</p>
@@ -479,8 +486,8 @@ export default function Dashboard() {
             <div className="h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={httpStatusData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="value" name={t('dashboard.httpCount')} radius={[4, 4, 0, 0]}>
                     {httpStatusData.map((d, i) => <Cell key={i} fill={d.fill} />)}
@@ -503,7 +510,7 @@ export default function Dashboard() {
         <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <BarChart3 size={14} className="text-green-400" />
+              <BarChart3 size={14} className="text-accent-green" />
               <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{t('dashboard.chartTraffic')}</span>
             </div>
             <div className="flex items-center gap-1 bg-[var(--bg-base)]/50 rounded-lg p-0.5">
@@ -519,9 +526,9 @@ export default function Dashboard() {
               <div className="h-40">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trafficChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-border)" strokeOpacity={0.5} />
-                    <XAxis dataKey="time" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                    <YAxis tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1024 * 1024 ? `${(v / 1024 / 1024).toFixed(0)}MB` : v >= 1024 ? `${(v / 1024).toFixed(0)}KB` : `${v}B`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
+                    <XAxis dataKey="time" tick={{ fontSize: 9, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                    <YAxis tick={{ fontSize: 9, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1024 * 1024 ? `${(v / 1024 / 1024).toFixed(0)}MB` : v >= 1024 ? `${(v / 1024).toFixed(0)}KB` : `${v}B`} />
                     <Tooltip content={<ChartTooltip formatter={(v: any) => fmtBytes(Math.round(Number(v)))} />} />
                     {trafficServices.map(svc => (
                       <Line key={svc} type="monotone" dataKey={svc} name={trafficLabels[svc]} stroke={trafficColors[svc]} strokeWidth={1.5} dot={false} />
@@ -540,7 +547,7 @@ export default function Dashboard() {
                       </div>
                       <div className="text-xs font-mono text-[var(--text-primary)] font-semibold">{bwRate(m?.bandwidth ?? [])}</div>
                       <div className="flex items-center gap-2 mt-1 text-[10px] font-mono text-[var(--text-muted)]">
-                        <span className="flex items-center gap-0.5"><ArrowUpRight size={10} className="text-green-400" />{fmtBytes(m?.bytesOut ?? 0)}</span>
+                        <span className="flex items-center gap-0.5"><ArrowUpRight size={10} className="text-accent-green" />{fmtBytes(m?.bytesOut ?? 0)}</span>
                         <span className="flex items-center gap-0.5"><ArrowDownRight size={10} className="text-blue-400" />{fmtBytes(m?.bytesIn ?? 0)}</span>
                       </div>
                     </div>
