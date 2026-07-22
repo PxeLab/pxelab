@@ -1117,6 +1117,14 @@ func (h *SettingsHandler) UpdateArchMap(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// 保存旧值用于审计对比
+	h.mu.Lock()
+	oldArchMap := make(map[int]config.ArchEntry, len(h.cfg.Boot.ArchMap))
+	for k, v := range h.cfg.Boot.ArchMap {
+		oldArchMap[k] = v
+	}
+	h.mu.Unlock()
+
 	archMap := make(map[int]config.ArchEntry, len(req.Entries))
 	for _, e := range req.Entries {
 		archMap[e.ArchCode] = config.ArchEntry{
@@ -1144,7 +1152,49 @@ func (h *SettingsHandler) UpdateArchMap(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新架构映射")
+	// 构建变更详情
+	var changes []string
+	for code, newEntry := range archMap {
+		old, existed := oldArchMap[code]
+		if !existed {
+			changes = append(changes, fmt.Sprintf("%s(%d): 新增", boot.ArchName(code), code))
+			continue
+		}
+		var diffs []string
+		if old.NBP != newEntry.NBP {
+			diffs = append(diffs, fmt.Sprintf("NBP: %s→%s", old.NBP, newEntry.NBP))
+		}
+		if old.ChainLoad != newEntry.ChainLoad {
+			diffs = append(diffs, fmt.Sprintf("链式加载: %t→%t", old.ChainLoad, newEntry.ChainLoad))
+		}
+		if old.IPXE != newEntry.IPXE {
+			diffs = append(diffs, fmt.Sprintf("iPXE: %s→%s", old.IPXE, newEntry.IPXE))
+		}
+		if old.PXELinux != newEntry.PXELinux {
+			diffs = append(diffs, fmt.Sprintf("PXELinux: %s→%s", old.PXELinux, newEntry.PXELinux))
+		}
+		if old.GRUB != newEntry.GRUB {
+			diffs = append(diffs, fmt.Sprintf("GRUB2: %s→%s", old.GRUB, newEntry.GRUB))
+		}
+		if old.SecureBoot != newEntry.SecureBoot {
+			diffs = append(diffs, fmt.Sprintf("SecureBoot: %t→%t", old.SecureBoot, newEntry.SecureBoot))
+		}
+		if len(diffs) > 0 {
+			changes = append(changes, fmt.Sprintf("%s(%d): %s", boot.ArchName(code), code, strings.Join(diffs, ", ")))
+		}
+	}
+	// 检查被删除的架构
+	for code := range oldArchMap {
+		if _, ok := archMap[code]; !ok {
+			changes = append(changes, fmt.Sprintf("%s(%d): 已移除", boot.ArchName(code), code))
+		}
+	}
+
+	detail := "更新引导配置"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 
@@ -1597,7 +1647,13 @@ func (h *SettingsHandler) UpdateIPXEScript(w http.ResponseWriter, r *http.Reques
 		req.FeatureFlags = 0
 	}
 
+	// 保存旧值用于审计对比
 	h.mu.Lock()
+	oldEnabled := h.cfg.IPXEScript.Enabled
+	oldPort := h.cfg.IPXEScript.Port
+	oldPath := h.cfg.IPXEScript.Path
+	oldFlags := h.cfg.IPXEScript.FeatureFlags
+
 	h.cfg.IPXEScript.Enabled = req.Enabled
 	if req.Port > 0 {
 		h.cfg.IPXEScript.Port = req.Port
@@ -1615,7 +1671,26 @@ func (h *SettingsHandler) UpdateIPXEScript(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), "更新 iPXE 脚本配置")
+	// 构建变更详情
+	var changes []string
+	if oldEnabled != req.Enabled {
+		changes = append(changes, fmt.Sprintf("启用: %t→%t", oldEnabled, req.Enabled))
+	}
+	if oldPort > 0 && oldPort != req.Port {
+		changes = append(changes, fmt.Sprintf("端口: %d→%d", oldPort, req.Port))
+	}
+	if oldPath != "" && oldPath != req.Path {
+		changes = append(changes, fmt.Sprintf("路径: %s→%s", oldPath, req.Path))
+	}
+	if oldFlags > 0 && oldFlags != req.FeatureFlags {
+		changes = append(changes, fmt.Sprintf("特征标志: 0x%x→0x%x", oldFlags, req.FeatureFlags))
+	}
+
+	detail := "更新 iPXE 脚本配置"
+	if len(changes) > 0 {
+		detail = strings.Join(changes, "; ")
+	}
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "settings", "", remoteIP(r), detail)
 	OK(w, map[string]string{"status": "saved"})
 }
 

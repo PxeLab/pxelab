@@ -49,3 +49,7 @@ pxelab.db*
 # Environment
 .env
 .env.local
+
+# Agent/tool artifacts
+.omo/
+.playwright-mcp/

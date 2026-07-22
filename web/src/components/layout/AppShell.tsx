@@ -47,6 +47,7 @@ const navSections = [
       { path: '/files', label: 'nav.files', icon: HardDrive },
       { path: '/profiles', label: 'nav.profiles', icon: FileCode },
       { path: '/answer-templates', label: 'nav.answerTemplates', icon: FileCode },
+      { path: '/os-images', label: 'nav.osImages', icon: Disc },
     ] as NavItem[],
   },
   {
@@ -57,7 +58,6 @@ const navSections = [
       { path: '/install-tasks', label: 'nav.installTasks', icon: HardDrive },
       { path: '/bmc', label: 'nav.bmc', icon: Cpu },
       { path: '/wol', label: 'nav.wol', icon: Wifi },
-      { path: '/os-images', label: 'nav.osImages', icon: Disc },
       { path: '/network', label: 'nav.network', icon: Network },
     ] as NavItem[],
   },
