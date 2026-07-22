@@ -13,7 +13,7 @@ interface Props {
 const variantClasses = {
   primary: 'bg-blue-500 text-white hover:bg-blue-600 hover:shadow-[var(--glow-blue)] active:scale-[0.97]',
   secondary: 'bg-[var(--bg-input)] text-[var(--text-primary)] border border-[var(--bg-border)] hover:bg-[var(--bg-hover)] hover:border-[var(--text-muted)] hover:shadow-sm active:scale-[0.98]',
-  danger: 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/30 active:scale-[0.98]',
+  danger: 'bg-accent-red/10 text-accent-red border border-accent-red/20 hover:bg-accent-red/20 hover:border-accent-red/30 active:scale-[0.98]',
   ghost: 'bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] active:scale-[0.98]',
 }
 

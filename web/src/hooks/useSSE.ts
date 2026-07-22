@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import type { Event } from '../api/client'
+
+interface UseSSEOptions {
+  /** 暂停时缓冲区最多保留的最新事件数，超出丢弃最旧的；默认无上限 */
+  bufferLimit?: number
+}
 
 interface UseSSEReturn {
   connected: boolean
@@ -8,17 +12,18 @@ interface UseSSEReturn {
   paused: boolean
 }
 
-export function useSSE(url: string, onEvent: (data: Event) => void): UseSSEReturn {
+export function useSSE<T>(url: string, onEvent: (data: T) => void, options?: UseSSEOptions): UseSSEReturn {
   const [connected, setConnected] = useState(false)
   const [paused, setPaused] = useState(false)
-  const bufferRef = useRef<Event[]>([])
+  const bufferRef = useRef<T[]>([])
   const esRef = useRef<EventSource | null>(null)
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const onEventRef = useRef(onEvent)
   const pausedRef = useRef(paused)
+  const optionsRef = useRef(options)
 
   onEventRef.current = onEvent
   pausedRef.current = paused
+  optionsRef.current = options
 
   useEffect(() => {
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined
@@ -37,9 +42,13 @@ export function useSSE(url: string, onEvent: (data: Event) => void): UseSSERetur
 
       es.onmessage = (e: MessageEvent) => {
         try {
-          const data: Event = JSON.parse(e.data)
+          const data: T = JSON.parse(e.data)
           if (pausedRef.current) {
+            const limit = optionsRef.current?.bufferLimit
             bufferRef.current.push(data)
+            if (limit !== undefined && bufferRef.current.length > limit) {
+              bufferRef.current.splice(0, bufferRef.current.length - limit)
+            }
           } else {
             onEventRef.current(data)
           }
@@ -52,7 +61,6 @@ export function useSSE(url: string, onEvent: (data: Event) => void): UseSSERetur
         setConnected(false)
         es.close()
         reconnectTimer = setTimeout(connect, 3000)
-        reconnectTimerRef.current = reconnectTimer
       }
     }
 

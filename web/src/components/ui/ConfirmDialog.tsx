@@ -43,7 +43,7 @@ export const ConfirmDialog: FC<Props> = ({
     >
       <div className="flex items-start gap-3">
         <div className="shrink-0 mt-0.5">
-          <AlertTriangle size={18} className="text-amber-400" />
+          <AlertTriangle size={18} className="text-accent-yellow" />
         </div>
         <p className="text-sm text-[var(--text-secondary)]">{message}</p>
       </div>

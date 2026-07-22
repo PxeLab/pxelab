@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 
 export interface Column<T> {
   key: string
-  label: string
+  label: ReactNode
   render?: (item: T) => ReactNode
   sortable?: boolean
   width?: string
@@ -20,13 +20,19 @@ interface Props<T> {
   onSort?: (field: string) => void
   emptyText?: string
   rowKey?: (item: T) => string
+  /** 表头吸顶：需配合外层滚动容器（如 max-h + overflow-y-auto）使用 */
+  stickyHeader?: boolean
 }
 
 export function DataTable<T extends Record<string, any>>({
-  columns, data, loading, onRowClick, sortField, sortDir, onSort, emptyText, rowKey,
+  columns, data, loading, onRowClick, sortField, sortDir, onSort, emptyText, rowKey, stickyHeader,
 }: Props<T>) {
   const { t } = useTranslation()
   const displayEmpty = emptyText || t('common.noData')
+
+  // col.className 自带对齐类时不再附加 text-left——构建产物中 text-center 排在
+  // text-left 之前，靠类名顺序无法覆盖，只能在 th 上去掉冲突的基类
+  const thAlign = (cls?: string) => (cls && /\btext-(center|right|justify|start|end)\b/.test(cls) ? '' : 'text-left')
 
   if (loading) {
     return (
@@ -35,7 +41,7 @@ export function DataTable<T extends Record<string, any>>({
           <thead>
             <tr>
               {columns.map(col => (
-                <th key={col.key} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)] whitespace-nowrap" style={{ width: col.width }}>
+                <th key={col.key} className={`${thAlign(col.className)} px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)] whitespace-nowrap ${col.className || ''}`} style={{ width: col.width }}>
                   {col.label}
                 </th>
               ))}
@@ -64,7 +70,7 @@ export function DataTable<T extends Record<string, any>>({
           <thead>
             <tr>
               {columns.map(col => (
-                <th key={col.key} className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)] whitespace-nowrap" style={{ width: col.width }}>
+                <th key={col.key} className={`${thAlign(col.className)} px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)] whitespace-nowrap ${col.className || ''}`} style={{ width: col.width }}>
                   {col.label}
                 </th>
               ))}
@@ -95,7 +101,7 @@ export function DataTable<T extends Record<string, any>>({
             {columns.map(col => (
               <th
                 key={col.key}
-                className={`text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)] whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-[var(--text-secondary)] select-none' : ''}`}
+                className={`${thAlign(col.className)} px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] border-b border-[var(--bg-border)] whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-[var(--text-secondary)] select-none' : ''} ${stickyHeader ? 'sticky top-0 bg-[var(--card)] z-10' : ''} ${col.className || ''}`}
                 style={{ width: col.width }}
                 onClick={() => col.sortable && onSort?.(col.key)}
               >
@@ -108,7 +114,7 @@ export function DataTable<T extends Record<string, any>>({
           {data.map((item, i) => (
             <tr
               key={rowKey?.(item) ?? i}
-              className={`${onRowClick ? 'cursor-pointer' : ''} hover:bg-[var(--bg-hover)]/60 hover:shadow-[inset_3px_0_0_var(--bg-border)] transition-all duration-150`}
+              className={`group ${onRowClick ? 'cursor-pointer' : ''} hover:bg-[var(--bg-hover)]/60 hover:shadow-[inset_3px_0_0_var(--bg-border)] transition-all duration-150`}
               onClick={() => onRowClick?.(item)}
             >
               {columns.map(col => (

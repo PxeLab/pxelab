@@ -1,4 +1,4 @@
-﻿export interface Host {
+export interface Host {
   id: string
   name: string
   mac: string
@@ -283,7 +283,7 @@ export async function getHostBootConfig(id: string, format: string): Promise<str
   }
   if (!res.ok) {
     const json = await res.json().catch(() => ({}))
-    throw new Error(json.error || "获取引导配置失败")
+    throw new Error(json.error || `Failed to fetch boot config (HTTP ${res.status})`)
   }
   return res.text()
 }

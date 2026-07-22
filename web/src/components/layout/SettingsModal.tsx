@@ -201,7 +201,7 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
       <SettingsField label={t('common.serverName', '服务器名称')}>
         <input className={inputCls} value={config.server_name} onChange={e => onChange({...config, server_name: e.target.value})} />
         {!serverNameValid && (
-          <p className="text-xs text-amber-400 mt-1">{t('common.serverNameHint')}</p>
+          <p className="text-xs text-accent-yellow mt-1">{t('common.serverNameHint')}</p>
         )}
       </SettingsField>
       <SettingsField label={t('common.logLevel', '日志级别')}>
@@ -268,7 +268,7 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
               : config.token || t('settings.notSet')}
             className="flex-1 bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] font-mono outline-none select-all" />
           <button onClick={onCopy} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-card)] transition-colors text-[var(--text-secondary)]" title={t('settings.modalCopy')}>
-            {tokenCopied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+            {tokenCopied ? <Check size={16} className="text-accent-green" /> : <Copy size={16} />}
           </button>
           <button onClick={onRegenerate} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-card)] transition-colors text-[var(--text-secondary)]" title={t('settings.modalRegenerate')}>
             <RotateCw size={16} />
@@ -277,7 +277,7 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
         <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.modalTokenHelp')}</p>
 
         {config.token && !config.token.includes('...') && (
-          <div className="mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400">
+          <div className="mt-2 px-3 py-2 bg-accent-yellow/10 border border-accent-yellow/30 rounded-lg text-xs text-accent-yellow">
             {t('settings.modalNewTokenWarning')}
           </div>
         )}
@@ -491,7 +491,7 @@ function ServiceAutoStartRow({ svc, operating, onToggle }: { svc: ServiceInfo; o
         )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className={`text-xs ${svc.auto_start ? 'text-green-400' : 'text-[var(--text-muted)]'}`}>
+        <span className={`text-xs ${svc.auto_start ? 'text-accent-green' : 'text-[var(--text-muted)]'}`}>
           {svc.auto_start ? t('settings.modalEnabled') : t('settings.modalDisabled')}
         </span>
         <Toggle

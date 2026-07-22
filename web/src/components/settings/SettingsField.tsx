@@ -40,7 +40,7 @@ interface InputProps {
 }
 
 export const SettingsInput: FC<InputProps> = ({ value, onChange, placeholder, disabled, type, min, max, step, className, error }) => {
-  const errorBorder = error ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/10' : 'border-[var(--bg-border)] focus:border-blue-500 focus:ring-blue-500/10'
+  const errorBorder = error ? 'border-accent-red/50 focus:border-accent-red focus:ring-accent-red/10' : 'border-[var(--bg-border)] focus:border-blue-500 focus:ring-blue-500/10'
   const bgColor = 'bg-[var(--bg-input)]'
   return (
     <input
