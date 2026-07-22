@@ -763,7 +763,18 @@
     "batchDeleteConfirm": "Delete the selected {{count}} templates?",
     "rollbackVersion": "Rollback Version",
     "rollbackConfirm": "Rollback to version {{version}}? Current content will be saved as a new version.",
-    "importJsonError": "Invalid JSON format, import failed"
+    "importJsonError": "Invalid JSON format, import failed",
+    "preview": "Preview",
+    "validate": "Validate",
+    "validTemplate": "✓ Valid template syntax",
+    "validationError": "✗ Validation error",
+    "templatePreview": "Template Preview",
+    "close": "Close",
+    "renderPreview": "Render Preview",
+    "renderedOutput": "Rendered Output",
+    "presets": "Presets",
+    "noPresets": "No presets for this type.",
+    "use": "Use"
   },
   "reservations": {
     "title": "Reservations",

@@ -35,35 +35,7 @@ const WINDOWS_VARS = [
   '{{.AdminPassword}}', '{{.TimeZone}}',
 ]
 
-interface VariableDef {
-  key: string
-  value: string
-  required: boolean
-}
 
-const DEFAULT_PREVIEW_VARS: VariableDef[] = [
-  { key: 'host_name', value: 'node-01', required: true },
-  { key: 'host_ip', value: '192.168.1.100', required: false },
-  { key: 'host_mac', value: '00:11:22:33:44:55', required: false },
-  { key: 'host_cidr', value: '192.168.1.0/24', required: false },
-  { key: 'gateway', value: '192.168.1.1', required: false },
-  { key: 'dns_servers', value: '192.168.1.1', required: false },
-  { key: 'disk', value: '/dev/sda', required: false },
-  { key: 'keyboard_layout', value: 'us', required: false },
-  { key: 'arch', value: 'amd64', required: false },
-  { key: 'product_key', value: 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX', required: false },
-  { key: 'computer_name', value: 'WIN-NODE-01', required: false },
-  { key: 'join_domain', value: 'example.local', required: false },
-  { key: 'domain_ou', value: 'OU=Servers,DC=example,DC=local', required: false },
-  { key: 'admin_password', value: 'P@ssw0rd', required: false },
-  { key: 'time_zone', value: 'UTC', required: false },
-]
-
-function varToPayload(vars: VariableDef[]): Record<string, string> {
-  const p: Record<string, string> = {}
-  for (const v of vars) { if (v.value) p[v.key] = v.value }
-  return p
-}
 
 export default function AnswerTemplates() {
   const { t } = useTranslation()
@@ -77,13 +49,10 @@ export default function AnswerTemplates() {
 
   // Validation state
   const [validationResult, setValidationResult] = useState<{ valid: boolean; error?: string } | null>(null)
-  const [validating, setValidating] = useState(false)
 
   // Preview state
   const [showPreview, setShowPreview] = useState(false)
-  const [previewVars, setPreviewVars] = useState<VariableDef[]>(DEFAULT_PREVIEW_VARS.map(v => ({ ...v })))
   const [previewResult, setPreviewResult] = useState('')
-  const [previewLoading, setPreviewLoading] = useState(false)
 
   // Preset state
   const [showPresets, setShowPresets] = useState(false)
@@ -115,14 +84,13 @@ export default function AnswerTemplates() {
   useEffect(() => { load() }, [load])
 
   const runValidation = async (content: string) => {
-    setValidating(true)
     setValidationResult(null)
     try {
       const res = await api.validateAnswerTemplate(content)
       setValidationResult(res.data)
     } catch (err: any) {
       setValidationResult({ valid: false, error: err.message })
-    } finally { setValidating(false) }
+    }
   }
 
   const save = async () => {
@@ -217,22 +185,35 @@ export default function AnswerTemplates() {
     setValidationResult(null)
   }
 
-  const openPreview = async () => {
-    if (!editing?.id) return
-    setShowPreview(true)
-    setPreviewResult('')
-    setPreviewVars(DEFAULT_PREVIEW_VARS.map(v => ({ ...v })))
+  const renderTemplate = () => {
+    if (!editing?.content) return ''
+    let rendered = editing.content
+    const mapping: [string, string][] = [
+      ['{{.HostName}}', 'node-01'],
+      ['{{.HostIP}}', '192.168.1.100'],
+      ['{{.HostMAC}}', '00:11:22:33:44:55'],
+      ['{{.HostCIDR}}', '192.168.1.0/24'],
+      ['{{.Gateway}}', '192.168.1.1'],
+      ['{{.DNSServers}}', '192.168.1.1'],
+      ['{{.Disk}}', '/dev/sda'],
+      ['{{.KeyboardLayout}}', 'us'],
+      ['{{.Arch}}', 'amd64'],
+      ['{{.ProductKey}}', 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX'],
+      ['{{.ComputerName}}', 'WIN-NODE-01'],
+      ['{{.JoinDomain}}', 'example.local'],
+      ['{{.DomainOU}}', 'OU=Servers,DC=example,DC=local'],
+      ['{{.AdminPassword}}', 'P@ssw0rd'],
+      ['{{.TimeZone}}', 'UTC'],
+    ]
+    for (const [placeholder, value] of mapping) {
+      rendered = rendered.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value)
+    }
+    return rendered
   }
 
-  const doPreview = async () => {
-    if (!editing?.id) return
-    setPreviewLoading(true)
-    try {
-      const res = await api.previewAnswerTemplate(editing.id, varToPayload(previewVars))
-      setPreviewResult(res.data.rendered)
-    } catch (err: any) {
-      setPreviewResult('Error: ' + err.message)
-    } finally { setPreviewLoading(false) }
+  const openPreview = () => {
+    setPreviewResult(renderTemplate())
+    setShowPreview(true)
   }
 
   const openVersions = async (tplId: number) => {
@@ -422,11 +403,11 @@ export default function AnswerTemplates() {
         width="780px"
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={() => { if (editing?.id) openPreview() }} disabled={!editing?.id}>
-              Preview
+            <Button variant="ghost" size="sm" onClick={() => openPreview()}>
+              {t('answerTemplates.preview')}
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => runValidation(editing?.content || '')} disabled={validating}>
-              {validating ? '...' : 'Validate'}
+            <Button variant="ghost" size="sm" onClick={() => runValidation(editing?.content || '')}>
+              {t('answerTemplates.validate')}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setShowEditor(false)}>{t('common.cancel')}</Button>
             <Button variant="primary" size="sm" onClick={save} disabled={!editing?.name || !editing?.content}>{t('common.save')}</Button>
@@ -483,7 +464,7 @@ export default function AnswerTemplates() {
                   ? 'bg-green-500/10 text-green-400 border border-green-500/20'
                   : 'bg-red-500/10 text-red-400 border border-red-500/20'
               }`}>
-                <span>{validationResult.valid ? '✓ Valid template syntax' : '✗ Validation error'}</span>
+                <span>{validationResult.valid ? t('answerTemplates.validTemplate') : t('answerTemplates.validationError')}</span>
                 {validationResult.error && <code className="ml-1 font-mono text-[10px] opacity-70">{validationResult.error}</code>}
               </div>
             )}
@@ -530,57 +511,32 @@ export default function AnswerTemplates() {
 
       {/* Preview Modal */}
       <Modal
-        open={showPreview && !!editing?.id}
+        open={showPreview}
         onClose={() => setShowPreview(false)}
-        title="Template Preview"
+        title={t('answerTemplates.templatePreview')}
         width="740px"
         footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setShowPreview(false)}>Close</Button>
-            <Button variant="primary" size="sm" onClick={doPreview} disabled={previewLoading}>
-              {previewLoading ? 'Rendering...' : 'Render Preview'}
-            </Button>
-          </>
+          <Button variant="secondary" size="sm" onClick={() => setShowPreview(false)}>{t('answerTemplates.close')}</Button>
         }
       >
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          {previewVars.map((v, i) => (
-            <div key={v.key}>
-              <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-0.5">
-                {v.key} {v.required && <span className="text-red-400">*</span>}
-              </label>
-              <input
-                type="text" value={v.value}
-                onChange={e => { const nv = [...previewVars]; nv[i] = { ...nv[i], value: e.target.value }; setPreviewVars(nv) }}
-                className="w-full px-2 py-1.5 text-[11px] font-mono rounded border border-[var(--bg-border)] bg-[var(--bg-input)] text-[var(--text-primary)]"
-                placeholder={v.key}
-              />
-            </div>
-          ))}
+        <div className="rounded-lg border border-[var(--bg-border)] overflow-hidden">
+          <pre className="p-3 max-h-80 overflow-y-auto text-[11px] font-mono whitespace-pre-wrap text-[var(--text-primary)]">
+            {previewResult || editing?.content || ''}
+          </pre>
         </div>
-        {previewResult && (
-          <div className="rounded-lg border border-[var(--bg-border)] overflow-hidden">
-            <div className="px-3 py-2 text-[10px] font-bold text-[var(--text-muted)] bg-[var(--bg-base)] border-b border-[var(--bg-border)]">
-              Rendered Output
-            </div>
-            <pre className="p-3 max-h-80 overflow-y-auto text-[11px] font-mono whitespace-pre-wrap text-[var(--text-primary)]">
-              {previewResult}
-            </pre>
-          </div>
-        )}
       </Modal>
 
       {/* Presets Modal */}
       <Modal
         open={showPresets}
         onClose={() => setShowPresets(false)}
-        title={`Presets — ${TYPE_LABELS[presetType] || presetType}`}
+        title={`${t('answerTemplates.presets')} — ${TYPE_LABELS[presetType] || presetType}`}
         width="640px"
-        footer={<Button variant="secondary" size="sm" onClick={() => setShowPresets(false)}>Close</Button>}
+        footer={<Button variant="secondary" size="sm" onClick={() => setShowPresets(false)}>{t('answerTemplates.close')}</Button>}
       >
         <div className="space-y-3">
           {presets.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">No presets for this type.</p>
+            <p className="text-sm text-[var(--text-muted)]">{t('answerTemplates.noPresets')}</p>
           ) : (
             presets.map((p, i) => (
               <div key={i} className="p-4 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)]">
@@ -589,7 +545,7 @@ export default function AnswerTemplates() {
                     <p className="text-sm font-semibold text-[var(--text-primary)]">{p.name}</p>
                     <p className="text-[11px] text-[var(--text-muted)]">{p.description}</p>
                   </div>
-                  <Button variant="primary" size="sm" onClick={() => applyPreset(p)}>Use</Button>
+                  <Button variant="primary" size="sm" onClick={() => applyPreset(p)}>{t('answerTemplates.use')}</Button>
                 </div>
                 {p.variables?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">

@@ -763,7 +763,18 @@
     "batchDeleteConfirm": "确定删除选中的 {{count}} 个模板？",
     "rollbackVersion": "回滚版本",
     "rollbackConfirm": "确定回滚到版本 {{version}}？当前内容将被保存为新版本。",
-    "importJsonError": "JSON 格式错误，导入失败"
+    "importJsonError": "JSON 格式错误，导入失败",
+    "preview": "预览",
+    "validate": "校验",
+    "validTemplate": "✓ 模板语法正确",
+    "validationError": "✗ 校验错误",
+    "templatePreview": "模板预览",
+    "close": "关闭",
+    "renderPreview": "渲染预览",
+    "renderedOutput": "渲染结果",
+    "presets": "预设",
+    "noPresets": "该类型暂无预设",
+    "use": "使用"
   },
   "reservations": {
     "title": "预留管理",
