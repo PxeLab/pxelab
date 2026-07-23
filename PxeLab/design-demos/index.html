@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — All-in-one PXE Server</title>
+<meta name="description" content="All-in-one PXE server with a modern web UI. DHCP, TFTP, HTTP, DNS, NFS — one binary, zero dependencies.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   DESIGN TOKENS
+   ═══════════════════════════════════════════ */
+:root {
+  --bg: #08090A;
+  --bg-elevated: #0D0E10;
+  --bg-card: rgba(255,255,255,0.025);
+  --bg-card-hover: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.06);
+  --border-subtle: rgba(255,255,255,0.04);
+  --border-hover: rgba(255,255,255,0.12);
+  --text: #EDEDEF;
+  --text-secondary: #8B8F98;
+  --text-muted: #50545C;
+  --accent: #5E6AD2;
+  --accent-hover: #6E7AE2;
+  --accent-glow: rgba(94,106,210,0.12);
+  --accent-glow-strong: rgba(94,106,210,0.25);
+  --blue: #4EA7FC;
+  --green: #64D2A0;
+  --purple: #B59AFF;
+  --orange: #FFB86C;
+  --pink: #FF6B8A;
+  --white: #FFFFFF;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+/* ═══════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; text-wrap: pretty; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+code, .mono { font-family: 'JetBrains Mono', 'Menlo', monospace; }
+
+a { color: inherit; text-decoration: none; }
+
+.container { max-width: 1120px; margin: 0 auto; padding: 0 32px; }
+
+/* ═══════════════════════════════════════════
+   NAV
+   ═══════════════════════════════════════════ */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 0 32px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(8,9,10,0.8);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.3s;
+}
+
+.nav.scrolled { background: rgba(8,9,10,0.95); }
+
+.nav-brand {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-brand-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, var(--accent), var(--blue));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--white);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.nav-center {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+}
+
+.nav-center a {
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+.nav-center a:hover { color: var(--text); }
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-right .btn-ghost {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s;
+}
+
+.nav-right .btn-ghost:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
+}
+
+.nav-right .btn-nav {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--bg);
+  transition: opacity 0.15s;
+}
+
+.nav-right .btn-nav:hover { opacity: 0.9; }
+
+/* ═══════════════════════════════════════════
+   HERO
+   ═══════════════════════════════════════════ */
+.hero {
+  position: relative;
+  padding: 180px 0 120px;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Gradient mesh background */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.hero-bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.5;
+}
+
+.hero-bg-orb.orb-1 {
+  width: 600px;
+  height: 500px;
+  top: -250px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(94,106,210,0.3) 0%, transparent 70%);
+}
+
+.hero-bg-orb.orb-2 {
+  width: 400px;
+  height: 400px;
+  top: -100px;
+  left: 20%;
+  background: radial-gradient(circle, rgba(78,167,252,0.15) 0%, transparent 70%);
+}
+
+.hero-bg-orb.orb-3 {
+  width: 350px;
+  height: 350px;
+  top: -50px;
+  right: 15%;
+  background: radial-gradient(circle, rgba(181,154,255,0.12) 0%, transparent 70%);
+}
+
+.hero-content { position: relative; z-index: 1; }
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--blue);
+  background: rgba(78,167,252,0.06);
+  border: 1px solid rgba(78,167,252,0.15);
+  padding: 5px 14px;
+  border-radius: 100px;
+  margin-bottom: 36px;
+}
+
+.hero-badge-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--blue);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(78,167,252,0.4); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(78,167,252,0); }
+}
+
+.hero h1 {
+  font-size: clamp(56px, 9vw, 100px);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin-bottom: 28px;
+}
+
+.hero h1 .gradient {
+  background: linear-gradient(135deg, #4EA7FC 0%, #B59AFF 50%, #FF6B8A 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 500px;
+  margin: 0 auto 48px;
+  line-height: 1.7;
+}
+
+.hero-ctas {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ═══════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  border-radius: var(--radius);
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--white);
+  box-shadow: 0 0 24px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 40px var(--accent-glow-strong), inset 0 1px 0 rgba(255,255,255,0.12);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+/* ═══════════════════════════════════════════
+   SECTION
+   ═══════════════════════════════════════════ */
+.section { padding: 100px 0; }
+
+.section-header { text-align: center; margin-bottom: 64px; }
+
+.section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.section-header h2 {
+  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  margin-bottom: 16px;
+}
+
+.section-header p {
+  font-size: 16px;
+  color: var(--text-secondary);
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════════
+   BENTO GRID
+   ═══════════════════════════════════════════ */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.bento-item {
+  background: var(--bg);
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: background 0.3s;
+}
+
+.bento-item:hover { background: var(--bg-card-hover); }
+
+.bento-item.span-4 { grid-column: span 4; }
+.bento-item.span-6 { grid-column: span 6; }
+.bento-item.span-8 { grid-column: span 8; }
+.bento-item.span-12 { grid-column: span 12; }
+
+.bento-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.bento-item h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
+.bento-item p {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+/* ─── Service Icons ─── */
+.bento-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.02em;
+}
+
+.bento-icon.dhcp { background: linear-gradient(135deg, #4EA7FC, #2B7BD5); }
+.bento-icon.tftp { background: linear-gradient(135deg, #B59AFF, #8B6FD4); }
+.bento-icon.nfs  { background: linear-gradient(135deg, #64D2A0, #3BAF7A); }
+.bento-icon.dns  { background: linear-gradient(135deg, #FFB86C, #E09040); }
+.bento-icon.ui   { background: linear-gradient(135deg, #FF6B8A, #D44060); }
+.bento-icon.cli  { background: linear-gradient(135deg, #5E6AD2, #4A52A8); }
+
+/* ─── Service detail tags ─── */
+.bento-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.bento-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ═══════════════════════════════════════════
+   ARCHITECTURE DIAGRAM
+   ═══════════════════════════════════════════ */
+.arch-visual {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.arch-visual::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.4;
+}
+
+.arch-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.arch-node {
+  text-align: center;
+  padding: 18px 22px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 120px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.arch-node:hover {
+  border-color: var(--border-hover);
+}
+
+.arch-node.primary {
+  border-color: rgba(94,106,210,0.4);
+  background: var(--accent-glow);
+  box-shadow: 0 0 32px rgba(94,106,210,0.1);
+}
+
+.arch-node.primary:hover {
+  box-shadow: 0 0 40px rgba(94,106,210,0.18);
+}
+
+.arch-node-title {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-bottom: 3px;
+}
+
+.arch-node-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.arch-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.arch-line {
+  width: 44px;
+  height: 1px;
+  background: var(--accent);
+  position: relative;
+}
+
+.arch-line::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: -3px;
+  border: 4px solid transparent;
+  border-left: 6px solid var(--accent);
+}
+
+.arch-protocol {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: var(--accent);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ═══════════════════════════════════════════
+   ARCHITECTURE MATRIX
+   ═══════════════════════════════════════════ */
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.matrix-table th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-hover);
+}
+
+.matrix-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  vertical-align: middle;
+}
+
+.matrix-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.matrix-table .arch-name { font-weight: 500; }
+
+.matrix-table .arch-binary {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.matrix-table .arch-fw {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.badge-sb {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  padding: 3px 10px;
+  border-radius: 100px;
+  display: inline-block;
+}
+
+.badge-sb.yes {
+  color: var(--green);
+  background: rgba(100,210,160,0.08);
+  border: 1px solid rgba(100,210,160,0.15);
+}
+
+.badge-sb.no {
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ═══════════════════════════════════════════
+   QUICK START
+   ═══════════════════════════════════════════ */
+.qs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.qs-step {
+  background: var(--bg);
+  padding: 36px;
+  position: relative;
+  transition: background 0.3s;
+}
+
+.qs-step:hover { background: var(--bg-card-hover); }
+
+.qs-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 52px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.03);
+  line-height: 1;
+  margin-bottom: 20px;
+}
+
+.qs-step h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.qs-step p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.qs-step code {
+  display: block;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-subtle);
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--blue);
+  line-height: 1.9;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ═══════════════════════════════════════════
+   CTA SECTION
+   ═══════════════════════════════════════════ */
+.cta-section {
+  padding: 100px 0;
+  text-align: center;
+  position: relative;
+}
+
+.cta-section::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 500px;
+  background: radial-gradient(ellipse, var(--accent-glow) 0%, transparent 70%);
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.cta-content { position: relative; z-index: 1; }
+
+.cta-content h2 {
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  margin-bottom: 20px;
+}
+
+.cta-content p {
+  font-size: 16px;
+  color: var(--text-secondary);
+  max-width: 420px;
+  margin: 0 auto 40px;
+  line-height: 1.7;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ═══════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════ */
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 48px 0;
+}
+
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.footer-brand {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-brand .gradient {
+  background: linear-gradient(135deg, var(--blue), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.footer-links {
+  display: flex;
+  gap: 24px;
+}
+
+.footer-links a {
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: color 0.15s;
+}
+
+.footer-links a:hover { color: var(--text); }
+
+.footer-right {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .bento-item.span-4,
+  .bento-item.span-6,
+  .bento-item.span-8 { grid-column: span 12; }
+  .qs-grid { grid-template-columns: 1fr; }
+  .arch-flow { flex-direction: column; gap: 8px; }
+  .arch-connector { transform: rotate(90deg); padding: 4px 0; }
+}
+
+@media (max-width: 768px) {
+  .hero { padding: 140px 0 80px; }
+  .section { padding: 70px 0; }
+  .bento { grid-template-columns: 1fr; }
+  .nav-center { display: none; }
+  .footer-inner { flex-direction: column; text-align: center; }
+  .footer-links { flex-wrap: wrap; justify-content: center; }
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════ */
+.fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-in-delay-1 { transition-delay: 0.1s; }
+.fade-in-delay-2 { transition-delay: 0.2s; }
+
+/* ═══════════════════════════════════════════
+   LANG TOGGLE
+   ═══════════════════════════════════════════ */
+.lang-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lang-toggle button {
+  padding: 3px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.lang-toggle button.active {
+  background: rgba(255,255,255,0.1);
+  color: var(--text);
+}
+
+.lang-toggle button:hover:not(.active) {
+  color: var(--text-secondary);
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav class="nav" id="nav">
+  <div class="nav-brand">
+    <div class="nav-brand-icon">P</div>
+    PxeLab
+  </div>
+  <div class="nav-center">
+    <a href="#features" data-i18n="nav_features">Features</a>
+    <a href="#architecture" data-i18n="nav_architecture">Architecture</a>
+    <a href="#quickstart" data-i18n="nav_quickstart">Quick Start</a>
+    <a href="https://github.com/pxelab/pxelab/blob/main/ROADMAP.md">Roadmap</a>
+  </div>
+  <div class="nav-right">
+    <div class="lang-toggle" id="langToggle">
+      <button class="active" data-lang="en">EN</button>
+      <button data-lang="zh">CN</button>
+    </div>
+    <a href="https://github.com/pxelab/pxelab/blob/main/CHANGELOG.md" class="btn-ghost" data-i18n="nav_changelog">Changelog</a>
+    <a href="https://github.com/pxelab/pxelab" class="btn-nav">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -2px; margin-right: 2px;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-bg">
+    <div class="hero-bg-orb orb-1"></div>
+    <div class="hero-bg-orb orb-2"></div>
+    <div class="hero-bg-orb orb-3"></div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      <span data-i18n="hero_badge">Open Source · MIT License</span>
+    </div>
+    <h1><span class="gradient">PxeLab</span></h1>
+    <p class="hero-subtitle" data-i18n="hero_subtitle">All-in-one PXE server with a modern web UI.<br>Five network services, one binary, zero dependencies.</p>
+    <div class="hero-ctas">
+      <a href="https://github.com/pxelab/pxelab" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span data-i18n="hero_cta_github">Star on GitHub</span>
+      </a>
+      <a href="#quickstart" class="btn btn-secondary"><span data-i18n="hero_cta_quickstart">Quick Start</span> →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ BENTO FEATURES ═══ -->
+<section class="section fade-in" id="features">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label" data-i18n="feat_label">Core Modules</div>
+      <h2 data-i18n="feat_title">Six services, one interface.</h2>
+      <p data-i18n="feat_desc">Every module is configurable through the web UI, REST API, or command line.</p>
+    </div>
+
+    <div class="bento">
+      <!-- Architecture (wide card) -->
+      <div class="bento-item span-8">
+        <div class="bento-label" data-i18n="feat_arch_label">Architecture</div>
+        <h3 data-i18n="feat_arch_title">Two-stage network boot</h3>
+        <p data-i18n="feat_arch_desc">PXE ROM loads iPXE via TFTP, then iPXE fetches the boot menu over HTTP. Custom builds with embedded scripts — no manual configuration needed.</p>
+        <div style="margin-top: 28px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+          <div class="arch-node" style="padding: 12px 16px; min-width: auto;">
+            <div class="arch-node-title" style="font-size: 12.5px;">PXE ROM</div>
+          </div>
+          <div class="arch-connector" style="flex-direction: row; padding: 0;">
+            <div class="arch-line" style="width: 32px;"></div>
+            <span class="arch-protocol" style="margin: 0 0 0 4px;">TFTP</span>
+          </div>
+          <div class="arch-node primary" style="padding: 12px 16px; min-width: auto;">
+            <div class="arch-node-title" style="font-size: 12.5px;">iPXE</div>
+          </div>
+          <div class="arch-connector" style="flex-direction: row; padding: 0;">
+            <div class="arch-line" style="width: 32px;"></div>
+            <span class="arch-protocol" style="margin: 0 0 0 4px;">HTTP</span>
+          </div>
+          <div class="arch-node" style="padding: 12px 16px; min-width: auto;">
+            <div class="arch-node-title" style="font-size: 12.5px;">Boot Menu</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multi-arch (wide card) -->
+      <div class="bento-item span-4">
+        <div class="bento-label" data-i18n="feat_multiarch_label">Multi-Architecture</div>
+        <h3 data-i18n="feat_multiarch_title">Every platform</h3>
+        <p data-i18n="feat_multiarch_desc">BIOS x86, UEFI x64, ARM64, RISC-V 64, LoongArch64. iPXE, PXELinux, GRUB2. Secure Boot where supported.</p>
+        <div class="bento-tags" style="margin-top: 20px;">
+          <span class="bento-tag">x86</span>
+          <span class="bento-tag">x64</span>
+          <span class="bento-tag">ARM64</span>
+          <span class="bento-tag">RISC-V</span>
+          <span class="bento-tag">LoongArch</span>
+        </div>
+      </div>
+
+      <!-- DHCP -->
+      <div class="bento-item span-4">
+        <div class="bento-icon dhcp">DH</div>
+        <h3>DHCP</h3>
+        <p data-i18n="feat_dhcp_desc">Full, Proxy, and Hybrid modes. Subnet address pools, MAC reservations, conflict detection.</p>
+        <div class="bento-tags">
+          <span class="bento-tag">:67/UDP</span>
+          <span class="bento-tag">ProxyDHCP</span>
+          <span class="bento-tag" data-i18n="feat_dhcp_tag">Whitelist</span>
+        </div>
+      </div>
+
+      <!-- TFTP -->
+      <div class="bento-item span-4">
+        <div class="bento-icon tftp">TF</div>
+        <h3>TFTP</h3>
+        <p data-i18n="feat_tftp_desc">iPXE, PXELinux, GRUB2 boot files. Architecture-aware file mapping with configurable port.</p>
+        <div class="bento-tags">
+          <span class="bento-tag">:69/UDP</span>
+          <span class="bento-tag">PXE</span>
+          <span class="bento-tag">GRUB2</span>
+        </div>
+      </div>
+
+      <!-- NFS -->
+      <div class="bento-item span-4">
+        <div class="bento-icon nfs">NF</div>
+        <h3>NFS</h3>
+        <p data-i18n="feat_nfs_desc">Built-in NFSv3 server. Multi-mount points, IP/CIDR whitelist, read-only exports.</p>
+        <div class="bento-tags">
+          <span class="bento-tag">NFSv3</span>
+          <span class="bento-tag">:2049</span>
+          <span class="bento-tag">CIDR ACL</span>
+        </div>
+      </div>
+
+      <!-- DNS -->
+      <div class="bento-item span-4">
+        <div class="bento-icon dns">DN</div>
+        <h3>DNS</h3>
+        <p data-i18n="feat_dns_desc">Upstream forwarding, subnet-aware resolution, auto A-record creation for PXE clients.</p>
+        <div class="bento-tags">
+          <span class="bento-tag">:53/UDP</span>
+          <span class="bento-tag">A/AAAA</span>
+          <span class="bento-tag">CNAME</span>
+        </div>
+      </div>
+
+      <!-- Web UI -->
+      <div class="bento-item span-4">
+        <div class="bento-icon ui">UI</div>
+        <h3 data-i18n="feat_ui_title">Web UI</h3>
+        <p data-i18n="feat_ui_desc">React SPA with real-time logs, visual boot menu editor, host management, i18n support.</p>
+        <div class="bento-tags">
+          <span class="bento-tag">:8080</span>
+          <span class="bento-tag">React 19</span>
+          <span class="bento-tag">REST API</span>
+        </div>
+      </div>
+
+      <!-- CLI -->
+      <div class="bento-item span-4">
+        <div class="bento-icon cli">CL</div>
+        <h3>CLI</h3>
+        <p data-i18n="feat_cli_desc">Full command-line control. Windows service mode for unattended deployment.</p>
+        <div class="bento-tags">
+          <span class="bento-tag">Cobra</span>
+          <span class="bento-tag" data-i18n="feat_cli_tag">Windows Svc</span>
+        </div>
+      </div>
+
+      <!-- Cross-Platform Deployment (wide card) -->
+      <div class="bento-item span-8">
+        <div class="bento-label" data-i18n="feat_deploy_label">Cross-Platform Deployment</div>
+        <h3 data-i18n="feat_deploy_title">Run anywhere. Two modes.</h3>
+        <p data-i18n="feat_deploy_desc">Single binary for Linux, macOS, and Windows. Server mode for headless infrastructure; App mode for desktop with system tray GUI. No runtime dependencies on any platform.</p>
+        <div style="margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div style="background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+              <h4 style="font-size: 14px; font-weight: 600; color: var(--white); margin: 0;" data-i18n="feat_deploy_server_title">Server Mode</h4>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.6;" data-i18n="feat_deploy_server_desc">Headless deployment on Linux servers, VMs, and bare metal. Windows service or systemd unit. Runs in background with zero UI.</p>
+          </div>
+          <div style="background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+              <h4 style="font-size: 14px; font-weight: 600; color: var(--white); margin: 0;" data-i18n="feat_deploy_app_title">App Mode</h4>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.6;" data-i18n="feat_deploy_app_desc">Desktop application with system tray icon on macOS and Windows. One-click start/stop, visual config, tray notifications. Ideal for workstation use.</p>
+          </div>
+        </div>
+        <div class="bento-tags" style="margin-top: 20px;">
+          <span class="bento-tag">Linux</span>
+          <span class="bento-tag">macOS</span>
+          <span class="bento-tag">Windows</span>
+          <span class="bento-tag" data-i18n="feat_deploy_tag_systemd">systemd</span>
+          <span class="bento-tag">Windows Svc</span>
+          <span class="bento-tag">System Tray</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ARCHITECTURE DETAIL ═══ -->
+<section class="section fade-in" id="architecture">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label" data-i18n="arch_label">How It Works</div>
+      <h2 data-i18n="arch_title">Two-stage network boot.</h2>
+      <p data-i18n="arch_desc">PXE ROM loads iPXE via TFTP, then iPXE fetches the full boot menu over HTTP.</p>
+    </div>
+
+    <div class="arch-visual">
+      <div class="arch-flow">
+        <div class="arch-node">
+          <div class="arch-node-title">PXE ROM</div>
+          <div class="arch-node-sub" data-i18n="arch_pxe_sub">Client firmware</div>
+        </div>
+        <div class="arch-connector">
+          <div class="arch-line"></div>
+          <div class="arch-protocol">TFTP</div>
+        </div>
+        <div class="arch-node primary">
+          <div class="arch-node-title">iPXE</div>
+          <div class="arch-node-sub" data-i18n="arch_ipxe_sub">Custom build</div>
+        </div>
+        <div class="arch-connector">
+          <div class="arch-line"></div>
+          <div class="arch-protocol">HTTP</div>
+        </div>
+        <div class="arch-node">
+          <div class="arch-node-title">Boot Menu</div>
+          <div class="arch-node-sub" data-i18n="arch_boot_sub">Kernel / WIM / Chain</div>
+        </div>
+        <div class="arch-connector">
+          <div class="arch-line"></div>
+          <div class="arch-protocol">NFS</div>
+        </div>
+        <div class="arch-node">
+          <div class="arch-node-title" data-i18n="arch_os_title">OS Image</div>
+          <div class="arch-node-sub" data-i18n="arch_os_sub">Mounted share</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ARCH MATRIX ═══ -->
+<section class="section fade-in">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label" data-i18n="matrix_label">Architecture Support</div>
+      <h2 data-i18n="matrix_title">Every architecture, every firmware.</h2>
+      <p data-i18n="matrix_desc">Client architectures are mapped to the correct boot binary automatically.</p>
+    </div>
+
+    <div style="border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th data-i18n="matrix_th_arch">Architecture</th>
+            <th data-i18n="matrix_th_fw">Firmware</th>
+            <th>Binary</th>
+            <th>Secure Boot</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="arch-name">BIOS x86</td>
+            <td class="arch-fw">Legacy</td>
+            <td class="arch-binary">undionly.kpxe</td>
+            <td><span class="badge-sb no">—</span></td>
+          </tr>
+          <tr>
+            <td class="arch-name">UEFI IA32</td>
+            <td class="arch-fw">EFI</td>
+            <td class="arch-binary">ipxe32.efi</td>
+            <td><span class="badge-sb no">—</span></td>
+          </tr>
+          <tr>
+            <td class="arch-name">UEFI x64</td>
+            <td class="arch-fw">EFI</td>
+            <td class="arch-binary">ipxe.efi</td>
+            <td><span class="badge-sb yes">✓ Supported</span></td>
+          </tr>
+          <tr>
+            <td class="arch-name">UEFI ARM64</td>
+            <td class="arch-fw">EFI</td>
+            <td class="arch-binary">ipxe-arm64.efi</td>
+            <td><span class="badge-sb yes">✓ Supported</span></td>
+          </tr>
+          <tr>
+            <td class="arch-name">RISC-V 64</td>
+            <td class="arch-fw">EFI</td>
+            <td class="arch-binary">ipxe-riscv64.efi</td>
+            <td><span class="badge-sb no">—</span></td>
+          </tr>
+          <tr>
+            <td class="arch-name">LoongArch64</td>
+            <td class="arch-fw">EFI</td>
+            <td class="arch-binary">ipxe-loongarch64.efi</td>
+            <td><span class="badge-sb no">—</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ QUICK START ═══ -->
+<section class="section fade-in" id="quickstart">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label" data-i18n="qs_label">Get Started</div>
+      <h2 data-i18n="qs_title">Up and running in three steps.</h2>
+      <p data-i18n="qs_desc">Single binary. Zero dependencies. Download, run, open browser.</p>
+    </div>
+
+    <div class="qs-grid">
+      <div class="qs-step">
+        <div class="qs-num">01</div>
+        <h4 data-i18n="qs_step1_title">Download</h4>
+        <p data-i18n="qs_step1_desc">Grab the binary for your platform from GitHub Releases.</p>
+        <code>curl -L -o pxelab \
+  github.com/pxelab/pxelab/\
+  releases/latest/download/\
+  pxelab_linux_amd64</code>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">02</div>
+        <h4 data-i18n="qs_step2_title">Run</h4>
+        <p data-i18n="qs_step2_desc">Make executable and start. Config is auto-generated on first run.</p>
+        <code>chmod +x pxelab
+./pxelab</code>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">03</div>
+        <h4 data-i18n="qs_step3_title">Manage</h4>
+        <p data-i18n="qs_step3_desc">Open the web UI and configure everything visually.</p>
+        <code>open http://localhost:8080</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA ═══ -->
+<section class="cta-section fade-in">
+  <div class="container">
+    <div class="cta-content">
+      <h2 data-i18n="cta_title">Deploy PXE in minutes,<br>not hours.</h2>
+      <p data-i18n="cta_desc">Replace your patchwork of DHCP, TFTP, and NFS servers with a single binary and a clean web interface.</p>
+      <div class="cta-buttons">
+        <a href="https://github.com/pxelab/pxelab" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          <span data-i18n="cta_github">Star on GitHub</span>
+        </a>
+        <a href="https://github.com/pxelab/pxelab/blob/main/ROADMAP.md" class="btn btn-secondary"><span data-i18n="cta_roadmap">View Roadmap</span> →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="gradient">PxeLab</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/pxelab/pxelab">GitHub</a>
+        <a href="https://github.com/pxelab/pxelab/blob/main/docs/README.md" data-i18n="footer_docs">Docs</a>
+        <a href="https://github.com/pxelab/pxelab/blob/main/ROADMAP.md" data-i18n="footer_roadmap">Roadmap</a>
+        <a href="https://github.com/pxelab/pxelab/blob/main/CHANGELOG.md" data-i18n="footer_changelog">Changelog</a>
+      </div>
+      <div class="footer-right" data-i18n="footer_copy">Built with Go + React · MIT License</div>
+    </div>
+  </div>
+</footer>
+
+<!-- ═══ SCRIPTS ═══ -->
+<script>
+  // Nav scroll state
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+
+  // Intersection observer for fade-in
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  // ── i18n System ──
+  const i18n = {
+    en: {
+      nav_features: 'Features',
+      nav_architecture: 'Architecture',
+      nav_quickstart: 'Quick Start',
+      nav_roadmap: 'Roadmap',
+      nav_changelog: 'Changelog',
+      hero_badge: 'Open Source · MIT License',
+      hero_subtitle: 'All-in-one PXE server with a modern web UI.<br>Five network services, one binary, zero dependencies.',
+      hero_cta_github: 'Star on GitHub',
+      hero_cta_quickstart: 'Quick Start',
+      feat_label: 'Core Modules',
+      feat_title: 'Six services, one interface.',
+      feat_desc: 'Every module is configurable through the web UI, REST API, or command line.',
+      feat_arch_label: 'Architecture',
+      feat_arch_title: 'Two-stage network boot',
+      feat_arch_desc: 'PXE ROM loads iPXE via TFTP, then iPXE fetches the boot menu over HTTP. Custom builds with embedded scripts — no manual configuration needed.',
+      feat_multiarch_label: 'Multi-Architecture',
+      feat_multiarch_title: 'Every platform',
+      feat_multiarch_desc: 'BIOS x86, UEFI x64, ARM64, RISC-V 64, LoongArch64. iPXE, PXELinux, GRUB2. Secure Boot where supported.',
+      feat_dhcp_desc: 'Full, Proxy, and Hybrid modes. Subnet address pools, MAC reservations, conflict detection.',
+      feat_dhcp_tag: 'Whitelist',
+      feat_tftp_desc: 'iPXE, PXELinux, GRUB2 boot files. Architecture-aware file mapping with configurable port.',
+      feat_nfs_desc: 'Built-in NFSv3 server. Multi-mount points, IP/CIDR whitelist, read-only exports.',
+      feat_dns_desc: 'Upstream forwarding, subnet-aware resolution, auto A-record creation for PXE clients.',
+      feat_ui_title: 'Web UI',
+      feat_ui_desc: 'React SPA with real-time logs, visual boot menu editor, host management, i18n support.',
+      feat_cli_desc: 'Full command-line control. Windows service mode for unattended deployment.',
+      feat_cli_tag: 'Windows Svc',
+      feat_deploy_label: 'Cross-Platform Deployment',
+      feat_deploy_title: 'Run anywhere. Two modes.',
+      feat_deploy_desc: 'Single binary for Linux, macOS, and Windows. Server mode for headless infrastructure; App mode for desktop with system tray GUI. No runtime dependencies on any platform.',
+      feat_deploy_server_title: 'Server Mode',
+      feat_deploy_server_desc: 'Headless deployment on Linux servers, VMs, and bare metal. Windows service or systemd unit. Runs in background with zero UI.',
+      feat_deploy_app_title: 'App Mode',
+      feat_deploy_app_desc: 'Desktop application with system tray icon on macOS and Windows. One-click start/stop, visual config, tray notifications. Ideal for workstation use.',
+      feat_deploy_tag_systemd: 'systemd',
+      arch_label: 'How It Works',
+      arch_title: 'Two-stage network boot.',
+      arch_desc: 'PXE ROM loads iPXE via TFTP, then iPXE fetches the full boot menu over HTTP.',
+      arch_pxe_sub: 'Client firmware',
+      arch_ipxe_sub: 'Custom build',
+      arch_boot_sub: 'Kernel / WIM / Chain',
+      arch_os_title: 'OS Image',
+      arch_os_sub: 'Mounted share',
+      matrix_label: 'Architecture Support',
+      matrix_title: 'Every architecture, every firmware.',
+      matrix_desc: 'Client architectures are mapped to the correct boot binary automatically.',
+      matrix_th_arch: 'Architecture',
+      matrix_th_fw: 'Firmware',
+      qs_label: 'Get Started',
+      qs_title: 'Up and running in three steps.',
+      qs_desc: 'Single binary. Zero dependencies. Download, run, open browser.',
+      qs_step1_title: 'Download',
+      qs_step1_desc: 'Grab the binary for your platform from GitHub Releases.',
+      qs_step2_title: 'Run',
+      qs_step2_desc: 'Make executable and start. Config is auto-generated on first run.',
+      qs_step3_title: 'Manage',
+      qs_step3_desc: 'Open the web UI and configure everything visually.',
+      cta_title: 'Deploy PXE in minutes,<br>not hours.',
+      cta_desc: 'Replace your patchwork of DHCP, TFTP, and NFS servers with a single binary and a clean web interface.',
+      cta_github: 'Star on GitHub',
+      cta_roadmap: 'View Roadmap',
+      footer_docs: 'Docs',
+      footer_roadmap: 'Roadmap',
+      footer_changelog: 'Changelog',
+      footer_copy: 'Built with Go + React · MIT License'
+    },
+    zh: {
+      nav_features: '功能',
+      nav_architecture: '架构',
+      nav_quickstart: '快速开始',
+      nav_roadmap: '路线图',
+      nav_changelog: '更新日志',
+      hero_badge: '开源 · MIT 许可',
+      hero_subtitle: '一体化 PXE 服务器，现代 Web UI 管理。<br>五大网络服务，单一二进制文件，零依赖。',
+      hero_cta_github: '在 GitHub 上 Star',
+      hero_cta_quickstart: '快速开始',
+      feat_label: '核心模块',
+      feat_title: '六大服务，统一管理。',
+      feat_desc: '每个模块都可通过 Web UI、REST API 或命令行配置。',
+      feat_arch_label: '架构',
+      feat_arch_title: '两阶段网络引导',
+      feat_arch_desc: 'PXE ROM 通过 TFTP 加载 iPXE，iPXE 再通过 HTTP 获取引导菜单。自定义构建嵌入脚本，无需手动配置。',
+      feat_multiarch_label: '多架构',
+      feat_multiarch_title: '全平台支持',
+      feat_multiarch_desc: 'BIOS x86、UEFI x64、ARM64、RISC-V 64、LoongArch64。支持 iPXE、PXELinux、GRUB2，部分平台支持安全启动。',
+      feat_dhcp_desc: '支持完整模式、代理模式和混合模式。子网地址池、MAC 预留、冲突检测。',
+      feat_dhcp_tag: '白名单',
+      feat_tftp_desc: 'iPXE、PXELinux、GRUB2 引导文件。架构感知的文件映射，端口可配置。',
+      feat_nfs_desc: '内置 NFSv3 服务器。多挂载点、IP/CIDR 白名单、只读导出。',
+      feat_dns_desc: '上游转发、子网感知解析、自动为 PXE 客户端创建 A 记录。',
+      feat_ui_title: 'Web UI',
+      feat_ui_desc: 'React SPA，实时日志、可视化引导菜单编辑器、主机管理、国际化支持。',
+      feat_cli_desc: '完整命令行控制。支持 Windows 服务模式，可无人值守部署。',
+      feat_cli_tag: 'Windows 服务',
+      feat_deploy_label: '跨平台部署',
+      feat_deploy_title: '随处运行，两种模式。',
+      feat_deploy_desc: '单一二进制文件，支持 Linux、macOS 和 Windows。Server 模式适用于无界面的服务器/虚拟机/裸机；App 模式适用于桌面环境，提供系统托盘 GUI。所有平台零运行时依赖。',
+      feat_deploy_server_title: 'Server 模式',
+      feat_deploy_server_desc: '适用于 Linux 服务器、虚拟机和裸机的无界面部署。支持 Windows 服务或 systemd 单元，后台静默运行，无需任何 UI。',
+      feat_deploy_app_title: 'App 模式',
+      feat_deploy_app_desc: '桌面应用程序，在 macOS 和 Windows 上提供系统托盘图标。一键启停、可视化配置、托盘通知推送，适合工作站日常使用。',
+      feat_deploy_tag_systemd: 'systemd',
+      arch_label: '工作原理',
+      arch_title: '两阶段网络引导。',
+      arch_desc: 'PXE ROM 通过 TFTP 加载 iPXE，iPXE 再通过 HTTP 获取完整引导菜单。',
+      arch_pxe_sub: '客户端固件',
+      arch_ipxe_sub: '自定义构建',
+      arch_boot_sub: '内核 / WIM / 链式加载',
+      arch_os_title: '系统镜像',
+      arch_os_sub: '挂载共享',
+      matrix_label: '架构支持',
+      matrix_title: '每种架构，每种固件。',
+      matrix_desc: '客户端架构自动映射到正确的引导文件。',
+      matrix_th_arch: '架构',
+      matrix_th_fw: '固件',
+      qs_label: '快速开始',
+      qs_title: '三步启动。',
+      qs_desc: '单一二进制文件。零依赖。下载、运行、打开浏览器。',
+      qs_step1_title: '下载',
+      qs_step1_desc: '从 GitHub Releases 下载对应平台的二进制文件。',
+      qs_step2_title: '运行',
+      qs_step2_desc: '赋予执行权限并启动，首次运行自动生成配置。',
+      qs_step3_title: '管理',
+      qs_step3_desc: '打开 Web UI，可视化配置一切。',
+      cta_title: '几分钟部署 PXE，<br>而不是几个小时。',
+      cta_desc: '用单一二进制文件和简洁的 Web 界面，替代拼凑的 DHCP、TFTP 和 NFS 服务器。',
+      cta_github: '在 GitHub 上 Star',
+      cta_roadmap: '查看路线图',
+      footer_docs: '文档',
+      footer_roadmap: '路线图',
+      footer_changelog: '更新日志',
+      footer_copy: '基于 Go + React 构建 · MIT 许可'
+    }
+  };
+
+  function setLang(lang) {
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+    document.title = lang === 'zh' ? 'PxeLab - 一体化 PXE 服务器' : 'PxeLab - All-in-one PXE Server';
+    const dict = i18n[lang];
+    if (!dict) return;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (dict[key]) el.innerHTML = dict[key];
+    });
+    // Toggle active state
+    document.querySelectorAll('#langToggle button').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+    localStorage.setItem('pxelab-lang', lang);
+  }
+
+  // Init language from localStorage or default to English
+  const savedLang = localStorage.getItem('pxelab-lang') || 'en';
+  setLang(savedLang);
+
+  // Bind toggle buttons
+  document.querySelectorAll('#langToggle button').forEach(btn => {
+    btn.addEventListener('click', () => setLang(btn.dataset.lang));
+  });
+</script>
+</body>
+</html>

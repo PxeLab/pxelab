@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — All-in-one PXE Server</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #000000;
+    --white: #FFFFFF;
+    --gray-50: #FAFAFA;
+    --gray-100: #F5F5F5;
+    --gray-200: #E5E5E5;
+    --gray-300: #D4D4D4;
+    --gray-400: #A3A3A3;
+    --gray-500: #737373;
+    --gray-600: #525252;
+    --gray-700: #404040;
+    --gray-800: #262626;
+    --gray-900: #171717;
+    --border: #E5E5E5;
+    --radius: 0px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; text-wrap: pretty; }
+
+  body {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--white);
+    color: var(--black);
+    line-height: 1.6;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, .mono {
+    font-family: 'Geist Mono', 'Menlo', monospace;
+  }
+
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* ─── NAV ─── */
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .nav-brand {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .nav-links a {
+    font-size: 14px;
+    color: var(--gray-500);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .nav-links a:hover { color: var(--black); }
+
+  .nav-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--white) !important;
+    background: var(--black);
+    border: 1px solid var(--black);
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+
+  .nav-cta:hover { opacity: 0.85; }
+
+  /* ─── HERO ─── */
+  .hero {
+    padding: 120px 0 100px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hero h1 {
+    font-size: clamp(48px, 7vw, 80px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    margin-bottom: 24px;
+  }
+
+  .hero-tagline {
+    font-size: 18px;
+    color: var(--gray-500);
+    max-width: 480px;
+    margin: 0 auto 48px;
+    line-height: 1.7;
+  }
+
+  .hero-ctas {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.15s;
+    cursor: pointer;
+    border: none;
+    font-family: 'Geist', sans-serif;
+  }
+
+  .btn-primary {
+    background: var(--black);
+    color: var(--white);
+  }
+
+  .btn-primary:hover { background: var(--gray-800); }
+
+  .btn-secondary {
+    background: var(--white);
+    color: var(--black);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { border-color: var(--black); }
+
+  /* ─── SECTION ─── */
+  .section {
+    padding: 80px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    margin-bottom: 12px;
+  }
+
+  .section h2 {
+    font-size: clamp(28px, 4vw, 36px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+  }
+
+  .section-desc {
+    font-size: 16px;
+    color: var(--gray-500);
+    max-width: 520px;
+    margin-bottom: 48px;
+  }
+
+  /* ─── VALUE GRID ─── */
+  .value-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+
+  .value-cell {
+    background: var(--white);
+    padding: 32px;
+  }
+
+  .value-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--gray-400);
+    margin-bottom: 16px;
+  }
+
+  .value-cell h3 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+
+  .value-cell p {
+    font-size: 14px;
+    color: var(--gray-500);
+    line-height: 1.6;
+  }
+
+  /* ─── ARCHITECTURE ─── */
+  .arch-box {
+    background: var(--gray-50);
+    border: 1px solid var(--border);
+    padding: 48px;
+  }
+
+  .arch-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .arch-node {
+    text-align: center;
+    padding: 16px 24px;
+    border: 1px solid var(--border);
+    background: var(--white);
+    min-width: 120px;
+  }
+
+  .arch-node.primary {
+    border-color: var(--black);
+    background: var(--black);
+    color: var(--white);
+  }
+
+  .arch-node-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+
+  .arch-node-sub {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    opacity: 0.6;
+  }
+
+  .arch-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 12px;
+  }
+
+  .arch-line {
+    width: 48px;
+    height: 1px;
+    background: var(--black);
+    position: relative;
+  }
+
+  .arch-line::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -3px;
+    border: 4px solid transparent;
+    border-left: 6px solid var(--black);
+  }
+
+  .arch-protocol {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    color: var(--gray-400);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ─── FEATURES TABLE ─── */
+  .feat-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .feat-table th {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    text-align: left;
+    padding: 12px 0;
+    border-bottom: 2px solid var(--black);
+  }
+
+  .feat-table td {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  .feat-table td:first-child {
+    font-weight: 600;
+    font-size: 14px;
+    width: 120px;
+  }
+
+  .feat-table td:nth-child(2) {
+    color: var(--gray-500);
+    font-size: 14px;
+  }
+
+  .feat-table td:last-child {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    color: var(--gray-400);
+    text-align: right;
+    width: 100px;
+  }
+
+  /* ─── ARCH MATRIX ─── */
+  .matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .matrix-table th {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+    text-align: left;
+    padding: 12px 0;
+    border-bottom: 2px solid var(--black);
+  }
+
+  .matrix-table td {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+
+  .matrix-table .mono-cell {
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    color: var(--gray-600);
+  }
+
+  .matrix-table .check { color: var(--black); font-weight: 600; }
+  .matrix-table .dash { color: var(--gray-300); }
+
+  /* ─── QUICK START ─── */
+  .qs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+
+  .qs-step {
+    background: var(--white);
+    padding: 32px;
+  }
+
+  .qs-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--gray-400);
+    margin-bottom: 16px;
+  }
+
+  .qs-step h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .qs-step p {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .qs-step code {
+    display: block;
+    background: var(--gray-50);
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+    font-size: 12px;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    padding: 40px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--gray-400);
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+  }
+
+  .footer-links a {
+    color: var(--gray-400);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .footer-links a:hover { color: var(--black); }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .value-grid, .qs-grid { grid-template-columns: 1fr; }
+    .hero { padding: 80px 0 60px; }
+    .section { padding: 60px 0; }
+    .nav-links { display: none; }
+    .arch-flow { flex-direction: column; gap: 8px; }
+    .arch-arrow { transform: rotate(90deg); padding: 4px 0; }
+    .arch-box { padding: 32px 20px; overflow-x: auto; }
+    .footer { flex-direction: column; text-align: center; }
+  }
+
+  /* ─── FADE IN ─── */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav class="nav">
+  <div class="nav-brand">PxeLab</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#quickstart">Quick Start</a>
+    <a href="https://github.com/pxelab/pxelab" class="nav-cta">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="container">
+    <h1>PxeLab</h1>
+    <p class="hero-tagline">All-in-one PXE server with a modern web UI. DHCP, TFTP, HTTP, DNS, NFS — one binary, zero dependencies.</p>
+    <div class="hero-ctas">
+      <a href="https://github.com/pxelab/pxelab" class="btn btn-primary">View on GitHub</a>
+      <a href="#quickstart" class="btn btn-secondary">Quick Start →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ VALUE PROPS ═══ -->
+<section class="section fade-in">
+  <div class="container">
+    <div class="section-label">Why PxeLab</div>
+    <h2>Five services. One binary.</h2>
+    <p class="section-desc">Traditional PXE deployment means separate DHCP, TFTP, NFS, and DNS servers — each configured by hand. PxeLab replaces all of them.</p>
+
+    <div class="value-grid">
+      <div class="value-cell">
+        <div class="value-num">01</div>
+        <h3>All-in-One</h3>
+        <p>DHCP, TFTP, HTTP, DNS, NFS packed into a single Go binary. One process, one config, one UI.</p>
+      </div>
+      <div class="value-cell">
+        <div class="value-num">02</div>
+        <h3>Multi-Architecture</h3>
+        <p>BIOS x86, UEFI x64, ARM64, RISC-V 64, LoongArch64. iPXE, PXELinux, GRUB2. Secure Boot.</p>
+      </div>
+      <div class="value-cell">
+        <div class="value-num">03</div>
+        <h3>Modern Web UI</h3>
+        <p>React SPA with real-time logs, visual boot menu editor, host management, and REST API.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ARCHITECTURE ═══ -->
+<section class="section fade-in" id="architecture">
+  <div class="container">
+    <div class="section-label">How It Works</div>
+    <h2>Two-stage network boot.</h2>
+    <p class="section-desc">PXE ROM loads iPXE via TFTP, then iPXE fetches the boot menu over HTTP. Custom builds with embedded scripts.</p>
+
+    <div class="arch-box">
+      <div class="arch-flow">
+        <div class="arch-node">
+          <div class="arch-node-title">PXE ROM</div>
+          <div class="arch-node-sub">Client firmware</div>
+        </div>
+        <div class="arch-arrow">
+          <div class="arch-line"></div>
+          <div class="arch-protocol">TFTP</div>
+        </div>
+        <div class="arch-node primary">
+          <div class="arch-node-title">iPXE</div>
+          <div class="arch-node-sub">Custom build</div>
+        </div>
+        <div class="arch-arrow">
+          <div class="arch-line"></div>
+          <div class="arch-protocol">HTTP</div>
+        </div>
+        <div class="arch-node">
+          <div class="arch-node-title">Boot Menu</div>
+          <div class="arch-node-sub">Kernel / WIM / Chain</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FEATURES ═══ -->
+<section class="section fade-in" id="features">
+  <div class="container">
+    <div class="section-label">Core Modules</div>
+    <h2>Six services, one interface.</h2>
+    <p class="section-desc">Every module is configurable through the web UI, REST API, or CLI.</p>
+
+    <table class="feat-table">
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Capabilities</th>
+          <th>Port</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>DHCP</td><td>Full / Proxy / Hybrid modes. Subnet pools, MAC reservations, conflict detection.</td><td>67/UDP</td></tr>
+        <tr><td>TFTP</td><td>iPXE, PXELinux, GRUB2. Architecture-aware file mapping.</td><td>69/UDP</td></tr>
+        <tr><td>NFS</td><td>Built-in NFSv3. Multi-mount points, IP/CIDR whitelist, read-only exports.</td><td>2049</td></tr>
+        <tr><td>DNS</td><td>Upstream forwarding, subnet-aware resolution, auto A-record creation.</td><td>53/UDP</td></tr>
+        <tr><td>Web UI</td><td>React SPA. Host management, boot editor, real-time logs, i18n.</td><td>8080</td></tr>
+        <tr><td>CLI</td><td>Full command-line control. Windows service mode.</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══ ARCH MATRIX ═══ -->
+<section class="section fade-in">
+  <div class="container">
+    <div class="section-label">Architecture Support</div>
+    <h2>Every architecture, every firmware.</h2>
+    <p class="section-desc">Client architectures are mapped to boot binaries automatically.</p>
+
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th>Architecture</th>
+          <th>Firmware</th>
+          <th>Binary</th>
+          <th>Secure Boot</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>BIOS x86</td><td>Legacy</td><td class="mono-cell">undionly.kpxe</td><td class="dash">—</td></tr>
+        <tr><td>UEFI IA32</td><td>EFI</td><td class="mono-cell">ipxe32.efi</td><td class="dash">—</td></tr>
+        <tr><td>UEFI x64</td><td>EFI</td><td class="mono-cell">ipxe.efi</td><td class="check">✓</td></tr>
+        <tr><td>UEFI ARM64</td><td>EFI</td><td class="mono-cell">ipxe-arm64.efi</td><td class="check">✓</td></tr>
+        <tr><td>RISC-V 64</td><td>EFI</td><td class="mono-cell">ipxe-riscv64.efi</td><td class="dash">—</td></tr>
+        <tr><td>LoongArch64</td><td>EFI</td><td class="mono-cell">ipxe-loongarch64.efi</td><td class="dash">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══ QUICK START ═══ -->
+<section class="section fade-in" id="quickstart">
+  <div class="container">
+    <div class="section-label">Get Started</div>
+    <h2>Up and running in three steps.</h2>
+    <p class="section-desc">Single binary. Zero dependencies.</p>
+
+    <div class="qs-grid">
+      <div class="qs-step">
+        <div class="qs-num">01</div>
+        <h4>Download</h4>
+        <p>Grab the binary for your platform from GitHub Releases.</p>
+        <code>curl -L -o pxelab \<br>  github.com/.../pxelab_linux_amd64</code>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">02</div>
+        <h4>Run</h4>
+        <p>Make executable and start. First run auto-creates config.</p>
+        <code>chmod +x pxelab<br>./pxelab</code>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">03</div>
+        <h4>Manage</h4>
+        <p>Open the web UI in your browser.</p>
+        <code>open http://localhost:8080</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <span>PxeLab · MIT License</span>
+  <div class="footer-links">
+    <a href="https://github.com/pxelab/pxelab">GitHub</a>
+    <a href="https://github.com/pxelab/pxelab/blob/main/docs/README.md">Docs</a>
+    <a href="https://github.com/pxelab/pxelab/blob/main/ROADMAP.md">Roadmap</a>
+    <a href="https://github.com/pxelab/pxelab/blob/main/CHANGELOG.md">Changelog</a>
+  </div>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

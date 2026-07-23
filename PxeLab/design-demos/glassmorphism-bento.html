@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — All-in-one PXE Server</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08090A;
+    --bg-card: rgba(255,255,255,0.03);
+    --bg-card-hover: rgba(255,255,255,0.06);
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.15);
+    --text: #E8E8E8;
+    --text-secondary: #8A8F98;
+    --text-muted: #555A63;
+    --accent: #5E6AD2;
+    --accent-glow: rgba(94,106,210,0.15);
+    --accent-blue: #4EA7FC;
+    --accent-purple: #B59AFF;
+    --white: #FFFFFF;
+    --gradient-1: linear-gradient(135deg, #4EA7FC 0%, #B59AFF 100%);
+    --gradient-2: linear-gradient(135deg, rgba(78,167,252,0.12) 0%, rgba(181,154,255,0.12) 100%);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    text-wrap: pretty;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  code, .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* ─── HERO ─── */
+  .hero {
+    padding: 140px 0 100px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 600px;
+    background: radial-gradient(ellipse, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--accent-blue);
+    background: rgba(78,167,252,0.08);
+    border: 1px solid rgba(78,167,252,0.2);
+    padding: 6px 14px;
+    border-radius: 100px;
+    margin-bottom: 32px;
+  }
+
+  .hero-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--accent-blue);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .hero h1 {
+    font-size: clamp(52px, 8vw, 96px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    margin-bottom: 24px;
+    position: relative;
+  }
+
+  .hero h1 .gradient {
+    background: var(--gradient-1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-tagline {
+    font-size: 18px;
+    color: var(--text-secondary);
+    max-width: 520px;
+    margin: 0 auto 48px;
+    line-height: 1.7;
+  }
+
+  .hero-ctas {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--white);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .btn-primary:hover {
+    background: #6E7AE2;
+    box-shadow: 0 0 30px rgba(94,106,210,0.3);
+  }
+
+  .btn-secondary {
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-hover);
+  }
+
+  /* ─── BENTO GRID ─── */
+  .bento {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 120px;
+  }
+
+  .bento-item {
+    background: var(--bg);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: background 0.3s;
+  }
+
+  .bento-item:hover {
+    background: var(--bg-card-hover);
+  }
+
+  .bento-item.span-4 { grid-column: span 4; }
+  .bento-item.span-6 { grid-column: span 6; }
+  .bento-item.span-8 { grid-column: span 8; }
+  .bento-item.span-12 { grid-column: span 12; }
+
+  .bento-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .bento-item h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .bento-item p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  .bento-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  .bento-icon.dhcp { background: linear-gradient(135deg, #4EA7FC, #2B7BD5); }
+  .bento-icon.tftp { background: linear-gradient(135deg, #B59AFF, #8B6FD4); }
+  .bento-icon.nfs { background: linear-gradient(135deg, #64D2A0, #3BAF7A); }
+  .bento-icon.dns { background: linear-gradient(135deg, #FFB86C, #E09040); }
+  .bento-icon.ui { background: linear-gradient(135deg, #FF6B8A, #D44060); }
+  .bento-icon.cli { background: linear-gradient(135deg, #5E6AD2, #4A52A8); }
+
+  /* ─── SECTION ─── */
+  .section {
+    padding: 100px 0;
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  .section-header h2 {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+  }
+
+  .section-header p {
+    font-size: 16px;
+    color: var(--text-secondary);
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* ─── ARCHITECTURE ─── */
+  .arch-visual {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .arch-visual::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--gradient-1);
+    opacity: 0.5;
+  }
+
+  .arch-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+
+  .arch-node {
+    text-align: center;
+    padding: 20px 24px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    min-width: 130px;
+    position: relative;
+  }
+
+  .arch-node.primary {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+
+  .arch-node-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .arch-node-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .arch-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .arch-line {
+    width: 40px;
+    height: 1px;
+    background: var(--accent);
+    position: relative;
+  }
+
+  .arch-line::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: -3px;
+    border: 4px solid transparent;
+    border-left: 6px solid var(--accent);
+  }
+
+  .arch-protocol {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ─── ARCH MATRIX ─── */
+  .matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .matrix-cell {
+    background: var(--bg);
+    padding: 24px;
+    text-align: center;
+    transition: background 0.2s;
+  }
+
+  .matrix-cell:hover { background: var(--bg-card-hover); }
+
+  .matrix-cell .arch-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .matrix-cell .arch-binary {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .matrix-cell .arch-sb {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .matrix-cell .arch-sb.yes {
+    color: #64D2A0;
+    background: rgba(100,210,160,0.1);
+  }
+
+  .matrix-cell .arch-sb.no {
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.03);
+  }
+
+  /* ─── QUICK START ─── */
+  .quickstart-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .qs-step {
+    background: var(--bg);
+    padding: 32px;
+    position: relative;
+  }
+
+  .qs-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 48px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.04);
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+
+  .qs-step h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .qs-step p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+  }
+
+  .qs-step code {
+    display: block;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--accent-blue);
+    overflow-x: auto;
+    line-height: 1.8;
+  }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    padding: 60px 0;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .footer-brand {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .footer-brand .gradient {
+    background: var(--gradient-1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .footer-links a {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover { color: var(--text); }
+
+  .footer-copy {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .bento-item.span-4,
+    .bento-item.span-6,
+    .bento-item.span-8 { grid-column: span 12; }
+    .quickstart-grid { grid-template-columns: 1fr; }
+    .hero { padding: 100px 0 60px; }
+    .section { padding: 60px 0; }
+    .arch-flow { flex-direction: column; gap: 8px; }
+    .arch-connector { transform: rotate(90deg); padding: 4px 0; }
+    .bento { grid-template-columns: 1fr; }
+  }
+
+  /* ─── FADE IN ─── */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">Open Source · MIT License</div>
+    <h1><span class="gradient">PxeLab</span></h1>
+    <p class="hero-tagline">All-in-one PXE server with a modern web UI. Five network services, one binary, zero dependencies.</p>
+    <div class="hero-ctas">
+      <a href="https://github.com/pxelab/pxelab" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        Star on GitHub
+      </a>
+      <a href="#quickstart" class="btn btn-secondary">Quick Start →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ BENTO FEATURES ═══ -->
+<div class="container">
+  <div class="bento fade-in">
+    <div class="bento-item span-8">
+      <div class="bento-label">Architecture</div>
+      <h3>Two-stage network boot</h3>
+      <p>PXE ROM loads iPXE via TFTP, then iPXE fetches the boot menu over HTTP. Custom iPXE builds with embedded scripts — no manual configuration needed.</p>
+      <div style="margin-top: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <div class="arch-node" style="padding: 12px 16px; min-width: auto;">
+          <div class="arch-node-title" style="font-size: 13px;">PXE ROM</div>
+        </div>
+        <div class="arch-connector" style="flex-direction: row; padding: 0;">
+          <div class="arch-line" style="width: 32px;"></div>
+          <span class="arch-protocol" style="margin: 0 0 0 4px;">TFTP</span>
+        </div>
+        <div class="arch-node primary" style="padding: 12px 16px; min-width: auto;">
+          <div class="arch-node-title" style="font-size: 13px;">iPXE</div>
+        </div>
+        <div class="arch-connector" style="flex-direction: row; padding: 0;">
+          <div class="arch-line" style="width: 32px;"></div>
+          <span class="arch-protocol" style="margin: 0 0 0 4px;">HTTP</span>
+        </div>
+        <div class="arch-node" style="padding: 12px 16px; min-width: auto;">
+          <div class="arch-node-title" style="font-size: 13px;">Boot Menu</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bento-item span-4">
+      <div class="bento-icon dhcp">DH</div>
+      <h3>DHCP</h3>
+      <p>Full, Proxy, and Hybrid modes. Subnet pools, MAC reservations, conflict detection.</p>
+    </div>
+
+    <div class="bento-item span-4">
+      <div class="bento-icon tftp">TF</div>
+      <h3>TFTP</h3>
+      <p>iPXE, PXELinux, GRUB2. Architecture-aware file mapping with configurable port.</p>
+    </div>
+
+    <div class="bento-item span-4">
+      <div class="bento-icon nfs">NF</div>
+      <h3>NFS</h3>
+      <p>Built-in NFSv3. Multi-mount points, IP/CIDR whitelist, read-only exports.</p>
+    </div>
+
+    <div class="bento-item span-4">
+      <div class="bento-icon dns">DN</div>
+      <h3>DNS</h3>
+      <p>Upstream forwarding, subnet-aware resolution, auto A-record creation.</p>
+    </div>
+
+    <div class="bento-item span-4">
+      <div class="bento-icon ui">UI</div>
+      <h3>Web UI</h3>
+      <p>React SPA. Host management, boot editor, real-time logs, i18n.</p>
+    </div>
+
+    <div class="bento-item span-4">
+      <div class="bento-icon cli">CL</div>
+      <h3>CLI</h3>
+      <p>Full command-line control. Windows service mode. Programmatic management.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ARCH MATRIX ═══ -->
+<section class="section fade-in">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Architecture Support</div>
+      <h2>Every architecture, every firmware.</h2>
+      <p>PxeLab maps client architectures to the correct boot binary automatically.</p>
+    </div>
+
+    <div class="matrix-grid">
+      <div class="matrix-cell">
+        <div class="arch-name">BIOS x86</div>
+        <div class="arch-binary">undionly.kpxe</div>
+        <div class="arch-sb no">No SB</div>
+      </div>
+      <div class="matrix-cell">
+        <div class="arch-name">UEFI x64</div>
+        <div class="arch-binary">ipxe.efi</div>
+        <div class="arch-sb yes">Secure Boot ✓</div>
+      </div>
+      <div class="matrix-cell">
+        <div class="arch-name">UEFI ARM64</div>
+        <div class="arch-binary">ipxe-arm64.efi</div>
+        <div class="arch-sb yes">Secure Boot ✓</div>
+      </div>
+      <div class="matrix-cell">
+        <div class="arch-name">RISC-V 64</div>
+        <div class="arch-binary">ipxe-riscv64.efi</div>
+        <div class="arch-sb no">No SB</div>
+      </div>
+      <div class="matrix-cell">
+        <div class="arch-name">LoongArch64</div>
+        <div class="arch-binary">ipxe-loongarch64.efi</div>
+        <div class="arch-sb no">No SB</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ QUICK START ═══ -->
+<section class="section fade-in" id="quickstart">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-label">Get Started</div>
+      <h2>Up in three steps.</h2>
+      <p>Single binary. Zero dependencies. Download, run, open browser.</p>
+    </div>
+
+    <div class="quickstart-grid">
+      <div class="qs-step">
+        <div class="qs-num">01</div>
+        <h4>Download</h4>
+        <p>Grab the binary for your platform.</p>
+        <code>curl -L -o pxelab \<br>  github.com/pxelab/pxelab/\<br>  releases/latest/download/\<br>  pxelab_linux_amd64</code>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">02</div>
+        <h4>Run</h4>
+        <p>Make executable and start.</p>
+        <code>chmod +x pxelab<br>./pxelab</code>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">03</div>
+        <h4>Manage</h4>
+        <p>Open the web UI.</p>
+        <code>open http://localhost:8080</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-brand"><span class="gradient">PxeLab</span></div>
+    <div class="footer-links">
+      <a href="https://github.com/pxelab/pxelab">GitHub</a>
+      <a href="https://github.com/pxelab/pxelab/blob/main/docs/README.md">Docs</a>
+      <a href="https://github.com/pxelab/pxelab/blob/main/ROADMAP.md">Roadmap</a>
+      <a href="https://github.com/pxelab/pxelab/blob/main/CHANGELOG.md">Changelog</a>
+    </div>
+    <p class="footer-copy">Built with Go + React · MIT License</p>
+  </div>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
