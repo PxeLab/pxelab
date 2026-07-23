@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"bytes"
@@ -162,7 +162,6 @@ type InterfaceResponse struct {
 	Name        string           `json:"name"`
 	IP          string           `json:"ip"`
 	DHCPMode    string           `json:"dhcp_mode"`
-	Bootloader  string           `json:"bootloader"`
 	ChainToIPXE bool             `json:"chain_to_ipxe"`
 	Subnet      string           `json:"subnet"`      // 向后兼容：Subnets[0].CIDR
 	Pools       []string         `json:"pools"`        // 向后兼容：Subnets[0].Pools
@@ -387,7 +386,6 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		ir := InterfaceResponse{
 			Name:       iface.Name,
 			IP:         iface.IP,
-			Bootloader: iface.Bootloader,
 			TFTP:       iface.TFTP,
 			HTTP:       iface.HTTP,
 			AutoStart:  iface.AutoStart,
@@ -617,7 +615,6 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			iface := config.InterfaceConfig{
 				Name: ir.Name,
 				IP:   ir.IP,
-				Bootloader: ir.Bootloader,
 				TFTP: ir.TFTP,
 				HTTP: ir.HTTP,
 				AutoStart:  ir.AutoStart,
@@ -860,7 +857,6 @@ func (h *SettingsHandler) GetInterfaces(w http.ResponseWriter, r *http.Request) 
 		ir := InterfaceResponse{
 			Name:        iface.Name,
 			IP:          iface.IP,
-			Bootloader:  iface.Bootloader,
 			TFTP:        iface.TFTP,
 			HTTP:        iface.HTTP,
 			AutoStart:   iface.AutoStart,
@@ -983,7 +979,6 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 		iface := config.InterfaceConfig{
 			Name:       ir.Name,
 			IP:         ir.IP,
-			Bootloader: ir.Bootloader,
 			TFTP:       ir.TFTP,
 			HTTP:       ir.HTTP,
 			AutoStart:  ir.AutoStart,

@@ -56,7 +56,6 @@ export function DHCPConfigTab() {
           return {
             name: ir.name || '',
             ip: ir.ip || '',
-            bootloader: ir.bootloader || 'ipxe',
             subnets,
           }
         }))
@@ -92,7 +91,7 @@ export function DHCPConfigTab() {
       setShowModal(false)
       setSaving(true)
       const payload: InterfaceSettings[] = next.filter(iface => iface.name).map(iface => ({
-        name: iface.name, ip: iface.ip, bootloader: iface.bootloader,
+        name: iface.name, ip: iface.ip,
         subnets: iface.subnets.map(s => ({
           cidr: s.cidr, dhcp_mode: s.dhcpMode, pools: s.pools.filter(p => p && p.includes('-')),
           gateway: s.gateway, dns_servers: s.dnsServers, lease_time: parseInt(s.leaseTime) || 3600, next_server: s.nextServer, chain_to_ipxe: s.chainToIPXE,
@@ -114,7 +113,7 @@ export function DHCPConfigTab() {
     setSaving(true)
     try {
       const payload: InterfaceSettings[] = next.filter(iface => iface.name).map(iface => ({
-        name: iface.name, ip: iface.ip, bootloader: iface.bootloader,
+        name: iface.name, ip: iface.ip,
         subnets: iface.subnets.map(s => ({
           cidr: s.cidr, dhcp_mode: s.dhcpMode, pools: s.pools.filter(p => p && p.includes('-')),
           gateway: s.gateway, dns_servers: s.dnsServers, lease_time: parseInt(s.leaseTime) || 3600, next_server: s.nextServer, chain_to_ipxe: s.chainToIPXE,
@@ -155,14 +154,9 @@ export function DHCPConfigTab() {
     return errs
   }
 
-  const bootloaderLabel: Record<string, string> = {
-    ipxe: 'iPXE', undionly: 'iPXE(UNDI)', pxelinux: 'PXELinux', grub2: 'GRUB2',
-  }
-
   const columns: Column<{ idx: number; iface: InterfaceConfig }>[] = [
     { key: 'idx', label: '#', width: '40px', render: (r) => <span className="text-xs text-[var(--text-muted)]">{r.idx + 1}</span> },
     { key: 'name', label: t('settings.interfaceName'), render: (r) => <span className="font-medium text-[var(--text-primary)] text-sm">{r.iface.name || <span className="text-[var(--text-muted)] italic">{t('common.notConfigured')}</span>}</span> },
-    { key: 'bootloader', label: t('settings.bootloader'), render: (r) => <span className="text-xs">{bootloaderLabel[r.iface.bootloader] || r.iface.bootloader}</span> },
     { key: 'ip', label: 'IP', render: (r) => <span className="font-mono text-xs">{r.iface.ip || '—'}</span> },
     { key: 'subnets', label: t('settings.subnet'), render: (r) => (
       r.iface.subnets.length > 0

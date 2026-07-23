@@ -571,7 +571,7 @@ func ptrStr(s *string) string {
 }
 
 // chainToIPXEFallback 决定是否返回 chain-load 配置，两级判断任一命中即 chain：
-//  1. 接口级：客户端 IP 所在子网开启 ChainToIPXE，且接口 Bootloader 与配置文件类型匹配
+//  1. 接口级：客户端 IP 所在子网开启 ChainToIPXE（类型由请求的配置文件路径决定）
 //  2. 架构级：客户端架构（archName，dhcp.ArchString 输出）在全局 ArchMap 中的条目
 //     NBP 与配置文件类型匹配，且 ChainLoad=true
 func chainToIPXEFallback(cfg *config.Config, filePath, clientIP, archName string) bool {
@@ -584,14 +584,8 @@ func chainToIPXEFallback(cfg *config.Config, filePath, clientIP, archName string
 				continue
 			}
 			switch filePath {
-			case cfg.Boot.GRUBConfigFile:
-				if iface.Bootloader == "grub2" {
-					return true
-				}
-			case cfg.Boot.PXEConfigFile:
-				if iface.Bootloader == "pxelinux" {
-					return true
-				}
+			case cfg.Boot.GRUBConfigFile, cfg.Boot.PXEConfigFile:
+				return true
 			}
 		}
 	}

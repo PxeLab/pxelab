@@ -1,4 +1,4 @@
-﻿package config
+package config
 
 import (
 	"fmt"
@@ -52,7 +52,6 @@ type InterfaceConfig struct {
 	Name        string         `yaml:"name" mapstructure:"name"`
 	IP          string         `yaml:"ip" mapstructure:"ip"`
 	Subnets     []SubnetConfig `yaml:"subnets" mapstructure:"subnets"`
-	Bootloader  string         `yaml:"bootloader" mapstructure:"bootloader"`       // ipxe | pxelinux | grub2
 	TFTP        bool           `yaml:"tftp" mapstructure:"tftp"`
 	HTTP        bool           `yaml:"http" mapstructure:"http"`
 	AutoStart   bool           `yaml:"auto_start" mapstructure:"auto_start"`      // auto-start DHCP/ProxyDHCP for this interface
@@ -224,12 +223,6 @@ func (c *Config) Validate() error {
 			if sn.DHCP != "" && sn.DHCP != "server" && sn.DHCP != "proxy" && sn.DHCP != "off" {
 				return fmt.Errorf("interface %s subnet %s: 无效的 DHCP 模式: %s", iface.Name, sn.CIDR, sn.DHCP)
 			}
-				if sn.ChainToIPXE && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" {
-					return fmt.Errorf("interface %s subnet %s: chain_to_ipxe 仅支持 pxelinux 或 grub2", iface.Name, sn.CIDR)
-				}
-		}
-		if iface.Bootloader != "" && iface.Bootloader != "ipxe" && iface.Bootloader != "pxelinux" && iface.Bootloader != "grub2" && iface.Bootloader != "undionly" {
-			return fmt.Errorf("interface %s: 无效的引导加载器: %s", iface.Name, iface.Bootloader)
 		}
 	}
 	return nil

@@ -16,7 +16,6 @@ export interface SubnetSettings {
 export interface InterfaceSettings {
   name: string
   ip: string
-  bootloader: string
   subnets: SubnetSettings[]
   // backward compat fields (deprecated, use subnets)
   subnet: string

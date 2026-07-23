@@ -60,7 +60,7 @@ export function ReservationTab() {
               chainToIPXE: s.chain_to_ipxe || false,
             }))
           : []
-        return { name: ir.name || '', ip: ir.ip || '', bootloader: ir.bootloader || 'ipxe', subnets }
+        return { name: ir.name || '', ip: ir.ip || '', subnets }
       }))
     } catch (err: any) {
       error(err.message || t('common.error'))

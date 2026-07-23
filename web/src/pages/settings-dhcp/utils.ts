@@ -5,12 +5,12 @@ export interface SubnetConfig {
 }
 
 export interface InterfaceConfig {
-  name: string; ip: string; bootloader: string
+  name: string; ip: string
   subnets: SubnetConfig[]
 }
 
 export const defaultIface: InterfaceConfig = {
-  name: '', ip: '', bootloader: 'ipxe',
+  name: '', ip: '',
   subnets: [{ cidr: '', dhcpMode: 'server', pools: [''], gateway: '', dnsServers: '', leaseTime: '3600', nextServer: '', chainToIPXE: false }],
 }
 

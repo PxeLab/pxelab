@@ -51,17 +51,6 @@ export function InterfaceEditModal({
             <SettingsInput value={form.ip} onChange={v => setForm({...form, ip: v})} placeholder="192.168.1.100" />
           </SettingsField>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <SettingsField label={t('settings.bootloader')}>
-            <Select
-              value={form.bootloader} onChange={e => setForm({...form, bootloader: e.target.value})}>
-              <option value="ipxe">{t('settings.ipxeFull')}</option>
-              <option value="undionly">{t('settings.ipxeUndi')}</option>
-              <option value="pxelinux">PXELinux</option>
-              <option value="grub2">GRUB2</option>
-            </Select>
-          </SettingsField>
-        </div>
 
         {form.subnets.map((s, si) => {
           const subnetMode = s.dhcpMode || 'server'
@@ -147,9 +136,9 @@ export function InterfaceEditModal({
                   <label className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)] cursor-pointer pt-1">
                     <input type="checkbox" checked={s.chainToIPXE} onChange={e => {
                       const sn = [...form.subnets]; sn[si] = {...sn[si], chainToIPXE: e.target.checked}; setForm({...form, subnets: sn})
-                    }} disabled={form.bootloader !== 'pxelinux' && form.bootloader !== 'grub2'} className="rounded border-[var(--bg-border)] w-4 h-4" />
-                    <span className={form.bootloader !== 'pxelinux' && form.bootloader !== 'grub2' ? 'opacity-40' : ''}>{t('settings.chainToIpxe')}</span>
-                    {(form.bootloader === 'pxelinux' || form.bootloader === 'grub2') && s.chainToIPXE && (
+                    }} className="rounded border-[var(--bg-border)] w-4 h-4" />
+                    <span>{t('settings.chainToIpxe')}</span>
+                    {s.chainToIPXE && (
                       <span className="text-xs text-blue-400">{t('settings.chainToIpxeHint')}</span>
                     )}
                   </label>

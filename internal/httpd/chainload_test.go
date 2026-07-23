@@ -9,7 +9,7 @@ import (
 )
 
 // chainTestConfig 构造 chainToIPXEFallback 测试用的最小配置：
-// 一个 grub2 接口 + 开启 ChainToIPXE 的子网 10.0.0.0/24。
+// 一个接口 + 开启 ChainToIPXE 的子网 10.0.0.0/24。
 func chainTestConfig() *config.Config {
 	return &config.Config{
 		Boot: config.BootConfig{
@@ -18,7 +18,6 @@ func chainTestConfig() *config.Config {
 		},
 		Interfaces: []config.InterfaceConfig{
 			{
-				Bootloader: "grub2",
 				Subnets: []config.SubnetConfig{
 					{CIDR: "10.0.0.0/24", ChainToIPXE: true},
 				},
@@ -44,10 +43,17 @@ func TestChainToIPXEFallback(t *testing.T) {
 		want     bool
 	}{
 		{
-			name:     "命中接口级：grub2 接口 + 子网 ChainToIPXE",
+			name:     "命中接口级：子网 ChainToIPXE + grub 配置文件",
 			filePath: "grub.cfg",
 			clientIP: "10.0.0.50",
 			archName: "x86_64",
+			want:     true,
+		},
+		{
+			name:     "命中接口级：子网 ChainToIPXE + pxelinux 配置文件（不再要求类型匹配）",
+			filePath: "pxelinux.cfg/default",
+			clientIP: "10.0.0.50",
+			archName: "arm64",
 			want:     true,
 		},
 		{
@@ -65,7 +71,7 @@ func TestChainToIPXEFallback(t *testing.T) {
 			want:     false,
 		},
 		{
-			name:     "都不命中：arm64 默认 NBP=ipxe，接口级要求 pxelinux 文件",
+			name:     "都不命中：arm64 默认 NBP=ipxe，且 IP 在子网外",
 			filePath: "pxelinux.cfg/default",
 			clientIP: "192.168.1.50",
 			archName: "arm64",
