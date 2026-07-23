@@ -131,7 +131,7 @@ import {
   getWOLInterfaces,
   getWOLSchedules,
 } from './wol'
-import { deleteOSImage, extractOSImage, getOSImage, getOSImages, mountOSImage, unmountOSImage, uploadOSImage } from './osimages'
+import { deleteOSImage, extractOSImage, getOSImage, getOSImages, importOSImages, mountOSImage, reprocessOSImage, unmountOSImage, updateOSImage, uploadOSImage, uploadOSImageWithProgress } from './osimages'
 import { getNetworkInterfaces, networkPing, networkPingStream, networkTraceroute } from './network'
 import { checkBootloaderFile, getBootloaderCheck, getBootloaderFiles } from './bootloader'
 import { batchService, getServices, restartService, startService, stopService, updateAutoStart } from './services'
@@ -155,8 +155,12 @@ export const api = {
   getOSImages,
   getOSImage,
   uploadOSImage,
+  uploadOSImageWithProgress,
   deleteOSImage,
   extractOSImage,
+  reprocessOSImage,
+  updateOSImage,
+  importOSImages,
   mountOSImage,
   unmountOSImage,
   createHost,

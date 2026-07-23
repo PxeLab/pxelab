@@ -31,6 +31,7 @@ export function mapLink(e: Event): string | undefined {
   const hostId = e.detail?.host_id
   if (typeof hostId === 'string' && hostId) return `/hosts/${hostId}`
   if ((e.type || '').toLowerCase().includes('install')) return '/install-tasks'
+  if ((e.type || '').toUpperCase() === 'OS_IMAGE') return '/os-images'
   return undefined
 }
 
