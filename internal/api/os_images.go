@@ -111,8 +111,8 @@ func (h *OSImageHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if img.ExtractedTo != "" {
 		os.RemoveAll(img.ExtractedTo)
 	}
-	// 导入的外部文件只删记录，不动用户的源文件；托管文件随记录删除
-	if img.SourcePath == "" {
+	// 导入的外部文件默认只删记录；显式传 ?delete_file=1 才删除源文件；托管文件随记录删除
+	if img.SourcePath == "" || r.URL.Query().Get("delete_file") == "1" {
 		os.Remove(h.isoPathOf(img))
 	}
 
@@ -284,6 +284,27 @@ func (h *OSImageHandler) publishEvent(level models.EventLevel, message string) {
 		Level:   level,
 		Message: message,
 	})
+}
+
+// ServeFile 以 HTTP 下载原始 ISO 文件（导入的外部镜像也可通过此接口网络可达）
+func (h *OSImageHandler) ServeFile(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	img, err := h.store.GetOSImage(r.Context(), uint(id))
+	if err != nil {
+		Error(w, http.StatusNotFound, "image not found")
+		return
+	}
+	path := h.isoPathOf(img)
+	if _, err := os.Stat(path); err != nil {
+		Error(w, http.StatusNotFound, "iso file missing")
+		return
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", img.Filename))
+	http.ServeFile(w, r, path)
 }
 
 // Reprocess 重新执行识别流程（发行版/kernel/initrd 探测逻辑更新后，旧记录可借此刷新）

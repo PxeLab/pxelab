@@ -278,6 +278,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/os-images/{id}", h.OSImage.Update)
 		r.Delete("/os-images/{id}", h.OSImage.Delete)
 		r.Post("/os-images/import", h.OSImage.Import)
+		r.Get("/os-images/{id}/file", h.OSImage.ServeFile)
+		r.Get("/fs/browse", (&FSHandler{}).Browse)
 		r.Post("/os-images/{id}/extract", h.OSImage.Extract)
 		r.Post("/os-images/{id}/reprocess", h.OSImage.Reprocess)
 		r.Post("/os-images/{id}/mount", h.OSImage.Mount)

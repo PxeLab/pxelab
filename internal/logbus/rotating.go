@@ -55,6 +55,9 @@ func NewRotatingFile(cfg RotatingConfig) (*RotatingFile, error) {
 		rf.maxAge = time.Duration(cfg.MaxAgeDays) * 24 * time.Hour
 	}
 
+	// 注册到活动写入器表，供清理时安全截断
+	activeRotators.Store(filepath.Join(cfg.Dir, cfg.BaseName), rf)
+
 	// 获取当前文件大小
 	fpath := filepath.Join(rf.dir, rf.baseName)
 	if info, err := os.Stat(fpath); err == nil {
@@ -239,6 +242,7 @@ func (rf *RotatingFile) Close() {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
+	activeRotators.Delete(filepath.Join(rf.dir, rf.baseName))
 	if rf.cleanupTicker != nil {
 		rf.cleanupTicker.Stop()
 		close(rf.stopCleanup)
@@ -248,6 +252,26 @@ func (rf *RotatingFile) Close() {
 		rf.f = nil
 	}
 }
+
+// Truncate 清空当前日志文件（保留文件本身），供手动清理调用
+func (rf *RotatingFile) Truncate() error {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
+	if rf.f != nil {
+		rf.f.Close()
+	}
+	f, err := os.OpenFile(filepath.Join(rf.dir, rf.baseName), os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	rf.f = f
+	rf.currentSize = 0
+	return nil
+}
+
+// activeRotators 记录活动日志写入器（路径 → RotatingFile），用于安全截断
+var activeRotators sync.Map
 
 // ── 日志文件信息（供 API 使用） ──
 
@@ -371,6 +395,21 @@ func CleanupLogs(logDir string, maxAgeDays int, maxBackups int) (int, error) {
 				os.Remove(fpath)
 				removed++
 			}
+		}
+	}
+
+	// 截断活动日志文件（用户点"立即清理"的直觉预期是当前文件也变小；
+	// 通过注册的写入器截断，保证文件偏移一致，不会写出稀疏空洞）
+	actives, _ := filepath.Glob(filepath.Join(logDir, "*.log"))
+	for _, fpath := range actives {
+		if v, ok := activeRotators.Load(fpath); ok {
+			if err := v.(*RotatingFile).Truncate(); err == nil {
+				removed++
+			}
+			continue
+		}
+		if err := os.Truncate(fpath, 0); err == nil {
+			removed++
 		}
 	}
 
