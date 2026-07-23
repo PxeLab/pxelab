@@ -99,6 +99,8 @@
     "title": "主机管理",
     "search": "搜索 MAC / 主机名 / IP ...",
     "addHost": "新建主机",
+    "editHost": "编辑主机",
+    "updated": "主机已更新",
     "empty": "暂无主机",
     "columns": {
       "mac": "MAC 地址",
@@ -220,7 +222,7 @@
     "sanAction": "操作类型",
     "sanBoot": "sanboot — 从 SAN 启动",
     "sanHook": "sanhook — 注册 SAN 盘",
-    "sanZap": "sanzboot — 清除后启动",
+    "sanZap": "sanunhook — 卸载 SAN 盘",
     "sanUnhook": "sanhook — 断开 SAN 连接",
     "targetUrl": "目标 URL",
     "driveOptional": "--drive（可选）",
@@ -759,6 +761,8 @@
   },
   "answerTemplates": {
     "title": "应答模板管理",
+    "deleteTemplate": "删除模板",
+    "deleteConfirm": "确定删除模板「{{name}}」？此操作不可恢复。",
     "loadFailed": "加载失败",
     "saveFailed": "保存失败",
     "deleteFailed": "删除失败",

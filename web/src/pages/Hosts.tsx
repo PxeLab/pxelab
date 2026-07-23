@@ -27,6 +27,8 @@ export default function Hosts() {
   const [newHost, setNewHost] = useState({ name: '', mac: '', ip: '', profile_id: '' })
   const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([])
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [sortField, setSortField] = useState('')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   const { pageSize } = useUIConfig()
 
@@ -82,6 +84,18 @@ export default function Hosts() {
     }
   }
 
+  const handleSort = (field: string) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortField(field); setSortDir('asc') }
+  }
+
+  const sortedHosts = sortField
+    ? [...hosts].sort((a, b) => {
+        const cmp = String(a[sortField as keyof Host] ?? '').localeCompare(String(b[sortField as keyof Host] ?? ''))
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+    : hosts
+
   const columns: Column<Host>[] = [
     { key: 'mac', label: t('hosts.columns.mac'), render: (h) => <span className="font-mono text-xs text-[var(--text-primary)]">{h.mac}</span>, sortable: true },
     { key: 'name', label: t('hosts.columns.hostname'), render: (h) => <span className="font-medium text-[var(--text-primary)]">{h.name || '—'}</span> },
@@ -123,9 +137,12 @@ export default function Hosts() {
       <Card padding={false}>
         <DataTable
           columns={columns}
-          data={hosts}
+          data={sortedHosts}
           loading={loading}
           onRowClick={(h) => navigate('/hosts/' + h.id)}
+          sortField={sortField}
+          sortDir={sortDir}
+          onSort={handleSort}
           emptyText={t('hosts.empty', '暂无主机')}
         />
         <div className="px-5 py-3">
@@ -146,7 +163,7 @@ export default function Hosts() {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">MAC {t('hosts.columns.mac')}</label>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.mac')}</label>
             <Input placeholder="00:11:22:33:44:55" value={newHost.mac} onChange={e => setNewHost({...newHost, mac: e.target.value})} />
           </div>
           <div>

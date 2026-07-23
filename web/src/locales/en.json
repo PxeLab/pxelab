@@ -99,6 +99,8 @@
     "title": "Hosts",
     "search": "Search MAC / Hostname / IP ...",
     "addHost": "Add Host",
+    "editHost": "Edit Host",
+    "updated": "Host updated",
     "empty": "No hosts yet",
     "columns": {
       "mac": "MAC Address",
@@ -220,7 +222,7 @@
     "sanAction": "Action",
     "sanBoot": "sanboot — Boot from SAN",
     "sanHook": "sanhook — Register SAN disk",
-    "sanZap": "sanzboot — Zap and boot",
+    "sanZap": "sanunhook — Unhook SAN drive",
     "sanUnhook": "sanhook — Disconnect SAN",
     "targetUrl": "Target URL",
     "driveOptional": "--drive (optional)",
@@ -759,6 +761,8 @@
   },
   "answerTemplates": {
     "title": "Answer Templates",
+    "deleteTemplate": "Delete Template",
+    "deleteConfirm": "Delete template \"{{name}}\"? This cannot be undone.",
     "loadFailed": "Failed to load",
     "saveFailed": "Failed to save",
     "deleteFailed": "Failed to delete",

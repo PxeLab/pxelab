@@ -71,6 +71,8 @@ export default function AnswerTemplates() {
   const [diffVerB, setDiffVerB] = useState<number | ''>('')
   const [confirmBatchDelete, setConfirmBatchDelete] = useState(false)
   const [confirmRollback, setConfirmRollback] = useState<number | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<AnswerTemplate | null>(null)
+  const [editorError, setEditorError] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -98,15 +100,16 @@ export default function AnswerTemplates() {
 
   const save = async () => {
     if (!editing) return
+    setEditorError('')
     // Validate before save
     try {
       const res = await api.validateAnswerTemplate(editing.content)
       if (!res.data.valid) {
-        setError('Template syntax error: ' + (res.data.error || 'unknown'))
+        setEditorError('Template syntax error: ' + (res.data.error || 'unknown'))
         return
       }
     } catch (err: any) {
-      setError('Validation failed: ' + err.message)
+      setEditorError('Validation failed: ' + err.message)
       return
     }
     try {
@@ -120,7 +123,7 @@ export default function AnswerTemplates() {
       setValidationResult(null)
       await load()
     } catch (err: any) {
-      setError(err.message || t('answerTemplates.saveFailed'))
+      setEditorError(err.message || t('answerTemplates.saveFailed'))
     }
   }
 
@@ -132,6 +135,12 @@ export default function AnswerTemplates() {
     } catch (err: any) {
       setError(err.message || t('answerTemplates.deleteFailed'))
     }
+  }
+
+  const doDelete = async () => {
+    if (!confirmDelete?.id) return
+    await remove(confirmDelete.id)
+    setConfirmDelete(null)
   }
 
   const removeBatch = async () => {
@@ -157,12 +166,14 @@ export default function AnswerTemplates() {
   const openNew = () => {
     setEditing({ name: '', description: '', type: 'preseed', content: '' })
     setValidationResult(null)
+    setEditorError('')
     setShowEditor(true)
   }
 
   const openNewWithContent = (content: string, name: string) => {
     setEditing({ name, description: '', type: 'preseed', content })
     setValidationResult(null)
+    setEditorError('')
     setShowEditor(true)
   }
 
@@ -186,6 +197,7 @@ export default function AnswerTemplates() {
     })
     setShowPresets(false)
     setValidationResult(null)
+    setEditorError('')
   }
 
   const renderTemplate = () => {
@@ -287,6 +299,7 @@ export default function AnswerTemplates() {
   const openEdit = (tpl: AnswerTemplate) => {
     setEditing({ ...tpl })
     setValidationResult(null)
+    setEditorError('')
     setShowEditor(true)
   }
 
@@ -436,7 +449,7 @@ export default function AnswerTemplates() {
           <Button variant="ghost" size="sm" onClick={() => openEdit(tpl)}>{t('common.edit')}</Button>
           <Button variant="ghost" size="sm" onClick={() => exportSingle(tpl)}>{t('answerTemplates.export')}</Button>
           <Button variant="ghost" size="sm" onClick={() => tpl.id && openVersions(tpl.id)}>{t('answerTemplates.versions')}</Button>
-          <Button variant="danger" size="sm" onClick={() => tpl.id && remove(tpl.id)}>{t('common.delete')}</Button>
+          <Button variant="danger" size="sm" onClick={() => setConfirmDelete(tpl)}>{t('common.delete')}</Button>
         </>
       ),
     },
@@ -478,7 +491,7 @@ export default function AnswerTemplates() {
       {/* Editor Modal */}
       <Modal
         open={showEditor && !!editing}
-        onClose={() => { setShowEditor(false); setValidationResult(null) }}
+        onClose={() => { setShowEditor(false); setValidationResult(null); setEditorError('') }}
         title={editing?.id ? t('answerTemplates.editTemplate') : t('answerTemplates.newTemplate')}
         width="780px"
         footer={
@@ -496,6 +509,14 @@ export default function AnswerTemplates() {
       >
         {editing && (
           <>
+            {/* Editor error (save/validate failures) */}
+            {editorError && (
+              <div className="mb-4 px-3 py-2 rounded-lg text-xs flex items-center gap-2 bg-accent-red/10 text-accent-red border border-accent-red/20">
+                <span className="flex-1">{editorError}</span>
+                <button onClick={() => setEditorError('')} className="text-accent-red/60 hover:text-accent-red">✕</button>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('answerTemplates.name')}</label>
@@ -746,6 +767,13 @@ export default function AnswerTemplates() {
           </div>
         )}
       </Modal>
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={doDelete}
+        title={t('answerTemplates.deleteTemplate')}
+        message={t('answerTemplates.deleteConfirm', { name: confirmDelete?.name || '' })}
+      />
       <ConfirmDialog
         open={confirmBatchDelete}
         onClose={() => setConfirmBatchDelete(false)}

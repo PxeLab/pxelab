@@ -13,6 +13,14 @@ import { Input, Select } from '../components/ui/FormControls'
 import { DataTable } from '../components/ui/DataTable'
 import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord } from '../api/client'
 
+// 电源操作 action → i18n key 显式映射（key 不是 action 的简单拼接）
+const powerLabelKeys: Record<string, string> = {
+  on: 'powerOn',
+  off: 'powerOff',
+  cycle: 'powerRestart',
+  status: 'powerStatus',
+}
+
 export default function HostDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -43,6 +51,12 @@ export default function HostDetail() {
   const [bootConfigContent, setBootConfigContent] = useState('')
   const [bootConfigLoading, setBootConfigLoading] = useState(false)
   const [bootConfigError, setBootConfigError] = useState('')
+
+  // Edit host state
+  const [showEdit, setShowEdit] = useState(false)
+  const [editForm, setEditForm] = useState({ name: '', mac: '', ip: '', profile_id: '', bmc_addr: '', bmc_user: '' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([])
 
   // WOL state
   const [wolHistory, setWolHistory] = useState<WOLHistoryRecord[]>([])
@@ -76,6 +90,12 @@ export default function HostDetail() {
     load()
   }, [id])
 
+  useEffect(() => {
+    api.getProfiles().then(res => {
+      setProfiles(res.data.map(p => ({ id: p.id, name: p.name })))
+    }).catch(() => {})
+  }, [])
+
   async function handlePower(action: string) {
     if (!host) return
     if (action !== 'status') {
@@ -85,7 +105,7 @@ export default function HostDetail() {
     setPowerLoading(action)
     try {
       const res = await api.powerHost(host.id, action)
-      success( `${t('hosts.detail.power' + action)}: ${(res.data as any).status}`)
+      success(`${t('hosts.detail.' + powerLabelKeys[action])}: ${(res.data as any).status}`)
     } catch (err: any) {
       showError(err.message)
     } finally {
@@ -98,7 +118,7 @@ export default function HostDetail() {
     setPowerLoading(confirmPower)
     try {
       const res = await api.powerHost(host.id, confirmPower)
-      success(`${t('hosts.detail.power' + confirmPower)}: ${(res.data as any).status}`)
+      success(`${t('hosts.detail.' + powerLabelKeys[confirmPower])}: ${(res.data as any).status}`)
     } catch (err: any) {
       showError(err.message)
     } finally {
@@ -146,6 +166,29 @@ export default function HostDetail() {
     }
   }
 
+  async function handleSaveEdit() {
+    if (!host) return
+    setEditSaving(true)
+    try {
+      const res = await api.updateHost(host.id, {
+        ...host,
+        name: editForm.name,
+        mac: editForm.mac,
+        ip: editForm.ip,
+        profile_id: editForm.profile_id || undefined,
+        bmc_addr: editForm.bmc_addr,
+        bmc_user: editForm.bmc_user,
+      })
+      setHost(res.data)
+      setShowEdit(false)
+      success(t('hosts.updated'))
+    } catch (err: any) {
+      showError(err.message)
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   if (loading) {
     return <div className="space-y-6">
       {Array.from({ length: 3 }).map((_, i) => (
@@ -177,7 +220,17 @@ export default function HostDetail() {
           <Button variant="secondary" size="sm" onClick={doWOLWake} disabled={wakingWOL}>
             <Wifi size={14} /> {wakingWOL ? '...' : t('hosts.detail.wolWake')}
           </Button>
-          <Button variant="primary" size="sm" onClick={() => navigate('/hosts/' + host.id + '/edit')}>
+          <Button variant="primary" size="sm" onClick={() => {
+            setEditForm({
+              name: host.name || '',
+              mac: host.mac || '',
+              ip: host.ip || '',
+              profile_id: host.profile_id || '',
+              bmc_addr: host.bmc_addr || '',
+              bmc_user: host.bmc_user || '',
+            })
+            setShowEdit(true)
+          }}>
             {t('common.edit')}
           </Button>
         </div>
@@ -557,12 +610,67 @@ export default function HostDetail() {
         </div>
       </Modal>
 
+      {/* Edit Host Modal */}
+      <Modal
+        open={showEdit && !!host}
+        onClose={() => setShowEdit(false)}
+        title={t('hosts.editHost')}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setShowEdit(false)}>{t('common.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={handleSaveEdit} disabled={editSaving}>
+              {editSaving ? t('common.processing') : t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.mac')}</label>
+            <Input placeholder="00:11:22:33:44:55" value={editForm.mac} onChange={e => setEditForm({ ...editForm, mac: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.hostname')}</label>
+            <Input placeholder="node-01" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.ip')}</label>
+              <Input placeholder="192.168.1.100" value={editForm.ip} onChange={e => setEditForm({ ...editForm, ip: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('profiles.title')}</label>
+              <Select
+                size="sm"
+                value={editForm.profile_id}
+                onChange={e => setEditForm({ ...editForm, profile_id: e.target.value })}
+              >
+                <option value="">—</option>
+                {profiles.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('bmc.addr')}</label>
+              <Input placeholder="192.168.1.10" value={editForm.bmc_addr} onChange={e => setEditForm({ ...editForm, bmc_addr: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('bmc.username')}</label>
+              <Input placeholder="admin" value={editForm.bmc_user} onChange={e => setEditForm({ ...editForm, bmc_user: e.target.value })} />
+            </div>
+          </div>
+        </div>
+      </Modal>
+
       <ConfirmDialog
         open={!!confirmPower}
         onClose={() => setConfirmPower(null)}
         onConfirm={doPower}
         title={t('hosts.detail.powerConfirm')}
-        message={`${t('hosts.detail.power' + confirmPower)}?`}
+        message={confirmPower ? `${t('hosts.detail.' + powerLabelKeys[confirmPower])}?` : ''}
       />
       <ConfirmDialog
         open={!!confirmDeleteTask}
