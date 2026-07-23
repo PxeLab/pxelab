@@ -76,8 +76,8 @@ export function uploadOSImageWithProgress(
   })
 }
 
-export function deleteOSImage(id: number): Promise<ApiResponse<void>> {
-  return request<void>('DELETE', `/os-images/${id}`)
+export function deleteOSImage(id: number, deleteFile = false): Promise<ApiResponse<void>> {
+  return request<void>('DELETE', `/os-images/${id}${deleteFile ? '?delete_file=1' : ''}`)
 }
 
 export function extractOSImage(id: number): Promise<ApiResponse<OSImage>> {
@@ -94,6 +94,16 @@ export function updateOSImage(id: number, data: Partial<Pick<OSImage, 'name' | '
 
 export function importOSImages(dir: string, recursive = false): Promise<ApiResponse<{ imported: number; skipped: number }>> {
   return request<{ imported: number; skipped: number }>('POST', '/os-images/import', { dir, recursive })
+}
+
+export interface FsBrowseResult {
+  path: string
+  parent: string
+  dirs: string[]
+}
+
+export function browseFs(path: string): Promise<ApiResponse<FsBrowseResult>> {
+  return request<FsBrowseResult>('GET', '/fs/browse' + (path ? `?path=${encodeURIComponent(path)}` : ''))
 }
 
 export function mountOSImage(id: number): Promise<ApiResponse<OSImage>> {

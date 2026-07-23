@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Upload, Trash2, RefreshCw, Disc, FileArchive, HardDrive, Search, AlertCircle, CheckCircle, Clock, FolderInput, Pencil } from 'lucide-react'
+import { Upload, Trash2, RefreshCw, Disc, FileArchive, HardDrive, Search, AlertCircle, CheckCircle, Clock, FolderInput, Pencil, FolderOpen, Folder, ArrowUp } from 'lucide-react'
 import { PieChart, Pie, Cell } from 'recharts'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -9,7 +9,8 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Tag } from '../components/ui/Tag'
 import { DataTable, type Column } from '../components/ui/DataTable'
-import { Input } from '../components/ui/FormControls'
+import { Input, Select } from '../components/ui/FormControls'
+import { Pagination } from '../components/ui/Pagination'
 import { useToast } from '../components/ui/Toast'
 import { api, type OSImage } from '../api/client'
 
@@ -89,12 +90,18 @@ export default function OSImages() {
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ name: string; percent: number } | null>(null)
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'all' | DistroKind>('all')
+  const [page, setPage] = useState(1)
+  const [sortField, setSortField] = useState('created_at')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [deleteTarget, setDeleteTarget] = useState<OSImage | null>(null)
+  const [deleteFileToo, setDeleteFileToo] = useState(false)
   const [unmountTarget, setUnmountTarget] = useState<OSImage | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [importDir, setImportDir] = useState('')
   const [importRecursive, setImportRecursive] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [browseState, setBrowseState] = useState<{ path: string; parent: string; dirs: string[] } | null>(null)
   const [editTarget, setEditTarget] = useState<OSImage | null>(null)
   const [editForm, setEditForm] = useState({ name: '', distro: '', version: '', arch: '' })
 
@@ -142,9 +149,10 @@ export default function OSImages() {
   const handleDelete = async () => {
     if (!deleteTarget?.id) return
     try {
-      await api.deleteOSImage(deleteTarget.id)
+      await api.deleteOSImage(deleteTarget.id, deleteTarget.source_path ? deleteFileToo : false)
       success(t('osImages.deleted'))
       setDeleteTarget(null)
+      setDeleteFileToo(false)
       await loadImages()
     } catch (err: any) { showError(err.message) }
   }
@@ -189,9 +197,17 @@ export default function OSImages() {
       success(t('osImages.importResult', { imported: res.data.imported, skipped: res.data.skipped }))
       setImportOpen(false)
       setImportDir('')
+      setBrowseState(null)
       await loadImages()
     } catch (err: any) { showError(err.message) }
     finally { setImporting(false) }
+  }
+
+  const browseTo = async (path: string) => {
+    try {
+      const res = await api.browseFs(path)
+      setBrowseState(res.data)
+    } catch (err: any) { showError(err.message) }
   }
 
   const openEdit = (img: OSImage) => {
@@ -210,10 +226,30 @@ export default function OSImages() {
   }
 
   const filtered = images.filter(img =>
-    !search || img.name.toLowerCase().includes(search.toLowerCase()) ||
-    img.distro?.toLowerCase().includes(search.toLowerCase()) ||
-    img.version?.toLowerCase().includes(search.toLowerCase())
+    (!search || img.name.toLowerCase().includes(search.toLowerCase()) ||
+      img.distro?.toLowerCase().includes(search.toLowerCase()) ||
+      img.version?.toLowerCase().includes(search.toLowerCase())) &&
+    (typeFilter === 'all' || distroKind(img.distro) === typeFilter)
   )
+
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0
+    switch (sortField) {
+      case 'name': cmp = a.name.localeCompare(b.name); break
+      case 'distro': cmp = (a.distro || '').localeCompare(b.distro || ''); break
+      case 'size': cmp = (a.size || 0) - (b.size || 0); break
+      default: cmp = (a.created_at || '').localeCompare(b.created_at || '')
+    }
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  const PAGE_SIZE = 10
+  const paged = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const handleSort = (field: string) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortField(field); setSortDir('asc') }
+  }
 
   const stats = computeStats(images)
   const pieData = [
@@ -226,7 +262,7 @@ export default function OSImages() {
 
   const columns: Column<OSImage>[] = [
     {
-      key: 'name', label: t('osImages.colName'),
+      key: 'name', label: t('osImages.colName'), sortable: true,
       render: (img) => (
         <div className="flex items-center gap-2 min-w-0">
           <Disc size={15} className="shrink-0 text-[var(--text-muted)]" />
@@ -235,7 +271,7 @@ export default function OSImages() {
       ),
     },
     {
-      key: 'distro', label: t('osImages.distro'),
+      key: 'distro', label: t('osImages.distro'), sortable: true,
       render: (img) => (
         <span className="text-xs text-[var(--text-primary)]">{img.distro || '—'}{img.version ? ` ${img.version}` : ''}</span>
       ),
@@ -248,7 +284,7 @@ export default function OSImages() {
       key: 'path', label: t('osImages.colPath'),
       render: (img) => <span className="font-mono text-[10px] text-[var(--text-muted)] block max-w-[220px] truncate" title={img.file_path || img.filename}>{img.file_path || img.filename}</span>,
     },
-    { key: 'size', label: t('osImages.size'), render: (img) => <span className="font-mono text-xs">{formatSize(img.size || 0)}</span> },
+    { key: 'size', label: t('osImages.size'), sortable: true, render: (img) => <span className="font-mono text-xs">{formatSize(img.size || 0)}</span> },
     {
       key: 'status', label: t('osImages.colStatus'),
       render: (img) => (
@@ -274,7 +310,7 @@ export default function OSImages() {
         ? <span className="text-accent-green font-mono text-[10px]">{`${window.location.origin}/boot/isos/${img.extracted_to.split(/[\\/]/).pop()}/`}</span>
         : <span className="text-[var(--text-muted)]">—</span>,
     },
-    { key: 'created_at', label: t('osImages.colCreated'), render: (img) => <span className="text-[10px] text-[var(--text-muted)]">{formatTime(img.created_at || '')}</span> },
+    { key: 'created_at', label: t('osImages.colCreated'), sortable: true, render: (img) => <span className="text-[10px] text-[var(--text-muted)]">{formatTime(img.created_at || '')}</span> },
     {
       key: 'actions', label: t('osImages.colActions'), className: 'text-right',
       render: (img) => (
@@ -423,33 +459,65 @@ export default function OSImages() {
         </div>
       </div>
 
-      {/* 列表 */}
-      <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] z-10" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder={t('osImages.searchPlaceholder')}
-          className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg pl-9 pr-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
-        />
+      {/* 搜索 + 类型过滤 */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] z-10" />
+          <input
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            placeholder={t('osImages.searchPlaceholder')}
+            className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded-lg pl-9 pr-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500"
+          />
+        </div>
+        <Select
+          value={typeFilter}
+          onChange={e => { setTypeFilter(e.target.value as 'all' | DistroKind); setPage(1) }}
+          className="w-36! shrink-0"
+        >
+          <option value="all">{t('osImages.filterAllTypes')}</option>
+          <option value="linux">Linux</option>
+          <option value="windows">Windows</option>
+          <option value="other">{t('osImages.statsOther')}</option>
+        </Select>
       </div>
 
       <Card padding={false}>
         <DataTable
           columns={columns}
-          data={filtered}
+          data={paged}
           loading={loading}
           emptyText={t('osImages.noImages')}
           rowKey={(img) => String(img.id)}
+          sortField={sortField}
+          sortDir={sortDir}
+          onSort={handleSort}
         />
+        <div className="px-4 pb-2">
+          <Pagination page={page} total={sorted.length} size={PAGE_SIZE} onChange={setPage} />
+        </div>
       </Card>
 
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={t('osImages.deleteTitle')}>
+      <Modal open={!!deleteTarget} onClose={() => { setDeleteTarget(null); setDeleteFileToo(false) }} title={t('osImages.deleteTitle')}>
         <p className="text-sm text-[var(--text-secondary)] mb-4">
           {t('osImages.deleteConfirmPre')} <strong>{deleteTarget?.name}</strong>{t('osImages.deleteConfirmPost')}
         </p>
+        {deleteTarget?.source_path ? (
+          <div className="mb-4 space-y-2">
+            <p className="text-xs text-[var(--text-muted)]">{t('osImages.deleteExternalNote')}</p>
+            <label className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+              <input type="checkbox" checked={deleteFileToo} onChange={e => setDeleteFileToo(e.target.checked)} className="rounded border-[var(--bg-border)] w-4 h-4" />
+              {t('osImages.deleteFileToo')}
+            </label>
+            {deleteFileToo && (
+              <p className="text-[11px] font-mono text-accent-red break-all">{deleteTarget.source_path}</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-[var(--text-muted)] mb-4">{t('osImages.deleteManagedNote')}</p>
+        )}
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t('osImages.cancel')}</Button>
+          <Button variant="secondary" onClick={() => { setDeleteTarget(null); setDeleteFileToo(false) }}>{t('osImages.cancel')}</Button>
           <Button variant="danger" onClick={handleDelete}>{t('osImages.delete')}</Button>
         </div>
       </Modal>
@@ -463,21 +531,59 @@ export default function OSImages() {
       />
 
       {/* 导入目录 */}
-      <Modal open={importOpen} onClose={() => setImportOpen(false)} title={t('osImages.importDirTitle')}>
+      <Modal open={importOpen} onClose={() => { setImportOpen(false); setBrowseState(null) }} title={t('osImages.importDirTitle')}>
         <div className="space-y-4">
           <p className="text-xs text-[var(--text-muted)]">{t('osImages.importDirHint')}</p>
-          <Input
-            value={importDir}
-            onChange={e => setImportDir(e.target.value)}
-            placeholder={t('osImages.importDirPlaceholder')}
-            className="font-mono"
-          />
+          <div className="flex gap-2">
+            <Input
+              value={importDir}
+              onChange={e => setImportDir(e.target.value)}
+              placeholder={t('osImages.importDirPlaceholder')}
+              className="font-mono"
+            />
+            <Button variant="secondary" onClick={() => browseState ? setBrowseState(null) : browseTo(importDir.trim())}>
+              <FolderOpen size={14} /> {t('osImages.browse')}
+            </Button>
+          </div>
+          {browseState && (
+            <div className="border border-[var(--border)] rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 bg-[var(--hover)] border-b border-[var(--border)]">
+                <span className="text-[11px] font-mono text-[var(--foreground-secondary)] truncate">{browseState.path || t('osImages.browseRoot')}</span>
+                <button
+                  onClick={() => { setImportDir(browseState.path); setBrowseState(null) }}
+                  disabled={!browseState.path}
+                  className="text-[11px] text-blue-400 hover:text-blue-300 font-medium shrink-0 ml-2 disabled:opacity-40"
+                >
+                  {t('osImages.browseSelect')}
+                </button>
+              </div>
+              <div className="max-h-[200px] overflow-y-auto">
+                {browseState.parent !== undefined && browseState.path && (
+                  <button onClick={() => browseTo(browseState.parent)} className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-[var(--foreground-secondary)] hover:bg-[var(--hover)]">
+                    <ArrowUp size={12} className="text-[var(--foreground-muted)]" /> ..
+                  </button>
+                )}
+                {browseState.dirs.length === 0 && (
+                  <p className="px-3 py-3 text-xs text-[var(--foreground-muted)] text-center">{t('osImages.browseEmpty')}</p>
+                )}
+                {browseState.dirs.map(d => (
+                  <button
+                    key={d}
+                    onClick={() => browseTo(browseState.path ? `${browseState.path.replace(/[\\/]+$/, '')}/${d}` : d)}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-[var(--foreground-primary)] hover:bg-[var(--hover)]"
+                  >
+                    <Folder size={12} className="text-accent-yellow shrink-0" /> {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <label className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)] cursor-pointer">
             <input type="checkbox" checked={importRecursive} onChange={e => setImportRecursive(e.target.checked)} className="rounded border-[var(--bg-border)] w-4 h-4" />
             {t('osImages.importRecursive')}
           </label>
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setImportOpen(false)}>{t('osImages.cancel')}</Button>
+            <Button variant="secondary" onClick={() => { setImportOpen(false); setBrowseState(null) }}>{t('osImages.cancel')}</Button>
             <Button onClick={handleImport} disabled={importing || !importDir.trim()}>
               {importing ? t('osImages.importing') : t('osImages.importDir')}
             </Button>
