@@ -7,7 +7,8 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { Input, Select } from '../components/ui/FormControls'
 import { DataTable, type Column } from '../components/ui/DataTable'
-import { api, type PingPacket, type PingResult, type TracerouteHop, type TracerouteResult, type NetworkInterface } from '../api/client'
+import { api, type PingPacket, type PingResult, type TracerouteHop, type NetworkInterface } from '../api/client'
+import { RefreshCw } from 'lucide-react'
 
 type Tab = 'ping' | 'traceroute'
 
@@ -83,30 +84,32 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
       interface: iface || undefined,
     }
 
-    if (continuous) {
-      // SSE streaming mode
-      const es = api.networkPingStream(opts, (pkt) => {
-        if ('type' in pkt && pkt.type === 'summary') {
-          setLoading(false)
-        } else {
-          setPackets(prev => [...prev, pkt as PingPacket])
-        }
-      })
-      abortRef.current = es
-    } else {
-      try {
-        const res = await api.networkPing(opts)
-        setResult(res.data)
-        setPackets(res.data.packets)
-        if (res.data.reachable) {
-          toastSuccess(t('network.pingSuccess'))
-        }
-      } catch (err: any) {
-        toastError(err.message || t('network.pingFailed'))
-      } finally {
+    // 单次与连续统一走 SSE 流式：包到达即渲染；单次在 summary 时收尾
+    const es = api.networkPingStream(opts, (pkt) => {
+      if ('type' in pkt && pkt.type === 'error') {
         setLoading(false)
+        toastError((pkt as { message?: string }).message || t('network.pingFailed'))
+        abortRef.current = null
+        return
       }
-    }
+      if ('type' in pkt && pkt.type === 'summary') {
+        setLoading(false)
+        if (!continuous) {
+          const s = pkt as any
+          setResult({ host, packets: [], ...s } as unknown as PingResult)
+          if (s.received > 0) toastSuccess(t('network.pingSuccess'))
+          abortRef.current = null
+        }
+      } else {
+        // 持续模式只保留最近 500 条，防止无限增长
+        setPackets(prev => continuous && prev.length >= 500 ? [...prev.slice(-499), pkt as PingPacket] : [...prev, pkt as PingPacket])
+      }
+    }, (err) => {
+      setLoading(false)
+      toastError(err.message || t('network.pingFailed'))
+      abortRef.current = null
+    })
+    abortRef.current = es
   }, [host, count, continuous, size, ttl, intervalMs, timeoutMs, iface])
 
   const stopPing = () => {
@@ -197,7 +200,7 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
             <Button onClick={doPing} disabled={loading || !host.trim()}>
               {t('network.pingButton')}
             </Button>
-            {loading && continuous && (
+            {loading && (
               <Button onClick={stopPing} variant="danger">
                 {t('network.stop')}
               </Button>
@@ -303,29 +306,51 @@ function TraceroutePanel({ interfaces }: { interfaces: NetworkInterface[] }) {
   const [iface, setIface] = useState('')
   const [advanced, setAdvanced] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<TracerouteResult | null>(null)
+  const [hops, setHops] = useState<TracerouteHop[]>([])
+  const [targetIp, setTargetIp] = useState('')
+  const abortRef = useRef<{ close(): void } | null>(null)
 
-  const doTraceroute = async () => {
+  const doTraceroute = () => {
     if (!host.trim()) {
       toastError(t('network.hostRequired'))
       return
     }
     setLoading(true)
-    setResult(null)
-    try {
-      const res = await api.networkTraceroute({
-        host,
-        max_hops: maxHops,
-        timeout_ms: timeoutMs,
-        probes,
-        interface: iface || undefined,
-      })
-      setResult(res.data)
-    } catch (err: any) {
-      toastError(err.message || t('network.tracerouteFailed'))
-    } finally {
+    setHops([])
+    setTargetIp('')
+    // SSE 流式：逐跳到达即渲染
+    const es = api.networkTracerouteStream({
+      host,
+      max_hops: maxHops,
+      timeout_ms: timeoutMs,
+      probes,
+      interface: iface || undefined,
+    }, (data) => {
+      if ('type' in data && data.type === 'error') {
+        setLoading(false)
+        toastError(data.message || t('network.tracerouteFailed'))
+        abortRef.current = null
+        return
+      }
+      if ('type' in data && data.type === 'summary') {
+        setTargetIp(data.ip)
+        setLoading(false)
+        abortRef.current = null
+      } else {
+        setHops(prev => [...prev, data as TracerouteHop])
+      }
+    }, (err) => {
       setLoading(false)
-    }
+      toastError(err.message || t('network.tracerouteFailed'))
+      abortRef.current = null
+    })
+    abortRef.current = es
+  }
+
+  const stopTraceroute = () => {
+    abortRef.current?.close()
+    abortRef.current = null
+    setLoading(false)
   }
 
   const formatRTT = (rtt: number) => {
@@ -399,10 +424,15 @@ function TraceroutePanel({ interfaces }: { interfaces: NetworkInterface[] }) {
             <span className={`transition-transform ${advanced ? 'rotate-90' : ''}`}>▶</span>
             {t('network.advancedOptions')}
           </button>
-          <div className="ml-auto">
+          <div className="ml-auto flex gap-2">
             <Button onClick={doTraceroute} disabled={loading || !host.trim()}>
               {loading ? '...' : t('network.tracerouteButton')}
             </Button>
+            {loading && (
+              <Button onClick={stopTraceroute} variant="danger">
+                {t('network.stop')}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -440,15 +470,16 @@ function TraceroutePanel({ interfaces }: { interfaces: NetworkInterface[] }) {
           </div>
         )}
 
-        {/* Result */}
-        {result && (
+        {/* Result（流式：hop 到达即追加） */}
+        {(hops.length > 0 || targetIp) && (
           <div className="space-y-3">
             <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-              <span>{result.ip}</span>
-              <span>{result.hops.length} {t('network.hops')}</span>
+              {targetIp && <span>{targetIp}</span>}
+              <span>{hops.length} {t('network.hops')}</span>
+              {loading && <RefreshCw size={12} className="animate-spin" />}
             </div>
 
-            <DataTable columns={hopColumns} data={result.hops} />
+            <DataTable columns={hopColumns} data={hops} />
           </div>
         )}
       </div>

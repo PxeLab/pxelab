@@ -1,11 +1,21 @@
 package network
 
 import (
+	"bufio"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math/rand"
 	"net"
+	"os/exec"
+	"regexp"
+	"runtime"
+	"strconv"
+	"strings"
+	"syscall"
 	"time"
+
+	"golang.org/x/net/ipv4"
 )
 
 type TracerouteResult struct {
@@ -43,7 +53,7 @@ func (o *TracerouteOptions) applyDefaults() {
 	}
 }
 
-func Traceroute(ctx context.Context, host string, opts TracerouteOptions) (*TracerouteResult, error) {
+func Traceroute(ctx context.Context, host string, opts TracerouteOptions, onHop func(TracerouteHop)) (*TracerouteResult, error) {
 	opts.applyDefaults()
 
 	ip4Str, err := resolveHost(host)
@@ -56,6 +66,10 @@ func Traceroute(ctx context.Context, host string, opts TracerouteOptions) (*Trac
 		Host: host,
 		IP:   ip4Str,
 		Hops: make([]TracerouteHop, 0, opts.MaxHops),
+	}
+
+	if runtime.GOOS == "windows" {
+		return tracerouteWindows(ctx, ip4Str, opts, result, onHop)
 	}
 
 	id := uint16(rand.Intn(0xffff))
@@ -74,7 +88,7 @@ func Traceroute(ctx context.Context, host string, opts TracerouteOptions) (*Trac
 		for p := 0; p < opts.Probes; p++ {
 			seq := ttl*100 + p
 
-			rttMs, hopIP, ok := sendProbe(ctx, ip4, id, seq, opts)
+			rttMs, hopIP, ok := sendProbe(ctx, ip4, id, seq, ttl, opts)
 			if ok {
 				hop.RTTs = append(hop.RTTs, rttMs)
 				hop.IP = hopIP
@@ -99,6 +113,9 @@ func Traceroute(ctx context.Context, host string, opts TracerouteOptions) (*Trac
 		}
 
 		result.Hops = append(result.Hops, hop)
+		if onHop != nil {
+			onHop(hop)
+		}
 
 		if destReached {
 			break
@@ -108,7 +125,7 @@ func Traceroute(ctx context.Context, host string, opts TracerouteOptions) (*Trac
 	return result, nil
 }
 
-func sendProbe(ctx context.Context, dst net.IP, id uint16, seq int, opts TracerouteOptions) (rttMs float64, hopIP string, ok bool) {
+func sendProbe(ctx context.Context, dst net.IP, id uint16, seq int, ttl int, opts TracerouteOptions) (rttMs float64, hopIP string, ok bool) {
 	listenAddr := "0.0.0.0"
 	if opts.LocalAddr != "" {
 		listenAddr = opts.LocalAddr
@@ -119,6 +136,11 @@ func sendProbe(ctx context.Context, dst net.IP, id uint16, seq int, opts Tracero
 		return 0, "", false
 	}
 	defer conn.Close()
+
+	// 关键：设置 IP TTL，中间路由器才会回 ICMP Time Exceeded，traceroute 才能逐跳推进
+	if err := ipv4.NewPacketConn(conn).SetTTL(ttl); err != nil {
+		return 0, "", false
+	}
 
 	pkt := icmpEcho{
 		Type: 8,
@@ -181,4 +203,83 @@ func sendProbe(ctx context.Context, dst net.IP, id uint16, seq int, opts Tracero
 			}
 		}
 	}
+}
+
+// ── Windows：调用 tracert.exe 并解析输出（无需管理员权限） ──
+// 中文系统输出为 GBK 编码，Go regexp 会把非法 UTF-8 字节替换成 U+FFFD，
+// 所以解析不依赖任何本地化词（毫秒/请求超时），只按 token 结构提取。
+var (
+	reTracertHop = regexp.MustCompile(`^\s*(\d+)\s+(.*)$`)
+	reTracertIP  = regexp.MustCompile(`(\d+\.\d+\.\d+\.\d+)`)
+)
+
+// gbkMillisecond 是"毫秒"的 GBK 字节序列
+const gbkMillisecond = "\xba\xc1\xc3\xeb"
+
+// parseTracertRTTs 从左到右解析 RTT token（数字或 <数字），遇到主机名/IP 停止。
+// 单位 token（ms / GBK毫秒）跳过；超时的 * 跳过。
+func parseTracertRTTs(rest string) []float64 {
+	rtts := make([]float64, 0, 3)
+	for _, tok := range strings.Fields(rest) {
+		if tok == "*" || tok == "ms" || tok == gbkMillisecond {
+			continue
+		}
+		if strings.HasPrefix(tok, "<") {
+			if _, err := strconv.ParseFloat(tok[1:], 64); err == nil {
+				rtts = append(rtts, 0.5) // 亚毫秒记为 0.5
+				continue
+			}
+		}
+		if v, err := strconv.ParseFloat(tok, 64); err == nil {
+			rtts = append(rtts, v)
+			continue
+		}
+		break // 主机名或 IP，RTT 区结束
+	}
+	return rtts
+}
+
+func tracerouteWindows(ctx context.Context, ip4Str string, opts TracerouteOptions, result *TracerouteResult, onHop func(TracerouteHop)) (*TracerouteResult, error) {
+	args := []string{"-h", strconv.Itoa(opts.MaxHops), "-w", strconv.Itoa(int(opts.Timeout.Milliseconds())), ip4Str}
+	cmd := exec.CommandContext(ctx, "tracert", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("启动 tracert 失败: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("启动 tracert 失败: %w", err)
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		m := reTracertHop.FindStringSubmatch(scanner.Text())
+		if m == nil {
+			continue
+		}
+		hopNum, _ := strconv.Atoi(m[1])
+		rest := m[2]
+
+		hop := TracerouteHop{TTL: hopNum, RTTs: parseTracertRTTs(rest)}
+		if ipm := reTracertIP.FindStringSubmatch(rest); ipm != nil {
+			hop.IP = ipm[1]
+		}
+		if len(hop.RTTs) > 0 {
+			hop.RTT = hop.RTTs[0]
+			hop.Timeout = false
+		} else {
+			hop.Timeout = true
+		}
+		result.Hops = append(result.Hops, hop)
+		if onHop != nil {
+			onHop(hop)
+		}
+
+		if hop.IP == ip4Str {
+			break
+		}
+	}
+
+	cmd.Wait()
+	return result, nil
 }

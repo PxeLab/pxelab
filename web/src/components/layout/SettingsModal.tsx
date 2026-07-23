@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X, Save, Copy, Check, RotateCw, Settings as SettingsIcon, Monitor, FileCode, Activity, HardDrive } from 'lucide-react'
@@ -87,7 +87,8 @@ export default function SettingsModal({ open, onClose }: Props) {
     setSaving(true)
     try {
       const promises: Promise<unknown>[] = []
-      if (section === 'general' && general) promises.push(updateGeneralSettings(general))
+      // boot section（引导菜单）修改的也是 general 配置，保存时同样走 updateGeneralSettings
+      if ((section === 'general' || section === 'boot') && general) promises.push(updateGeneralSettings(general))
       if (section === 'netboot' && netboot) promises.push(updateNetbootSettings(netboot))
       if (section === 'logging' && logging) promises.push(updateLoggingSettings(logging))
       await Promise.all(promises)

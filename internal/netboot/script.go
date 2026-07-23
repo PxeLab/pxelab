@@ -1,4 +1,4 @@
-﻿package netboot
+package netboot
 
 import (
 	"fmt"
@@ -245,7 +245,7 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, t
 		case "hook":
 			b.WriteString(fmt.Sprintf("sanhook %s\n", url))
 		case "zap":
-			b.WriteString(fmt.Sprintf("sanzboot %s\n", url))
+			b.WriteString("sanunhook\n")
 		case "unhook":
 			b.WriteString("sanhook\n")
 		default:

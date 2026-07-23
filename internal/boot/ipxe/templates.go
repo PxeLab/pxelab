@@ -30,7 +30,7 @@ var builtinTemplates = map[string]string{
 	{{else if eq $entry.Type "sanboot"}}{{if $entry.SANKeepSAN}}
 	set keep-san 1
 	{{end}}{{if eq $entry.SANAction "hook"}}sanhook {{$entry.URL}}
-	{{else if eq $entry.SANAction "zap"}}sanzboot {{$entry.URL}}
+	{{else if eq $entry.SANAction "zap"}}sanunhook
 	{{else if eq $entry.SANAction "unhook"}}sanhook
 	{{else}}sanboot{{if $entry.SANNoDescribe}} --no-describe{{end}}{{if $entry.SANDrive}} --drive {{$entry.SANDrive}}{{end}}{{if $entry.URL}} {{$entry.URL}}{{end}}
 	{{end}}
@@ -67,7 +67,7 @@ var builtinTemplates = map[string]string{
 {{- if .SANKeepSAN}}set keep-san 1
 {{end -}}
 {{- if eq .SANAction "hook"}}sanhook {{.URL}}
-{{- else if eq .SANAction "zap"}}sanzboot {{.URL}}
+{{- else if eq .SANAction "zap"}}sanunhook
 {{- else if eq .SANAction "unhook"}}sanhook
 {{- else}}sanboot{{if .SANNoDescribe}} --no-describe{{end}}{{if .SANDrive}} --drive {{.SANDrive}}{{end}}{{if .URL}} {{.URL}}{{end}}
 {{end -}}

@@ -186,7 +186,7 @@ chain ${e.url || '<url>'}`
         if (e.san_action === 'hook') {
           sanParts.push(`sanhook ${sanUrl}`)
         } else if (e.san_action === 'zap') {
-          sanParts.push(`sanzboot ${sanUrl}`)
+          sanParts.push('sanunhook')
         } else if (e.san_action === 'unhook') {
           sanParts.push('sanhook')
         } else {

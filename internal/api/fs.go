@@ -24,7 +24,8 @@ func (h *FSHandler) Browse(w http.ResponseWriter, r *http.Request) {
 
 	if p == "" {
 		if runtime.GOOS == "windows" {
-			var drives []string
+			// 初始化为空切片，避免无盘符时序列化为 null 导致前端 .length 崩溃
+			drives := []string{}
 			for c := 'C'; c <= 'Z'; c++ {
 				d := string(c) + `:\`
 				if _, err := os.Stat(d); err == nil {
@@ -49,6 +50,10 @@ func (h *FSHandler) Browse(w http.ResponseWriter, r *http.Request) {
 		if e.IsDir() {
 			dirs = append(dirs, e.Name())
 		}
+	}
+	// 无子目录时保证序列化为 [] 而非 null
+	if dirs == nil {
+		dirs = []string{}
 	}
 	sort.Strings(dirs)
 

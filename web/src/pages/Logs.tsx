@@ -89,22 +89,16 @@ export default function Logs() {
   const containerRefs = useRef<(HTMLDivElement | null)[]>([])
   const { ref: fullscreenRef, isFullscreen, toggle: toggleFullscreen } = useFullscreen<HTMLDivElement>()
 
-  // SSE url 带面板 0 的过滤参数；url 变化时 useSSE 自动重连
-  const params = new URLSearchParams()
-  const svc = panels[0]?.service
-  const lvl = panels[0]?.level
-  if (svc) params.set('service', svc)
-  if (lvl) params.set('level', lvl)
-  const qs = params.toString()
-  const streamUrl = getBaseURL() + '/api/v1/logs/stream' + (qs ? '?' + qs : '')
+  // SSE 拉全量日志（不带 service/level 过滤），各面板在客户端按各自过滤条件分发
+  const streamUrl = getBaseURL() + '/api/v1/logs/stream'
 
   useSSE<LogEntry>(streamUrl, (entry) => {
     setPanels(prev => prev.map(p => {
       if (p.paused || allPaused) return p
 
-      // 按过滤条件判断
+      // 按过滤条件判断（服务端 entry.level 为大写如 INFO，需忽略大小写比较）
       if (p.service && entry.service !== p.service) return p
-      if (p.level && entry.level !== p.level) return p
+      if (p.level && entry.level.toLowerCase() !== p.level) return p
 
       const next = [...p.logs, entry]
       if (next.length > 500) next.splice(0, next.length - 500)

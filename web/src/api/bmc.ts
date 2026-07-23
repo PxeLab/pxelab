@@ -53,7 +53,7 @@ export function probeBMC(data: { host: string; port: number; username: string; p
   return request<BMCProbeResult>('POST', '/bmc/probe', data)
 }
 
-export function refreshBMCConfig(id: number): Promise<ApiResponse<{ refreshed: boolean; result?: BMCProbeResult; error?: string }>> {
+export function refreshBMCConfig(id: number): Promise<ApiResponse<BMCConfig>> {
   return request('POST', `/bmc/${id}/refresh`)
 }
 
@@ -89,7 +89,14 @@ export function bmcBatchRestart(ids: number[]): Promise<ApiResponse<Array<{ conf
   return request('POST', '/bmc/batch/restart', { ids })
 }
 
-export function bmcBatchStatus(ids: number[]): Promise<ApiResponse<Array<{ config_id: number; state?: string; error?: string }>>> {
+export interface BMCBatchResultItem {
+  id: number
+  success: boolean
+  status?: string
+  error?: string
+}
+
+export function bmcBatchStatus(ids: number[]): Promise<ApiResponse<{ results: BMCBatchResultItem[] }>> {
   return request('POST', '/bmc/batch/status', { ids })
 }
 

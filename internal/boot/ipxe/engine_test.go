@@ -120,8 +120,14 @@ func TestEngineRenderSANZap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "sanzboot iscsi:192.168.1.100") {
-		t.Error("expected sanzboot with URL")
+	if !strings.Contains(out, "sanunhook") {
+		t.Error("expected sanunhook command")
+	}
+	if strings.Contains(out, "sanzboot") {
+		t.Error("should not contain sanzboot (not a valid iPXE command)")
+	}
+	if strings.Contains(out, "sanboot") {
+		t.Error("should not contain sanboot for zap action")
 	}
 }
 
@@ -233,8 +239,8 @@ func TestMenuTemplateSANBoot(t *testing.T) {
 	if !strings.Contains(out, "sanhook iscsi:192.168.1.100::::iqn.2024-01:install") {
 		t.Error("expected sanhook entry")
 	}
-	if !strings.Contains(out, "sanzboot iscsi:192.168.1.100::::iqn.2024-01:old") {
-		t.Error("expected sanzboot entry")
+	if !strings.Contains(out, "sanunhook") {
+		t.Error("expected sanunhook entry")
 	}
 	if !strings.Contains(out, "sanboot --no-describe") {
 		t.Error("expected sanboot --no-describe for empty URL entry")

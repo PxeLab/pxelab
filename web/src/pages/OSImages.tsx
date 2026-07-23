@@ -153,6 +153,8 @@ export default function OSImages() {
       success(t('osImages.deleted'))
       setDeleteTarget(null)
       setDeleteFileToo(false)
+      // 删除的是当前页最后一条时回退一页，避免困在空页
+      if (paged.length === 1 && page > 1) setPage(page - 1)
       await loadImages()
     } catch (err: any) { showError(err.message) }
   }
@@ -315,13 +317,13 @@ export default function OSImages() {
       key: 'actions', label: t('osImages.colActions'), className: 'text-right',
       render: (img) => (
         <div className="flex items-center justify-end gap-1.5">
+          {(img.status === 'error' || (img.status === 'ready' && !img.distro)) && (
+            <button onClick={() => handleReprocess(img.id!)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-blue-400`}>
+              <RefreshCw size={11} /> {t('osImages.reprocess')}
+            </button>
+          )}
           {img.status === 'ready' && (
             <>
-              {!img.distro && (
-                <button onClick={() => handleReprocess(img.id!)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-blue-400`}>
-                  <RefreshCw size={11} /> {t('osImages.reprocess')}
-                </button>
-              )}
               {!img.extracted_to && (
                 <button onClick={() => handleExtract(img.id!)} className={`${actionBtn} hover:bg-accent-orange/15 hover:text-accent-orange`}>
                   <FileArchive size={11} /> {t('osImages.extract')}

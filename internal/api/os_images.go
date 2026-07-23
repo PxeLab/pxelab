@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
@@ -49,6 +50,12 @@ func (h *OSImageHandler) List(w http.ResponseWriter, r *http.Request) {
 			}
 		} else if img.Status == "missing" {
 			img.Status = "ready"
+			changed = true
+		}
+		// 自愈：识别中途服务重启会残留 validating 状态且再无推进，超时后标记为错误以便重新识别
+		if img.Status == "validating" && time.Since(img.UpdatedAt) > 10*time.Minute {
+			img.Status = "error"
+			img.ErrorMessage = "识别中断，请重新识别"
 			changed = true
 		}
 		if img.ExtractedTo != "" {

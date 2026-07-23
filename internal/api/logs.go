@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"bufio"
@@ -116,7 +116,8 @@ func (h *LogStreamHandler) Stream(w http.ResponseWriter, r *http.Request) {
 			if service != "" && entry.Service != service {
 				continue
 			}
-			if level != "" && entry.Level != level {
+			// entry.Level 为大写（INFO），query level 为小写（info），需大小写不敏感比较
+			if level != "" && !strings.EqualFold(entry.Level, level) {
 				continue
 			}
 
@@ -183,7 +184,7 @@ func (h *LogStreamHandler) readLogFiles(serviceFilter, levelFilter string) ([]lo
 			if entry == nil {
 				continue
 			}
-			if levelFilter != "" && entry.Level != levelFilter {
+			if levelFilter != "" && !strings.EqualFold(entry.Level, levelFilter) {
 				continue
 			}
 			all = append(all, *entry)

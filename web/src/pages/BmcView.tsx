@@ -79,8 +79,8 @@ export default function BmcView() {
     try {
       const res = await api.bmcBatchStatus(ids)
       const map: Record<number, string> = {}
-      for (const item of (res.data || [])) {
-        if (item.config_id && item.state) map[item.config_id] = item.state
+      for (const item of (res.data?.results || [])) {
+        if (item.id && item.status) map[item.id] = item.status
       }
       setStatusMap(prev => ({ ...prev, ...map }))
     } catch { /* silent */ }
@@ -90,8 +90,8 @@ export default function BmcView() {
     if (!cfg.id) return
     setRefreshingIds(prev => new Set(prev).add(cfg.id!))
     try {
-      const res = await api.refreshBMCConfig(cfg.id)
-      if (res.data?.refreshed) loadConfigs()
+      await api.refreshBMCConfig(cfg.id)
+      loadConfigs()
     } catch { /* ignore */ }
     setRefreshingIds(prev => { const s = new Set(prev); s.delete(cfg.id!); return s })
   }
@@ -414,6 +414,7 @@ export default function BmcView() {
       </Card>
 
       <BMCConfigForm
+        key={editConfig?.id ?? 'new'}
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditConfig(null) }}
         onSaved={() => { success(t('bmc.saved')); loadConfigs() }}

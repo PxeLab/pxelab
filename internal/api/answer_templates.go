@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"encoding/json"
@@ -28,7 +28,11 @@ func (h *AnswerTemplateHandler) Validate(w http.ResponseWriter, r *http.Request)
 	content := string(body)
 
 	var parseErr string
-	_, err = template.New("answer").Parse(content)
+	funcMap := template.FuncMap{
+		"upper": strings.ToUpper,
+		"lower": strings.ToLower,
+	}
+	_, err = template.New("answer").Funcs(funcMap).Parse(content)
 	if err != nil {
 		parseErr = err.Error()
 	}

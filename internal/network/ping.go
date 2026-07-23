@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -48,9 +49,7 @@ type PingOptions struct {
 }
 
 func (o *PingOptions) applyDefaults() {
-	if o.Count <= 0 {
-		o.Count = 4
-	}
+	// Count <= 0 表示持续 ping（由调用方中止），不再强制默认 4
 	if o.Timeout <= 0 {
 		o.Timeout = time.Second * 2
 	}
@@ -60,11 +59,19 @@ func (o *PingOptions) applyDefaults() {
 }
 
 var (
-	reWinReply   = regexp.MustCompile(`(?:bytes|字节)=(\d+)\s+(?:time|时间)[=<](\d+)ms\s+TTL=(\d+)`)
-	reWinTimeout = regexp.MustCompile(`(?:Request timed out|请求超时)`)
-	reLinReply   = regexp.MustCompile(`bytes from [^(]+\((\d+\.\d+\.\d+\.\d+)\): icmp_seq=(\d+) ttl=(\d+) time=([0-9.]+)\s*ms`)
+	reWinReply = regexp.MustCompile(`=(\d+)\s+\S+[=<](\d+)\s*ms\s+TTL=(\d+)`)
+	reLinReply = regexp.MustCompile(`bytes from [^(]+\((\d+\.\d+\.\d+\.\d+)\): icmp_seq=(\d+) ttl=(\d+) time=([0-9.]+)\s*ms`)
 	reLinTimeout = regexp.MustCompile(`no answer|timeout|100% packet loss`)
 )
+
+// gbkRequestTimeout 是"请求超时"的 GBK 字节序列。
+// Go regexp 按 UTF-8 解析输入，GBK 字节会被替换成 U+FFFD，因此不能用正则匹配 GBK 词，
+// 但 strings.Contains 按原始字节工作，可以安全使用。
+const gbkRequestTimeout = "\xc7\xeb\xc7\xf3\xb3\xac\xca\xb1"
+
+func isWinTimeout(line string) bool {
+	return strings.Contains(strings.ToLower(line), "timed out") || strings.Contains(line, gbkRequestTimeout)
+}
 
 func resolveHost(host string) (string, error) {
 	ips, err := net.LookupIP(host)
@@ -100,10 +107,16 @@ func Ping(ctx context.Context, host string, opts PingOptions, onPacket func(Ping
 }
 
 func pingWindows(ctx context.Context, host, ip string, opts PingOptions, onPacket func(PingPacket), result *PingResult) (*PingResult, error) {
-	args := []string{"-n", strconv.Itoa(opts.Count), "-w", strconv.Itoa(int(opts.Timeout.Milliseconds())), ip}
-	if opts.Size > 0 {
-		args = []string{"-n", strconv.Itoa(opts.Count), "-l", strconv.Itoa(opts.Size), "-w", strconv.Itoa(int(opts.Timeout.Milliseconds())), ip}
+	var args []string
+	if opts.Count > 0 {
+		args = append(args, "-n", strconv.Itoa(opts.Count))
+	} else {
+		args = append(args, "-t") // 持续 ping，直到 ctx 取消被 kill
 	}
+	if opts.Size > 0 {
+		args = append(args, "-l", strconv.Itoa(opts.Size))
+	}
+	args = append(args, "-w", strconv.Itoa(int(opts.Timeout.Milliseconds())), ip)
 
 	cmd := exec.CommandContext(ctx, "ping", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
@@ -137,7 +150,7 @@ func pingWindows(ctx context.Context, host, ip string, opts PingOptions, onPacke
 			if timeMs > result.MaxRTT {
 				result.MaxRTT = timeMs
 			}
-		} else if reWinTimeout.MatchString(line) {
+		} else if isWinTimeout(line) {
 			seq := len(result.Packets)
 			p := PingPacket{Seq: seq, Error: "超时"}
 			result.Packets = append(result.Packets, p)
@@ -153,7 +166,11 @@ func pingWindows(ctx context.Context, host, ip string, opts PingOptions, onPacke
 		}
 	}
 
-	result.Sent = opts.Count
+	if opts.Count > 0 {
+		result.Sent = opts.Count
+	} else {
+		result.Sent = len(result.Packets)
+	}
 	result.Lost = result.Sent - result.Received
 	result.Reachable = result.Received > 0
 	computeStats(result)
@@ -161,7 +178,11 @@ func pingWindows(ctx context.Context, host, ip string, opts PingOptions, onPacke
 }
 
 func pingLinux(ctx context.Context, host, ip string, opts PingOptions, onPacket func(PingPacket), result *PingResult) (*PingResult, error) {
-	args := []string{"-c", strconv.Itoa(opts.Count), "-W", strconv.Itoa(int(opts.Timeout.Seconds())), "-i", fmt.Sprintf("%.1f", opts.Interval.Seconds()), ip}
+	args := []string{"-W", strconv.Itoa(int(opts.Timeout.Seconds())), "-i", fmt.Sprintf("%.1f", opts.Interval.Seconds())}
+	if opts.Count > 0 {
+		args = append([]string{"-c", strconv.Itoa(opts.Count)}, args...)
+	}
+	args = append(args, ip)
 	if opts.Size > 0 {
 		args = append(args, "-s", strconv.Itoa(opts.Size))
 	}
@@ -215,7 +236,11 @@ func pingLinux(ctx context.Context, host, ip string, opts PingOptions, onPacket 
 		}
 	}
 
-	result.Sent = opts.Count
+	if opts.Count > 0 {
+		result.Sent = opts.Count
+	} else {
+		result.Sent = len(result.Packets)
+	}
 	result.Lost = result.Sent - result.Received
 	result.Reachable = result.Received > 0
 	computeStats(result)

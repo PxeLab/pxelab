@@ -258,6 +258,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/network/ping", h.Network.Ping)
 		r.Post("/network/ping/stream", h.Network.PingStream)
 		r.Post("/network/traceroute", h.Network.Traceroute)
+		r.Post("/network/traceroute/stream", h.Network.TracerouteStream)
 		r.Get("/network/interfaces", h.Network.ListInterfaces)
 
 		// WOL

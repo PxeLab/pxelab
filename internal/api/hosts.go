@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"encoding/json"
@@ -75,6 +75,9 @@ func (h *HostHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	host.ID = id
+	// bmc_pass 不参与 JSON 序列化（json:"-"），解码后必为空；
+	// gorm Save 全字段覆盖会把已有密码清空，这里保留旧值
+	host.BMCPass = oldHost.BMCPass
 	if err := h.store.UpdateHost(r.Context(), &host); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return

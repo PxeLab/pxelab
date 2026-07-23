@@ -1,6 +1,7 @@
-﻿package api
+package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -262,6 +263,7 @@ func (h *BMCHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // ImportCSV creates BMC configs from a CSV body.
 // Expected format per line: host,port,username,password,protocol
+// Accepts either a raw CSV body or a JSON body {"csv": "..."}.
 // Returns success and failed counts.
 func (h *BMCHandler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -269,7 +271,21 @@ func (h *BMCHandler) ImportCSV(w http.ResponseWriter, r *http.Request) {
 		failed  int
 	)
 
-	reader := csv.NewReader(r.Body)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// 优先按 JSON {"csv": "..."} 解码，失败则按裸 CSV 解析（向后兼容）
+	var jsonReq struct {
+		CSV string `json:"csv"`
+	}
+	if err := json.Unmarshal(body, &jsonReq); err == nil && jsonReq.CSV != "" {
+		body = []byte(jsonReq.CSV)
+	}
+
+	reader := csv.NewReader(bytes.NewReader(body))
 	reader.FieldsPerRecord = -1 // allow variable number of fields
 	reader.TrimLeadingSpace = true
 
