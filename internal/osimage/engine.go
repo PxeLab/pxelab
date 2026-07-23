@@ -65,10 +65,85 @@ func DetectDistro(isoPath string, mountPoint string) (*ISOMeta, error) {
 		meta.Distro = "windows"
 	} else if _, ok := dirMap["live"]; ok {
 		meta.Distro = "live"
+	} else if _, ok := dirMap["sysresccd"]; ok {
+		meta.Distro = "systemrescue"
 	}
 
-	meta.Arch = detectArch(mountPoint, entries, meta.Distro)
+	// RHEL 家族兜底：真实 CentOS/Rocky/Alma ISO 根目录没有 <distro> 目录，
+	// 但都有 .treeinfo（[general] 段带 name/family/version/arch）
+	var tiArch string
+	if meta.Distro == "" {
+		if b, err := os.ReadFile(filepath.Join(mountPoint, ".treeinfo")); err == nil {
+			meta.Distro, meta.Version, tiArch = parseTreeinfoGeneral(string(b))
+		}
+	}
+
+	if tiArch != "" {
+		meta.Arch = tiArch
+	} else {
+		meta.Arch = detectArch(mountPoint, entries, meta.Distro)
+	}
 	return meta, nil
+}
+
+// parseTreeinfoGeneral 解析 .treeinfo 的 [general] 段，返回发行版/版本/架构（归一化为 amd64/arm64）
+func parseTreeinfoGeneral(s string) (distro, version, arch string) {
+	var name, family string
+	inGeneral := false
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "[") {
+			inGeneral = line == "[general]"
+			continue
+		}
+		if !inGeneral {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		switch strings.TrimSpace(k) {
+		case "name":
+			name = strings.TrimSpace(v)
+		case "family":
+			family = strings.TrimSpace(v)
+		case "version":
+			version = strings.TrimSpace(v)
+		case "arch":
+			arch = strings.TrimSpace(v)
+		}
+	}
+	id := strings.ToLower(name + " " + family)
+	switch {
+	case strings.Contains(id, "centos"):
+		distro = "centos"
+	case strings.Contains(id, "rocky"):
+		distro = "rocky"
+	case strings.Contains(id, "alma"):
+		distro = "almalinux"
+	case strings.Contains(id, "fedora"):
+		distro = "fedora"
+	case strings.Contains(id, "red hat") || strings.Contains(id, "rhel"):
+		distro = "rhel"
+	case strings.Contains(id, "openeuler"):
+		distro = "openeuler"
+	case strings.Contains(id, "kylin"):
+		distro = "kylin"
+	case strings.Contains(id, "anolis"):
+		distro = "anolis"
+	case strings.Contains(id, "uos"):
+		distro = "uos"
+	}
+	switch arch {
+	case "x86_64":
+		arch = "amd64"
+	case "aarch64":
+		arch = "arm64"
+	default:
+		arch = ""
+	}
+	return
 }
 
 func hasKey(m map[string]bool, key string) bool {
@@ -189,8 +264,9 @@ func mountLinuxISO(src, mountPoint string) error {
 }
 
 func mountWindowsISO(src string) (string, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command",
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
 		fmt.Sprintf(`$img = Mount-DiskImage -ImagePath "%s" -StorageType ISO -Access ReadOnly -PassThru; ($img | Get-Volume).DriveLetter`, src))
+	hideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("mount iso on windows: %w", err)
@@ -219,8 +295,9 @@ func unmountLinuxISO(mountPoint string) error {
 }
 
 func unmountWindowsISO(isoPath string) error {
-	cmd := exec.Command("powershell", "-NoProfile", "-Command",
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
 		fmt.Sprintf(`Dismount-DiskImage -ImagePath "%s"`, isoPath))
+	hideWindow(cmd)
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
@@ -266,12 +343,21 @@ func extractLinuxISO(src, dest string) error {
 }
 
 func extractWindowsISO(src, dest string) error {
+	// $ErrorActionPreference=Stop 让 Copy-Item 等错误以非零码退出，避免静默失败
 	psCmd := fmt.Sprintf(
-		`$img = Mount-DiskImage -ImagePath "%s" -StorageType ISO -PassThru; $vol = $img | Get-Volume; $drv = $vol.DriveLetter + ":\"; Copy-Item -Path "$drv*" -Destination "%s" -Recurse -Force; Dismount-DiskImage -ImagePath "%s"`,
+		`$ErrorActionPreference='Stop'; $img = Mount-DiskImage -ImagePath "%s" -StorageType ISO -PassThru; $vol = $img | Get-Volume; $drv = $vol.DriveLetter + ":\"; Copy-Item -Path "$drv*" -Destination "%s" -Recurse -Force; Dismount-DiskImage -ImagePath "%s"`,
 		src, dest, src)
-	cmd := exec.Command("powershell", "-Command", psCmd)
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", psCmd)
+	hideWindow(cmd)
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("extract iso on windows: %w", err)
+	}
+	// 防御：目标目录为空视为失败
+	if entries, _ := os.ReadDir(dest); len(entries) == 0 {
+		return fmt.Errorf("extract iso on windows: destination is empty")
+	}
+	return nil
 }
 
 func FindKernelInitrd(mountPoint string, distro string) (kernel string, initrd string) {
@@ -283,18 +369,48 @@ func FindKernelInitrd(mountPoint string, distro string) (kernel string, initrd s
 			kernel = filepath.Join(mountPoint, "install", "vmlinuz")
 			initrd = filepath.Join(mountPoint, "install", "initrd.gz")
 		}
+		if _, err := os.Stat(kernel); err != nil {
+			// Clonezilla 等 live 系：live/vmlinuz + live/initrd.img
+			kernel = filepath.Join(mountPoint, "live", "vmlinuz")
+			initrd = filepath.Join(mountPoint, "live", "initrd.img")
+		}
 	case "debian":
 		kernel = filepath.Join(mountPoint, "install", "amd64", "linux")
 		initrd = filepath.Join(mountPoint, "install", "amd64", "initrd.gz")
-	case "centos", "rocky", "almalinux":
+	case "centos", "rocky", "almalinux", "fedora", "rhel", "openeuler", "kylin", "anolis", "uos":
 		kernel = filepath.Join(mountPoint, "images", "pxeboot", "vmlinuz")
 		initrd = filepath.Join(mountPoint, "images", "pxeboot", "initrd.img")
 	case "esxi":
 		kernel = filepath.Join(mountPoint, "mboot.c32")
 		initrd = ""
+	case "systemrescue":
+		kernel = filepath.Join(mountPoint, "sysresccd", "boot", "x86_64", "vmlinuz")
+		initrd = filepath.Join(mountPoint, "sysresccd", "boot", "x86_64", "sysresccd.img")
 	default:
 		kernel = filepath.Join(mountPoint, "casper", "vmlinuz")
 		initrd = filepath.Join(mountPoint, "casper", "initrd")
 	}
 	return
+}
+
+// FindKernelInitrdFallback 不依赖发行版的通用兜底：按常见布局逐对尝试，kernel 存在即返回
+func FindKernelInitrdFallback(mountPoint string) (kernel string, initrd string) {
+	candidates := [][2]string{
+		{"casper/vmlinuz", "casper/initrd"},
+		{"live/vmlinuz", "live/initrd.img"},
+		{"boot/vmlinuz", "boot/initrd.img"},
+		{"images/pxeboot/vmlinuz", "images/pxeboot/initrd.img"},
+		{"sysresccd/boot/x86_64/vmlinuz", "sysresccd/boot/x86_64/sysresccd.img"},
+	}
+	for _, c := range candidates {
+		k := filepath.Join(mountPoint, filepath.FromSlash(c[0]))
+		if _, err := os.Stat(k); err == nil {
+			i := filepath.Join(mountPoint, filepath.FromSlash(c[1]))
+			if _, err := os.Stat(i); err != nil {
+				i = ""
+			}
+			return k, i
+		}
+	}
+	return "", ""
 }

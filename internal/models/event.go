@@ -5,12 +5,13 @@ import "time"
 type EventType string
 
 const (
-	EventDHCP EventType = "DHCP"
-	EventTFTP EventType = "TFTP"
-	EventHTTP EventType = "HTTP"
-	EventBoot EventType = "BOOT"
-	EventIPMI EventType = "IPMI"
-	EventDNS  EventType = "DNS"
+	EventDHCP    EventType = "DHCP"
+	EventTFTP    EventType = "TFTP"
+	EventHTTP    EventType = "HTTP"
+	EventBoot    EventType = "BOOT"
+	EventIPMI    EventType = "IPMI"
+	EventDNS     EventType = "DNS"
+	EventOSImage EventType = "OS_IMAGE"
 )
 
 type EventLevel string

@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"path/filepath"
@@ -77,7 +77,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		BMC:             NewBMCHandler(st),
 		DHCPReservation: &DHCPReservationHandler{store: st},
 		Network:         &NetworkHandler{},
-		OSImage:         NewOSImageHandler(st, cfg),
+		OSImage:         NewOSImageHandler(st, cfg, bus),
 		Bootloader:      NewBootloaderHandler(bootFS),
 		AuditLog:        NewAuditLogHandler(st),
 		svcController:   svcController,
@@ -275,8 +275,11 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/os-images", h.OSImage.List)
 		r.Post("/os-images/upload", h.OSImage.Upload)
 		r.Get("/os-images/{id}", h.OSImage.Get)
+		r.Put("/os-images/{id}", h.OSImage.Update)
 		r.Delete("/os-images/{id}", h.OSImage.Delete)
+		r.Post("/os-images/import", h.OSImage.Import)
 		r.Post("/os-images/{id}/extract", h.OSImage.Extract)
+		r.Post("/os-images/{id}/reprocess", h.OSImage.Reprocess)
 		r.Post("/os-images/{id}/mount", h.OSImage.Mount)
 		r.Post("/os-images/{id}/unmount", h.OSImage.Unmount)
 
@@ -284,7 +287,6 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/bootloader/check", h.Bootloader.Check)
 		r.Get("/bootloader/files", h.Bootloader.List)
 		r.Post("/bootloader/check-file", h.Bootloader.CheckFile)
-
 
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)
