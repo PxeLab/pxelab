@@ -67,4 +67,4 @@ make ipxe-build-embed     # 嵌入式（failsafe）
 | `shim-x86_64.efi` | EFI x86-64 | Secure Boot Shim |
 | `shim-arm64.efi` | EFI ARM64 | Secure Boot Shim |
 
-详见 [docs/ipxe-build.md](../../docs/ipxe-build.md)。
+> 本文档涵盖 iPXE 编译的完整流程。更多架构细节请参考 [架构映射与 Secure Boot](boot-settings.md)。
