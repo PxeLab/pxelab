@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"regexp"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -50,14 +51,29 @@ func (h *HostHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "无效的请求体")
 		return
 	}
+	host.MAC = strings.ToLower(strings.TrimSpace(host.MAC))
+	if strings.TrimSpace(host.Name) == "" {
+		Error(w, http.StatusBadRequest, "主机名不能为空")
+		return
+	}
+	if !macAddressRe.MatchString(host.MAC) {
+		Error(w, http.StatusBadRequest, "MAC 地址格式不正确")
+		return
+	}
 	host.ID = uuid.New().String()
 	if err := h.store.CreateHost(r.Context(), &host); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			Error(w, http.StatusBadRequest, "该 MAC 地址已存在")
+			return
+		}
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	RecordAudit(r.Context(), h.store, models.AuditCreate, "host", host.Name, remoteIP(r), "MAC: "+host.MAC+", IP: "+host.IP)
 	Created(w, host)
 }
+
+var macAddressRe = regexp.MustCompile(`^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$`)
 
 func (h *HostHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -75,6 +91,7 @@ func (h *HostHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	host.ID = id
+	host.MAC = strings.ToLower(strings.TrimSpace(host.MAC))
 	// bmc_pass 不参与 JSON 序列化（json:"-"），解码后必为空；
 	// gorm Save 全字段覆盖会把已有密码清空，这里保留旧值
 	host.BMCPass = oldHost.BMCPass

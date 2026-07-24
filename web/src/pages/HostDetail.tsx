@@ -199,7 +199,8 @@ export default function HostDetail() {
 
   if (!host) return <p className="text-[var(--text-muted)]">{t('common.notFound')}</p>
 
-  const hostEvents = events.filter(e => e.mac === host.mac)
+  const hostMac = host.mac.toLowerCase()
+  const hostEvents = events.filter(e => e.mac?.toLowerCase() === hostMac)
 
   return (
     <div>

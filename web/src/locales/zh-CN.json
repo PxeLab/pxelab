@@ -99,6 +99,8 @@
     "title": "主机管理",
     "search": "搜索 MAC / 主机名 / IP ...",
     "addHost": "新建主机",
+    "nameRequired": "主机名不能为空",
+    "invalidMac": "MAC 地址格式不正确",
     "editHost": "编辑主机",
     "updated": "主机已更新",
     "empty": "暂无主机",

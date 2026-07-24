@@ -55,15 +55,29 @@ export default function Hosts() {
     }
   }
 
+  const [createError, setCreateError] = useState('')
+
+  const MAC_RE = /^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$/
+
   async function handleCreate() {
+    const mac = newHost.mac.trim()
+    if (!newHost.name.trim()) {
+      setCreateError(t('hosts.nameRequired'))
+      return
+    }
+    if (!MAC_RE.test(mac)) {
+      setCreateError(t('hosts.invalidMac'))
+      return
+    }
+    setCreateError('')
     try {
-      await api.createHost(newHost)
+      await api.createHost({ ...newHost, mac })
       success(t('hosts.created'))
       setShowModal(false)
       setNewHost({ name: '', mac: '', ip: '', profile_id: '' })
       loadHosts()
     } catch (err: any) {
-      error(err.message)
+      setCreateError(err.message)
     }
   }
 
@@ -162,6 +176,9 @@ export default function Hosts() {
         }
       >
         <div className="space-y-4">
+          {createError && (
+            <div className="px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/30 text-accent-red text-xs">{createError}</div>
+          )}
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.mac')}</label>
             <Input placeholder="00:11:22:33:44:55" value={newHost.mac} onChange={e => setNewHost({...newHost, mac: e.target.value})} />

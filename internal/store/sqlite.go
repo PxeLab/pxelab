@@ -204,7 +204,7 @@ func (s *sqliteStore) GetHost(ctx context.Context, id string) (*models.Host, err
 
 func (s *sqliteStore) GetHostByMAC(ctx context.Context, mac string) (*models.Host, error) {
 	var host models.Host
-	if err := s.db.WithContext(ctx).First(&host, "mac = ?", mac).Error; err != nil {
+	if err := s.db.WithContext(ctx).First(&host, "lower(mac) = lower(?)", mac).Error; err != nil {
 		return nil, err
 	}
 	return &host, nil
@@ -471,7 +471,7 @@ func (s *sqliteStore) GetInstallTaskByHostMAC(ctx context.Context, mac string) (
 	var task models.InstallTask
 	err := s.db.WithContext(ctx).
 		Joins("JOIN hosts ON hosts.id = install_tasks.host_id").
-		Where("hosts.mac = ?", mac).
+		Where("lower(hosts.mac) = lower(?)", mac).
 		Where("install_tasks.status IN ?", []string{"pending", "installing"}).
 		First(&task).Error
 	if err != nil {
@@ -574,7 +574,7 @@ func (s *sqliteStore) GetDHCPReservation(ctx context.Context, id uint) (*models.
 
 func (s *sqliteStore) GetDHCPReservationByMAC(ctx context.Context, subnetCIDR, mac string) (*models.DHCPReservation, error) {
 	var r models.DHCPReservation
-	if err := s.db.WithContext(ctx).Where("subnet_cidr = ? AND mac = ?", subnetCIDR, mac).First(&r).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("subnet_cidr = ? AND lower(mac) = lower(?)", subnetCIDR, mac).First(&r).Error; err != nil {
 		return nil, err
 	}
 	return &r, nil
@@ -614,7 +614,7 @@ func (s *sqliteStore) ListWOLHistory(ctx context.Context, page, size int) ([]mod
 
 func (s *sqliteStore) ListWOLHistoryByMAC(ctx context.Context, mac string, limit int) ([]models.WOLHistory, error) {
 	var records []models.WOLHistory
-	if err := s.db.WithContext(ctx).Where("mac = ?", mac).Order("created_at DESC").Limit(limit).Find(&records).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("lower(mac) = lower(?)", mac).Order("created_at DESC").Limit(limit).Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil

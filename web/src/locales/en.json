@@ -99,6 +99,8 @@
     "title": "Hosts",
     "search": "Search MAC / Hostname / IP ...",
     "addHost": "Add Host",
+    "nameRequired": "Hostname is required",
+    "invalidMac": "Invalid MAC address format",
     "editHost": "Edit Host",
     "updated": "Host updated",
     "empty": "No hosts yet",

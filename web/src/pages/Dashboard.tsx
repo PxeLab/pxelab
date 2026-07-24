@@ -160,13 +160,21 @@ export default function Dashboard() {
   const dhcpData = metrics?.services.dhcp?.dhcp
 
   const todayBoots = events.filter(e => {
+    if ((e.type || '').toUpperCase() !== 'BOOT') return false
     const d = new Date(e.timestamp)
     const now = new Date()
     return d.toDateString() === now.toDateString()
   }).length
 
+  // 在线判定：最近 10 分钟内有 last_online 记录
+  const ONLINE_WINDOW_MS = 10 * 60 * 1000
+  const onlineHosts = hosts.filter(h => {
+    if (!h.last_online) return false
+    return Date.now() - new Date(h.last_online).getTime() < ONLINE_WINDOW_MS
+  }).length
+
   const statCards = [
-    { label: t('dashboard.stats.onlineHosts'), value: hosts.length, color: 'green', icon: Server },
+    { label: t('dashboard.stats.onlineHosts'), value: onlineHosts, color: 'green', icon: Server },
     { label: t('dashboard.stats.runningServices'), value: serviceList.filter(s => s.status === 'running').length, color: 'blue', icon: Wifi },
     { label: t('dashboard.activeLeases'), value: dhcpData?.activeLeases ?? 0, color: 'cyan', icon: Users },
     { label: t('dashboard.dnsRecords'), value: dnsCount, color: 'violet', icon: FileText },

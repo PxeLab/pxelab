@@ -30,7 +30,7 @@ func (s *sqliteStore) DeleteBlacklist(ctx context.Context, id uint) error {
 func (s *sqliteStore) IsBlacklisted(ctx context.Context, mac string) (bool, error) {
 	var count int64
 	err := s.db.WithContext(ctx).Model(&models.BlacklistEntry{}).
-		Where("mac = ?", mac).Count(&count).Error
+		Where("lower(mac) = lower(?)", mac).Count(&count).Error
 	return count > 0, err
 }
 
@@ -55,7 +55,7 @@ func (s *sqliteStore) DeleteWhitelist(ctx context.Context, id uint) error {
 func (s *sqliteStore) IsWhitelisted(ctx context.Context, mac, subnetCIDR string) (bool, error) {
 	var count int64
 	err := s.db.WithContext(ctx).Model(&models.WhitelistEntry{}).
-		Where("mac = ? AND (subnet_cidr = ? OR subnet_cidr = '')", mac, subnetCIDR).Count(&count).Error
+		Where("lower(mac) = lower(?) AND (subnet_cidr = ? OR subnet_cidr = '')", mac, subnetCIDR).Count(&count).Error
 	return count > 0, err
 }
 
