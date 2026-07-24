@@ -8,6 +8,18 @@ const base = rawBase
   : '/'
 
 const zhSidebar = {
+  '/': [
+    {
+      text: '产品',
+      items: [
+        { text: '产品定位', link: '/product' },
+        { text: '功能特性', link: '/features' },
+        { text: '优势能力', link: '/advantages' },
+        { text: '架构优势', link: '/architecture-advantages' },
+        { text: '常见问题', link: '/faq' },
+      ],
+    },
+  ],
   '/guides/': [
     {
       text: '概览',
@@ -96,6 +108,7 @@ export default defineConfig({
   base,
   title: 'PxeLab',
   description: '一体化 PXE 网络引导服务器',
+  ignoreDeadLinks: true,
 
   head: [
     ['meta', { name: 'theme-color', content: '#3b82f6' }],
@@ -107,6 +120,7 @@ export default defineConfig({
       lang: 'zh-CN',
       themeConfig: {
         nav: [
+          { text: '产品', link: '/product', activeMatch: '/product|features|advantages|architecture-advantages|faq' },
           { text: '快速开始', link: '/getting-started', activeMatch: '/getting-started' },
           { text: '使用指南', link: '/guides/dashboard', activeMatch: '/guides/' },
           { text: '参考文档', link: '/reference/api-reference', activeMatch: '/reference/' },
@@ -130,6 +144,7 @@ export default defineConfig({
       description: 'All-in-one PXE network boot server',
       themeConfig: {
         nav: [
+          { text: 'Product', link: '/en/product', activeMatch: '/en/product|features|advantages|architecture-advantages|faq' },
           { text: 'Getting Started', link: '/en/getting-started', activeMatch: '/en/getting-started' },
           { text: 'Guides', link: '/en/guides/dashboard', activeMatch: '/en/guides/' },
           { text: 'Reference', link: '/en/reference/api-reference', activeMatch: '/en/reference/' },
