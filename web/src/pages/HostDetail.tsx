@@ -68,18 +68,19 @@ export default function HostDetail() {
     async function load() {
       setTaskLoading(true)
       try {
-        const [h, e, catRes, tmplRes, taskRes] = await Promise.all([
+        const [h, catRes, tmplRes, taskRes] = await Promise.all([
           api.getHost(id!),
-          api.getEvents({ page: '1', size: '10' }),
           api.getNetbootCatalog(),
           api.getAnswerTemplates(),
           api.getInstallTasks(),
         ])
         setHost(h.data)
-        setEvents(e.data.events)
         setDistros(catRes.data?.distros || [])
         setTemplates(tmplRes.data?.templates || [])
         setHostTasks((taskRes.data?.tasks || []).filter(t => t.host_id === id))
+        // 启动历史按主机 MAC 过滤，避免全局最近 10 条中没有该主机时显示为空
+        const e = await api.getEvents({ page: '1', size: '10', mac: h.data.mac })
+        setEvents(e.data.events)
       } catch (err: any) {
         showError(err.message)
       } finally {
@@ -199,9 +200,6 @@ export default function HostDetail() {
 
   if (!host) return <p className="text-[var(--text-muted)]">{t('common.notFound')}</p>
 
-  const hostMac = host.mac.toLowerCase()
-  const hostEvents = events.filter(e => e.mac?.toLowerCase() === hostMac)
-
   return (
     <div>
       {/* Header */}
@@ -317,7 +315,7 @@ export default function HostDetail() {
                   render: (e: Event) => <span className="text-[var(--text-secondary)]">{e.message}</span>,
                 },
               ]}
-              data={hostEvents}
+              data={events}
               emptyText={t('events.noEvents')}
             />
           </div>

@@ -64,7 +64,7 @@ export default function AuditLogs() {
       }
       setLogs(items)
       setTotal(res.data.meta?.total || items.length)
-    } catch { toastError(t('events.loadFailed')) }
+    } catch { toastError(t('audit.loadFailed', '加载审计日志失败')) }
     finally { setLoading(false) }
   }, [page, pageSize, actionFilter, resourceFilter, searchText])
 

@@ -90,7 +90,12 @@ export default function Hosts() {
     try {
       await api.deleteHost(confirmDelete)
       success(t('hosts.deleted'))
-      loadHosts()
+      // 删除的是当前页最后一条时回退一页，避免停留在空页（setPage 触发 loadHosts）
+      if (hosts.length === 1 && page > 1) {
+        setPage(page - 1)
+      } else {
+        loadHosts()
+      }
     } catch (err: any) {
       error(err.message)
     } finally {

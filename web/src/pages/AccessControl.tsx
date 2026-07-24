@@ -144,11 +144,15 @@ export default function AccessControl() {
         type: addType === 'blacklist' ? t('accessControl.typeBlacklist') : t('accessControl.typeWhitelist'),
       }))
       setShowAddModal(false)
-      loadAll()
     } catch (err: any) {
-      showError(err.message || t('accessControl.addFailed'))
+      if (added > 0) {
+        showError(t('accessControl.addPartialResult', { ok: added, failed: macs.length - added }))
+      } else {
+        showError(err.message || t('accessControl.addFailed'))
+      }
     } finally {
       setAdding(false)
+      loadAll()
     }
   }
 
@@ -165,7 +169,7 @@ export default function AccessControl() {
   }
 
   async function handleDeleteWhitelist(id: number) {
-    confirm(t('accessControl.confirmDeleteBlacklist'), t('accessControl.confirmDeleteWhitelistMsg'), async () => {
+    confirm(t('accessControl.confirmDeleteWhitelist'), t('accessControl.confirmDeleteWhitelistMsg'), async () => {
       try {
         await api.deleteWhitelistEntry(id)
         success(t('accessControl.removedFromWhitelist'))
@@ -177,7 +181,7 @@ export default function AccessControl() {
   }
 
   async function handleDeleteUnauthorized(id: number) {
-    confirm(t('accessControl.confirmDeleteBlacklist'), t('accessControl.confirmDeleteUnauthorizedMsg'), async () => {
+    confirm(t('accessControl.confirmDeleteUnauthorized'), t('accessControl.confirmDeleteUnauthorizedMsg'), async () => {
       try {
         await api.deleteUnauthorizedDevice(id)
         success(t('accessControl.ignored'))

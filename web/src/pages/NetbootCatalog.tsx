@@ -145,9 +145,11 @@ export default function NetbootCatalog() {
         overlayMap[o.distro_name] = o
       })
       setOverlays(overlayMap)
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      toastError(err?.message || t('netbootCatalog.loadFailed'))
+    }
     setLoading(false)
-  }, [])
+  }, [t, toastError])
 
   useEffect(() => { loadData() }, [loadData])
   useEffect(() => { setPage(1) }, [search, activeTab])
@@ -198,19 +200,28 @@ export default function NetbootCatalog() {
       const res = await api.upsertNetbootOverlay(overlayDistro.name, editingOverlay)
       setOverlays(prev => ({ ...prev, [overlayDistro.name]: res.data }))
       await loadData()
-    } catch { /* ignore */ }
+      setOverlayDistro(null)
+      setEditingOverlay(null)
+    } catch (err: any) {
+      // 保存失败时弹窗保持打开，便于修正后重试
+      toastError(err?.message || t('netbootCatalog.overlaySaveFailed'))
+    }
     setOverlaySaving(false)
   }
 
   async function deleteOverlay() {
     if (!overlayDistro) return
-    await api.deleteNetbootOverlay(overlayDistro.name)
-    setOverlays(prev => {
-      const next = { ...prev }
-      delete next[overlayDistro.name]
-      return next
-    })
-    setOverlayDistro(null); setEditingOverlay(null)
+    try {
+      await api.deleteNetbootOverlay(overlayDistro.name)
+      setOverlays(prev => {
+        const next = { ...prev }
+        delete next[overlayDistro.name]
+        return next
+      })
+      setOverlayDistro(null); setEditingOverlay(null)
+    } catch (err: any) {
+      toastError(err?.message || t('netbootCatalog.overlayDeleteFailed'))
+    }
   }
 
   function addVersionOverride(codename: string, arch: string) {

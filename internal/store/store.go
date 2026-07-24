@@ -1,4 +1,4 @@
-﻿package store
+package store
 
 import (
 	"context"
@@ -85,6 +85,7 @@ type EventStore interface {
 type EventFilter struct {
 	Type   string
 	Level  string
+	Mac    string
 	Search string
 	From   int64
 	To     int64

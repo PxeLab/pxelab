@@ -128,7 +128,7 @@ export const CommandPalette: FC<Props> = ({ open, onClose, navItems, recent }) =
                 {hosts.map(h => (
                   <Command.Item
                     key={`host-${h.id}`}
-                    value={h.name}
+                    value={`${h.name} host:${h.id}`}
                     keywords={[h.mac, h.ip]}
                     onSelect={() => go(`/hosts/${h.id}`)}
                     className={itemClass}

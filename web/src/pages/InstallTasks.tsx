@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { HardDrive, Plus, Trash2 } from 'lucide-react'
@@ -35,29 +35,34 @@ export default function InstallTasks() {
   const hostMap = new Map<string, Host>()
   hosts.forEach(h => hostMap.set(h.id, h))
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
+  // 任务列表加载失败才报错；主机/镜像目录/应答模板失败时静默降级为空表
+  const loadTasks = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const taskRes = await api.getInstallTasks()
+      setTasks(taskRes.data?.tasks || [])
       setLoadError('')
-      try {
-        const [taskRes, hostRes, catRes, tmplRes] = await Promise.all([
-          api.getInstallTasks(),
-          api.getHosts({ page: '1', size: '9999' }),
-          api.getNetbootCatalog(),
-          api.getAnswerTemplates(),
-        ])
-        setTasks(taskRes.data?.tasks || [])
-        setHosts(hostRes.data?.hosts || [])
-        setDistros(catRes.data?.distros || [])
-        setTemplates(tmplRes.data?.templates || [])
-      } catch (err: any) {
-        setLoadError(err.message || t('installTasks.loadFailed'))
-      } finally {
-        setLoading(false)
-      }
+    } catch (err: any) {
+      if (!silent) setLoadError(err.message || t('installTasks.loadFailed'))
+    } finally {
+      if (!silent) setLoading(false)
     }
-    load()
-  }, [])
+  }, [t])
+
+  useEffect(() => {
+    loadTasks()
+    api.getHosts({ page: '1', size: '9999' }).then(res => setHosts(res.data?.hosts || [])).catch(() => {})
+    api.getNetbootCatalog().then(res => setDistros(res.data?.distros || [])).catch(() => {})
+    api.getAnswerTemplates().then(res => setTemplates(res.data?.templates || [])).catch(() => {})
+  }, [loadTasks])
+
+  // 存在 pending/installing 任务时每 5 秒静默轮询任务状态
+  const hasPending = tasks.some(task => task.status === 'pending' || task.status === 'installing')
+  useEffect(() => {
+    if (!hasPending) return
+    const iv = setInterval(() => loadTasks(true), 5000)
+    return () => clearInterval(iv)
+  }, [hasPending, loadTasks])
 
   async function handleDelete(task: InstallTask) {
     setConfirmDeleteTask(task)
@@ -186,7 +191,7 @@ export default function InstallTasks() {
       className: 'text-right',
       render: task => (
         <>
-          {task.status === 'pending' && (
+          {task.status !== 'installing' && (
             <Button
               variant="danger"
               size="sm"

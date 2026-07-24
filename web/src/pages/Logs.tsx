@@ -262,7 +262,7 @@ export default function Logs() {
                 panel.logs.map((entry, li) => (
                   <div key={li} className="flex items-center gap-2 px-3 py-0.5 hover:bg-[var(--bg-hover)] border-b border-[var(--bg-border)]/30 last:border-0 whitespace-nowrap">
                     <span className="text-[var(--text-muted)] shrink-0 tabular-nums">{formatTime(entry.time)}</span>
-                    <span className={`shrink-0 font-semibold ${LEVEL_COLORS[entry.level] || ''} px-1 rounded text-[10px] leading-4`}>
+                    <span className={`shrink-0 font-semibold ${LEVEL_COLORS[entry.level.toLowerCase()] || ''} px-1 rounded text-[10px] leading-4`}>
                       {entry.level.toUpperCase()}
                     </span>
                     {entry.service && (

@@ -18,7 +18,7 @@ export default function WolView() {
   const { t } = useTranslation()
   const { success, error: showError } = useToast()
 
-  const [, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [history, setHistory] = useState<WOLHistoryRecord[]>([])
   const [schedules, setSchedules] = useState<WOLSchedule[]>([])
 
@@ -54,8 +54,11 @@ export default function WolView() {
       setHistory(h.data.records)
       setTotal(h.data.total)
       setSchedules(s.data.schedules)
-    } catch { /* ignore */ }
-    setLoading(false)
+    } catch (e: any) {
+      showError(e?.message || t('common.error'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { loadData() }, [page])
@@ -163,16 +166,25 @@ export default function WolView() {
   }
 
   const doWakeAllHistory = async () => {
-    const uniqueMacs = [...new Set(history.filter(r => r.success).map(r => r.mac))]
-    if (!uniqueMacs.length) { showError(t('wol.noHistory')); return }
     setWaking(true)
     try {
+      // 后端 size 上限 100，循环翻页拉全量历史
+      const all: WOLHistoryRecord[] = []
+      let p = 1
+      for (;;) {
+        const res = await api.getWOLHistory(p, 100)
+        all.push(...res.data.records)
+        if (all.length >= res.data.total || res.data.records.length === 0) break
+        p++
+      }
+      const uniqueMacs = [...new Set(all.filter(r => r.success).map(r => r.mac))]
+      if (!uniqueMacs.length) { showError(t('wol.noHistory')); return }
       const res = await api.batchWakeHosts({ macs: uniqueMacs })
       const successCount = res.data.results.filter(r => r.success).length
       success(t('wol.wakeMultiSent', { count: successCount, total: uniqueMacs.length }))
       loadData()
     } catch (e: any) { showError(e?.message || t('wol.wakeFailed')) }
-    setWaking(false)
+    finally { setWaking(false) }
   }
 
   const doDeleteHistory = async (id: number) => {
@@ -315,7 +327,7 @@ export default function WolView() {
           </h3>
           <div className="grid grid-cols-4 gap-2">
             <div className="bg-[var(--bg-input)] rounded-lg p-3">
-              <div className="text-2xl font-bold text-[var(--text-primary)]">{history.length || 0}</div>
+              <div className="text-2xl font-bold text-[var(--text-primary)]">{total}</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-1">{t('wol.statsTotal')}</div>
             </div>
             <div className="bg-[var(--bg-input)] rounded-lg p-3">
@@ -374,6 +386,7 @@ export default function WolView() {
             <DataTable<WOLHistoryRecord>
               columns={historyColumns}
               data={history}
+              loading={loading}
               emptyText={t('wol.noHistory')}
               rowKey={r => String(r.id)}
             />
@@ -391,6 +404,7 @@ export default function WolView() {
           <DataTable<WOLSchedule>
             columns={scheduleColumns}
             data={schedules}
+            loading={loading}
             emptyText={t('wol.noSchedules')}
             rowKey={s => String(s.id)}
           />

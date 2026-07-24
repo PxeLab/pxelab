@@ -133,13 +133,23 @@ export default function Profiles() {
       const res = await api.getScriptDiff(profileId, verId)
       setDiffContent(res.data?.diff || '')
       setShowDiff(true)
-    } catch {}
+    } catch (err: any) { error(err.message || t('profiles.diffFailed')) }
   }
 
   async function handleRollback(profileId: string, verId: number) {
     try {
-      await api.rollbackScriptVersion(profileId, verId)
+      const res = await api.rollbackScriptVersion(profileId, verId)
       success(t('profiles.scriptRolledBack'))
+      // 回滚后同步编辑器中的脚本内容，避免之后点保存把回滚结果静默覆盖回去
+      let script = res.data?.menu?.entries?.[0]?.script
+      if (script === undefined) {
+        // 回滚响应未带内容时，重新拉取该 Profile
+        const pr = await api.getProfiles()
+        script = pr.data?.find(p => p.id === profileId)?.menu?.entries?.[0]?.script
+      }
+      if (script !== undefined) {
+        setForm(prev => ({ ...prev, entry: { ...prev.entry, script: script ?? '' } }))
+      }
       loadProfiles()
       // Reload versions and re-open history
       await loadVersions(profileId)

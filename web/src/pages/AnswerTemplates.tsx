@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { PageHeader } from '../components/ui/PageHeader'
+import { useToast } from '../components/ui/Toast'
 import { Input, Select, Textarea } from '../components/ui/FormControls'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { api, type AnswerTemplate, type AnswerTemplateVersion } from '../api/client'
@@ -42,6 +43,7 @@ const WINDOWS_VARS = [
 
 export default function AnswerTemplates() {
   const { t } = useTranslation()
+  const toast = useToast()
   const [templates, setTemplates] = useState<AnswerTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -149,11 +151,18 @@ export default function AnswerTemplates() {
   }
 
   const doBatchDelete = async () => {
+    let succeeded = 0
+    let failed = 0
     for (const id of selected) {
-      try { await api.deleteAnswerTemplate(id) } catch {}
+      try { await api.deleteAnswerTemplate(id); succeeded++ } catch { failed++ }
     }
     setSelected(new Set())
     setConfirmBatchDelete(false)
+    if (failed === 0) {
+      toast.success(t('answerTemplates.batchDeleteSuccess', { count: succeeded }))
+    } else {
+      toast.error(t('answerTemplates.batchDeleteFail', { success: succeeded, failed }))
+    }
     await load()
   }
 

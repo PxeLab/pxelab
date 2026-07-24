@@ -748,7 +748,10 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 	h.cfg.Global.ServerName = req.ServerName
 	h.cfg.Global.AppMode = req.AppMode
 	h.cfg.Global.WhitelistEnabled = req.WhitelistEnabled
-	h.cfg.Global.PageSize = req.PageSize
+	// page_size 为 0/负值（未提交或非法）时保持旧值，避免无条件覆盖
+	if req.PageSize > 0 {
+		h.cfg.Global.PageSize = req.PageSize
+	}
 	h.cfg.Global.DataDir = req.DataDir
 	h.cfg.Log.Level = req.LogLevel
 	if req.ListenAddr != "" {
@@ -793,8 +796,8 @@ func (h *SettingsHandler) UpdateGeneral(w http.ResponseWriter, r *http.Request) 
 	if oldServerName != req.ServerName {
 		changes = append(changes, "服务器名称: "+oldServerName+" → "+req.ServerName)
 	}
-	if oldPageSize != req.PageSize {
-		changes = append(changes, fmt.Sprintf("每页条数: %d → %d", oldPageSize, req.PageSize))
+	if oldPageSize != h.cfg.Global.PageSize {
+		changes = append(changes, fmt.Sprintf("每页条数: %d → %d", oldPageSize, h.cfg.Global.PageSize))
 	}
 	if oldAppMode != req.AppMode {
 		mode := "生产模式"

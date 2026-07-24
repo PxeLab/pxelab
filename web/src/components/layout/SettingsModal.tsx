@@ -142,10 +142,13 @@ export default function SettingsModal({ open, onClose }: Props) {
           <div className="flex items-center justify-between h-14 px-5 border-b border-[var(--bg-border)] shrink-0">
             <span className="font-bold text-sm">{navItems.find(n => n.key === section)?.label}</span>
             <div className="flex items-center gap-2">
-              <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-                <Save size={14} />
-                {saving ? t('settings.loading') : t('settings.save')}
-              </Button>
+              {/* 服务自启动区改动即时生效，无需保存按钮 */}
+              {section !== 'services' && (
+                <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+                  <Save size={14} />
+                  {saving ? t('settings.loading') : t('settings.save')}
+                </Button>
+              )}
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
                 <X size={18} />
               </button>
@@ -442,6 +445,7 @@ function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: 
 
 function ServicesForm({ services, onReload }: { services: ServiceInfo[]; onReload: () => Promise<void> }) {
   const { t } = useTranslation()
+  const { error: showError } = useToast()
   const [operating, setOperating] = useState<Set<string>>(new Set())
 
   const toggleAutoStart = async (name: string, enabled: boolean) => {
@@ -449,7 +453,9 @@ function ServicesForm({ services, onReload }: { services: ServiceInfo[]; onReloa
     try {
       await updateAutoStart(name, enabled)
       await onReload()
-    } catch { /* ignore */ }
+    } catch (e: any) {
+      showError(e?.message || t('settings.autoStartFailed', '自启动设置失败'))
+    }
     setOperating(prev => { const next = new Set(prev); next.delete(name); return next })
   }
 

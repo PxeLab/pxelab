@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"context"
@@ -84,6 +84,9 @@ func (r *eventRing) List(filter store.EventFilter) ([]models.Event, int64) {
 		if filter.Level != "" && !strings.EqualFold(string(e.Level), filter.Level) {
 			continue
 		}
+		if filter.Mac != "" && (e.MAC == nil || !strings.EqualFold(*e.MAC, filter.Mac)) {
+			continue
+		}
 		filtered = append(filtered, e)
 	}
 
@@ -157,6 +160,7 @@ func (h *EventHandler) List(w http.ResponseWriter, r *http.Request) {
 	filter := store.EventFilter{
 		Type:  r.URL.Query().Get("type"),
 		Level: r.URL.Query().Get("level"),
+		Mac:   r.URL.Query().Get("mac"),
 		Page:  page,
 		Size:  size,
 	}

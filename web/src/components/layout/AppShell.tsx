@@ -134,6 +134,12 @@ function ServiceDropdown() {
   const hoverClose = () => {
     hoverTimer.current = setTimeout(() => setOpen(false), 200)
   }
+  // 触屏无 hover，点击切换展开/收起；与 hover 不冲突：hover 打开后点击即收起，
+  // 收起期间鼠标仍在按钮上不会再次触发 mouseEnter
+  const clickToggle = () => {
+    clearTimeout(hoverTimer.current)
+    setOpen(v => !v)
+  }
 
   const load = useCallback(async () => {
     try {
@@ -191,6 +197,7 @@ function ServiceDropdown() {
   return (
     <div className="relative" onMouseEnter={hoverOpen} onMouseLeave={hoverClose}>
       <button
+        onClick={clickToggle}
         className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold bg-[var(--bg-card)] border border-[var(--bg-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:shadow-sm transition-all duration-200"
       >
         <div className="flex items-center gap-2.5 py-0.5">
