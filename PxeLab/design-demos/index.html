@@ -1376,8 +1376,9 @@ a { color: inherit; text-decoration: none; }
     localStorage.setItem('pxelab-lang', lang);
   }
 
-  // Init language from localStorage or default to English
-  const savedLang = localStorage.getItem('pxelab-lang') || 'en';
+  // Init language: localStorage > browser language > default English
+  const savedLang = localStorage.getItem('pxelab-lang')
+    || (navigator.language.startsWith('zh') ? 'zh' : 'en');
   setLang(savedLang);
 
   // Bind toggle buttons
