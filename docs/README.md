@@ -13,16 +13,49 @@
 
 ---
 
-## 使用指南
+## 使用指南 — 概览
 
 | 文档 | 说明 |
 |------|------|
+| [仪表盘](guides/dashboard.md) | 全局统计、服务状态、流量图表、最近事件 |
+
+---
+
+## 使用指南 — 基础配置
+
+| 文档 | 说明 |
+|------|------|
+| [服务配置](guides/services.md) | DHCP / DNS / NFS / TFTP / Boot Settings / Netboot 目录 |
 | [DHCP 配置](guides/dhcp.md) | 四种 DHCP 模式、多接口部署、IP 预留、访问控制 |
 | [引导配置](guides/boot-config.md) | iPXE 决策树、引导菜单类型、Profile 管理、自定义脚本 |
+| [文件管理](guides/files.md) | 引导文件的上传、删除和浏览 |
+| [引导配置（Profiles）](guides/profiles.md) | Profile 管理、脚本版本控制 |
+| [应答文件模板](guides/answer-templates.md) | 自动化安装应答文件管理 |
 | [网络启动目录](guides/netboot.md) | OS 目录菜单、覆盖层、应答文件模板、安装任务 |
-| [主机管理](guides/host-management.md) | 主机 CRUD、WOL 网络唤醒、BMC/IPMI 带外管理 |
 | [OS 镜像管理](guides/os-images.md) | ISO 上传、挂载、解压、文件浏览 |
-| [Web UI 指南](guides/web-ui.md) | 完整的 Web 界面操作指南（仪表盘、主机、配置、监控等） |
+
+---
+
+## 使用指南 — 管理
+
+| 文档 | 说明 |
+|------|------|
+| [主机管理](guides/host-management.md) | 主机 CRUD、WOL 网络唤醒、BMC/IPMI 带外管理 |
+| [访问控制](guides/access-control.md) | MAC 黑白名单管理 |
+| [安装任务](guides/install-tasks.md) | 网络安装任务跟踪 |
+| [BMC 带外管理](guides/bmc.md) | IPMI 电源控制、批量操作 |
+| [WOL 网络唤醒](guides/wol.md) | 远程唤醒、定时调度 |
+| [网络诊断](guides/network-diagnostics.md) | Ping / Traceroute |
+
+---
+
+## 使用指南 — 监控与设置
+
+| 文档 | 说明 |
+|------|------|
+| [监控](guides/monitoring.md) | 事件流、审计日志、实时日志 |
+| [设置弹窗](guides/settings.md) | 通用配置、引导菜单、Netboot、服务自启动、日志管理 |
+| [Web UI 总览](guides/web-ui.md) | 界面导航结构、顶部栏功能、主题切换 |
 | [部署模式](guides/deployment.md) | Server 模式、App 模式、systemd 部署 |
 
 ---
@@ -50,5 +83,3 @@
 |------|------|
 | [故障排查与常见问题](troubleshooting.md) | 常见问题排查、日志分析与 FAQ |
 | [版本历史](release-notes.md) | 各版本新增功能与变更记录 |
-
-
