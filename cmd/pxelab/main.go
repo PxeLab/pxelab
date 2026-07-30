@@ -29,6 +29,7 @@ import (
 	"github.com/pxelab/pxelab/internal/session"
 	"github.com/pxelab/pxelab/internal/store"
 	"github.com/pxelab/pxelab/internal/tftp"
+	"github.com/pxelab/pxelab/internal/updatecheck"
 	"github.com/pxelab/pxelab/internal/wol"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -368,10 +369,18 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 		return result
 	}
 
+	// 版本检查器（启动时异步检查一次）
+	updater := updatecheck.NewChecker(Version, cfg.Global.DataDir)
+	go func() {
+		if _, err := updater.Check(); err != nil {
+			slog.Debug("启动版本检查失败（不影响运行）", "error", err)
+		}
+	}()
+
 	httpServer := httpd.NewServer(cfg, st, bus, bootFS, spaHandler(), dhcpHandler, netbootMgr, dhcpHandler.GetClientByIP, svcMgr, sessions, nfsServer.SetMountPoints, nfsConnInfo, func(name string) bool {
 		info, ok := svcMgr.Get(name)
 		return ok && info.Status == servicemanager.StatusRunning
-	})
+	}, Version, updater)
 	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP, true, 8080, "TCP")
 
 

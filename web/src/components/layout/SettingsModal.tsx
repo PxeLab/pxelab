@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { X, Save, Copy, Check, RotateCw, Settings as SettingsIcon, Monitor, FileCode, Activity, HardDrive } from 'lucide-react'
+import { X, Save, Copy, Check, RotateCw, Settings as SettingsIcon, Monitor, FileCode, Activity, HardDrive, Download, RefreshCw } from 'lucide-react'
 import { Toggle } from '../../components/ui/Toggle'
 import { Button } from '../../components/ui/Button'
 import { useToast } from '../../components/ui/Toast'
@@ -13,8 +13,9 @@ import {
   getCacheStats,
   getLoggingSettings, updateLoggingSettings,
   getLogFiles, getLogDiskUsage, cleanupLogs,
+  getVersionInfo, checkForUpdate, downloadUpdate,
   type GeneralSettings, type NetbootSettingsData, type InterfaceInfo, type ServiceInfo, type CacheStats,
-  type LoggingSettings, type LogFileInfo,
+  type LoggingSettings, type LogFileInfo, type VersionInfo,
 } from '../../api/client'
 
 interface Props {
@@ -22,7 +23,7 @@ interface Props {
   onClose: () => void
 }
 
-type Section = 'general' | 'boot' | 'netboot' | 'services' | 'logging'
+type Section = 'general' | 'boot' | 'netboot' | 'services' | 'logging' | 'about'
 
 interface NavItem {
   key: Section
@@ -44,6 +45,9 @@ export default function SettingsModal({ open, onClose }: Props) {
   const [services, setServices] = useState<ServiceInfo[]>([])
   const [logging, setLogging] = useState<LoggingSettings | null>(null)
   const [originalDataDir, setOriginalDataDir] = useState('')
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -54,8 +58,9 @@ export default function SettingsModal({ open, onClose }: Props) {
     setLoading(true)
     setTokenCopied(false)
     setSection('general')
-    Promise.all([getGeneralSettings(), getNetbootSettings(), getInterfaces(), getServices(), getLoggingSettings()])
-      .then(([g, nb, ifaces, svc, log]) => {
+    setVersionInfo(null)
+    Promise.all([getGeneralSettings(), getNetbootSettings(), getInterfaces(), getServices(), getLoggingSettings(), getVersionInfo()])
+      .then(([g, nb, ifaces, svc, log, ver]) => {
         const gen = g.data as unknown as GeneralSettings
         setGeneral(gen)
         setOriginalDataDir(gen.data_dir || '')
@@ -63,6 +68,7 @@ export default function SettingsModal({ open, onClose }: Props) {
         setAvailableIfaces(ifaces.data as unknown as InterfaceInfo[])
         setServices(svc.data as unknown as ServiceInfo[])
         setLogging(log.data as unknown as LoggingSettings)
+        setVersionInfo(ver.data as unknown as VersionInfo)
       })
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -101,6 +107,35 @@ export default function SettingsModal({ open, onClose }: Props) {
     }
   }
 
+  const handleCheckUpdate = useCallback(async () => {
+    setChecking(true)
+    try {
+      const res = await checkForUpdate()
+      setVersionInfo(res.data)
+      if (res.data.check?.update_available) {
+        success(t('version.updateAvailable', { version: res.data.check.latest_version }))
+      } else {
+        success(t('version.upToDate'))
+      }
+    } catch (e: any) {
+      showError(e?.message || t('version.checkFailed'))
+    } finally {
+      setChecking(false)
+    }
+  }, [success, showError])
+
+  const handleDownload = useCallback(async () => {
+    setDownloading(true)
+    try {
+      const res = await downloadUpdate()
+      success(t('version.downloadReady', { path: res.data.file_name }))
+    } catch (e: any) {
+      showError(e?.message || t('version.downloadFailed'))
+    } finally {
+      setDownloading(false)
+    }
+  }, [success, showError])
+
   if (!open) return null
 
   const navItems: NavItem[] = [
@@ -109,6 +144,7 @@ export default function SettingsModal({ open, onClose }: Props) {
     { key: 'netboot', label: t('nav.settings.netboot'), icon: Monitor },
     { key: 'services', label: t('settings.modalServiceAutoStart'), icon: Activity },
     { key: 'logging', label: t('settings.logging', '日志管理'), icon: HardDrive },
+    { key: 'about', label: t('version.title'), icon: RefreshCw },
   ]
 
   return createPortal(
@@ -142,8 +178,8 @@ export default function SettingsModal({ open, onClose }: Props) {
           <div className="flex items-center justify-between h-14 px-5 border-b border-[var(--bg-border)] shrink-0">
             <span className="font-bold text-sm">{navItems.find(n => n.key === section)?.label}</span>
             <div className="flex items-center gap-2">
-              {/* 服务自启动区改动即时生效，无需保存按钮 */}
-              {section !== 'services' && (
+              {/* 服务自启动区、关于页无需保存按钮 */}
+              {section !== 'services' && section !== 'about' && (
                 <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
                   <Save size={14} />
                   {saving ? t('settings.loading') : t('settings.save')}
@@ -169,6 +205,7 @@ export default function SettingsModal({ open, onClose }: Props) {
                 {section === 'netboot' && netboot && <NetbootForm data={netboot} onChange={setNetboot} />}
                 {section === 'services' && services.length > 0 && <ServicesForm services={services} onReload={async () => { try { const res = await getServices(); setServices(res.data as unknown as ServiceInfo[]) } catch {} }} />}
                 {section === 'logging' && logging && <LoggingForm config={logging} onChange={setLogging} />}
+                {section === 'about' && <AboutForm versionInfo={versionInfo} checking={checking} downloading={downloading} onCheckUpdate={handleCheckUpdate} onDownload={handleDownload} />}
               </>
             )}
           </div>
@@ -629,6 +666,121 @@ function LoggingForm({ config, onChange }: { config: LoggingSettings; onChange: 
         <Button variant="secondary" size="sm" className="mt-3" onClick={handleCleanup} disabled={cleaning}>
           {cleaning ? t('settings.loading') : t('settings.logCleanupNow', '立即清理')}
         </Button>
+      </div>
+    </div>
+  )
+}
+
+// ── About / Version ──
+
+function AboutForm({ versionInfo, checking, downloading, onCheckUpdate, onDownload }: {
+  versionInfo: VersionInfo | null
+  checking: boolean
+  downloading: boolean
+  onCheckUpdate: () => void
+  onDownload: () => void
+}) {
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="p-6 space-y-6">
+      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('version.title')}</h3>
+
+      {/* Current version */}
+      <div className="rounded-lg border border-[var(--bg-border)] bg-[var(--bg-card)]/50 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-[var(--text-muted)]">{t('version.current')}</span>
+          <span className="text-sm font-mono font-semibold text-[var(--text-primary)]">
+            {versionInfo?.current_version || '—'}
+          </span>
+        </div>
+        {versionInfo?.check && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--text-muted)]">{t('version.latest')}</span>
+            <span className="text-sm font-mono text-[var(--text-primary)]">
+              {versionInfo.check.latest_version}
+            </span>
+          </div>
+        )}
+        {versionInfo?.check?.update_available && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--text-muted)]">{t('common.status')}</span>
+            <span className="text-xs font-medium text-accent-green flex items-center gap-1">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-green" />
+              </span>
+              {t('version.updateAvailable', { version: versionInfo.check.latest_version })}
+            </span>
+          </div>
+        )}
+        {versionInfo?.check && !versionInfo.check.update_available && !versionInfo.check.error && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--text-muted)]">{t('common.status')}</span>
+            <span className="text-xs text-[var(--text-secondary)]">{t('version.upToDate')}</span>
+          </div>
+        )}
+        {versionInfo?.check?.error && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[var(--text-muted)]">{t('common.status')}</span>
+            <span className="text-xs text-accent-yellow">{t('version.checkFailed')}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3">
+        <Button variant="primary" size="sm" onClick={onCheckUpdate} disabled={checking}>
+          <RefreshCw size={14} className={checking ? 'animate-spin' : ''} />
+          {checking ? t('version.checking') : t('version.check')}
+        </Button>
+        {versionInfo?.check?.update_available && (
+          <Button variant="secondary" size="sm" onClick={onDownload} disabled={downloading}>
+            <Download size={14} className={downloading ? 'animate-bounce' : ''} />
+            {downloading ? t('version.downloading') : t('version.download')}
+          </Button>
+        )}
+      </div>
+
+      {/* Release notes (expandable) */}
+      {versionInfo?.check?.release_info && (
+        <>
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            {t('version.releaseNotes')}
+            <span className={`transition-transform ${expanded ? 'rotate-90' : ''}`}>›</span>
+          </button>
+          {expanded && (
+            <div className="rounded-lg border border-[var(--bg-border)] bg-[var(--bg-card)]/30 p-4 space-y-2 text-sm">
+              <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
+                <span>{t('version.latest')}: {versionInfo.check.release_info.latest_version}</span>
+                <span>{versionInfo.check.release_info.release_date}</span>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)]">
+                {t('version.restartGuide')}
+              </p>
+              <a
+                href={versionInfo.check.release_info.release_notes_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2"
+              >
+                {t('version.releaseNotes')} ↗
+              </a>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* App info */}
+      <div className="pt-4 border-t border-[var(--bg-border)]">
+        <p className="text-xs text-[var(--text-muted)]">
+          PxeGo v{versionInfo?.current_version || '?'}
+        </p>
+        <p className="text-[11px] text-[var(--text-muted)]/50 mt-0.5">© PxeLab</p>
       </div>
     </div>
   )

@@ -12,6 +12,7 @@ import (
 	"github.com/pxelab/pxelab/internal/servicemanager"
 	"github.com/pxelab/pxelab/internal/session"
 	"github.com/pxelab/pxelab/internal/store"
+	"github.com/pxelab/pxelab/internal/updatecheck"
 )
 
 // ServiceController 服务生命周期管理接口
@@ -51,11 +52,16 @@ type Handler struct {
 	OSImage         *OSImageHandler
 	Bootloader      *BootloaderHandler
 	AuditLog        *AuditLogHandler
+	Version         *VersionHandler
+	Baseline        *BaselineHandler
+	Store           *StoreHandler
 	svcController   ServiceController
 	sessions        *session.Store
+	version         string
+	updateChecker   *updatecheck.Checker
 }
 
-func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store, setNFSMountPoints func(mps []config.NFSMountPoint), getNFSConnections func() map[string]NFSConnectionInfo, isServiceRunning func(name string) bool) *Handler {
+func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS *boot.BootFileServer, reloader SubnetReloader, netbootMgr *netboot.Manager, svcController ServiceController, sessions *session.Store, setNFSMountPoints func(mps []config.NFSMountPoint), getNFSConnections func() map[string]NFSConnectionInfo, isServiceRunning func(name string) bool, version string, updateChecker *updatecheck.Checker) *Handler {
 	h := &Handler{
 		Host:            &HostHandler{store: st, config: cfg},
 		Profile:         &ProfileHandler{store: st, netbootMgr: netbootMgr},
@@ -80,8 +86,13 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		OSImage:         NewOSImageHandler(st, cfg, bus),
 		Bootloader:      NewBootloaderHandler(bootFS),
 		AuditLog:        NewAuditLogHandler(st),
+		Version:         NewVersionHandler(version, updateChecker),
+		Baseline:        &BaselineHandler{store: st},
+		Store:           NewStoreHandler(st),
 		svcController:   svcController,
 		sessions:        sessions,
+		version:         version,
+		updateChecker:   updateChecker,
 	}
 	return h
 }
@@ -90,6 +101,11 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/status", h.Status)
 		r.Get("/metrics", h.Metrics)
+
+		// Version check & update
+		r.Get("/version", h.Version.GetVersion)
+		r.Post("/version/check", h.Version.CheckUpdate)
+		r.Post("/version/download", h.Version.DownloadUpdate)
 
 		// Auth routes (public — login, session check)
 		r.Post("/auth/login", h.Auth.Login)
@@ -290,6 +306,23 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/bootloader/check", h.Bootloader.Check)
 		r.Get("/bootloader/files", h.Bootloader.List)
 		r.Post("/bootloader/check-file", h.Bootloader.CheckFile)
+
+		// Baselines — security/compliance script collections
+			r.Get("/baselines", h.Baseline.List)
+			r.Post("/baselines", h.Baseline.Create)
+			r.Get("/baselines/{id}", h.Baseline.Get)
+			r.Put("/baselines/{id}", h.Baseline.Update)
+			r.Delete("/baselines/{id}", h.Baseline.Delete)
+			r.Get("/baselines/{id}/scripts", h.Baseline.ListScripts)
+			r.Post("/baselines/{id}/scripts", h.Baseline.UpsertScript)
+			r.Delete("/baselines/{id}/scripts/{scriptId}", h.Baseline.DeleteScript)
+			// Machine pull endpoint — NOT under /baselines to keep it clean for client use
+			r.Get("/baselines/assigned", h.Baseline.GetAssigned)
+
+			// Store — community template/script marketplace
+			r.Get("/store/catalog", h.Store.ListCatalog)
+			r.Get("/store/items/{type}/{id}", h.Store.GetItem)
+			r.Post("/store/import", h.Store.ImportItem)
 
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)

@@ -74,7 +74,7 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 
 	OK(w, map[string]any{
 		"status":   "ok",
-		"version":  "0.1.0",
+		"version":  h.version,
 		"uptime":   int(time.Since(startTime).Seconds()),
 		"services": services,
 	})

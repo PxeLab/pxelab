@@ -21,6 +21,9 @@ export * from './wol'
 export * from './osimages'
 export * from './network'
 export * from './bootloader'
+export * from './version'
+export * from './baselines'
+export * from './store'
 
 import { getMetrics, getStatus } from './services'
 import { createHost, deleteHost, getHost, getHostBootConfig, getHosts, powerHost, updateHost, wakeHost } from './hosts'
@@ -134,6 +137,8 @@ import {
 import { deleteOSImage, extractOSImage, getOSImage, getOSImages, importOSImages, browseFs, mountOSImage, reprocessOSImage, unmountOSImage, updateOSImage, uploadOSImage, uploadOSImageWithProgress } from './osimages'
 import { getNetworkInterfaces, networkPing, networkPingStream, networkTraceroute, networkTracerouteStream } from './network'
 import { checkBootloaderFile, getBootloaderCheck, getBootloaderFiles } from './bootloader'
+import { getBaselines, getBaseline, createBaseline, updateBaseline, deleteBaseline, getBaselineScripts, getBaselineScript, upsertBaselineScript, deleteBaselineScript } from './baselines'
+import { getStoreCatalog, getStoreItem, importStoreItem } from './store'
 import { batchService, getServices, restartService, startService, stopService, updateAutoStart } from './services'
 
 // ── Convenience namespace (backward-compat) ──
@@ -294,4 +299,16 @@ export const api = {
   getScriptVersion,
   getScriptDiff,
   rollbackScriptVersion,
-}
+  getBaselines,
+  getBaseline,
+  createBaseline,
+  updateBaseline,
+  deleteBaseline,
+  getBaselineScripts,
+	  getBaselineScript,
+	  upsertBaselineScript,
+	  deleteBaselineScript,
+	  getStoreCatalog,
+	  getStoreItem,
+	  importStoreItem,
+	}

@@ -70,6 +70,8 @@ func (s *sqliteStore) Migrate() error {
 		&models.OSImage{},
 		&models.ProfileScriptVersion{},
 		&models.AuditLog{},
+		&models.Baseline{},
+		&models.BaselineScript{},
 	)
 }
 
@@ -733,4 +735,73 @@ func (s *sqliteStore) CreateAuditLog(ctx context.Context, log *models.AuditLog) 
 
 func (s *sqliteStore) PruneAuditLogs(ctx context.Context, before time.Time) error {
 	return s.db.WithContext(ctx).Where("timestamp < ?", before).Delete(&models.AuditLog{}).Error
+}
+
+// ── Baseline ──
+
+func (s *sqliteStore) ListBaselines(ctx context.Context) ([]models.Baseline, error) {
+	var baselines []models.Baseline
+	if err := s.db.WithContext(ctx).Order("created_at DESC").Find(&baselines).Error; err != nil {
+		return nil, err
+	}
+	return baselines, nil
+}
+
+func (s *sqliteStore) GetBaseline(ctx context.Context, id string) (*models.Baseline, error) {
+	var bl models.Baseline
+	if err := s.db.WithContext(ctx).First(&bl, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &bl, nil
+}
+
+func (s *sqliteStore) CreateBaseline(ctx context.Context, b *models.Baseline) error {
+	return s.db.WithContext(ctx).Create(b).Error
+}
+
+func (s *sqliteStore) UpdateBaseline(ctx context.Context, b *models.Baseline) error {
+	return s.db.WithContext(ctx).Save(b).Error
+}
+
+func (s *sqliteStore) DeleteBaseline(ctx context.Context, id string) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("baseline_id = ?", id).Delete(&models.BaselineScript{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&models.Baseline{}, "id = ?", id).Error
+	})
+}
+
+// ── Baseline Scripts ──
+
+func (s *sqliteStore) ListBaselineScripts(ctx context.Context, baselineID string) ([]models.BaselineScript, error) {
+	var scripts []models.BaselineScript
+	if err := s.db.WithContext(ctx).Where("baseline_id = ?", baselineID).Order("seq ASC").Find(&scripts).Error; err != nil {
+		return nil, err
+	}
+	return scripts, nil
+}
+
+func (s *sqliteStore) GetBaselineScript(ctx context.Context, id uint) (*models.BaselineScript, error) {
+	var sc models.BaselineScript
+	if err := s.db.WithContext(ctx).First(&sc, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &sc, nil
+}
+
+func (s *sqliteStore) UpsertBaselineScript(ctx context.Context, sc *models.BaselineScript) error {
+	// If ID is set, update; otherwise create
+	if sc.ID > 0 {
+		return s.db.WithContext(ctx).Save(sc).Error
+	}
+	return s.db.WithContext(ctx).Create(sc).Error
+}
+
+func (s *sqliteStore) DeleteBaselineScript(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Delete(&models.BaselineScript{}, "id = ?", id).Error
+}
+
+func (s *sqliteStore) DeleteBaselineScriptsByBaseline(ctx context.Context, baselineID string) error {
+	return s.db.WithContext(ctx).Where("baseline_id = ?", baselineID).Delete(&models.BaselineScript{}).Error
 }

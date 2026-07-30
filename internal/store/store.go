@@ -32,6 +32,7 @@ type Interface interface {
 	WOLStore
 	OSImageStore
 	AuditLogStore
+	BaselineStore
 	Close() error
 	Migrate() error
 	Seed() error
@@ -185,6 +186,20 @@ type AuditLogStore interface {
 	ListAuditLogs(ctx context.Context, filter AuditLogFilter) ([]models.AuditLog, int64, error)
 	CreateAuditLog(ctx context.Context, log *models.AuditLog) error
 	PruneAuditLogs(ctx context.Context, before time.Time) error
+}
+
+type BaselineStore interface {
+	ListBaselines(ctx context.Context) ([]models.Baseline, error)
+	GetBaseline(ctx context.Context, id string) (*models.Baseline, error)
+	CreateBaseline(ctx context.Context, b *models.Baseline) error
+	UpdateBaseline(ctx context.Context, b *models.Baseline) error
+	DeleteBaseline(ctx context.Context, id string) error
+
+	ListBaselineScripts(ctx context.Context, baselineID string) ([]models.BaselineScript, error)
+	GetBaselineScript(ctx context.Context, id uint) (*models.BaselineScript, error)
+	UpsertBaselineScript(ctx context.Context, s *models.BaselineScript) error
+	DeleteBaselineScript(ctx context.Context, id uint) error
+	DeleteBaselineScriptsByBaseline(ctx context.Context, baselineID string) error
 }
 
 type AuditLogFilter struct {

@@ -5,6 +5,7 @@ before:
     - go mod tidy
     - go generate ./...
     - cd web && npm ci && npm run build
+    - sh scripts/update-version-json.sh
 
 builds:
   - id: pxelab
@@ -22,7 +23,7 @@ builds:
     goarm:
       - "7"
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+      - -s -w -X main.Version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     tags:
       - netgo
     mod_timestamp: "{{ .CommitTimestamp }}"

@@ -10,7 +10,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Tag } from '../components/ui/Tag'
 import { useToast } from '../components/ui/Toast'
 import { Input, Select, Textarea } from '../components/ui/FormControls'
-import { api, getNetbootCatalog, type Profile, type MenuEntry, type NetbootDistro, type ProfileScriptVersion } from '../api/client'
+import { api, getNetbootCatalog, getBaselines, type Profile, type MenuEntry, type NetbootDistro, type ProfileScriptVersion, type Baseline } from '../api/client'
 
 export default function Profiles() {
   const { t } = useTranslation()
@@ -19,7 +19,7 @@ export default function Profiles() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Profile | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', arch: '', is_default: false, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '', script: '', san_action: '' as MenuEntry['san_action'], san_no_describe: false, san_drive: '', san_keep_san: false } })
+  const [form, setForm] = useState({ name: '', description: '', arch: '', is_default: false, baselines: [] as string[], variables: {} as Record<string, string>, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '', script: '', san_action: '' as MenuEntry['san_action'], san_no_describe: false, san_drive: '', san_keep_san: false } })
   const [showOSPicker, setShowOSPicker] = useState(false)
   const [showVars, setShowVars] = useState(false)
   const [showScriptPreview, setShowScriptPreview] = useState(false)
@@ -33,10 +33,14 @@ export default function Profiles() {
   const [diffContent, setDiffContent] = useState('')
   const [showDiff, setShowDiff] = useState(false)
   const [versionLoading, setVersionLoading] = useState(false)
+  const [allBaselines, setAllBaselines] = useState<Baseline[]>([])
 
   useEffect(() => { loadProfiles() }, [])
   useEffect(() => {
     getNetbootCatalog().then(res => setOSCatalog(res.data?.distros || [])).catch(() => {})
+  }, [])
+  useEffect(() => {
+    getBaselines().then(res => setAllBaselines(res.data || [])).catch(() => {})
   }, [])
 
   async function loadProfiles() {
@@ -56,7 +60,7 @@ export default function Profiles() {
     setEditing(null)
     setShowVars(false)
     setShowScriptPreview(false)
-    setForm({ name: '', description: '', arch: '', is_default: false, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '', script: '', san_action: '' as MenuEntry['san_action'], san_no_describe: false, san_drive: '', san_keep_san: false } })
+    setForm({ name: '', description: '', arch: '', is_default: false, baselines: [], variables: {}, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '', script: '', san_action: '' as MenuEntry['san_action'], san_no_describe: false, san_drive: '', san_keep_san: false } })
     setShowModal(true)
   }
 
@@ -70,6 +74,8 @@ export default function Profiles() {
       description: p.description || '',
       arch: p.arch || '',
       is_default: p.is_default,
+      baselines: p.baselines || [],
+      variables: p.variables || {},
       entry: {
         type: e.type,
         kernel: e.kernel || '',
@@ -102,6 +108,8 @@ export default function Profiles() {
         description: form.description,
         arch: form.arch,
         is_default: form.is_default,
+        baselines: form.baselines,
+        variables: form.variables,
         menu: { entries: [entryData as MenuEntry] },
       }
       if (editing) {
@@ -360,6 +368,65 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
               </button>
               <span className="text-sm text-[var(--text-secondary)]">{t('profiles.isDefault')}</span>
             </label>
+          </div>
+
+          {/* Baselines 关联 */}
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t('baselines.title')}</h3>
+            {allBaselines.length === 0 ? (
+              <p className="text-xs text-[var(--text-muted)] italic">{t('baselines.noBaselines')}</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {allBaselines.map(bl => {
+                  const checked = form.baselines.includes(bl.id)
+                  return (
+                    <label key={bl.id} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${checked ? 'border-blue-500/40 bg-blue-500/5' : 'border-[var(--bg-border)] hover:bg-[var(--bg-hover)]'}`}>
+                      <input type="checkbox" className="accent-blue-500 shrink-0" checked={checked} onChange={() => {
+                        setForm(prev => ({
+                          ...prev,
+                          baselines: checked
+                            ? prev.baselines.filter(id => id !== bl.id)
+                            : [...prev.baselines, bl.id],
+                        }))
+                      }} />
+                      <div className="min-w-0">
+                        <div className="text-sm text-[var(--text-primary)] truncate">{bl.name}</div>
+                        {bl.description && <div className="text-[10px] text-[var(--text-muted)] truncate">{bl.description}</div>}
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 自定义变量 */}
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t('profiles.variables')}</h3>
+            <div className="bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg p-3 space-y-2">
+              {Object.entries(form.variables).map(([key, val], idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input size="xs" className="flex-1 font-mono" placeholder={t('profiles.varKeyPlaceholder')} value={key} onChange={e => {
+                    const newVars = { ...form.variables }
+                    delete newVars[key]
+                    newVars[e.target.value] = val
+                    setForm({ ...form, variables: newVars })
+                  }} />
+                  <span className="text-[var(--text-muted)] text-xs">=</span>
+                  <Input size="xs" className="flex-[2] font-mono" placeholder={t('profiles.varValuePlaceholder')} value={val} onChange={e => {
+                    setForm({ ...form, variables: { ...form.variables, [key]: e.target.value } })
+                  }} />
+                  <button type="button" onClick={() => {
+                    const newVars = { ...form.variables }
+                    delete newVars[key]
+                    setForm({ ...form, variables: newVars })
+                  }} className="text-accent-red/60 hover:text-accent-red text-xs shrink-0 px-1">&times;</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setForm({ ...form, variables: { ...form.variables, '': '' } })} className="text-xs text-blue-500 hover:text-blue-400">
+                + {t('common.add')}
+              </button>
+            </div>
           </div>
 
           {/* 引导项 */}

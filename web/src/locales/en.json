@@ -51,7 +51,9 @@
     "wol": "Wake-on-LAN",
     "osImages": "OS Images",
     "network": "Network Diagnostics",
-    "bootSettings": "Boot Options"
+    "bootSettings": "Boot Options",
+    "baselines": "Baselines",
+    "store": "Store"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -282,7 +284,10 @@
     "scriptRollback": "Rollback",
     "scriptRolledBack": "Rolled back to version",
     "scriptDiff": "Diff",
-    "scriptAutoSave": "auto-saved on boot menu update"
+    "scriptAutoSave": "auto-saved on boot menu update",
+    "variables": "Custom Variables",
+    "varKeyPlaceholder": "KEY",
+    "varValuePlaceholder": "value"
   },
   "files": {
     "title": "Files",
@@ -761,7 +766,9 @@
     "saveFailed": "Failed to save",
     "serviceOpLoading": "{{op}} {{name}}…",
     "serviceOpSuccess": "{{name}} {{op}} succeeded",
-    "serviceCount": "{{count}} services"
+    "serviceCount": "{{count}} services",
+    "fieldRequired": "This field is required",
+    "invalidJSON": "Invalid JSON format"
   },
   "answerTemplates": {
     "title": "Answer Templates",
@@ -1276,6 +1283,23 @@
     "empty": "No results",
     "loading": "Searching…"
   },
+  "version": {
+    "title": "About",
+    "current": "Current Version",
+    "latest": "Latest Version",
+    "check": "Check for Updates",
+    "checking": "Checking…",
+    "updateAvailable": "Update available: {{version}}",
+    "upToDate": "You're up to date",
+    "checkFailed": "Version check failed",
+    "download": "Download Update",
+    "downloading": "Downloading…",
+    "downloadReady": "Update downloaded to {{path}}",
+    "downloadFailed": "Download failed",
+    "releaseNotes": "Release Notes",
+    "restartGuide": "To install: exit PxeLab, replace the old binary with the downloaded file, then restart.",
+    "viewDetails": "View Details"
+  },
   "netbootCatalog": {
     "title": "OS Catalog",
     "loadFailed": "Failed to load catalog data",
@@ -1409,5 +1433,67 @@
     "deleteConfirmPre": "Delete",
     "deleteConfirmPost": "? This will remove the ISO file and all extracted data.",
     "cancel": "Cancel"
+  },
+  "baselines": {
+    "title": "Baselines",
+    "listTitle": "Baselines",
+    "createTitle": "Create Baseline",
+    "editTitle": "Edit Baseline",
+    "name": "Name",
+    "description": "Description",
+    "variables": "Variables",
+    "scripts": "Scripts",
+    "created": "Created",
+    "actions": "Actions",
+    "noBaselines": "No baselines yet. Create your first baseline to define system initialization scripts.",
+    "createSuccess": "Baseline created",
+    "updateSuccess": "Baseline updated",
+    "deleteSuccess": "Baseline deleted",
+    "deleteConfirmTitle": "Delete Baseline",
+    "deleteConfirmMsg": "Are you sure you want to delete this baseline? All associated scripts will also be removed.",
+    "addVariable": "Add Variable",
+    "key": "Key",
+    "value": "Value",
+    "scriptFilename": "Filename",
+    "scriptSeq": "Order",
+    "scriptContent": "Content",
+    "addScript": "Add Script",
+    "editScript": "Edit Script",
+    "deleteScriptConfirm": "Delete this script?",
+    "noScripts": "No scripts in this baseline.",
+    "scriptSaved": "Script saved",
+    "scriptDeleted": "Script deleted",
+    "profileAssociation": "Profile Association",
+    "assignedProfiles": "Assigned to Profiles",
+    "noAssignedProfiles": "Not assigned to any profile",
+    "assignToProfileHint": "To assign this baseline to a profile, edit the profile and select this baseline in the Baselines field.",
+    "confirmDelete": "Delete"
+  },
+  "store": {
+    "title": "Community Store",
+    "description": "Browse and import community-contributed baselines, boot templates, and configurations",
+    "searchPlaceholder": "Search store items...",
+    "import": "Import",
+    "importing": "Importing...",
+    "importSuccess": "Successfully imported \"{name}\"",
+    "importFailed": "Failed to import item: {error}",
+    "loadFailed": "Failed to load store catalog",
+    "noItems": "No items found in the store",
+    "version": "Version",
+    "author": "Author",
+    "tags": "Tags",
+    "type_all": "All",
+    "type_baseline": "Baselines",
+    "type_boot_template": "Boot Templates",
+    "confirmImportTitle": "Import {name}",
+    "confirmImportMsg": "This will import \"{name}\" into your local PxeLab instance. The item will be available immediately after import.",
+    "goToBaseline": "View Baseline",
+    "storeUnavailable": "Store Unavailable",
+    "storeUnavailableDesc": "The community store at store.pxelab.com is currently unreachable. Please check your internet connection and try again.",
+    "retry": "Retry",
+    "imported": "Imported",
+    "downloads": "Downloads",
+    "updated": "Updated",
+    "created": "Created"
   }
 }

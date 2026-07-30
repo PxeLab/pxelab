@@ -31,6 +31,9 @@ const OSImages = lazy(() => import('./pages/OSImages'))
 const NetworkDiagnostics = lazy(() => import('./pages/NetworkDiagnostics'))
 const FileManager = lazy(() => import('./pages/FileManager'))
 const BootSettings = lazy(() => import('./pages/BootSettings'))
+const Baselines = lazy(() => import('./pages/Baselines'))
+const BaselineDetail = lazy(() => import('./pages/BaselineDetail'))
+const Store = lazy(() => import('./pages/Store'))
 
 function LoadingFallback() {
   const { t } = useTranslation()
@@ -97,6 +100,9 @@ function AppContent() {
           <Route path="/files" element={<FileManager />} />
           <Route path="/boot-settings" element={<BootSettings />} />
           <Route path="/netboot-catalog" element={<NetbootCatalog />} />
+          <Route path="/baselines" element={<Baselines />} />
+          <Route path="/baselines/:id" element={<BaselineDetail />} />
+          <Route path="/store" element={<Store />} />
           <Route path="/events" element={<Events />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
           <Route path="/logs" element={<Logs />} />

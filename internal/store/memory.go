@@ -52,6 +52,8 @@ type memoryStore struct {
 	scriptVersions   map[uint]*models.ProfileScriptVersion
 	auditLogs        []models.AuditLog
 	auditLogIdx      uint
+	baselines        map[string]*memoryBaseline
+	blScriptIdx      uint
 }
 
 func NewMemory() Interface {
@@ -74,6 +76,7 @@ func NewMemory() Interface {
 		wolHistory:       make([]models.WOLHistory, 0),
 		wolSchedules:     make(map[uint]*models.WOLSchedule),
 		osImages:         make(map[uint]*models.OSImage),
+		baselines:        make(map[string]*memoryBaseline),
 	}
 }
 
@@ -1314,5 +1317,140 @@ func (s *memoryStore) PruneAuditLogs(_ context.Context, before time.Time) error 
 		}
 	}
 	s.auditLogs = s.auditLogs[:n]
+	return nil
+}
+
+// ── Baseline ──
+
+type memoryBaseline struct {
+	Baseline models.Baseline
+	Scripts  []models.BaselineScript
+}
+
+func (s *memoryStore) ListBaselines(_ context.Context) ([]models.Baseline, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []models.Baseline
+	for _, bl := range s.baselines {
+		list = append(list, bl.Baseline)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].CreatedAt.After(list[j].CreatedAt)
+	})
+	return list, nil
+}
+
+func (s *memoryStore) GetBaseline(_ context.Context, id string) (*models.Baseline, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	bl, ok := s.baselines[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	cp := bl.Baseline
+	return &cp, nil
+}
+
+func (s *memoryStore) CreateBaseline(_ context.Context, b *models.Baseline) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	b.CreatedAt = time.Now()
+	b.UpdatedAt = time.Now()
+	s.baselines[b.ID] = &memoryBaseline{Baseline: *b}
+	return nil
+}
+
+func (s *memoryStore) UpdateBaseline(_ context.Context, b *models.Baseline) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	existing, ok := s.baselines[b.ID]
+	if !ok {
+		return ErrNotFound
+	}
+	b.CreatedAt = existing.Baseline.CreatedAt
+	b.UpdatedAt = time.Now()
+	existing.Baseline = *b
+	return nil
+}
+
+func (s *memoryStore) DeleteBaseline(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.baselines[id]; !ok {
+		return ErrNotFound
+	}
+	delete(s.baselines, id)
+	return nil
+}
+
+func (s *memoryStore) ListBaselineScripts(_ context.Context, baselineID string) ([]models.BaselineScript, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	bl, ok := s.baselines[baselineID]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	out := make([]models.BaselineScript, len(bl.Scripts))
+	copy(out, bl.Scripts)
+	return out, nil
+}
+
+func (s *memoryStore) GetBaselineScript(_ context.Context, id uint) (*models.BaselineScript, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, bl := range s.baselines {
+		for _, sc := range bl.Scripts {
+			if sc.ID == id {
+				return &sc, nil
+			}
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (s *memoryStore) UpsertBaselineScript(_ context.Context, sc *models.BaselineScript) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	bl, ok := s.baselines[sc.BaselineID]
+	if !ok {
+		return ErrNotFound
+	}
+	if sc.ID > 0 {
+		for i, existing := range bl.Scripts {
+			if existing.ID == sc.ID {
+				bl.Scripts[i] = *sc
+				return nil
+			}
+		}
+		return ErrNotFound
+	}
+	s.blScriptIdx++
+	sc.ID = s.blScriptIdx
+	bl.Scripts = append(bl.Scripts, *sc)
+	return nil
+}
+
+func (s *memoryStore) DeleteBaselineScript(_ context.Context, id uint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, bl := range s.baselines {
+		for i, sc := range bl.Scripts {
+			if sc.ID == id {
+				bl.Scripts = append(bl.Scripts[:i], bl.Scripts[i+1:]...)
+				return nil
+			}
+		}
+	}
+	return ErrNotFound
+}
+
+func (s *memoryStore) DeleteBaselineScriptsByBaseline(_ context.Context, baselineID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	bl, ok := s.baselines[baselineID]
+	if !ok {
+		return ErrNotFound
+	}
+	bl.Scripts = nil
 	return nil
 }

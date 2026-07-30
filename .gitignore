@@ -58,3 +58,9 @@ docs-site/.vitepress/cache/
 # Agent/tool artifacts
 .omo/
 .playwright-mcp/
+
+# Cloudflare wrangler
+.wrangler/
+
+# Local store copy
+pxelab-store/

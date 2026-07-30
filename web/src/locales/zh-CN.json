@@ -51,7 +51,9 @@
     "wol": "唤醒管理",
     "osImages": "系统镜像",
     "network": "网络诊断",
-    "bootSettings": "引导选项"
+    "bootSettings": "引导选项",
+    "baselines": "初始化脚本",
+    "store": "应用商店"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -282,7 +284,10 @@
     "scriptRollback": "回滚",
     "scriptRolledBack": "已回滚到版本",
     "scriptDiff": "差异对比",
-    "scriptAutoSave": "保存引导菜单时自动创建"
+    "scriptAutoSave": "保存引导菜单时自动创建",
+    "variables": "自定义变量",
+    "varKeyPlaceholder": "KEY",
+    "varValuePlaceholder": "值"
   },
   "files": {
     "title": "文件管理",
@@ -761,7 +766,9 @@
     "saveFailed": "保存失败",
     "serviceOpLoading": "正在{{op}} {{name}}…",
     "serviceOpSuccess": "{{name}}{{op}}成功",
-    "serviceCount": "{{count}} 个服务"
+    "serviceCount": "{{count}} 个服务",
+    "fieldRequired": "此字段为必填项",
+    "invalidJSON": "JSON 格式无效"
   },
   "answerTemplates": {
     "title": "应答模板管理",
@@ -1276,6 +1283,23 @@
     "empty": "无结果",
     "loading": "搜索中…"
   },
+  "version": {
+    "title": "关于",
+    "current": "当前版本",
+    "latest": "最新版本",
+    "check": "检查更新",
+    "checking": "检查中…",
+    "updateAvailable": "新版本可用: {{version}}",
+    "upToDate": "已是最新版本",
+    "checkFailed": "版本检查失败",
+    "download": "下载更新",
+    "downloading": "下载中…",
+    "downloadReady": "更新包已下载到 {{path}}",
+    "downloadFailed": "下载失败",
+    "releaseNotes": "发行说明",
+    "restartGuide": "安装方法：退出 PxeLab，用下载的文件替换旧的二进制文件，然后重新启动。",
+    "viewDetails": "查看详情"
+  },
   "netbootCatalog": {
     "title": "OS 安装目录",
     "loadFailed": "加载发行版数据失败",
@@ -1409,5 +1433,67 @@
     "deleteConfirmPre": "确定要删除",
     "deleteConfirmPost": "吗？这将删除 ISO 文件和所有提取的数据。",
     "cancel": "取消"
+  },
+  "baselines": {
+    "title": "初始化脚本",
+    "listTitle": "初始化脚本",
+    "createTitle": "创建脚本集",
+    "editTitle": "编辑脚本集",
+    "name": "名称",
+    "description": "描述",
+    "variables": "变量",
+    "scripts": "脚本",
+    "created": "创建时间",
+    "actions": "操作",
+    "noBaselines": "暂无脚本集。创建您的第一个脚本集来定义系统初始化脚本。",
+    "createSuccess": "脚本集已创建",
+    "updateSuccess": "脚本集已更新",
+    "deleteSuccess": "脚本集已删除",
+    "deleteConfirmTitle": "删除脚本集",
+    "deleteConfirmMsg": "确定要删除此脚本集吗？所有关联的脚本也将被移除。",
+    "addVariable": "添加变量",
+    "key": "键",
+    "value": "值",
+    "scriptFilename": "文件名",
+    "scriptSeq": "顺序",
+    "scriptContent": "内容",
+    "addScript": "添加脚本",
+    "editScript": "编辑脚本",
+    "deleteScriptConfirm": "确定删除此脚本？",
+    "noScripts": "此脚本集中暂无脚本。",
+    "scriptSaved": "脚本已保存",
+    "scriptDeleted": "脚本已删除",
+    "profileAssociation": "关联配置",
+    "assignedProfiles": "已关联的引导配置",
+    "noAssignedProfiles": "未关联任何引导配置",
+    "assignToProfileHint": "要将此脚本集关联到引导配置，请编辑引导配置并在\"初始化脚本\"字段中选择此脚本集。",
+    "confirmDelete": "删除"
+  },
+  "store": {
+    "title": "应用商店",
+    "description": "浏览并导入社区贡献的初始化脚本、引导模板和配置方案",
+    "searchPlaceholder": "搜索商店内容...",
+    "import": "导入",
+    "importing": "导入中...",
+    "importSuccess": "成功导入 \"{name}\"",
+    "importFailed": "导入失败: {error}",
+    "loadFailed": "无法加载商店目录",
+    "noItems": "商店中暂无可用内容",
+    "version": "版本",
+    "author": "作者",
+    "tags": "标签",
+    "type_all": "全部",
+    "type_baseline": "初始化脚本",
+    "type_boot_template": "引导模板",
+    "confirmImportTitle": "导入 {name}",
+    "confirmImportMsg": "将 \"{name}\" 导入到本地 PxeLab 实例。导入后即可立即使用。",
+    "goToBaseline": "查看脚本集",
+    "storeUnavailable": "商店无法访问",
+    "storeUnavailableDesc": "社区商店 store.pxelab.com 当前不可达，请检查网络连接后重试。",
+    "retry": "重试",
+    "imported": "已导入",
+    "downloads": "下载次数",
+    "updated": "更新于",
+    "created": "创建于"
   }
 }

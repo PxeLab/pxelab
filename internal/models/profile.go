@@ -7,14 +7,68 @@ import (
 )
 
 type Profile struct {
-	ID          string    `json:"id" gorm:"primaryKey"`
-	Name        string    `json:"name" gorm:"uniqueIndex"`
-	Description string    `json:"description"`
-	MenuJSON    string    `json:"-" gorm:"column:menu"`
-	IsDefault   bool      `json:"is_default" gorm:"index"`
-	Arch        string    `json:"arch,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID             string    `json:"id" gorm:"primaryKey"`
+	Name           string    `json:"name" gorm:"uniqueIndex"`
+	Description    string    `json:"description"`
+	MenuJSON       string    `json:"-" gorm:"column:menu"`
+	IsDefault      bool      `json:"is_default" gorm:"index"`
+	Arch           string    `json:"arch,omitempty"`
+	BaselineIDs    string    `json:"-" gorm:"type:text"` // JSON: ["bl-sec","bl-mon"]
+	Variables      string    `json:"-" gorm:"type:text"` // JSON: {"NTP_SERVER":"ntp.internal"}
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// GetBaselines 将 BaselineIDs JSON 解析为字符串切片
+func (p *Profile) GetBaselines() ([]string, error) {
+	if p.BaselineIDs == "" {
+		return nil, nil
+	}
+	var ids []string
+	if err := json.Unmarshal([]byte(p.BaselineIDs), &ids); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+// SetBaselines 将字符串切片转为 JSON 存入 BaselineIDs
+func (p *Profile) SetBaselines(ids []string) error {
+	if ids == nil {
+		p.BaselineIDs = ""
+		return nil
+	}
+	data, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
+	p.BaselineIDs = string(data)
+	return nil
+}
+
+// GetVariablesMap 解析 Variables JSON 为 map[string]string
+func (p *Profile) GetVariablesMap() (map[string]string, error) {
+	if p.Variables == "" {
+		return nil, nil
+	}
+	vars := make(map[string]string)
+	if err := json.Unmarshal([]byte(p.Variables), &vars); err != nil {
+		return nil, err
+	}
+	return vars, nil
+}
+
+// SetVariablesMap 将 map[string]string 转为 JSON 存入 Variables
+func (p *Profile) SetVariablesMap(vars map[string]string) error {
+	if vars == nil {
+		p.Variables = ""
+		return nil
+	}
+	data, err := json.Marshal(vars)
+	if err != nil {
+		return err
+	}
+	p.Variables = string(data)
+	return nil
 }
 
 func (p *Profile) GetMenu() (*BootMenu, error) {
@@ -41,12 +95,24 @@ func (p *Profile) SetMenu(menu *BootMenu) error {
 func (p *Profile) MarshalJSON() ([]byte, error) {
 	type Alias Profile
 	menu, _ := p.GetMenu()
+	baselines, _ := p.GetBaselines()
+	if baselines == nil {
+		baselines = []string{}
+	}
+	vars, _ := p.GetVariablesMap()
+	if vars == nil {
+		vars = map[string]string{}
+	}
 	return json.Marshal(&struct {
-		Menu BootMenu `json:"menu"`
+		Menu      BootMenu           `json:"menu"`
+		Baselines []string           `json:"baselines"`
+		Variables map[string]string  `json:"variables"`
 		Alias
 	}{
-		Menu:  *menu,
-		Alias: Alias(*p),
+		Menu:      *menu,
+		Baselines: baselines,
+		Variables: vars,
+		Alias:     Alias(*p),
 	})
 }
 
@@ -54,7 +120,9 @@ func (p *Profile) MarshalJSON() ([]byte, error) {
 func (p *Profile) UnmarshalJSON(data []byte) error {
 	type Alias Profile
 	aux := &struct {
-		Menu *BootMenu `json:"menu"`
+		Menu      *BootMenu          `json:"menu"`
+		Baselines []string           `json:"baselines"`
+		Variables map[string]string  `json:"variables"`
 		*Alias
 	}{
 		Alias: (*Alias)(p),
@@ -63,9 +131,14 @@ func (p *Profile) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if aux.Menu != nil {
-		return p.SetMenu(aux.Menu)
+		if err := p.SetMenu(aux.Menu); err != nil {
+			return err
+		}
 	}
-	return nil
+	if err := p.SetBaselines(aux.Baselines); err != nil {
+		return err
+	}
+	return p.SetVariablesMap(aux.Variables)
 }
 
 type BootMenu struct {

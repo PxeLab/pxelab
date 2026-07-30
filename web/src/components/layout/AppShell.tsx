@@ -8,14 +8,14 @@ import { ThemeSwitcher } from '../ThemeSwitcher'
 import { LangSwitch } from '../LangSwitch'
 import { StatusDot } from '../ui/StatusDot'
 import { useToast } from '../ui/Toast'
-import { getServices, startService, stopService, restartService, batchService, type ServiceInfo } from '../../api/client'
+import { getServices, startService, stopService, restartService, batchService, getVersionInfo, downloadUpdate, type ServiceInfo, type VersionInfo } from '../../api/client'
 import SettingsModal from './SettingsModal'
 import { CommandPalette } from '../CommandPalette'
 import { NotificationCenter } from '../NotificationCenter'
 import {
   LayoutDashboard, Server, FileCode, Activity, Settings,
   ShieldCheck, Network, Menu, ChevronRight, ChevronLeft,
-  HardDrive, Cpu, Wifi, Disc, Bell, ScrollText, Search,
+  HardDrive, Cpu, Wifi, Disc, Bell, ScrollText, Search, Package,
 } from 'lucide-react'
 
 interface NavItem {
@@ -59,10 +59,12 @@ const navSections = [
     items: [
       { path: '/hosts', label: 'nav.hosts', icon: Server },
       { path: '/access-control', label: 'nav.accessControl', icon: ShieldCheck },
+      { path: '/baselines', label: 'nav.baselines', icon: FileCode },
       { path: '/install-tasks', label: 'nav.installTasks', icon: HardDrive },
       { path: '/bmc', label: 'nav.bmc', icon: Cpu },
       { path: '/wol', label: 'nav.wol', icon: Wifi },
       { path: '/network', label: 'nav.network', icon: Network },
+      { path: '/store', label: 'nav.store', icon: Package },
     ] as NavItem[],
   },
   {
@@ -279,6 +281,31 @@ export const AppShell: FC<Props> = ({ children }) => {
     document.documentElement.classList.toggle('theme-macos', macosCards)
     localStorage.setItem('PxeLab-macos-cards', String(macosCards))
   }, [macosCards])
+
+  // ── 版本检查 ──
+  const toast = useToast()
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null)
+  const [downloading, setDownloading] = useState(false)
+
+  useEffect(() => {
+    getVersionInfo().then(res => {
+      setVersionInfo(res.data)
+    }).catch(() => {
+      // 静默失败，不影响主界面
+    })
+  }, [])
+
+  const handleDownload = useCallback(async () => {
+    setDownloading(true)
+    try {
+      const res = await downloadUpdate()
+      toast.success(t('version.downloadReady', { path: res.data.file_name }))
+    } catch (e: any) {
+      toast.error(e?.message || t('version.downloadFailed'))
+    } finally {
+      setDownloading(false)
+    }
+  }, [t, toast])
 
   // 全局 ⌘K / Ctrl+K 切换命令面板
   useEffect(() => {
@@ -522,6 +549,42 @@ export const AppShell: FC<Props> = ({ children }) => {
             <ThemeSwitcher theme={theme} palette={palette} onSetTheme={setTheme} onChangePalette={setPalette} radius={radius} onChangeRadius={setRadius} macosCards={macosCards} onToggleMacOS={() => setMacosCards(v => !v)} />
           </div>
         </header>
+
+        {/* Update banner */}
+        {versionInfo?.check?.update_available && (
+          <div className="bg-gradient-to-r from-blue-600/10 via-blue-500/10 to-indigo-600/10 border-b border-blue-500/20 px-4 lg:px-8 py-2 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+              </span>
+              <span className="text-blue-400 font-medium">{t('version.updateAvailable', { version: versionInfo.check.latest_version })}</span>
+              <a
+                href={versionInfo.check.release_info?.release_notes_url || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400/70 hover:text-blue-300 underline underline-offset-2 text-xs ml-1"
+              >
+                {t('version.releaseNotes')}
+              </a>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="px-3 py-1 text-xs font-medium rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+              >
+                {downloading ? t('version.downloading') : t('version.download')}
+              </button>
+              <button
+                onClick={() => setSettingsModalOpen(true)}
+                className="text-blue-400/60 hover:text-blue-300 text-xs transition-colors"
+              >
+                {t('version.viewDetails')}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-1 min-h-0">
           {/* Level 3 Sub-nav */}

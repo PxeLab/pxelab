@@ -20,6 +20,8 @@ export interface Profile {
   menu: BootMenu
   is_default: boolean
   arch?: string
+  baselines?: string[]
+  variables?: Record<string, string>
   created_at: string
   updated_at: string
 }
@@ -102,8 +104,40 @@ export interface ApiResponse<T> {
 }
 
 export interface ServiceStatus {
-  status: string
-  version: string
-  uptime: number
-  services: Record<string, string>
+	status: string
+	version: string
+	uptime: number
+	services: Record<string, string>
+}
+
+// ── Version / Update ──
+
+export interface ReleaseInfo {
+	latest_version: string
+	release_date: string
+	release_notes_url: string
+	download_url: string
+	checksums_url: string
+	min_upgrade_version: string
+}
+
+export interface CheckResult {
+	current_version: string
+	latest_version: string
+	update_available: boolean
+	release_info?: ReleaseInfo
+	checked_at: string
+	error?: string
+}
+
+export interface VersionInfo {
+	current_version: string
+	check?: CheckResult
+}
+
+export interface DownloadResult {
+	file_path: string
+	file_name: string
+	file_size: number
+	version: string
 }
