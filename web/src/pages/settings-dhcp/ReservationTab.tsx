@@ -247,7 +247,7 @@ export function ReservationTab() {
                   .filter(sn => sn.cidr && sn.dhcpMode === 'server')
                   .map(sn => (
                     <option key={sn.cidr} value={sn.cidr}>
-                      {sn.cidr}{t('settings.subnetFull')}
+                      {sn.cidr}{t('settings.subnetServer')}
                     </option>
                   ))
                 }
