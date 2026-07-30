@@ -33,7 +33,10 @@ const FileManager = lazy(() => import('./pages/FileManager'))
 const BootSettings = lazy(() => import('./pages/BootSettings'))
 const Baselines = lazy(() => import('./pages/Baselines'))
 const BaselineDetail = lazy(() => import('./pages/BaselineDetail'))
+const Scripts = lazy(() => import('./pages/Scripts'))
+const ScriptDetail = lazy(() => import('./pages/ScriptDetail'))
 const Store = lazy(() => import('./pages/Store'))
+const StoreDetail = lazy(() => import('./pages/StoreDetail'))
 
 function LoadingFallback() {
   const { t } = useTranslation()
@@ -102,7 +105,10 @@ function AppContent() {
           <Route path="/netboot-catalog" element={<NetbootCatalog />} />
           <Route path="/baselines" element={<Baselines />} />
           <Route path="/baselines/:id" element={<BaselineDetail />} />
+          <Route path="/scripts" element={<Scripts />} />
+          <Route path="/scripts/:id" element={<ScriptDetail />} />
           <Route path="/store" element={<Store />} />
+          <Route path="/store/item/:type/:id" element={<StoreDetail />} />
           <Route path="/events" element={<Events />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
           <Route path="/logs" element={<Logs />} />

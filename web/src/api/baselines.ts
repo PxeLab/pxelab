@@ -12,14 +12,20 @@ export interface Baseline {
   updated_at: string
 }
 
-export interface BaselineScript {
-  id?: number
-  baseline_id: string
-  filename: string
-  content: string
+export interface BaselineScriptAssignment {
+  script_id: number
   seq: number
-  created_at?: string
-  updated_at?: string
+  name: string
+  type: string
+  content: string
+  description?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SetScriptsItem {
+  script_id: number
+  seq: number
 }
 
 // ── Baselines ──
@@ -44,20 +50,18 @@ export function deleteBaseline(id: string): Promise<ApiResponse<unknown>> {
   return request<unknown>('DELETE', `/baselines/${id}`)
 }
 
-// ── Baseline Scripts ──
+// ── Baseline Script Associations ──
 
-export function getBaselineScripts(baselineId: string): Promise<ApiResponse<BaselineScript[]>> {
-  return request<BaselineScript[]>('GET', `/baselines/${baselineId}/scripts`)
+export function getBaselineScripts(baselineId: string): Promise<ApiResponse<BaselineScriptAssignment[]>> {
+  return request<BaselineScriptAssignment[]>('GET', `/baselines/${baselineId}/scripts`)
 }
 
-export function getBaselineScript(id: number): Promise<ApiResponse<BaselineScript>> {
-  return request<BaselineScript>('GET', `/baselines/scripts/${id}`)
+export function setBaselineScripts(baselineId: string, scripts: SetScriptsItem[]): Promise<ApiResponse<{ scripts: SetScriptsItem[] }>> {
+  return request<{ scripts: SetScriptsItem[] }>('PUT', `/baselines/${baselineId}/scripts`, { scripts })
 }
 
-export function upsertBaselineScript(data: BaselineScript): Promise<ApiResponse<BaselineScript>> {
-  return request<BaselineScript>('POST', '/baselines/scripts', data)
-}
+// ── Assigned Scripts (machine pull) ──
 
-export function deleteBaselineScript(id: number): Promise<ApiResponse<unknown>> {
-  return request<unknown>('DELETE', `/baselines/scripts/${id}`)
+export function getAssignedBaselineScripts(mac: string): Promise<ApiResponse<BaselineScriptAssignment[]>> {
+  return request<BaselineScriptAssignment[]>('GET', `/baselines/assigned?mac=${encodeURIComponent(mac)}`)
 }

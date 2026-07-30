@@ -28,6 +28,12 @@ export interface StoreItemDetail {
   version: string
   author: string
   tags?: string[]
+  source?: string
+  releases?: string[]
+  created_at?: string
+  updated_at?: string
+  template_variables?: Record<string, string>
+  variable_values?: Record<string, string>
   content: any
 }
 
@@ -51,4 +57,9 @@ export async function getStoreItem(type: string, id: string): Promise<ApiRespons
 /** Import a store item into the local database. */
 export async function importStoreItem(itemId: string, itemType: string): Promise<ApiResponse<ImportResult>> {
   return request('POST', '/store/import', { item_id: itemId, item_type: itemType })
+}
+
+/** Import a store item from a local JSON file (content from export). */
+export async function importLocalStoreItem(payload: StoreItemDetail): Promise<ApiResponse<ImportResult>> {
+  return request('POST', '/store/import-local', payload)
 }

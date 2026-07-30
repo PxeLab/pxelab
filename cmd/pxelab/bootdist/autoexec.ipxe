@@ -1,0 +1,66 @@
+#!ipxe
+# PxeLab autoexec.ipxe
+# iPXE v2.0.0+ 自动下载此文件（TFTP/HTTP from next-server）
+# 作为非 EMBED iPXE 二进制的启动入口，链式加载 PxeLab 服务器
+
+:netboot
+dhcp net0 || goto dhcp_failed
+
+# 优先使用 DHCP Option 175 提供的脚本 URL（PxeLab 已注入）
+isset ${script-url} && chain ${script-url} || goto use_nextserver
+
+:use_nextserver
+# 从 DHCP 选项中确定服务器地址
+isset ${next-server} && set pxelab-server ${next-server}
+isset ${proxydhcp/next-server} && set pxelab-server ${proxydhcp/next-server}
+isset ${pxelab-server} || set pxelab-server ${dhcp-server}
+isset ${pxelab-server} || goto dhcp_failed
+
+# 构建链式加载 URL
+set pxelab-url http://${pxelab-server}:8080/boot/ipxe/script?mac=${net0/mac}
+chain ${pxelab-url} || goto failsafe
+
+:dhcp_failed
+echo DHCP failed - no network configuration available
+goto failsafe
+
+:failsafe
+echo
+echo Connection to PxeLab server failed.
+echo
+menu Failsafe Menu
+item --gap System Operations
+item retry        Retry network boot
+item netconfig    Manual network configuration
+item localboot    Boot from local disk
+item debug        iPXE Debug Shell
+choose failsafe_choice || goto localboot
+goto ${failsafe_choice}
+
+:retry
+goto netboot
+
+:netconfig
+echo
+echo Manual Network Configuration:
+echo
+ifstat
+echo
+echo -n Interface number [0 for net0]: && read net-dev
+isset ${net-dev} || set net-dev 0
+echo -n IP address: && read net${net-dev}/ip
+echo -n Subnet mask: && read net${net-dev}/netmask
+echo -n Gateway: && read net${net-dev}/gateway
+echo -n DNS server: && read dns
+ifopen net${net-dev}
+echo
+echo Attempting chainload...
+goto netboot
+
+:localboot
+exit
+
+:debug
+echo Type "exit" to return to menu
+shell
+goto failsafe

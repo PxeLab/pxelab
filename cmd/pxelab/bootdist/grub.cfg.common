@@ -1,0 +1,8 @@
+set timeout=6
+  menuentry 'Unicom-ARM-BOOTOS' {
+  linux Image-nohinic-lt ksdevice=bootif enforcemodulesig=0 enforcing=0 quiet debug_init root=/dev/ram0 rw ramdisk_size=700000 audit=0 selinux=0 biosdevname=0 net.ifnames=0 debug isdebug=yes rd.retry=1 DEVELOPER=1 BOOTIF=$net_default_mac SERVER_ADDR=http://osinstall.newcb.com PRE=http://osinstall.newcb.com/bootos/pre.sh
+  #init=/init
+  #initrd testnextinitrd.img
+  initrd arm_init2.cpio.gz
+}
+

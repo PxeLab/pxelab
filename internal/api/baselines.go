@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sort"
 
@@ -36,24 +35,19 @@ type baselineReq struct {
 	Variables   string `json:"variables,omitempty"`
 }
 
-// baselineScriptDTO 是 API 层的脚本响应结构。
-type baselineScriptDTO struct {
-	ID          uint   `json:"id"`
-	BaselineID  string `json:"baseline_id"`
-	Seq         int    `json:"seq"`
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	Content     string `json:"content"`
-	Description string `json:"description"`
+// baselineScriptAssignmentDTO 是基线关联脚本的 API 响应。
+type baselineScriptAssignmentDTO struct {
+	ScriptID uint `json:"script_id"`
+	Seq      int  `json:"seq"`
+	*scriptDTO
 }
 
-// baselineScriptReq 是创建/更新脚本的请求体。
-type baselineScriptReq struct {
-	Seq         int    `json:"seq"`
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	Content     string `json:"content"`
-	Description string `json:"description"`
+// setScriptsReq 是批量设置基线关联脚本的请求体。
+type setScriptsReq struct {
+	Scripts []struct {
+		ScriptID uint `json:"script_id"`
+		Seq      int  `json:"seq"`
+	} `json:"scripts"`
 }
 
 // assignedScriptDTO 是机器拉取端点返回的脚本结构（已渲染）。
@@ -162,72 +156,54 @@ func (h *BaselineHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ListScripts 列出基线下的所有脚本。
+// ListScripts 列出基线关联的所有脚本（含脚本详情）。
 func (h *BaselineHandler) ListScripts(w http.ResponseWriter, r *http.Request) {
 	blID := chi.URLParam(r, "id")
-	scripts, err := h.store.ListBaselineScripts(r.Context(), blID)
+	assignments, err := h.store.ListBaselineScripts(r.Context(), blID)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	dtos := make([]baselineScriptDTO, 0, len(scripts))
-	for i := range scripts {
-		dtos = append(dtos, scriptToDTO(&scripts[i]))
+	dtos := make([]baselineScriptAssignmentDTO, 0, len(assignments))
+	for _, a := range assignments {
+		sc, err := h.store.GetScript(r.Context(), a.ScriptID)
+		if err != nil {
+			continue // script might have been deleted
+		}
+		sd := toScriptDTO(sc)
+		dtos = append(dtos, baselineScriptAssignmentDTO{
+			ScriptID:  a.ScriptID,
+			Seq:       a.Seq,
+			scriptDTO: &sd,
+		})
 	}
 	// 按 seq 排序
 	sort.Slice(dtos, func(i, j int) bool { return dtos[i].Seq < dtos[j].Seq })
 	OK(w, map[string]any{"scripts": dtos})
 }
 
-// UpsertScript 创建或更新基线下的脚本。
-func (h *BaselineHandler) UpsertScript(w http.ResponseWriter, r *http.Request) {
+// SetScripts 批量设置基线关联的脚本（全量替换）。
+func (h *BaselineHandler) SetScripts(w http.ResponseWriter, r *http.Request) {
 	blID := chi.URLParam(r, "id")
-
-	var req baselineScriptReq
+	var req setScriptsReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		Error(w, http.StatusBadRequest, "无效的请求体")
 		return
 	}
-	if req.Name == "" {
-		Error(w, http.StatusBadRequest, "脚本名称不能为空")
-		return
+	assignments := make([]models.BaselineScriptAssignment, len(req.Scripts))
+	for i, s := range req.Scripts {
+		assignments[i] = models.BaselineScriptAssignment{
+			BaselineID: blID,
+			ScriptID:   s.ScriptID,
+			Seq:        s.Seq,
+		}
 	}
-	if req.Content == "" {
-		Error(w, http.StatusBadRequest, "脚本内容不能为空")
-		return
-	}
-
-	sc := &models.BaselineScript{
-		BaselineID:  blID,
-		Seq:         req.Seq,
-		Name:        req.Name,
-		Type:        req.Type,
-		Content:     req.Content,
-		Description: req.Description,
-	}
-
-	if err := h.store.UpsertBaselineScript(r.Context(), sc); err != nil {
+	if err := h.store.SetBaselineScripts(r.Context(), blID, assignments); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(r.Context(), h.store, models.AuditUpdate, "baseline_script", blID, remoteIP(r), "更新脚本: "+sc.Name+" in baseline "+blID)
-	OK(w, scriptToDTO(sc))
-}
-
-// DeleteScript 删除基线下的单个脚本。
-func (h *BaselineHandler) DeleteScript(w http.ResponseWriter, r *http.Request) {
-	scriptIDStr := chi.URLParam(r, "scriptId")
-	// 简单解析 id（暂时只支持数字 uint）
-	var id uint
-	if _, err := fmt.Sscanf(scriptIDStr, "%d", &id); err != nil {
-		Error(w, http.StatusBadRequest, "无效的脚本 ID")
-		return
-	}
-	if err := h.store.DeleteBaselineScript(r.Context(), id); err != nil {
-		Error(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "baseline", blID, remoteIP(r), "更新基线脚本关联: "+blID)
+	OK(w, map[string]any{"scripts": req.Scripts})
 }
 
 // GetAssigned 根据 MAC 地址获取机器关联的所有基线脚本（已渲染变量）。
@@ -275,19 +251,23 @@ func (h *BaselineHandler) GetAssigned(w http.ResponseWriter, r *http.Request) {
 		}
 		baselineVars, _ := bl.GetVariablesMap()
 
-		scripts, err := h.store.ListBaselineScripts(r.Context(), blID)
+		assignments, err := h.store.ListBaselineScripts(r.Context(), blID)
 		if err != nil {
 			continue
 		}
 
-		for _, sc := range scripts {
+		for _, a := range assignments {
+			sc, err := h.store.GetScript(r.Context(), a.ScriptID)
+			if err != nil {
+				continue
+			}
 			rendered, err := baseline.RenderScript(sc.Content, baselineVars, profileVars, nil)
 			if err != nil {
 				rendered = sc.Content // 渲染失败时回退到原始内容
 			}
 
 			allScripts = append(allScripts, assignedScriptDTO{
-				Seq:         sc.Seq,
+				Seq:         a.Seq,
 				Name:        sc.Name,
 				Type:        sc.Type,
 				Content:     rendered,
@@ -313,21 +293,5 @@ func baselineToDTO(bl *models.Baseline) baselineDTO {
 		Variables:   bl.Variables,
 		CreatedAt:   bl.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:   bl.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-	}
-}
-
-func scriptToDTO(sc *models.BaselineScript) baselineScriptDTO {
-	scriptType := sc.Type
-	if scriptType == "" {
-		scriptType = "shell"
-	}
-	return baselineScriptDTO{
-		ID:          sc.ID,
-		BaselineID:  sc.BaselineID,
-		Seq:         sc.Seq,
-		Name:        sc.Name,
-		Type:        scriptType,
-		Content:     sc.Content,
-		Description: sc.Description,
 	}
 }

@@ -16,16 +16,25 @@ type Baseline struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// BaselineScript 基线中的单个脚本，按 Seq 顺序执行
-type BaselineScript struct {
-	ID           uint   `json:"id" gorm:"primaryKey"`
-	BaselineID   string `json:"baseline_id" gorm:"index;not null"`
-	Seq          int    `json:"seq" gorm:"not null"`
-	Name         string `json:"name" gorm:"not null"`
-	Type         string `json:"type" gorm:"not null;default:shell"` // shell / powershell / cloud-init
-	Content      string `json:"content" gorm:"type:text;not null"`
-	Description  string `json:"description"`
+// Script is a standalone executable script (shell/bat/powershell).
+type Script struct {
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	Name        string    `json:"name" gorm:"not null"`
+	Type        string    `json:"type" gorm:"not null;default:shell"` // shell / bat / powershell
+	Content     string    `json:"content" gorm:"type:text;not null"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
+
+// BaselineScriptAssignment is the join table for Baseline ↔ Script many-to-many.
+type BaselineScriptAssignment struct {
+	BaselineID string `json:"baseline_id" gorm:"primaryKey;index"`
+	ScriptID   uint   `json:"script_id" gorm:"primaryKey;index"`
+	Seq        int    `json:"seq" gorm:"not null;default:0"`
+}
+
+func (BaselineScriptAssignment) TableName() string { return "baseline_script_assignments" }
 
 // GetOSFilter 解析 OSFilter JSON 为字符串切片
 func (b *Baseline) GetOSFilter() ([]string, error) {
