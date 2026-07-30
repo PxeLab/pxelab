@@ -62,5 +62,5 @@ docs-site/.vitepress/cache/
 # Cloudflare wrangler
 .wrangler/
 
-# Local store copy
-pxelab-store/
+# Local store submodule
+store/
