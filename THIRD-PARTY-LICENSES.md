@@ -103,5 +103,5 @@ See [`boot/README.md`](boot/README.md) for attribution of embedded boot firmware
 ## Notes
 
 - License URLs marked as "Unknown" in the raw CSV have been manually verified where possible.
-- This list is generated with [google/go-licenses](https://github.com/google/go-licenses) and supplemented with frontend dependencies from `web/package.json` and `docs-site/package.json`.
+- This list is generated with [google/go-licenses](https://github.com/google/go-licenses) and supplemented with frontend dependencies from `web/package.json`.
 - For the most accurate and up-to-date license information, consult the upstream repositories directly.
