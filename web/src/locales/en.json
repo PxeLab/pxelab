@@ -53,6 +53,7 @@
     "network": "Network Diagnostics",
     "bootSettings": "Boot Options",
     "baselines": "Baselines",
+    "scripts": "Scripts",
     "store": "Store"
   },
   "dashboard": {
@@ -601,7 +602,7 @@
     "addressPoolEndInvalid": "Pool end {ip} not in {cidr}",
     "gatewayInvalid": "Invalid gateway address format",
     "selectSubnet": "--",
-    "subnetFull": "(full)",
+    "subnetServer": "(server)",
     "addressPoolLabel": "Address Pool:",
     "ipConflict": "⚠ IP Conflict:",
     "ipConflictReservation": "Already reserved (MAC: {mac})",
@@ -776,6 +777,9 @@
     "deleteConfirm": "Delete template \"{{name}}\"? This cannot be undone.",
     "batchDeleteSuccess": "Deleted {{count}} templates",
     "batchDeleteFail": "{{success}} succeeded, {{failed}} failed",
+    "add": "Add",
+    "up": "Up",
+    "down": "Down",
     "loadFailed": "Failed to load",
     "saveFailed": "Failed to save",
     "deleteFailed": "Failed to delete",
@@ -1469,6 +1473,16 @@
     "assignToProfileHint": "To assign this baseline to a profile, edit the profile and select this baseline in the Baselines field.",
     "confirmDelete": "Delete"
   },
+  "scripts": {
+    "title": "Scripts",
+    "description": "Manage standalone scripts reusable across baselines",
+    "create": "Create Script",
+    "createDescription": "Create a new script",
+    "editDescription": "Edit script details",
+    "content": "Script Content",
+    "deleteConfirm": "Delete script \"{name}\"?",
+    "noScripts": "No scripts yet. Create your first script to reuse across baselines."
+  },
   "store": {
     "title": "Community Store",
     "description": "Browse and import community-contributed baselines, boot templates, and configurations",
@@ -1485,6 +1499,7 @@
     "type_all": "All",
     "type_baseline": "Baselines",
     "type_boot_template": "Boot Templates",
+    "type_netboot_distro": "OS Distros",
     "confirmImportTitle": "Import {name}",
     "confirmImportMsg": "This will import \"{name}\" into your local PxeLab instance. The item will be available immediately after import.",
     "goToBaseline": "View Baseline",
@@ -1494,6 +1509,23 @@
     "imported": "Imported",
     "downloads": "Downloads",
     "updated": "Updated",
-    "created": "Created"
+    "created": "Created",
+    "detail": {
+      "title": "Store Item Detail",
+      "backToStore": "Back to Store",
+      "content": "Content",
+      "importConfirm": "Import this item?",
+      "download": "Download JSON",
+      "import": "Import to PxeLab",
+      "importLocalTitle": "Import Store Item",
+      "importLocalSuccess": "Imported \"{name}\" from local file",
+      "importLocalFailed": "Failed to import from file: {error}",
+      "notFound": "Item not found"
+    },
+    "exportFailed": "Failed to export",
+    "importFromFile": "Import from File",
+    "importLocal": "Import Local File",
+    "importLocalHint": "Select a JSON file exported from the store",
+    "importLocalBtn": "Select JSON File"
   }
 }

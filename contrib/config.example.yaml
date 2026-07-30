@@ -5,12 +5,12 @@ global:
 interfaces:
   - name: eth0
     ip: 0.0.0.0
-    dhcp: hybrid
     tftp: true
     http: true
     dns: false
     subnets:
       - cidr: 192.168.1.0/24
+        dhcp: server
         pool: 192.168.1.100-200
         gateway: 192.168.1.1
         dns_servers: 8.8.8.8

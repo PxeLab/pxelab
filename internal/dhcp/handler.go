@@ -105,7 +105,7 @@ func (h *Handler) InitSubnets() {
 				continue
 			}
 
-			// Full: 必须有地址池和网关
+			// Server: 必须有地址池和网关
 			if len(pools) == 0 {
 				slog.Warn("子网无有效地址池，跳过", "cidr", subnet.CIDR)
 				continue

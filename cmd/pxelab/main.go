@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"context"
@@ -275,13 +275,13 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 		for _, sn := range iface.Subnets {
 			mode := sn.DHCP
 			if mode == "" {
-				mode = "full"
+				mode = "server"
 			}
 			if mode == "off" {
 				continue
 			}
 			allOff = false
-			if mode == "full" {
+			if mode == "server" {
 				needsDHCP = true
 			} else if mode == "proxy" {
 				needsProxy = true

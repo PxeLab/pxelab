@@ -53,6 +53,7 @@
     "network": "网络诊断",
     "bootSettings": "引导选项",
     "baselines": "初始化脚本",
+    "scripts": "脚本管理",
     "store": "应用商店"
   },
   "dashboard": {
@@ -601,7 +602,7 @@
     "addressPoolEndInvalid": "地址池结束 {ip} 不属于 {cidr}",
     "gatewayInvalid": "网关地址格式无效",
     "selectSubnet": "--",
-    "subnetFull": "（full）",
+    "subnetServer": "（server）",
     "addressPoolLabel": "地址池：",
     "ipConflict": "⚠ IP 冲突：",
     "ipConflictReservation": "已被预留（MAC: {mac}）",
@@ -776,6 +777,9 @@
     "deleteConfirm": "确定删除模板「{{name}}」？此操作不可恢复。",
     "batchDeleteSuccess": "已删除 {{count}} 个模板",
     "batchDeleteFail": "成功 {{success}} 条，失败 {{failed}} 条",
+    "add": "添加",
+    "up": "上移",
+    "down": "下移",
     "loadFailed": "加载失败",
     "saveFailed": "保存失败",
     "deleteFailed": "删除失败",
@@ -1469,6 +1473,16 @@
     "assignToProfileHint": "要将此脚本集关联到引导配置，请编辑引导配置并在\"初始化脚本\"字段中选择此脚本集。",
     "confirmDelete": "删除"
   },
+  "scripts": {
+    "title": "脚本管理",
+    "description": "管理可跨脚本集复用的独立脚本",
+    "create": "创建脚本",
+    "createDescription": "创建一个新脚本",
+    "editDescription": "编辑脚本详情",
+    "content": "脚本内容",
+    "deleteConfirm": "确定删除脚本 \"{name}\"？",
+    "noScripts": "暂无脚本。创建您的第一个脚本以在脚本集间复用。"
+  },
   "store": {
     "title": "应用商店",
     "description": "浏览并导入社区贡献的初始化脚本、引导模板和配置方案",
@@ -1485,6 +1499,7 @@
     "type_all": "全部",
     "type_baseline": "初始化脚本",
     "type_boot_template": "引导模板",
+    "type_netboot_distro": "OS 发行版",
     "confirmImportTitle": "导入 {name}",
     "confirmImportMsg": "将 \"{name}\" 导入到本地 PxeLab 实例。导入后即可立即使用。",
     "goToBaseline": "查看脚本集",
@@ -1494,6 +1509,23 @@
     "imported": "已导入",
     "downloads": "下载次数",
     "updated": "更新于",
-    "created": "创建于"
+    "created": "创建于",
+    "detail": {
+      "title": "商店项目详情",
+      "backToStore": "返回商店",
+      "content": "内容",
+      "importConfirm": "确认导入此项目？",
+      "download": "下载 JSON",
+      "import": "导入到 PxeLab",
+      "importLocalTitle": "导入商店项目",
+      "importLocalSuccess": "已从本地文件导入 \"{name}\"",
+      "importLocalFailed": "从文件导入失败: {error}",
+      "notFound": "项目未找到"
+    },
+    "exportFailed": "导出失败",
+    "importFromFile": "从文件导入",
+    "importLocal": "导入本地文件",
+    "importLocalHint": "选择从商店导出的 JSON 文件",
+    "importLocalBtn": "选择 JSON 文件"
   }
 }
