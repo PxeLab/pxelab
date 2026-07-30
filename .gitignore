@@ -50,11 +50,6 @@ pxelab.db*
 .env
 .env.local
 
-# Docs site build artifacts
-docs-site/node_modules/
-docs-site/.vitepress/dist/
-docs-site/.vitepress/cache/
-
 # Agent/tool artifacts
 .omo/
 .playwright-mcp/
