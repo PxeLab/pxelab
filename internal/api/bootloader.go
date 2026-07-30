@@ -26,25 +26,44 @@ var knownBootFiles = []struct {
 	Description string
 	Required    bool
 }{
+	// iPXE — 核心引导加载器
 	{"ipxe.efi", "iPXE x86_64 EFI", true},
 	{"ipxe32.efi", "iPXE IA32 EFI", false},
 	{"ipxe.pxe", "iPXE BIOS PXE", true},
 	{"ipxe-snponly.efi", "iPXE SnpOnly EFI", false},
-	{"ipxe-arm64.efi", "iPXE ARM64 EFI", false},
 	{"undionly.kpxe", "iPXE UNDI BIOS", false},
-	{"pxelinux.0", "PXELINUX BIOS", false},
-	{"pxelinux.bios", "PXELINUX BIOS (alt)", false},
-	{"pxelinux.efi", "PXELINUX EFI", false},
-	{"grubx64.efi", "GRUB2 x86_64 EFI", false},
-	{"grubaa64.efi", "GRUB2 ARM64 EFI", false},
-	{"memdisk", "MEMDISK", false},
-	{"menu.c32", "VESAMENU", false},
-	// Secure Boot 文件
+	// iPXE — 其他架构
+	{"ipxe-arm64.efi", "iPXE ARM64 EFI", false},
+	{"ipxe-arm32.efi", "iPXE ARM32 EFI", false},
+	{"ipxe-loong64.efi", "iPXE LoongArch64 EFI", false},
+	{"ipxe-riscv64.efi", "iPXE RISC-V 64 EFI", false},
+	{"ipxe-riscv32.efi", "iPXE RISC-V 32 EFI", false},
+	// SnpOnly — 无 UNDI 栈的网卡直通
+	{"snponly-arm64.efi", "SnpOnly ARM64 EFI", false},
+	{"snponly-arm32.efi", "SnpOnly ARM32 EFI", false},
+	{"snponly-loong64.efi", "SnpOnly LoongArch64 EFI", false},
+	{"snponly-riscv64.efi", "SnpOnly RISC-V 64 EFI", false},
+	{"snponly-riscv32.efi", "SnpOnly RISC-V 32 EFI", false},
+	// Secure Boot — Shim + 签名 iPXE
 	{"shim-x86_64.efi", "Shim x86_64 (iPXE)", false},
 	{"ipxe-x86_64-sb.efi", "iPXE x86_64 Secure Boot", false},
 	{"shim-arm64.efi", "Shim ARM64 (iPXE)", false},
 	{"ipxe-arm64-sb.efi", "iPXE ARM64 Secure Boot", false},
-	{"shimx64.efi", "Shim x86_64 (GRUB2)", false},
+	{"ipxe-loong64-sb.efi", "iPXE LoongArch64 Secure Boot", false},
+	{"ipxe-riscv64-sb.efi", "iPXE RISC-V 64 Secure Boot", false},
+	// PXELINUX — BIOS/legacy 引导
+	{"pxelinux.0", "PXELINUX BIOS", false},
+	{"pxelinux.bios", "PXELINUX BIOS (alt)", false},
+	{"pxelinux.efi", "PXELINUX EFI", false},
+	{"ldlinux.c32", "LDlinux (PXELINUX 库)", false},
+	{"ldlinux.e64", "LDlinux EFI64 (PXELINUX 库)", false},
+	{"menu.c32", "VESAMENU (PXELINUX 菜单)", false},
+	// GRUB2
+	{"grubx64.efi", "GRUB2 x86_64 EFI", false},
+	{"grubaa64.efi", "GRUB2 ARM64 EFI", false},
+	// 工具
+	{"memdisk", "MEMDISK", false},
+	{"poweroff.com", "PowerOff COM (DOS)", false},
 }
 
 type BootFileInfo struct {

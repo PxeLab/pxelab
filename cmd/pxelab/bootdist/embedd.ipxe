@@ -1,0 +1,63 @@
+#!ipxe
+# PxeLab embedded iPXE script
+# This script is compiled into iPXE binaries via EMBED= parameter
+# It chains to the PxeLab HTTP server for dynamic boot menu generation
+
+:netboot
+dhcp net0 || goto dhcp_failed
+
+# Determine server address from DHCP
+isset ${next-server} && set pxelab-server ${next-server}
+isset ${proxydhcp/next-server} && set pxelab-server ${proxydhcp/next-server}
+isset ${pxelab-server} || set pxelab-server ${dhcp-server}
+
+# Build chain URL
+set pxelab-url http://${pxelab-server}:8080/boot/ipxe/script?mac=${net0/mac}
+
+# Chain to PxeLab server
+chain ${pxelab-url} || goto failsafe
+
+:dhcp_failed
+echo DHCP failed - no network configuration available
+goto failsafe
+
+:failsafe
+echo
+echo Connection to PxeLab server failed.
+echo
+menu Failsafe Menu
+item --gap System Operations
+item retry        Retry network boot
+item netconfig    Manual network configuration
+item localboot    Boot from local disk
+item debug        iPXE Debug Shell
+choose failsafe_choice || goto localboot
+goto ${failsafe_choice}
+
+:retry
+goto netboot
+
+:netconfig
+echo
+echo Manual Network Configuration:
+echo
+ifstat
+echo
+echo -n Interface number [0 for net0]: && read net-dev
+isset ${net-dev} || set net-dev 0
+echo -n IP address: && read net${net-dev}/ip
+echo -n Subnet mask: && read net${net-dev}/netmask
+echo -n Gateway: && read net${net-dev}/gateway
+echo -n DNS server: && read dns
+ifopen net${net-dev}
+echo
+echo Attempting chainload...
+goto netboot
+
+:localboot
+exit
+
+:debug
+echo Type "exit" to return to menu
+shell
+goto failsafe

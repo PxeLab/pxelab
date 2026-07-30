@@ -50,7 +50,7 @@ func (s *sqliteStore) Migrate() error {
 	s.migrateRenameColumn("dhcp_reservations", "subnet_c_id_r", "subnet_cidr", "varchar(255) NOT NULL DEFAULT ''")
 	s.migrateEmptyProfileIDs()
 
-	return s.db.AutoMigrate(
+	if err := s.db.AutoMigrate(
 		&models.Host{},
 		&models.Profile{},
 		&models.Event{},
@@ -71,8 +71,14 @@ func (s *sqliteStore) Migrate() error {
 		&models.ProfileScriptVersion{},
 		&models.AuditLog{},
 		&models.Baseline{},
-		&models.BaselineScript{},
-	)
+		&models.Script{},
+		&models.BaselineScriptAssignment{},
+	); err != nil {
+		return err
+	}
+
+	// ── migrate old baseline_scripts → Script + BaselineScriptAssignment ──
+	return s.migrateBaselineScripts()
 }
 
 // migrateRenameColumn renames a column if the old name still exists.
@@ -109,6 +115,75 @@ func (s *sqliteStore) migrateEmptyProfileIDs() {
 			s.db.Exec("UPDATE profiles SET id = ? WHERE rowid = ?", uuid.New().String(), r.RowID)
 		}
 	}
+}
+
+// migrateBaselineScripts migrates old one-to-many baseline_scripts table
+// to the new many-to-many schema: Script (standalone) + BaselineScriptAssignment (junction).
+func (s *sqliteStore) migrateBaselineScripts() error {
+	// Check if the old baseline_scripts table still has the 'name' column (old schema).
+	var hasNameCol int64
+	s.db.Raw("SELECT COUNT(*) FROM pragma_table_info('baseline_scripts') WHERE name = 'name'").Scan(&hasNameCol)
+	if hasNameCol == 0 {
+		return nil // already migrated or never existed
+	}
+
+	type oldRow struct {
+		ID          uint
+		BaselineID  string
+		Seq         int
+		Name        string
+		Type        string
+		Content     string
+		Description string
+	}
+	var oldRows []oldRow
+	if err := s.db.Table("baseline_scripts").Find(&oldRows).Error; err != nil {
+		return err
+	}
+
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		// Group by content to deduplicate identical scripts.
+		contentHash := make(map[string]uint) // content hash -> script ID
+		for _, row := range oldRows {
+			script := models.Script{
+				Name:        row.Name,
+				Type:        row.Type,
+				Content:     row.Content,
+				Description: row.Description,
+			}
+			// Deduplicate by exact content match.
+			if existingID, ok := contentHash[row.Content]; ok {
+				// Create assignment only.
+				assign := models.BaselineScriptAssignment{
+					BaselineID: row.BaselineID,
+					ScriptID:   existingID,
+					Seq:        row.Seq,
+				}
+				if err := tx.Create(&assign).Error; err != nil {
+					return err
+				}
+				continue
+			}
+			if err := tx.Create(&script).Error; err != nil {
+				return err
+			}
+			contentHash[row.Content] = script.ID
+			assign := models.BaselineScriptAssignment{
+				BaselineID: row.BaselineID,
+				ScriptID:   script.ID,
+				Seq:        row.Seq,
+			}
+			if err := tx.Create(&assign).Error; err != nil {
+				return err
+			}
+		}
+
+		// Drop the old baseline_scripts table.
+		if err := tx.Migrator().DropTable("baseline_scripts"); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (s *sqliteStore) Seed() error {
@@ -765,43 +840,75 @@ func (s *sqliteStore) UpdateBaseline(ctx context.Context, b *models.Baseline) er
 
 func (s *sqliteStore) DeleteBaseline(ctx context.Context, id string) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("baseline_id = ?", id).Delete(&models.BaselineScript{}).Error; err != nil {
+		if err := tx.Where("baseline_id = ?", id).Delete(&models.BaselineScriptAssignment{}).Error; err != nil {
 			return err
 		}
 		return tx.Delete(&models.Baseline{}, "id = ?", id).Error
 	})
 }
 
-// ── Baseline Scripts ──
+// ── Baseline ↔ Script Associations (many-to-many) ──
 
-func (s *sqliteStore) ListBaselineScripts(ctx context.Context, baselineID string) ([]models.BaselineScript, error) {
-	var scripts []models.BaselineScript
-	if err := s.db.WithContext(ctx).Where("baseline_id = ?", baselineID).Order("seq ASC").Find(&scripts).Error; err != nil {
+func (s *sqliteStore) ListBaselineScripts(ctx context.Context, baselineID string) ([]models.BaselineScriptAssignment, error) {
+	var assignments []models.BaselineScriptAssignment
+	if err := s.db.WithContext(ctx).Where("baseline_id = ?", baselineID).Order("seq ASC").Find(&assignments).Error; err != nil {
+		return nil, err
+	}
+	return assignments, nil
+}
+
+func (s *sqliteStore) SetBaselineScripts(ctx context.Context, baselineID string, assignments []models.BaselineScriptAssignment) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("baseline_id = ?", baselineID).Delete(&models.BaselineScriptAssignment{}).Error; err != nil {
+			return err
+		}
+		if len(assignments) > 0 {
+			for i := range assignments {
+				assignments[i].BaselineID = baselineID
+			}
+			if err := tx.Create(&assignments).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// ── Script ──
+
+func (s *sqliteStore) ListScripts(ctx context.Context) ([]models.Script, error) {
+	var scripts []models.Script
+	if err := s.db.WithContext(ctx).Order("created_at DESC").Find(&scripts).Error; err != nil {
 		return nil, err
 	}
 	return scripts, nil
 }
 
-func (s *sqliteStore) GetBaselineScript(ctx context.Context, id uint) (*models.BaselineScript, error) {
-	var sc models.BaselineScript
-	if err := s.db.WithContext(ctx).First(&sc, "id = ?", id).Error; err != nil {
+func (s *sqliteStore) GetScript(ctx context.Context, id uint) (*models.Script, error) {
+	var sc models.Script
+	if err := s.db.WithContext(ctx).First(&sc, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return &sc, nil
 }
 
-func (s *sqliteStore) UpsertBaselineScript(ctx context.Context, sc *models.BaselineScript) error {
-	// If ID is set, update; otherwise create
-	if sc.ID > 0 {
-		return s.db.WithContext(ctx).Save(sc).Error
-	}
+func (s *sqliteStore) CreateScript(ctx context.Context, sc *models.Script) error {
 	return s.db.WithContext(ctx).Create(sc).Error
 }
 
-func (s *sqliteStore) DeleteBaselineScript(ctx context.Context, id uint) error {
-	return s.db.WithContext(ctx).Delete(&models.BaselineScript{}, "id = ?", id).Error
+func (s *sqliteStore) UpdateScript(ctx context.Context, sc *models.Script) error {
+	return s.db.WithContext(ctx).Save(sc).Error
 }
 
-func (s *sqliteStore) DeleteBaselineScriptsByBaseline(ctx context.Context, baselineID string) error {
-	return s.db.WithContext(ctx).Where("baseline_id = ?", baselineID).Delete(&models.BaselineScript{}).Error
+func (s *sqliteStore) DeleteScript(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Clean up junction references.
+		if err := tx.Where("script_id = ?", id).Delete(&models.BaselineScriptAssignment{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&models.Script{}, id).Error
+	})
 }

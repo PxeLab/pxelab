@@ -10,7 +10,13 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { Input, Textarea } from '../components/ui/FormControls'
 import { DataTable, type Column } from '../components/ui/DataTable'
-import { api, type Baseline, type BaselineScript } from '../api/client'
+import { api, type Baseline, type BaselineScriptAssignment, type scriptDTO, type SetScriptsItem } from '../api/client'
+
+const SCRIPT_TYPE_COLORS: Record<string, string> = {
+  shell: 'bg-accent-green/15 text-accent-green',
+  bat: 'bg-blue-500/15 text-blue-400',
+  powershell: 'bg-accent-yellow/15 text-accent-yellow',
+}
 
 export default function BaselineDetail() {
   const { id } = useParams<{ id: string }>()
@@ -19,7 +25,7 @@ export default function BaselineDetail() {
   const { success, error: showError } = useToast()
 
   const [baseline, setBaseline] = useState<Baseline | null>(null)
-  const [scripts, setScripts] = useState<BaselineScript[]>([])
+  const [assignments, setAssignments] = useState<BaselineScriptAssignment[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
 
@@ -29,14 +35,13 @@ export default function BaselineDetail() {
   const [editDesc, setEditDesc] = useState('')
   const [editVars, setEditVars] = useState('')
   const [editSaving, setEditSaving] = useState(false)
+  const [savingScripts, setSavingScripts] = useState(false)
 
-  // Script form modal
-  const [scriptModalOpen, setScriptModalOpen] = useState(false)
-  const [editScriptIdx, setEditScriptIdx] = useState<number | null>(null)
-  const [scriptFilename, setScriptFilename] = useState('')
-  const [scriptSeq, setScriptSeq] = useState(0)
-  const [scriptContent, setScriptContent] = useState('')
-  const [scriptSaving, setScriptSaving] = useState(false)
+  // Add script modal — pick from library
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [availableScripts, setAvailableScripts] = useState<scriptDTO[]>([])
+  const [selectedScriptIds, setSelectedScriptIds] = useState<Set<number>>(new Set())
+  const [loadingAvailable, setLoadingAvailable] = useState(false)
 
   // Delete confirm
   const [deleteScriptTarget, setDeleteScriptTarget] = useState<number | null>(null)
@@ -51,7 +56,7 @@ export default function BaselineDetail() {
         api.getBaselineScripts(id),
       ])
       setBaseline(baselineRes.data)
-      setScripts(scriptsRes.data)
+      setAssignments(scriptsRes.data.sort((a, b) => a.seq - b.seq))
     } catch (err: any) {
       setLoadError(err.message || t('common.loadFailed'))
     } finally {
@@ -98,63 +103,104 @@ export default function BaselineDetail() {
     }
   }
 
-  // ── Script CRUD ──
+  // ── Script Library Selection ──
 
-  function openAddScript() {
-    setEditScriptIdx(null)
-    setScriptFilename('')
-    setScriptSeq(scripts.length + 1)
-    setScriptContent('')
-    setScriptModalOpen(true)
-  }
-
-  function openEditScript(sc: BaselineScript, idx: number) {
-    setEditScriptIdx(idx)
-    setScriptFilename(sc.filename)
-    setScriptSeq(sc.seq)
-    setScriptContent(sc.content)
-    setScriptModalOpen(true)
-  }
-
-  async function saveScript() {
-    if (!id || !scriptFilename.trim()) return
-    setScriptSaving(true)
+  async function openAddScript() {
+    setShowAddModal(true)
+    setSelectedScriptIds(new Set())
+    setLoadingAvailable(true)
     try {
-      const data: BaselineScript = {
-        baseline_id: id,
-        filename: scriptFilename.trim(),
-        seq: scriptSeq,
-        content: scriptContent,
-      }
-      if (editScriptIdx !== null) {
-        const existing = scripts[editScriptIdx]
-        if (existing?.id) data.id = existing.id
-      }
-      await api.upsertBaselineScript(data)
+      // Load all available scripts
+      const res = await api.getScripts()
+      // Filter out already assigned ones
+      const assignedIds = new Set(assignments.map(a => a.script_id))
+      setAvailableScripts(res.data.filter(s => !assignedIds.has(s.id)))
+    } catch (err: any) {
+      showError(err.message || t('common.loadFailed'))
+    } finally {
+      setLoadingAvailable(false)
+    }
+  }
+
+  function toggleSelectScript(id: number) {
+    setSelectedScriptIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function confirmAddScripts() {
+    if (!id) return
+
+    // Build the new assignment list: keep existing + newly selected
+    const items: SetScriptsItem[] = [
+      ...assignments.map(a => ({ script_id: a.script_id, seq: a.seq })),
+      ...Array.from(selectedScriptIds).map((scriptId, i) => ({
+        script_id: scriptId,
+        seq: assignments.length + i + 1,
+      })),
+    ]
+
+    setSavingScripts(true)
+    try {
+      await api.setBaselineScripts(id, items)
       success(t('baselines.scriptSaved'))
-      setScriptModalOpen(false)
+      setShowAddModal(false)
       loadBaseline()
     } catch (err: any) {
       showError(err.message || t('common.saveFailed'))
     } finally {
-      setScriptSaving(false)
+      setSavingScripts(false)
     }
   }
 
-  async function deleteScript(id: number) {
-    setDeleteScriptTarget(id)
+  function handleRemoveScript(scriptId: number) {
+    setDeleteScriptTarget(scriptId)
   }
 
-  async function doDeleteScript() {
-    if (deleteScriptTarget === null) return
+  async function confirmRemoveScript() {
+    if (!id || deleteScriptTarget === null) return
+    const items: SetScriptsItem[] = assignments
+      .filter(a => a.script_id !== deleteScriptTarget)
+      .map((a, i) => ({ script_id: a.script_id, seq: i + 1 }))
+
     try {
-      await api.deleteBaselineScript(deleteScriptTarget)
-      setScripts(prev => prev.filter(s => s.id !== deleteScriptTarget))
+      await api.setBaselineScripts(id, items)
       success(t('baselines.scriptDeleted'))
+      setDeleteScriptTarget(null)
+      loadBaseline()
     } catch (err: any) {
       showError(err.message || t('common.deleteFailed'))
+    }
+  }
+
+  function moveScript(index: number, direction: -1 | 1) {
+    const newAssignments = [...assignments]
+    const target = index + direction
+    if (target < 0 || target >= newAssignments.length) return
+    ;[newAssignments[index], newAssignments[target]] = [newAssignments[target], newAssignments[index]]
+    // Re-number seq
+    newAssignments.forEach((a, i) => { a.seq = i + 1 })
+    setAssignments(newAssignments)
+  }
+
+  async function saveOrder() {
+    if (!id) return
+    setSavingScripts(true)
+    try {
+      const items: SetScriptsItem[] = assignments.map(a => ({
+        script_id: a.script_id,
+        seq: a.seq,
+      }))
+      await api.setBaselineScripts(id, items)
+      success(t('common.saved'))
+    } catch (err: any) {
+      showError(err.message || t('common.saveFailed'))
+      loadBaseline()
     } finally {
-      setDeleteScriptTarget(null)
+      setSavingScripts(false)
     }
   }
 
@@ -162,23 +208,36 @@ export default function BaselineDetail() {
     try { return new Date(s).toLocaleString() } catch { return s }
   }
 
-  const scriptColumns: Column<BaselineScript>[] = [
+  const scriptColumns: Column<BaselineScriptAssignment>[] = [
     {
       key: 'seq',
       label: t('baselines.scriptSeq'),
-      render: sc => <span className="text-xs font-mono text-[var(--text-muted)] w-8">{sc.seq}</span>,
+      render: (item: BaselineScriptAssignment) => (
+        <span className="text-xs font-mono text-[var(--text-muted)] w-8">{item.seq}</span>
+      ),
     },
     {
-      key: 'filename',
-      label: t('baselines.scriptFilename'),
-      render: sc => <span className="text-sm font-mono text-[var(--text-primary)]">{sc.filename}</span>,
+      key: 'name',
+      label: t('common.name'),
+      render: (item: BaselineScriptAssignment) => (
+        <span className="text-sm font-medium text-[var(--text-primary)]">{item.name}</span>
+      ),
+    },
+    {
+      key: 'type',
+      label: t('common.type'),
+      render: (item: BaselineScriptAssignment) => (
+        <span className={`px-2 py-0.5 rounded text-xs font-medium ${SCRIPT_TYPE_COLORS[item.type] || 'text-[var(--text-muted)]'}`}>
+          {item.type === 'shell' ? 'Shell' : item.type === 'bat' ? 'BAT' : item.type === 'powershell' ? 'PowerShell' : item.type}
+        </span>
+      ),
     },
     {
       key: 'content',
-      label: t('baselines.scriptContent'),
-      render: sc => (
-        <span className="block max-w-[400px] truncate text-xs text-[var(--text-muted)] font-mono">
-          {sc.content?.split('\n')[0] || '-'}
+      label: t('common.content'),
+      render: (item: BaselineScriptAssignment) => (
+        <span className="block max-w-[300px] truncate text-xs text-[var(--text-muted)] font-mono">
+          {item.content?.split('\n')[0] || '-'}
         </span>
       ),
     },
@@ -186,24 +245,36 @@ export default function BaselineDetail() {
       key: 'actions',
       label: '',
       className: 'text-right',
-      render: (sc) => (
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={() => openEditScript(sc, -1)}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-colors"
-            title={t('common.edit')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-          </button>
-          <button
-            onClick={() => sc.id && deleteScript(sc.id)}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent-red hover:bg-accent-red/10 transition-colors"
-            title={t('common.delete')}
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      ),
+      render: (item: BaselineScriptAssignment) => {
+        const idx = assignments.findIndex(a => a.script_id === item.script_id)
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={() => moveScript(idx, -1)}
+              disabled={idx <= 0}
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-colors disabled:opacity-20"
+              title={t('common.up')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            </button>
+            <button
+              onClick={() => moveScript(idx, 1)}
+              disabled={idx >= assignments.length - 1}
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] transition-colors disabled:opacity-20"
+              title={t('common.down')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <button
+              onClick={() => handleRemoveScript(item.script_id)}
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent-red hover:bg-accent-red/10 transition-colors"
+              title={t('common.delete')}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        )
+      },
     },
   ]
 
@@ -317,13 +388,20 @@ export default function BaselineDetail() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('baselines.scripts')}</h3>
-          <Button variant="primary" size="sm" onClick={openAddScript}>
-            <Plus size={14} />
-            {t('baselines.addScript')}
-          </Button>
+          <div className="flex items-center gap-2">
+            {assignments.length > 0 && (
+              <Button variant="secondary" size="sm" onClick={saveOrder} disabled={savingScripts}>
+                {t('common.save')}
+              </Button>
+            )}
+            <Button variant="primary" size="sm" onClick={openAddScript}>
+              <Plus size={14} />
+              {t('baselines.addScript')}
+            </Button>
+          </div>
         </div>
 
-        {scripts.length === 0 ? (
+        {assignments.length === 0 ? (
           <Card>
             <div className="py-8 text-center">
               <FileCode size={28} className="mx-auto mb-2 text-[var(--text-muted)] opacity-40" />
@@ -334,58 +412,72 @@ export default function BaselineDetail() {
           <Card padding={false}>
             <DataTable
               columns={scriptColumns}
-              data={scripts}
-              rowKey={(sc) => String(sc.id ?? sc.filename)}
+              data={assignments}
+              rowKey={(a) => String(a.script_id)}
             />
           </Card>
         )}
       </div>
 
-      {/* Script Editor Modal */}
+      {/* Add Script from Library Modal */}
       <Modal
-        open={scriptModalOpen}
-        onClose={() => setScriptModalOpen(false)}
-        title={editScriptIdx !== null ? t('baselines.editScript') : t('baselines.addScript')}
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title={t('baselines.addScript')}
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setScriptModalOpen(false)}>{t('common.cancel')}</Button>
-            <Button variant="primary" size="sm" onClick={saveScript} disabled={scriptSaving}>
-              {scriptSaving ? t('common.processing') : t('common.save')}
+            <Button variant="secondary" size="sm" onClick={() => setShowAddModal(false)}>{t('common.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={confirmAddScripts} disabled={selectedScriptIds.size === 0 || savingScripts}>
+              {savingScripts ? t('common.processing') : t('common.add')}
             </Button>
           </>
         }
       >
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('baselines.scriptFilename')}</label>
-              <Input size="sm" value={scriptFilename} onChange={e => setScriptFilename(e.target.value)}
-                placeholder="init.sh" />
+        <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+          {loadingAvailable ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
             </div>
-            <div className="w-20">
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('baselines.scriptSeq')}</label>
-              <Input size="sm" type="number" min={0} value={String(scriptSeq)} onChange={e => setScriptSeq(Number(e.target.value))} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('baselines.scriptContent')}</label>
-            <Textarea
-              size="sm"
-              value={scriptContent}
-              onChange={e => setScriptContent(e.target.value)}
-              rows={16}
-              className="font-mono text-xs"
-              placeholder="#!/bin/bash&#10;echo 'Hello, World!'"
-            />
-          </div>
+          ) : availableScripts.length === 0 ? (
+            <p className="text-sm text-[var(--text-muted)] text-center py-4">{t('scripts.noScripts')}</p>
+          ) : (
+            availableScripts.map(sc => (
+              <label
+                key={sc.id}
+                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  selectedScriptIds.has(sc.id)
+                    ? 'border-blue-500/40 bg-blue-500/5'
+                    : 'border-[var(--bg-border)] hover:bg-[var(--bg-hover)]'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedScriptIds.has(sc.id)}
+                  onChange={() => toggleSelectScript(sc.id)}
+                  className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[var(--text-primary)] truncate">{sc.name}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SCRIPT_TYPE_COLORS[sc.type] || ''}`}>
+                      {sc.type}
+                    </span>
+                  </div>
+                  {sc.description && (
+                    <p className="text-xs text-[var(--text-muted)] truncate mt-0.5">{sc.description}</p>
+                  )}
+                </div>
+              </label>
+            ))
+          )}
         </div>
       </Modal>
 
-      {/* Delete Script Confirm */}
+      {/* Remove Script Confirm */}
       <ConfirmDialog
         open={deleteScriptTarget !== null}
         onClose={() => setDeleteScriptTarget(null)}
-        onConfirm={doDeleteScript}
+        onConfirm={confirmRemoveScript}
         title={t('common.delete')}
         message={t('baselines.deleteScriptConfirm')}
       />

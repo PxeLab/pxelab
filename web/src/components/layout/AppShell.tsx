@@ -60,6 +60,7 @@ const navSections = [
       { path: '/hosts', label: 'nav.hosts', icon: Server },
       { path: '/access-control', label: 'nav.accessControl', icon: ShieldCheck },
       { path: '/baselines', label: 'nav.baselines', icon: FileCode },
+      { path: '/scripts', label: 'nav.scripts', icon: FileCode },
       { path: '/install-tasks', label: 'nav.installTasks', icon: HardDrive },
       { path: '/bmc', label: 'nav.bmc', icon: Cpu },
       { path: '/wol', label: 'nav.wol', icon: Wifi },

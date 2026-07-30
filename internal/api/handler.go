@@ -54,6 +54,7 @@ type Handler struct {
 	AuditLog        *AuditLogHandler
 	Version         *VersionHandler
 	Baseline        *BaselineHandler
+	Script          *ScriptHandler
 	Store           *StoreHandler
 	svcController   ServiceController
 	sessions        *session.Store
@@ -88,6 +89,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		AuditLog:        NewAuditLogHandler(st),
 		Version:         NewVersionHandler(version, updateChecker),
 		Baseline:        &BaselineHandler{store: st},
+		Script:          NewScriptHandler(st),
 		Store:           NewStoreHandler(st),
 		svcController:   svcController,
 		sessions:        sessions,
@@ -308,21 +310,28 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/bootloader/check-file", h.Bootloader.CheckFile)
 
 		// Baselines — security/compliance script collections
-			r.Get("/baselines", h.Baseline.List)
-			r.Post("/baselines", h.Baseline.Create)
-			r.Get("/baselines/{id}", h.Baseline.Get)
-			r.Put("/baselines/{id}", h.Baseline.Update)
-			r.Delete("/baselines/{id}", h.Baseline.Delete)
-			r.Get("/baselines/{id}/scripts", h.Baseline.ListScripts)
-			r.Post("/baselines/{id}/scripts", h.Baseline.UpsertScript)
-			r.Delete("/baselines/{id}/scripts/{scriptId}", h.Baseline.DeleteScript)
-			// Machine pull endpoint — NOT under /baselines to keep it clean for client use
-			r.Get("/baselines/assigned", h.Baseline.GetAssigned)
+		r.Get("/baselines", h.Baseline.List)
+		r.Post("/baselines", h.Baseline.Create)
+		r.Get("/baselines/{id}", h.Baseline.Get)
+		r.Put("/baselines/{id}", h.Baseline.Update)
+		r.Delete("/baselines/{id}", h.Baseline.Delete)
+		r.Get("/baselines/{id}/scripts", h.Baseline.ListScripts)
+		r.Put("/baselines/{id}/scripts", h.Baseline.SetScripts)
+		// Machine pull endpoint — NOT under /baselines to keep it clean for client use
+		r.Get("/baselines/assigned", h.Baseline.GetAssigned)
 
-			// Store — community template/script marketplace
-			r.Get("/store/catalog", h.Store.ListCatalog)
-			r.Get("/store/items/{type}/{id}", h.Store.GetItem)
-			r.Post("/store/import", h.Store.ImportItem)
+		// Scripts — standalone reusable scripts
+		r.Get("/scripts", h.Script.List)
+		r.Post("/scripts", h.Script.Create)
+		r.Get("/scripts/{id}", h.Script.Get)
+		r.Put("/scripts/{id}", h.Script.Update)
+		r.Delete("/scripts/{id}", h.Script.Delete)
+
+		// Store — community template/script marketplace
+		r.Get("/store/catalog", h.Store.ListCatalog)
+		r.Get("/store/items/{type}/{id}", h.Store.GetItem)
+		r.Post("/store/import", h.Store.ImportItem)
+		r.Post("/store/import-local", h.Store.ImportLocalItem)
 
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)

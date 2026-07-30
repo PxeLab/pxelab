@@ -33,6 +33,7 @@ type Interface interface {
 	OSImageStore
 	AuditLogStore
 	BaselineStore
+	ScriptStore
 	Close() error
 	Migrate() error
 	Seed() error
@@ -188,6 +189,14 @@ type AuditLogStore interface {
 	PruneAuditLogs(ctx context.Context, before time.Time) error
 }
 
+type ScriptStore interface {
+	ListScripts(ctx context.Context) ([]models.Script, error)
+	GetScript(ctx context.Context, id uint) (*models.Script, error)
+	CreateScript(ctx context.Context, s *models.Script) error
+	UpdateScript(ctx context.Context, s *models.Script) error
+	DeleteScript(ctx context.Context, id uint) error
+}
+
 type BaselineStore interface {
 	ListBaselines(ctx context.Context) ([]models.Baseline, error)
 	GetBaseline(ctx context.Context, id string) (*models.Baseline, error)
@@ -195,11 +204,9 @@ type BaselineStore interface {
 	UpdateBaseline(ctx context.Context, b *models.Baseline) error
 	DeleteBaseline(ctx context.Context, id string) error
 
-	ListBaselineScripts(ctx context.Context, baselineID string) ([]models.BaselineScript, error)
-	GetBaselineScript(ctx context.Context, id uint) (*models.BaselineScript, error)
-	UpsertBaselineScript(ctx context.Context, s *models.BaselineScript) error
-	DeleteBaselineScript(ctx context.Context, id uint) error
-	DeleteBaselineScriptsByBaseline(ctx context.Context, baselineID string) error
+	// Baseline ↔ Script associations (many-to-many via BaselineScriptAssignment)
+	ListBaselineScripts(ctx context.Context, baselineID string) ([]models.BaselineScriptAssignment, error)
+	SetBaselineScripts(ctx context.Context, baselineID string, assignments []models.BaselineScriptAssignment) error
 }
 
 type AuditLogFilter struct {

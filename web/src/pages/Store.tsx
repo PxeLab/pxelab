@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Package, Download, Search, RefreshCw, AlertCircle, RotateCw } from 'lucide-react'
+import { Package, Download, Search, RefreshCw, AlertCircle, RotateCw, Upload } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
@@ -10,9 +10,9 @@ import { Tag } from '../components/ui/Tag'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Input } from '../components/ui/FormControls'
 import { useToast } from '../components/ui/Toast'
-import { getStoreCatalog, importStoreItem, type StoreItem, type StoreCatalog } from '../api/store'
+import { getStoreCatalog, importStoreItem, importLocalStoreItem, type StoreItem, type StoreCatalog } from '../api/store'
 
-type TabKey = 'all' | 'baseline' | 'boot_template'
+type TabKey = 'all' | 'baseline' | 'boot_template' | 'netboot_distro'
 
 export default function Store() {
   const { t } = useTranslation()
@@ -28,6 +28,8 @@ export default function Store() {
   // Import confirm
   const [importTarget, setImportTarget] = useState<StoreItem | null>(null)
   const [importing, setImporting] = useState(false)
+  const [importingFile, setImportingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadCatalog = async () => {
     setLoading(true)
@@ -60,6 +62,7 @@ export default function Store() {
     { key: 'all', label: t('store.type_all'), count: items.length },
     { key: 'baseline', label: t('store.type_baseline'), count: items.filter(i => i.type === 'baseline').length },
     { key: 'boot_template', label: t('store.type_boot_template'), count: items.filter(i => i.type === 'boot_template').length },
+    { key: 'netboot_distro', label: t('store.type_netboot_distro'), count: items.filter(i => i.type === 'netboot_distro').length },
   ]
 
   async function handleImport(item: StoreItem) {
@@ -75,6 +78,24 @@ export default function Store() {
       showError(t('store.importFailed', { error: err?.message || '' }))
     } finally {
       setImporting(false)
+    }
+  }
+
+  async function handleFileImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportingFile(true)
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      const res = await importLocalStoreItem(data)
+      success(t('store.detail.importLocalSuccess', { name: res.data.name }))
+      loadCatalog()
+    } catch (err: any) {
+      showError(t('store.detail.importLocalFailed', { error: err?.message || '' }))
+    } finally {
+      setImportingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -123,10 +144,16 @@ export default function Store() {
         title={t('store.title')}
         description={t('store.description')}
         actions={
-          <Button variant="secondary" onClick={loadCatalog} disabled={loading}>
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {t('store.retry')}
-          </Button>
+          <>
+            <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()} disabled={importingFile}>
+              <Upload size={14} className={importingFile ? 'animate-spin' : ''} />
+              {importingFile ? t('common.loading') : t('store.importFromFile')}
+            </Button>
+            <Button variant="secondary" onClick={loadCatalog} disabled={loading}>
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              {t('store.retry')}
+            </Button>
+          </>
         }
       />
 
@@ -182,6 +209,15 @@ export default function Store() {
         </div>
       )}
 
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={handleFileImport}
+      />
+
       {/* Import Confirm */}
       <ConfirmDialog
         open={!!importTarget}
@@ -222,56 +258,63 @@ function TerminalIcon() {
 
 function StoreCard({ item, onImport }: { item: StoreItem; onImport: () => void }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
 
   return (
     <Card className="p-5 flex flex-col gap-4 hover:shadow-md transition-shadow duration-200 group">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        {item.type === 'baseline' ? <ShieldCheckIcon /> : item.type === 'boot_template' ? <TerminalIcon /> : (
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
-            <Package size={18} className="text-white" />
+      {/* Clickable body */}
+      <div
+        className="cursor-pointer flex flex-col gap-4"
+        onClick={() => navigate(`/store/item/${item.type}/${item.id}`)}
+      >
+        {/* Header */}
+        <div className="flex items-start gap-3">
+          {item.type === 'baseline' ? <ShieldCheckIcon /> : item.type === 'boot_template' ? <TerminalIcon /> : item.type === 'netboot_distro' ? <TerminalIcon /> : (
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
+              <Package size={18} className="text-white" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold text-[var(--text-primary)] truncate">
+              {item.name}
+            </h3>
+            {item.version && (
+              <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                v{item.version}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Description */}
+        <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-2">
+          {item.description}
+        </p>
+
+        {/* Tags */}
+        {item.tags && item.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {item.tags.slice(0, 4).map(tag => (
+              <Tag key={tag}>{tag}</Tag>
+            ))}
+            {item.tags.length > 4 && (
+              <span className="text-[10px] text-[var(--text-muted)]">+{item.tags.length - 4}</span>
+            )}
           </div>
         )}
-        <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] truncate">
-            {item.name}
-          </h3>
-          {item.version && (
-            <span className="text-[10px] text-[var(--text-muted)] font-mono">
-              v{item.version}
+
+        {/* Meta */}
+        <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+          {item.author && (
+            <span>{t('store.author')}: {item.author}</span>
+          )}
+          {(item.downloads ?? 0) > 0 && (
+            <span className="flex items-center gap-1">
+              <Download size={10} />
+              {item.downloads}
             </span>
           )}
         </div>
-      </div>
-
-      {/* Description */}
-      <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-2">
-        {item.description}
-      </p>
-
-      {/* Tags */}
-      {item.tags && item.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {item.tags.slice(0, 4).map(tag => (
-            <Tag key={tag}>{tag}</Tag>
-          ))}
-          {item.tags.length > 4 && (
-            <span className="text-[10px] text-[var(--text-muted)]">+{item.tags.length - 4}</span>
-          )}
-        </div>
-      )}
-
-      {/* Meta */}
-      <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
-        {item.author && (
-          <span>{t('store.author')}: {item.author}</span>
-        )}
-        {(item.downloads ?? 0) > 0 && (
-          <span className="flex items-center gap-1">
-            <Download size={10} />
-            {item.downloads}
-          </span>
-        )}
       </div>
 
       {/* Actions */}

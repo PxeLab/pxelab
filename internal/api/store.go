@@ -9,6 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"context"
+	"log"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/store"
@@ -43,14 +46,20 @@ type StoreCatalog struct {
 
 // StoreItemDetail is the full item returned from the detail endpoint.
 type StoreItemDetail struct {
-	ID          string          `json:"id"`
-	Type        string          `json:"type"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Version     string          `json:"version"`
-	Author      string          `json:"author"`
-	Tags        []string        `json:"tags,omitempty"`
-	Content     json.RawMessage `json:"content"`
+	ID                string            `json:"id"`
+	Type              string            `json:"type"`
+	Name              string            `json:"name"`
+	Description       string            `json:"description"`
+	Version           string            `json:"version"`
+	Author            string            `json:"author"`
+	Tags              []string          `json:"tags,omitempty"`
+	Content           json.RawMessage   `json:"content"`
+	Source            string            `json:"source,omitempty"`
+	Releases          []string          `json:"releases,omitempty"`
+	CreatedAt         string            `json:"created_at,omitempty"`
+	UpdatedAt         string            `json:"updated_at,omitempty"`
+	TemplateVariables map[string]string `json:"template_variables,omitempty"`
+	VariableValues    map[string]string `json:"variable_values,omitempty"`
 }
 
 // -- importable content shapes ----------------------------------------------
@@ -70,6 +79,15 @@ type baselineScriptContent struct {
 	Type        string `json:"type"`
 	Content     string `json:"content"`
 	Description string `json:"description,omitempty"`
+}
+
+// bootTemplateStoreContent mirrors the fields from a boot_template store item
+// that are needed to create a Profile with a custom iPXE script.
+type bootTemplateStoreContent struct {
+	TemplateVariables map[string]string `json:"template_variables,omitempty"`
+	VariableValues    map[string]string `json:"variable_values,omitempty"`
+	Releases          []string          `json:"releases,omitempty"`
+	Source            string            `json:"source,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +195,8 @@ func (h *StoreHandler) ImportItem(w http.ResponseWriter, r *http.Request) {
 	switch detail.Type {
 	case "baseline":
 		h.importBaseline(w, r, detail)
+	case "boot_template":
+		h.importBootTemplate(w, r, detail)
 	default:
 		Error(w, http.StatusBadRequest, "不支持的导入类型: "+detail.Type)
 	}
@@ -282,28 +302,194 @@ func (h *StoreHandler) importBaseline(w http.ResponseWriter, r *http.Request, de
 		if scriptType == "" {
 			scriptType = "shell"
 		}
-		script := &models.BaselineScript{
-			BaselineID:  blID,
-			Seq:         sc.Seq,
+		script := &models.Script{
 			Name:        sc.Name,
 			Type:        scriptType,
 			Content:     sc.Content,
 			Description: sc.Description,
 		}
-		if err := h.store.UpsertBaselineScript(r.Context(), script); err != nil {
-			// Log but don't fail — partial import is better than nothing.
+		if err := h.store.CreateScript(r.Context(), script); err != nil {
 			Error(w, http.StatusInternalServerError, "导入脚本失败: "+err.Error())
-			// Clean up the baseline we just created.
+			h.store.DeleteBaseline(r.Context(), blID)
+			return
+		}
+		assign := models.BaselineScriptAssignment{
+			BaselineID: blID,
+			ScriptID:   script.ID,
+			Seq:        sc.Seq,
+		}
+		if err := h.store.SetBaselineScripts(r.Context(), blID, []models.BaselineScriptAssignment{assign}); err != nil {
+			Error(w, http.StatusInternalServerError, "关联脚本失败: "+err.Error())
 			h.store.DeleteBaseline(r.Context(), blID)
 			return
 		}
 	}
+
+	// Fire download increment (best-effort, non-blocking).
+	h.trackDownload(r.Context(), detail.Type, detail.ID)
 
 	RecordAudit(r.Context(), h.store, models.AuditCreate, "baseline", blID, remoteIP(r), "从商店导入基线: "+blName)
 	Created(w, map[string]any{
 		"id":         blID,
 		"name":       blName,
 		"type":       "baseline",
+		"store_item": detail.ID,
+	})
+}
+
+// importProfileConfig holds the parameters that differ between importing a
+// boot_template vs a netboot_distro store item — both produce a local Profile.
+type importProfileConfig struct {
+	defaultIDPrefix string // e.g. "boot-template-" or "netboot-"
+	parseErrMsg     string
+	emptyErrMsg     string
+	auditMsg        string
+	responseType    string // e.g. "boot_template" or "netboot_distro"
+}
+
+func (h *StoreHandler) importBootTemplate(w http.ResponseWriter, r *http.Request, detail *StoreItemDetail) {
+	h.importProfile(w, r, detail, importProfileConfig{
+		defaultIDPrefix: "boot-template-",
+		parseErrMsg:     "解析启动模板内容失败: ",
+		emptyErrMsg:     "启动模板内容为空",
+		auditMsg:        "从商店导入启动模板: ",
+		responseType:    "boot_template",
+	})
+}
+
+// trackDownload sends a fire-and-forget POST to increment the download count on store.pxelab.com.
+func (h *StoreHandler) trackDownload(ctx context.Context, itemType, itemID string) {
+	go func() {
+		dCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		u := h.storeURL(fmt.Sprintf("/dlincrement/%s/%s", itemType, itemID))
+		req, err := http.NewRequestWithContext(dCtx, http.MethodPost, u, nil)
+		if err != nil {
+			log.Printf("[store] trackDownload: %v", err)
+			return
+		}
+		resp, err := h.client.Do(req)
+		if err != nil {
+			log.Printf("[store] trackDownload: %v", err)
+			return
+		}
+		resp.Body.Close()
+	}()
+}
+
+// ImportLocalItem imports a store item from a local JSON payload (offline import).
+func (h *StoreHandler) ImportLocalItem(w http.ResponseWriter, r *http.Request) {
+	var detail StoreItemDetail
+	if err := json.NewDecoder(r.Body).Decode(&detail); err != nil {
+		Error(w, http.StatusBadRequest, "无效的请求体: "+err.Error())
+		return
+	}
+	if detail.ID == "" || detail.Type == "" {
+		Error(w, http.StatusBadRequest, "id 和 type 不能为空")
+		return
+	}
+
+	switch detail.Type {
+	case "baseline":
+		h.importBaseline(w, r, &detail)
+	case "boot_template":
+		h.importBootTemplate(w, r, &detail)
+	case "netboot_distro":
+		h.importNetbootDistro(w, r, &detail)
+	default:
+		Error(w, http.StatusBadRequest, "不支持的导入类型: "+detail.Type)
+	}
+}
+
+func (h *StoreHandler) importNetbootDistro(w http.ResponseWriter, r *http.Request, detail *StoreItemDetail) {
+	h.importProfile(w, r, detail, importProfileConfig{
+		defaultIDPrefix: "netboot-",
+		parseErrMsg:     "解析网络启动内容失败: ",
+		emptyErrMsg:     "网络启动内容为空",
+		auditMsg:        "从本地文件导入网络启动配置: ",
+		responseType:    "netboot_distro",
+	})
+}
+
+// importProfile is the shared implementation for creating a Profile from either
+// a boot_template or netboot_distro store item.
+func (h *StoreHandler) importProfile(w http.ResponseWriter, r *http.Request, detail *StoreItemDetail, cfg importProfileConfig) {
+	var script string
+	if err := json.Unmarshal(detail.Content, &script); err != nil {
+		Error(w, http.StatusBadRequest, cfg.parseErrMsg+err.Error())
+		return
+	}
+	if script == "" {
+		Error(w, http.StatusBadRequest, cfg.emptyErrMsg)
+		return
+	}
+
+	profileID := toSafeID(detail.ID)
+	if profileID == "" {
+		profileID = cfg.defaultIDPrefix + fmt.Sprintf("%d", time.Now().Unix())
+	}
+
+	existing, _ := h.store.GetProfile(r.Context(), profileID)
+	if existing != nil {
+		profileID = profileID + "-" + fmt.Sprintf("%d", time.Now().Unix())
+	}
+
+	profileName := detail.Name
+	if profileName == "" {
+		profileName = detail.ID
+	}
+
+	finalScript := script
+	if len(detail.VariableValues) > 0 {
+		var preamble strings.Builder
+		for k, v := range detail.VariableValues {
+			preamble.WriteString(fmt.Sprintf("set %s %s\n", k, v))
+		}
+		preamble.WriteString("\n")
+		finalScript = preamble.String() + script
+	}
+
+	menuScript := finalScript
+	menu := &models.BootMenu{
+		Entries: []models.MenuEntry{
+			{
+				Label:  profileName,
+				Type:   "custom",
+				Script: &menuScript,
+			},
+		},
+	}
+
+	profile := &models.Profile{
+		ID:          profileID,
+		Name:        profileName,
+		Description: detail.Description,
+		Arch:        "x86_64",
+	}
+	if err := profile.SetMenu(menu); err != nil {
+		Error(w, http.StatusInternalServerError, "构建菜单失败: "+err.Error())
+		return
+	}
+	if len(detail.VariableValues) > 0 {
+		if err := profile.SetVariablesMap(detail.VariableValues); err != nil {
+			Error(w, http.StatusInternalServerError, "设置变量失败: "+err.Error())
+			return
+		}
+	}
+
+	if err := h.store.CreateProfile(r.Context(), profile); err != nil {
+		Error(w, http.StatusInternalServerError, "创建引导配置失败: "+err.Error())
+		return
+	}
+
+	h.trackDownload(r.Context(), detail.Type, detail.ID)
+
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profileID, remoteIP(r), cfg.auditMsg+profileName)
+	Created(w, map[string]any{
+		"id":         profileID,
+		"name":       profileName,
+		"type":       cfg.responseType,
 		"store_item": detail.ID,
 	})
 }
