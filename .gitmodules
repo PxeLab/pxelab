@@ -1,3 +1,6 @@
 [submodule "website"]
 	path = website
 	url = https://github.com/PxeLab/pxelab-website.git
+[submodule "store"]
+	path = store
+	url = https://github.com/PxeLab/store.git
