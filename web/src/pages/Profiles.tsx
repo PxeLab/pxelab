@@ -40,7 +40,7 @@ export default function Profiles() {
     getNetbootCatalog().then(res => setOSCatalog(res.data?.distros || [])).catch(() => {})
   }, [])
   useEffect(() => {
-    getBaselines().then(res => setAllBaselines(res.data || [])).catch(() => {})
+    getBaselines().then(res => setAllBaselines(res.data?.baselines || [])).catch(() => {})
   }, [])
 
   async function loadProfiles() {
@@ -276,7 +276,8 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
   const columns: Column<Profile>[] = [
     { key: 'name', label: t('profiles.name'), render: (p) => <span className="font-medium text-[var(--text-primary)]">{p.name}</span> },
     { key: 'type', label: t('profiles.entryType'), render: (p) => {
-      const types = [...new Set(p.menu?.entries?.map(e => e.type) || [])]
+      const entries = Array.isArray(p.menu?.entries) ? p.menu.entries : []
+      const types = [...new Set(entries.map(e => e.type))]
       return <div className="flex gap-1">{types.map(t => <Tag key={t} children={t} />)}</div>
     }},
     { key: 'arch', label: t('profiles.arch'), render: (p) => <span className="font-mono text-xs">{p.arch || '*'}</span> },
@@ -373,7 +374,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
           {/* Baselines 关联 */}
           <div>
             <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t('baselines.title')}</h3>
-            {allBaselines.length === 0 ? (
+            {!Array.isArray(allBaselines) || allBaselines.length === 0 ? (
               <p className="text-xs text-[var(--text-muted)] italic">{t('baselines.noBaselines')}</p>
             ) : (
               <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
