@@ -40,7 +40,7 @@ export default function Profiles() {
     getNetbootCatalog().then(res => setOSCatalog(res.data?.distros || [])).catch(() => {})
   }, [])
   useEffect(() => {
-    getBaselines().then(res => setAllBaselines(res.data?.baselines || [])).catch(() => {})
+    getBaselines().then(res => setAllBaselines(res.data || [])).catch(() => {})
   }, [])
 
   async function loadProfiles() {
