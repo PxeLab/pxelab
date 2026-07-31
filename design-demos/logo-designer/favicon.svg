@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Simplified favicon: same mark, heavier strokes for 16px legibility -->
+  <g fill="#3b82f6">
+    <path d="M6 10 L36 32 L6 54 L6 42.2 L21.8 32 L6 21.8 Z"/>
+    <rect x="38" y="42.2" width="20" height="11.8"/>
+  </g>
+</svg>

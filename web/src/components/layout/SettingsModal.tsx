@@ -778,7 +778,7 @@ function AboutForm({ versionInfo, checking, downloading, onCheckUpdate, onDownlo
       {/* App info */}
       <div className="pt-4 border-t border-[var(--bg-border)]">
         <p className="text-xs text-[var(--text-muted)]">
-          PxeGo v{versionInfo?.current_version || '?'}
+          PxeLab v{versionInfo?.current_version || '?'}
         </p>
         <p className="text-[11px] text-[var(--text-muted)]/50 mt-0.5">© PxeLab</p>
       </div>

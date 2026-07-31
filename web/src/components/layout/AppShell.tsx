@@ -10,6 +10,7 @@ import { StatusDot } from '../ui/StatusDot'
 import { useToast } from '../ui/Toast'
 import { getServices, startService, stopService, restartService, batchService, getVersionInfo, downloadUpdate, type ServiceInfo, type VersionInfo } from '../../api/client'
 import SettingsModal from './SettingsModal'
+import LogoMark from '../LogoMark'
 import { CommandPalette } from '../CommandPalette'
 import { NotificationCenter } from '../NotificationCenter'
 import {
@@ -400,13 +401,13 @@ export const AppShell: FC<Props> = ({ children }) => {
       >
         {/* Logo */}
         <div className={`flex flex-col border-b border-[var(--bg-border)]/50 ${sidebarCollapsed ? 'items-center py-3 gap-2' : 'px-4 h-16 flex-row items-center gap-3'}`}>
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-extrabold text-sm text-white shadow-lg shadow-blue-500/30 shrink-0 transition-transform hover:scale-105">
-            PX
+          <div className="w-9 h-9 rounded-xl bg-[#3B82F6] flex items-center justify-center text-white shadow-lg shadow-blue-500/30 shrink-0 transition-transform hover:scale-105">
+            <LogoMark className="w-5 h-5" />
           </div>
           {!sidebarCollapsed && (
             <>
               <span className="text-lg font-bold tracking-tight transition-all duration-300">
-                Pxe<span className="text-blue-500">Go</span>
+                Pxe<span className="text-blue-500">Lab</span>
               </span>
               <button
                 onClick={() => setSidebarCollapsed(true)}

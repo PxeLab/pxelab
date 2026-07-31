@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 128" fill="none">
+  <!-- Horizontal lockup: Push mark + PxeLab wordmark (Archivo). Dark-bg version. -->
+  <g transform="translate(0,16)">
+    <rect x="4"  y="4"  width="24" height="24" rx="5" fill="#3b82f6"/>
+    <rect x="4"  y="36" width="24" height="24" rx="5" fill="#edf0f7"/>
+    <rect x="4"  y="68" width="24" height="24" rx="5" fill="#edf0f7"/>
+    <rect x="40" y="8"  width="16" height="16" rx="4" fill="#edf0f7"/>
+    <rect x="40" y="40" width="16" height="16" rx="4" fill="#edf0f7"/>
+    <rect x="40" y="72" width="16" height="16" rx="4" fill="#edf0f7"/>
+    <rect x="75.5" y="11.5" width="9" height="9" rx="2.5" fill="#edf0f7"/>
+    <rect x="75.5" y="43.5" width="9" height="9" rx="2.5" fill="#edf0f7"/>
+    <rect x="75.5" y="75.5" width="9" height="9" rx="2.5" fill="#edf0f7"/>
+  </g>
+  <text x="124" y="88" font-family="Archivo, sans-serif" font-size="64" font-weight="700" letter-spacing="-1" fill="#edf0f7">PxeLab</text>
+</svg>

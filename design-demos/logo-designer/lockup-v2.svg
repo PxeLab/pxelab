@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64">
+  <!-- PxeLab lockup v2: "Discover" mark + Archivo wordmark -->
+  <g fill="#3b82f6">
+    <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+    <rect x="37" y="43.4" width="19" height="8.6"/>
+  </g>
+  <g fill="none" stroke="#3b82f6" stroke-width="4.5">
+    <path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/>
+    <path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/>
+  </g>
+  <text x="72" y="43" font-family="Archivo, sans-serif" font-weight="600" font-size="36" letter-spacing="0.5" fill="currentColor">PxeLab</text>
+</svg>

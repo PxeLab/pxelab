@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- App icon: Push mark on PxeLab dark surface, rx = 112/512 = 21.9% -->
+  <rect width="512" height="512" rx="112" fill="#0e111a"/>
+  <rect x="1.5" y="1.5" width="509" height="509" rx="110.5" stroke="#232a3a" stroke-width="3"/>
+  <!-- mark, cell pitch 128, centers at x/y = 128, 256, 384 -->
+  <rect x="80"  y="80"  width="96" height="96" rx="20" fill="#3b82f6"/>
+  <rect x="80"  y="208" width="96" height="96" rx="20" fill="#edf0f7"/>
+  <rect x="80"  y="336" width="96" height="96" rx="20" fill="#edf0f7"/>
+  <rect x="224" y="96"  width="64" height="64" rx="16" fill="#edf0f7"/>
+  <rect x="224" y="224" width="64" height="64" rx="16" fill="#edf0f7"/>
+  <rect x="224" y="352" width="64" height="64" rx="16" fill="#edf0f7"/>
+  <rect x="366" y="110" width="36" height="36" rx="10" fill="#edf0f7"/>
+  <rect x="366" y="238" width="36" height="36" rx="10" fill="#edf0f7"/>
+  <rect x="366" y="366" width="36" height="36" rx="10" fill="#edf0f7"/>
+</svg>

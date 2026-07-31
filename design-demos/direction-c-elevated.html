@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — Direction C · Elevated Brand System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     PXELAB · DIRECTION C — ELEVATED BRAND SYSTEM
+     Single token set shared by Landing / Docs / Store.
+     All colors in oklch(). 8pt grid. No gradients except one
+     restrained hero glow. No emoji. No decorative icon soup.
+     ============================================================ */
+  :root {
+    /* cold-gray dark scale — never pure black */
+    --bg-page:    oklch(0.130 0.006 270);
+    --bg-0:       oklch(0.150 0.008 270);   /* viewport base */
+    --bg-1:       oklch(0.175 0.010 270);   /* raised surface */
+    --bg-2:       oklch(0.205 0.012 270);   /* hover / inset */
+    --line:       oklch(1 0 0 / 7%);
+    --line-strong:oklch(1 0 0 / 13%);
+    --hi:         oklch(0.940 0.008 260);   /* headings */
+    --mid:        oklch(0.700 0.015 260);   /* body */
+    --lo:         oklch(0.520 0.018 260);   /* captions */
+    /* brand: indigo, tuned from oklch(0.62 0.19 275) */
+    --indigo:     oklch(0.640 0.185 275);
+    --indigo-hi:  oklch(0.720 0.150 275);
+    --indigo-dim: oklch(0.640 0.185 275 / 12%);
+    /* semantic only — small-area functional color */
+    --ok:         oklch(0.760 0.150 155);
+    --ok-dim:     oklch(0.760 0.150 155 / 10%);
+    --info:       oklch(0.760 0.110 240);
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --sans: "Inter", -apple-system, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background: var(--bg-page);
+    color: var(--mid);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .page { width: 1440px; margin: 0 auto; padding: 24px 0 64px; }
+
+  /* ---------- shared primitives ---------- */
+  .mono-tag {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 36px; padding: 0 18px;
+    border-radius: 8px;
+    font-size: 13.5px; font-weight: 500;
+    text-decoration: none; cursor: pointer;
+    border: 1px solid transparent;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .btn-primary {
+    background: var(--indigo); color: oklch(0.98 0.01 275);
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 22%);
+  }
+  .btn-primary:hover { background: var(--indigo-hi); }
+  .btn-ghost {
+    background: var(--bg-1); color: var(--hi);
+    border-color: var(--line-strong);
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 6%);
+  }
+  .btn-ghost:hover { background: var(--bg-2); }
+  .card {
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 5%);
+  }
+
+  /* ---------- section frame ---------- */
+  .section { margin-top: 48px; }
+  .section:first-child { margin-top: 0; }
+  .section-label {
+    display: flex; align-items: baseline; gap: 16px;
+    padding: 0 4px 12px;
+  }
+  .section-label .idx { font-family: var(--mono); font-size: 11px; color: var(--indigo); letter-spacing: .1em; }
+  .section-label .name { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--hi); }
+  .section-label .hint { font-size: 12px; color: var(--lo); }
+  .viewport {
+    background: var(--bg-0);
+    border: 1px solid var(--line-strong);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  /* ---------- shared nav ---------- */
+  .nav {
+    height: 64px;
+    display: flex; align-items: center;
+    padding: 0 32px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-0);
+  }
+  .nav .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; margin-right: 40px; }
+  .nav .brand .word { font-size: 15px; font-weight: 600; color: var(--hi); letter-spacing: -0.01em; }
+  .nav .links { display: flex; align-items: center; gap: 4px; flex: 1; }
+  .nav .links a {
+    position: relative;
+    padding: 8px 12px;
+    font-size: 13.5px; font-weight: 500;
+    color: var(--lo); text-decoration: none;
+    border-radius: 6px;
+  }
+  .nav .links a:hover { color: var(--mid); }
+  .nav .links a.active { color: var(--hi); }
+  .nav .links a.active::after {
+    content: ""; position: absolute; left: 12px; right: 12px; bottom: 2px;
+    height: 1px; background: var(--indigo);
+  }
+  .nav .right { display: flex; align-items: center; gap: 16px; }
+  .nav .status { display: flex; align-items: center; gap: 8px; }
+  .nav .status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .nav .status .txt { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; color: var(--lo); text-transform: uppercase; }
+  .nav .sep { width: 1px; height: 20px; background: var(--line-strong); }
+  .nav .btn { height: 32px; padding: 0 14px; font-size: 13px; }
+
+  /* ---------- landing hero ---------- */
+  .hero {
+    position: relative;
+    padding: 104px 32px 88px;
+    text-align: center;
+  }
+  /* the one and only glow in the system */
+  .hero::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(560px 260px at 50% -40px, oklch(0.640 0.185 275 / 16%), transparent 70%);
+    pointer-events: none;
+  }
+  .hero > * { position: relative; }
+  .hero .badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 6px 14px;
+    border: 1px solid var(--line-strong); border-radius: 999px;
+    background: var(--bg-1);
+    color: var(--lo);
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 5%);
+  }
+  .hero .badge .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--indigo); }
+  .hero h1 {
+    margin-top: 32px;
+    font-size: 64px; font-weight: 800;
+    letter-spacing: -0.03em; line-height: 1.05;
+    color: var(--hi);
+    text-wrap: pretty;
+  }
+  .hero .sub {
+    margin-top: 20px;
+    font-size: 17px; color: var(--mid);
+    text-wrap: pretty;
+  }
+  .hero .term {
+    display: inline-flex; align-items: center; gap: 12px;
+    margin-top: 32px; padding: 10px 18px;
+    background: var(--bg-page);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: var(--mono); font-size: 12.5px;
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 4%);
+  }
+  .hero .term .cmd { color: var(--hi); }
+  .hero .term .cmd .p { color: var(--indigo-hi); }
+  .hero .term .out { color: var(--lo); }
+  .hero .cta { margin-top: 40px; display: flex; justify-content: center; gap: 12px; }
+  .hero .cta .btn { height: 42px; padding: 0 24px; font-size: 14px; border-radius: 9px; }
+  .hero-facts {
+    display: flex; justify-content: center; align-items: center;
+    border-top: 1px solid var(--line);
+  }
+  .hero-facts .fact {
+    padding: 20px 40px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+    color: var(--lo); text-transform: uppercase;
+  }
+  .hero-facts .fact b { color: var(--mid); font-weight: 500; }
+  .hero-facts .fact + .fact { border-left: 1px solid var(--line); }
+
+  /* ---------- docs ---------- */
+  .docs-body { display: grid; grid-template-columns: 248px 1fr 216px; min-height: 640px; }
+  .docs-side {
+    border-right: 1px solid var(--line);
+    padding: 24px 16px;
+  }
+  .docs-side .group-label { padding: 0 10px; margin: 24px 0 8px; color: var(--lo); }
+  .docs-side .group-label:first-child { margin-top: 0; }
+  .docs-side a {
+    display: flex; align-items: center;
+    padding: 7px 10px; margin-bottom: 2px;
+    font-size: 13.5px; color: var(--mid);
+    text-decoration: none; border-radius: 6px;
+  }
+  .docs-side a:hover { background: var(--bg-1); color: var(--hi); }
+  .docs-side a.active {
+    background: var(--indigo-dim); color: var(--indigo-hi); font-weight: 500;
+    box-shadow: inset 0 0 0 1px oklch(0.640 0.185 275 / 25%);
+  }
+  .docs-side a.sub { padding-left: 26px; font-size: 13px; color: var(--lo); }
+  .docs-side a.sub:hover { color: var(--mid); }
+  .docs-main { padding: 48px 56px 64px; max-width: 720px; }
+  .docs-main .crumb { color: var(--lo); margin-bottom: 16px; }
+  .docs-main .crumb b { color: var(--indigo-hi); font-weight: 500; }
+  .docs-main h1 {
+    font-size: 34px; font-weight: 800; letter-spacing: -0.03em;
+    color: var(--hi); text-wrap: pretty;
+  }
+  .docs-main p { margin-top: 16px; font-size: 14.5px; text-wrap: pretty; }
+  .docs-main p code, .docs-main li code {
+    font-family: var(--mono); font-size: 12.5px;
+    background: var(--bg-2); border: 1px solid var(--line);
+    padding: 1px 6px; border-radius: 5px; color: var(--hi);
+  }
+  .codeblock {
+    margin-top: 24px;
+    background: var(--bg-page);
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 4%);
+  }
+  .codeblock .cb-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .codeblock .cb-head .cb-title { font-family: var(--mono); font-size: 10.5px; letter-spacing: .18em; color: var(--lo); text-transform: uppercase; }
+  .codeblock .cb-head .cb-lang { font-family: var(--mono); font-size: 10.5px; color: var(--indigo-hi); }
+  .codeblock pre {
+    padding: 16px 18px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.9;
+    color: var(--mid); overflow-x: auto;
+  }
+  .codeblock pre .p { color: var(--indigo-hi); }
+  .codeblock pre .c { color: var(--lo); }
+  .codeblock pre .s { color: var(--ok); }
+  .tip {
+    margin-top: 24px;
+    padding: 16px 18px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 5%);
+    display: flex; gap: 14px;
+  }
+  .tip .tip-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--info); margin-top: 8px; }
+  .tip .tip-label { color: var(--info); display: block; margin-bottom: 4px; }
+  .tip .tip-body { font-size: 13.5px; color: var(--mid); text-wrap: pretty; }
+  .docs-toc {
+    border-left: 1px solid var(--line);
+    padding: 48px 24px;
+  }
+  .docs-toc .toc-label { color: var(--lo); margin-bottom: 12px; }
+  .docs-toc a {
+    display: block; padding: 5px 0;
+    font-size: 12.5px; color: var(--lo); text-decoration: none;
+  }
+  .docs-toc a:hover { color: var(--mid); }
+  .docs-toc a.active { color: var(--indigo-hi); }
+
+  /* ---------- store ---------- */
+  .store-head { padding: 64px 48px 0; }
+  .store-head h1 {
+    font-size: 40px; font-weight: 800; letter-spacing: -0.03em;
+    color: var(--hi); text-wrap: pretty;
+  }
+  .store-head .sub { margin-top: 12px; font-size: 15px; max-width: 560px; text-wrap: pretty; }
+  .store-toolbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 32px 48px 24px;
+  }
+  .search {
+    flex: none; width: 344px; height: 38px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 14px;
+    background: var(--bg-1);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 5%);
+  }
+  .search .icon { color: var(--lo); display: flex; }
+  .search .ph { font-size: 13px; color: var(--lo); flex: 1; white-space: nowrap; overflow: hidden; }
+  .search kbd {
+    font-family: var(--mono); font-size: 10px; color: var(--lo);
+    border: 1px solid var(--line-strong); border-radius: 4px; padding: 1px 5px;
+  }
+  .pills { display: flex; gap: 8px; }
+  .pill {
+    height: 32px; padding: 0 14px;
+    display: inline-flex; align-items: center;
+    border-radius: 999px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--lo);
+    border: 1px solid var(--line);
+    background: transparent; cursor: pointer;
+  }
+  .pill:hover { color: var(--mid); border-color: var(--line-strong); }
+  .pill.active {
+    color: var(--indigo-hi);
+    background: var(--indigo-dim);
+    border-color: oklch(0.640 0.185 275 / 35%);
+  }
+  .store-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    padding: 8px 48px 64px;
+  }
+  .pkg { padding: 24px; display: flex; flex-direction: column; }
+  .pkg .pkg-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .pkg .type {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: var(--lo);
+    border: 1px solid var(--line-strong); border-radius: 5px;
+    padding: 3px 8px;
+  }
+  .verified {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ok);
+    background: var(--ok-dim);
+    border: 1px solid oklch(0.760 0.150 155 / 30%);
+    border-radius: 5px; padding: 3px 8px;
+  }
+  .verified .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ok); }
+  .pkg h3 { font-size: 16.5px; font-weight: 600; letter-spacing: -0.015em; color: var(--hi); }
+  .pkg .desc { margin-top: 8px; font-size: 13.5px; color: var(--mid); text-wrap: pretty; flex: 1; }
+  .pkg .pkg-foot {
+    margin-top: 24px; padding-top: 16px;
+    border-top: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--mono); font-size: 11.5px; color: var(--lo);
+  }
+  .pkg .pkg-foot .dl b { color: var(--mid); font-weight: 500; }
+  .pkg .pkg-foot .ver {
+    color: var(--lo);
+    border: 1px solid var(--line); border-radius: 5px; padding: 2px 8px;
+  }
+
+  .footnote {
+    margin-top: 48px; text-align: center;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .2em;
+    color: var(--lo); text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ============================================================
+       LOGO CONCEPT RATIONALE（推理注释）
+       符号：描边圆角方块 = 一台待引导的裸机 / 单二进制文件；
+       内部上升箭头 = boot up（引导启动），箭头从底部基线升起，
+       基线同时暗示"网络/基础设施层"。
+       备选电源符号（圆弧+竖线）在 16px 导航尺寸下弧线糊成圆点，
+       识别度差；网络节点图（点+连线）在小尺寸下碎噪。
+       上升箭头是"boot"语义里几何最简单、缩放最稳的一个，
+       且箭头指向与"从零到运行"的产品叙事一致。
+       ============================================================ -->
+
+  <!-- ============================== 01 · LANDING ============================== -->
+  <section class="section">
+    <div class="section-label">
+      <span class="idx">01</span>
+      <span class="name">落地页 · Landing</span>
+      <span class="hint">营销首页 — 新 logo、导航、Hero</span>
+    </div>
+    <div class="viewport">
+      <nav class="nav">
+        <a class="brand" href="#">
+          <!-- logo: 方块（裸机/单二进制）+ 自基线升起的 boot 箭头 -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="oklch(0.640 0.185 275)" stroke-width="1.6"/>
+            <path d="M12 15.5V8.5M8.8 11.4 12 8.2l3.2 3.2" stroke="oklch(0.940 0.008 260)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8.5 18h7" stroke="oklch(0.640 0.185 275)" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span class="word">PxeLab</span>
+        </a>
+        <div class="links">
+          <a href="#">Features</a>
+          <a href="#">Platform</a>
+          <a href="#">Docs</a>
+          <a href="#">Store</a>
+          <a href="#">GitHub</a>
+        </div>
+        <div class="right">
+          <div class="status"><span class="dot"></span><span class="txt">v2.4.0</span></div>
+          <div class="sep"></div>
+          <a class="btn btn-primary" href="#">Download</a>
+        </div>
+      </nav>
+
+      <div class="hero">
+        <span class="badge"><span class="dot"></span><span class="mono-tag">Open Source · AGPL-3.0</span></span>
+        <h1>All-in-one PXE server</h1>
+        <p class="sub">Five network services, two interfaces, zero dependencies.</p>
+        <div class="term">
+          <span class="cmd"><span class="p">$</span> pxelab --mode server</span>
+          <span class="out">→ dhcp :67 · tftp :69 · http :80 · dns :53 · nfs :2049 — listening</span>
+        </div>
+        <div class="cta">
+          <a class="btn btn-primary" href="#">Get Started</a>
+          <a class="btn btn-ghost" href="#">Documentation</a>
+        </div>
+      </div>
+
+      <div class="hero-facts">
+        <div class="fact"><b>Single binary</b> · no runtime deps</div>
+        <div class="fact"><b>5 services</b> · dhcp / tftp / http / dns / nfs</div>
+        <div class="fact"><b>11 client architectures</b> · x86 to arm64</div>
+        <div class="fact"><b>Web UI</b> · manage from the browser</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 02 · DOCS ============================== -->
+  <section class="section">
+    <div class="section-label">
+      <span class="idx">02</span>
+      <span class="name">文档站 · Docs</span>
+      <span class="hint">同一 token 与组件语言 — 三栏文档页</span>
+    </div>
+    <div class="viewport">
+      <nav class="nav">
+        <a class="brand" href="#">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="oklch(0.640 0.185 275)" stroke-width="1.6"/>
+            <path d="M12 15.5V8.5M8.8 11.4 12 8.2l3.2 3.2" stroke="oklch(0.940 0.008 260)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8.5 18h7" stroke="oklch(0.640 0.185 275)" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span class="word">PxeLab</span>
+        </a>
+        <div class="links">
+          <a href="#">Features</a>
+          <a href="#">Platform</a>
+          <a href="#" class="active">Docs</a>
+          <a href="#">Store</a>
+          <a href="#">GitHub</a>
+        </div>
+        <div class="right">
+          <div class="status"><span class="dot"></span><span class="txt">v2.4.0</span></div>
+          <div class="sep"></div>
+          <a class="btn btn-primary" href="#">Download</a>
+        </div>
+      </nav>
+
+      <div class="docs-body">
+        <aside class="docs-side">
+          <div class="group-label mono-tag">开始</div>
+          <a href="#" class="active">快速开始</a>
+          <a href="#">产品简介</a>
+          <div class="group-label mono-tag">使用指南</div>
+          <a href="#" class="sub">安装与升级</a>
+          <a href="#" class="sub">网络与端口规划</a>
+          <a href="#" class="sub">DHCP 与引导配置</a>
+          <a href="#" class="sub">Web UI 一览</a>
+          <a href="#" class="sub">客户端架构支持</a>
+          <div class="group-label mono-tag">参考文档</div>
+          <a href="#">配置文件参考</a>
+          <a href="#">HTTP API</a>
+        </aside>
+
+        <article class="docs-main">
+          <div class="crumb mono-tag">Docs / <b>快速开始</b></div>
+          <h1>快速开始</h1>
+          <p>PxeLab 是一个单二进制文件，内置 DHCP、TFTP、HTTP、DNS、NFS 五个网络服务。下载对应平台的二进制，赋予执行权限，即可在一台普通的 Linux 主机上启动完整的 PXE 引导环境。</p>
+          <div class="codeblock">
+            <div class="cb-head"><span class="cb-title">安装并启动</span><span class="cb-lang">bash</span></div>
+            <pre><span class="c"># 下载并安装最新版本</span>
+<span class="p">$</span> curl -fsSL <span class="s">https://pxelab.com/install.sh</span> | bash
+
+<span class="c"># 前台启动，五个服务立即开始监听</span>
+<span class="p">$</span> ./pxelab</pre>
+          </div>
+          <p>启动后在浏览器打开 <code>http://&lt;server-ip&gt;:8080</code> 进入 Web UI，确认 DHCP 服务状态为 <code>running</code>，即可让第一台客户端从网络引导。</p>
+          <div class="tip">
+            <span class="tip-dot"></span>
+            <div>
+              <span class="tip-label mono-tag">Tip</span>
+              <span class="tip-body">PXE 引导依赖 UDP 67/68 与 TFTP 69 端口。若主机上已有其他 DHCP 服务（如 dnsmasq、路由器自带），请先停用或使用 proxyDHCP 模式，避免租约冲突。</span>
+            </div>
+          </div>
+        </article>
+
+        <aside class="docs-toc">
+          <div class="toc-label mono-tag">本页目录</div>
+          <a href="#" class="active">安装 PxeLab</a>
+          <a href="#">启动服务</a>
+          <a href="#">打开 Web UI</a>
+          <a href="#">验证第一台客户端</a>
+          <a href="#">下一步</a>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 03 · STORE ============================== -->
+  <section class="section">
+    <div class="section-label">
+      <span class="idx">03</span>
+      <span class="name">Store</span>
+      <span class="hint">绿色降级为语义色 — 仅用于 Verified 等功能徽标</span>
+    </div>
+    <div class="viewport">
+      <nav class="nav">
+        <a class="brand" href="#">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="oklch(0.640 0.185 275)" stroke-width="1.6"/>
+            <path d="M12 15.5V8.5M8.8 11.4 12 8.2l3.2 3.2" stroke="oklch(0.940 0.008 260)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8.5 18h7" stroke="oklch(0.640 0.185 275)" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span class="word">PxeLab</span>
+        </a>
+        <div class="links">
+          <a href="#">Features</a>
+          <a href="#">Platform</a>
+          <a href="#">Docs</a>
+          <a href="#" class="active">Store</a>
+          <a href="#">GitHub</a>
+        </div>
+        <div class="right">
+          <div class="status"><span class="dot"></span><span class="txt">v2.4.0</span></div>
+          <div class="sep"></div>
+          <a class="btn btn-primary" href="#">Download</a>
+        </div>
+      </nav>
+
+      <div class="store-head">
+        <span class="mono-tag" style="color: var(--lo);">Community</span>
+        <h1 style="margin-top: 12px;">Community Store</h1>
+        <p class="sub">Security baselines, boot templates, and configurations contributed by the PxeLab community.</p>
+      </div>
+
+      <div class="store-toolbar">
+        <div class="search">
+          <span class="icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="m16.5 16.5 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </span>
+          <span class="ph">Search baselines, templates, distros…</span>
+          <kbd>⌘K</kbd>
+        </div>
+        <div class="pills">
+          <button class="pill active">All</button>
+          <button class="pill">Baselines</button>
+          <button class="pill">Boot Templates</button>
+          <button class="pill">Distros</button>
+        </div>
+      </div>
+
+      <div class="store-grid">
+        <div class="pkg card">
+          <div class="pkg-top">
+            <span class="type">Distro</span>
+            <span class="verified"><span class="dot"></span>Verified</span>
+          </div>
+          <h3>Ubuntu 24.04 Autoinstall</h3>
+          <p class="desc">Hands-free Ubuntu Server 24.04 LTS installation over PXE, with autoinstall cloud-init answers and sensible disk defaults.</p>
+          <div class="pkg-foot">
+            <span class="dl">↓ <b>12,412</b> downloads</span>
+            <span class="ver">v3.2.1</span>
+          </div>
+        </div>
+        <div class="pkg card">
+          <div class="pkg-top">
+            <span class="type">Boot Template</span>
+          </div>
+          <h3>Windows 11 Autounattend</h3>
+          <p class="desc">Unattended Windows 11 setup via wimboot and autounattend.xml — skips OOBE, joins workgroup, enables RDP on first boot.</p>
+          <div class="pkg-foot">
+            <span class="dl">↓ <b>8,967</b> downloads</span>
+            <span class="ver">v1.8.0</span>
+          </div>
+        </div>
+        <div class="pkg card">
+          <div class="pkg-top">
+            <span class="type">Baseline</span>
+          </div>
+          <h3>CIS Linux Baseline</h3>
+          <p class="desc">CIS Benchmark Level 1 hardening profile applied at first boot: sysctl, sshd, auditd, and password policy in one pass.</p>
+          <div class="pkg-foot">
+            <span class="dl">↓ <b>5,203</b> downloads</span>
+            <span class="ver">v2.0.4</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footnote">PxeLab · Direction C — one token set, three surfaces</div>
+
+</div>
+</body>
+</html>

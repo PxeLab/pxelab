@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — Logo Direction B: Benchmark Migration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --base:#080a10; --surface:#0e111a; --surface2:#12161f; --line:#1e2433;
+    --ink:#edf0f7; --muted:#8b93a7; --dim:#5b6373;
+    --ocean:#3b82f6; --green:#22c55e; --cyan:#06b6d4; --orange:#f97316;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--base);color:var(--ink);font-family:'Archivo',sans-serif;
+       -webkit-font-smoothing:antialiased;padding:56px 64px 96px;max-width:1440px;margin:0 auto}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .kicker{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.14em;
+          text-transform:uppercase;color:var(--ocean);margin-bottom:10px}
+  h1{font-size:34px;font-weight:800;letter-spacing:-.02em}
+  h2{font-size:20px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+  section{margin-top:72px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:32px}
+  .sub{color:var(--muted);font-size:14px;line-height:1.6}
+  .tag{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:.06em}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  /* method block */
+  .method{display:grid;grid-template-columns:300px 1fr;gap:32px;margin-top:28px}
+  .method h3{font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--muted);
+             font-weight:500;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+  .method li{font-size:14px;line-height:1.65;color:var(--ink);margin-bottom:8px;margin-left:18px}
+  .method a{color:var(--ocean);text-decoration:none;word-break:break-all}
+  .concept{margin-top:20px;padding:16px 20px;border-left:3px solid var(--ocean);
+           background:var(--surface2);border-radius:0 10px 10px 0;font-size:16px;line-height:1.55}
+  .concept b{color:var(--ocean)}
+  /* hero mark */
+  .hero{display:flex;align-items:center;justify-content:center;padding:72px 0}
+  .markhero{width:264px;height:264px;color:var(--ink)}
+  /* lockups */
+  .lockdark,.locklight{display:flex;align-items:center;padding:36px 44px;border-radius:16px;gap:20px}
+  .lockdark{background:var(--surface);border:1px solid var(--line);color:var(--ink)}
+  .locklight{background:#f4f6fa;color:#12151d}
+  .lk{display:flex;align-items:center;gap:18px}
+  .wordmark{font-weight:700;font-size:42px;letter-spacing:-.02em}
+  /* favicon */
+  .favrow{display:flex;gap:48px;align-items:flex-end}
+  .favcell{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .favbox{background:var(--surface2);border:1px solid var(--line);border-radius:10px;
+          padding:18px;display:flex;align-items:center;justify-content:center;min-width:84px;min-height:84px}
+  .favbox.light{background:#f4f6fa}
+  .favbox.light img{color:#12151d}
+  .favbox img{color:var(--ink);display:block}
+  /* icons */
+  .iconrow{display:flex;gap:48px;align-items:flex-end}
+  .iconcell{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .appicon{width:176px;height:176px;display:block}
+  .squircle{clip-path:path("M 88,0 C 132,0 176,18 176,88 C 176,158 132,176 88,176 C 44,176 0,158 0,88 C 0,18 44,0 88,0 Z")}
+  .roundrect{border-radius:22%}
+  /* banner + splash */
+  .banner{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+          padding:26px 34px;display:flex;align-items:center;gap:16px}
+  .banner .wordmark{font-size:30px}
+  .banner .tagline{margin-left:26px;color:var(--muted);font-size:15px}
+  .banner .badges{margin-left:auto;display:flex;gap:8px}
+  .badge{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
+         border:1px solid var(--line);border-radius:6px;padding:4px 9px;background:var(--base)}
+  .splash{background:radial-gradient(1200px 600px at 50% 30%, #10151f 0%, var(--base) 70%);
+          border:1px solid var(--line);border-radius:16px;aspect-ratio:16/8.2;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+  .splash .wordmark{font-size:46px}
+  .splash .tagline{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);letter-spacing:.04em}
+  /* mono variants */
+  .monocell{border-radius:16px;padding:56px 0;display:flex;align-items:center;justify-content:center}
+  .monoblack{background:#ffffff;color:#000000}
+  .monowhite{background:#000000;color:#ffffff;border:1px solid var(--line)}
+  .monocell svg{width:150px;height:150px}
+  /* colors */
+  .swatches{display:flex;gap:16px;flex-wrap:wrap}
+  .sw{flex:1;min-width:150px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .sw .chip{height:72px}
+  .sw .meta{padding:10px 14px;background:var(--surface)}
+  .sw .meta b{display:block;font-size:13px}
+  .sw .meta span{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+  /* geometry note */
+  .geonote{display:flex;gap:40px;align-items:center}
+  .geonote svg{width:200px;height:200px;color:var(--ink)}
+  .geonote ul{list-style:none}
+  .geonote li{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--muted);
+              line-height:2;border-bottom:1px dashed var(--line);padding:2px 0}
+  .geonote li b{color:var(--ink);font-weight:500}
+  hr{border:none;border-top:1px solid var(--line);margin-top:72px}
+</style>
+</head>
+<body>
+
+<!-- ================= HEADER / METHOD ================= -->
+<header>
+  <div class="kicker">PxeLab · Logo Exploration · Direction B</div>
+  <h1>Benchmark Migration — Tailscale 的点阵语言，迁移到 PXE 网络启动</h1>
+
+  <div class="panel method">
+    <div>
+      <h3>参照对象</h3>
+      <p class="sub"><b style="color:var(--ink)">Tailscale</b>（mesh VPN，开发者基础设施）<br><br>
+      核实来源：<br>
+      <a href="https://tailscale.com/blog/tailscale-enterprise-plan-9-support">tailscale.com/blog/tailscale-enterprise-plan-9-support</a>（官方博客确认 logo 为 9 个圆点的 3×3 点阵）<br><br>
+      <a href="https://styles.refero.design/style/5b679fb6-8d53-402d-a77b-c88bfb397623">Refero Styles — Tailscale design system</a>（Ink #181717 / Bone #eeebEA、Inter + MDIO，近单色的克制体系）</p>
+    </div>
+    <div>
+      <h3>拆解结论（为什么它的标志有效）</h3>
+      <ul>
+        <li><b>单一基元 × 网格阵列</b>：只用一种最简单的几何（圆点）按严格网格重复，含义完全来自「排布」而非渲染——点 = 节点，阵列 = 网络。无任何装饰。</li>
+        <li><b>静态编码运动</b>：靠点与点之间的明暗/大小差，在纯静态图形里暗示数据流动，不需要箭头。</li>
+        <li><b>单色优先</b>：标志不依赖颜色成立，favicon 尺寸下依然可辨，深色浅色通吃。</li>
+      </ul>
+      <div class="concept">迁移方式：保留「基元 × 网格 × 静态编码流动」的语言，但把圆点换成<b>像素方块</b>（终端 / boot 序列的工程感），把流动方向明确为<b>左 → 右</b>：左侧满格像素 = 服务器，向右逐级衰减 = OS 镜像通过网络被推送到整排裸机。左上角唯一的 ocean 蓝像素是发起广播的那台服务器。<br><br>
+      <b>一句话概念：一台服务器，把系统推给整个机架。</b></div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= HERO MARK ================= -->
+<section>
+  <div class="kicker">01 — Primary Mark</div>
+  <h2>"Push" mark · mark.svg</h2>
+  <div class="panel hero">
+    <svg class="markhero" viewBox="0 0 96 96" fill="none">
+      <rect x="4"  y="4"  width="24" height="24" rx="5" fill="#3b82f6"/>
+      <rect x="4"  y="36" width="24" height="24" rx="5" fill="currentColor"/>
+      <rect x="4"  y="68" width="24" height="24" rx="5" fill="currentColor"/>
+      <rect x="40" y="8"  width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="40" y="40" width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="40" y="72" width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="75.5" y="11.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      <rect x="75.5" y="43.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      <rect x="75.5" y="75.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+    </svg>
+  </div>
+  <div class="panel geonote" style="margin-top:24px">
+    <svg viewBox="-8 -8 112 112" fill="none">
+      <g stroke="#1e2433" stroke-width="0.5">
+        <line x1="16" y1="-8" x2="16" y2="104"/><line x1="48" y1="-8" x2="48" y2="104"/><line x1="80" y1="-8" x2="80" y2="104"/>
+        <line x1="-8" y1="16" x2="104" y2="16"/><line x1="-8" y1="48" x2="104" y2="48"/><line x1="-8" y1="80" x2="104" y2="80"/>
+      </g>
+      <rect x="4"  y="4"  width="24" height="24" rx="5" fill="#3b82f6"/>
+      <rect x="4"  y="36" width="24" height="24" rx="5" fill="currentColor"/>
+      <rect x="4"  y="68" width="24" height="24" rx="5" fill="currentColor"/>
+      <rect x="40" y="8"  width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="40" y="40" width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="40" y="72" width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="75.5" y="11.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      <rect x="75.5" y="43.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      <rect x="75.5" y="75.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+    </svg>
+    <ul>
+      <li><b>grid</b> · 3 × 3 cells, pitch 32u, cell centers (16, 48, 80)</li>
+      <li><b>col 1 · server</b> · 24×24u, rx 5 — full weight, origin pixel in ocean #3b82f6</li>
+      <li><b>col 2 · in transit</b> · 16×16u, rx 4 — image streaming over the wire</li>
+      <li><b>col 3 · clients</b> · 9×9u, rx 2.5 — bare-metal nodes receiving the boot</li>
+      <li><b>optical centering</b> · every square centered on its cell, all radii ∝ size</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= LOCKUPS ================= -->
+<section>
+  <div class="kicker">02 — Horizontal Lockup · lockup.svg</div>
+  <h2>字标组合（Archivo 700, -2% tracking）</h2>
+  <div class="grid2" style="margin-top:20px">
+    <div class="lockdark">
+      <div class="lk">
+        <svg width="72" height="72" viewBox="0 0 96 96" fill="none">
+          <rect x="4"  y="4"  width="24" height="24" rx="5" fill="#3b82f6"/>
+          <rect x="4"  y="36" width="24" height="24" rx="5" fill="currentColor"/>
+          <rect x="4"  y="68" width="24" height="24" rx="5" fill="currentColor"/>
+          <rect x="40" y="8"  width="16" height="16" rx="4" fill="currentColor"/>
+          <rect x="40" y="40" width="16" height="16" rx="4" fill="currentColor"/>
+          <rect x="40" y="72" width="16" height="16" rx="4" fill="currentColor"/>
+          <rect x="75.5" y="11.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+          <rect x="75.5" y="43.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+          <rect x="75.5" y="75.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+        </svg>
+        <span class="wordmark">PxeLab</span>
+      </div>
+    </div>
+    <div class="locklight">
+      <div class="lk">
+        <svg width="72" height="72" viewBox="0 0 96 96" fill="none">
+          <rect x="4"  y="4"  width="24" height="24" rx="5" fill="#3b82f6"/>
+          <rect x="4"  y="36" width="24" height="24" rx="5" fill="currentColor"/>
+          <rect x="4"  y="68" width="24" height="24" rx="5" fill="currentColor"/>
+          <rect x="40" y="8"  width="16" height="16" rx="4" fill="currentColor"/>
+          <rect x="40" y="40" width="16" height="16" rx="4" fill="currentColor"/>
+          <rect x="40" y="72" width="16" height="16" rx="4" fill="currentColor"/>
+          <rect x="75.5" y="11.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+          <rect x="75.5" y="43.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+          <rect x="75.5" y="75.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+        </svg>
+        <span class="wordmark">PxeLab</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FAVICON ================= -->
+<section>
+  <div class="kicker">03 — Favicon · favicon.svg (actual pixels, 文件实际渲染)</div>
+  <h2>16px 简化版：3×2 加粗阵列，去掉最小像素列</h2>
+  <div class="panel favrow" style="margin-top:20px">
+    <div class="favcell"><div class="favbox"><img src="favicon.svg" width="16" height="16" alt="16px"></div><span class="tag">16 × 16</span></div>
+    <div class="favcell"><div class="favbox"><img src="favicon.svg" width="32" height="32" alt="32px"></div><span class="tag">32 × 32</span></div>
+    <div class="favcell"><div class="favbox"><img src="favicon.svg" width="48" height="48" alt="48px"></div><span class="tag">48 × 48</span></div>
+    <div class="favcell"><div class="favbox light"><img src="favicon.svg" width="16" height="16" alt="16px light"></div><span class="tag">16 × 16 · light tab</span></div>
+    <div class="favcell"><div class="favbox"><img src="mark.svg" width="48" height="48" alt="full mark 48"></div><span class="tag">full mark @ 48</span></div>
+  </div>
+</section>
+
+<!-- ================= APP ICONS ================= -->
+<section>
+  <div class="kicker">04 — App Icon · icon.svg</div>
+  <h2>深色底 (#0e111a) · rx ≈ 22%</h2>
+  <div class="panel iconrow" style="margin-top:20px">
+    <div class="iconcell">
+      <img class="appicon squircle" src="icon.svg" alt="macOS icon">
+      <span class="tag">macOS 连续圆角遮罩</span>
+    </div>
+    <div class="iconcell">
+      <img class="appicon roundrect" src="icon.svg" alt="rounded icon">
+      <span class="tag">普通圆角矩形 (22%)</span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= README BANNER ================= -->
+<section>
+  <div class="kicker">05 — README Banner Mock</div>
+  <h2>GitHub 仓库顶部</h2>
+  <div class="banner" style="margin-top:20px">
+    <svg width="44" height="44" viewBox="0 0 96 96" fill="none" style="color:var(--ink)">
+      <rect x="4"  y="4"  width="24" height="24" rx="5" fill="#3b82f6"/>
+      <rect x="4"  y="36" width="24" height="24" rx="5" fill="currentColor"/>
+      <rect x="4"  y="68" width="24" height="24" rx="5" fill="currentColor"/>
+      <rect x="40" y="8"  width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="40" y="40" width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="40" y="72" width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="75.5" y="11.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      <rect x="75.5" y="43.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      <rect x="75.5" y="75.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+    </svg>
+    <span class="wordmark">PxeLab</span>
+    <span class="tagline">Network boot for bare metal — no USB, no CDs.</span>
+    <span class="badges"><span class="badge">Go</span><span class="badge">AGPL-3.0</span><span class="badge">DHCP · TFTP · HTTP</span></span>
+  </div>
+</section>
+
+<!-- ================= SPLASH ================= -->
+<section>
+  <div class="kicker">06 — Boot Splash Mock</div>
+  <h2>启动界面</h2>
+  <div class="splash" style="margin-top:20px">
+    <svg width="104" height="104" viewBox="0 0 96 96" fill="none" style="color:var(--ink)">
+      <rect x="4"  y="4"  width="24" height="24" rx="5" fill="#3b82f6"/>
+      <rect x="4"  y="36" width="24" height="24" rx="5" fill="currentColor"/>
+      <rect x="4"  y="68" width="24" height="24" rx="5" fill="currentColor"/>
+      <rect x="40" y="8"  width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="40" y="40" width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="40" y="72" width="16" height="16" rx="4" fill="currentColor"/>
+      <rect x="75.5" y="11.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      <rect x="75.5" y="43.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      <rect x="75.5" y="75.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+    </svg>
+    <span class="wordmark">PxeLab</span>
+    <span class="tagline">$ pxe boot --all &nbsp;·&nbsp; network boot for bare metal</span>
+  </div>
+</section>
+
+<!-- ================= MONOCHROME ================= -->
+<section>
+  <div class="kicker">07 — Monochrome</div>
+  <h2>单色版：不依赖颜色依然成立（accent 像素一并去色）</h2>
+  <div class="grid2" style="margin-top:20px">
+    <div class="monocell monoblack">
+      <svg viewBox="0 0 96 96" fill="none">
+        <rect x="4"  y="4"  width="24" height="24" rx="5" fill="currentColor"/>
+        <rect x="4"  y="36" width="24" height="24" rx="5" fill="currentColor"/>
+        <rect x="4"  y="68" width="24" height="24" rx="5" fill="currentColor"/>
+        <rect x="40" y="8"  width="16" height="16" rx="4" fill="currentColor"/>
+        <rect x="40" y="40" width="16" height="16" rx="4" fill="currentColor"/>
+        <rect x="40" y="72" width="16" height="16" rx="4" fill="currentColor"/>
+        <rect x="75.5" y="11.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+        <rect x="75.5" y="43.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+        <rect x="75.5" y="75.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="monocell monowhite">
+      <svg viewBox="0 0 96 96" fill="none">
+        <rect x="4"  y="4"  width="24" height="24" rx="5" fill="currentColor"/>
+        <rect x="4"  y="36" width="24" height="24" rx="5" fill="currentColor"/>
+        <rect x="4"  y="68" width="24" height="24" rx="5" fill="currentColor"/>
+        <rect x="40" y="8"  width="16" height="16" rx="4" fill="currentColor"/>
+        <rect x="40" y="40" width="16" height="16" rx="4" fill="currentColor"/>
+        <rect x="40" y="72" width="16" height="16" rx="4" fill="currentColor"/>
+        <rect x="75.5" y="11.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+        <rect x="75.5" y="43.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+        <rect x="75.5" y="75.5" width="9" height="9" rx="2.5" fill="currentColor"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ================= COLORS ================= -->
+<section>
+  <div class="kicker">08 — Colors</div>
+  <h2>用色（全部取自项目既有 palette）</h2>
+  <div class="swatches" style="margin-top:20px">
+    <div class="sw"><div class="chip" style="background:#3b82f6"></div><div class="meta"><b>Ocean — origin pixel</b><span>#3b82f6</span></div></div>
+    <div class="sw"><div class="chip" style="background:#edf0f7"></div><div class="meta"><b>Ink — mark on dark</b><span>#edf0f7</span></div></div>
+    <div class="sw"><div class="chip" style="background:#0e111a"></div><div class="meta"><b>Surface — icon bg</b><span>#0e111a</span></div></div>
+    <div class="sw"><div class="chip" style="background:#080a10"></div><div class="meta"><b>Base — page bg</b><span>#080a10</span></div></div>
+    <div class="sw"><div class="chip" style="background:#12151d"></div><div class="meta"><b>Ink — mark on light</b><span>#12151d</span></div></div>
+  </div>
+  <p class="sub" style="margin-top:16px">辅助场景可用 green #22c55e / cyan #06b6d4 系状态色，但标志本体只锁定 ocean 一个 accent。</p>
+</section>
+
+<hr>
+<p class="tag" style="margin-top:24px">PXELAB · LOGO DIRECTION B · BENCHMARK MIGRATION (TAILSCALE) · ARCHIVO + JETBRAINS MONO · 1440×900</p>
+
+</body>
+</html>

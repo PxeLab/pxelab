@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { login } from '../api/client'
 import { Button } from '../components/ui/Button'
+import LogoMark from '../components/LogoMark'
 
 interface LoginProps {
   onLogin: () => void
@@ -42,8 +43,8 @@ export default function LoginPage({ onLogin }: LoginProps) {
       <div className="w-full max-w-sm relative">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-extrabold text-xl text-white shadow-xl shadow-blue-500/25 mx-auto mb-4">
-            PX
+          <div className="w-16 h-16 rounded-2xl bg-[#3B82F6] flex items-center justify-center text-white shadow-xl shadow-blue-500/25 mx-auto mb-4">
+            <LogoMark className="w-9 h-9" />
           </div>
           <h1 className="text-3xl font-bold text-[var(--text-primary)] tracking-tight">PxeLab</h1>
           <p className="text-sm text-[var(--text-muted)] mt-2">{t('login.title')}</p>

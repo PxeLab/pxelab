@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- PxeLab mark: boot prompt ">_" — chevron = network flow direction, cursor = machine awaiting boot -->
+  <g fill="currentColor">
+    <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+    <rect x="37" y="43.4" width="19" height="8.6"/>
+  </g>
+</svg>

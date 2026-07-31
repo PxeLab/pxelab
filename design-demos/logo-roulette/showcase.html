@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab Logo — Direction: Candy Roulette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080a10; --panel:#0e111a; --line:#1c2333; --fg:#edf0f7; --dim:#8b93a7;
+    --green:#22c55e; --green-deep:#15803d; --cyan:#06b6d4; --ocean:#3b82f6; --orange:#f97316;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font-family:'Archivo',sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1280px;margin:0 auto;padding:56px 48px 80px}
+  .mono{font-family:'JetBrains Mono',monospace}
+
+  /* method header */
+  .method{border:1px solid var(--line);background:var(--panel);border-radius:20px;
+          box-shadow:0 6px 0 rgba(0,0,0,.45);padding:28px 32px;margin-bottom:56px}
+  .method .tag{display:inline-block;background:var(--green);color:#06110a;font-weight:800;
+               font-size:12px;letter-spacing:.12em;border-radius:8px;padding:5px 12px;
+               box-shadow:0 3px 0 var(--green-deep);margin-bottom:14px}
+  .method h1{font-size:26px;font-weight:900;letter-spacing:-.02em;margin-bottom:10px}
+  .method p{color:var(--dim);font-size:14px;line-height:1.75;max-width:960px}
+  .method p b{color:var(--fg)}
+  .method .note{color:var(--orange)}
+
+  .sec{margin-bottom:64px}
+  .sec-label{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.18em;
+             color:var(--dim);text-transform:uppercase;margin-bottom:18px}
+  .sec-label::before{content:'// ';color:var(--green)}
+
+  .card{border:1px solid var(--line);background:var(--panel);border-radius:20px;
+        box-shadow:0 6px 0 rgba(0,0,0,.45)}
+
+  /* hero */
+  .hero{display:flex;align-items:center;justify-content:center;padding:72px 0}
+  .hero svg{width:280px;height:280px;color:var(--green)}
+
+  /* lockups */
+  .lock-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .lock{display:flex;align-items:center;justify-content:center;padding:56px 24px}
+  .lock.dark{background:#0e111a}
+  .lock.light{background:#f4f6fa;border-color:#d9dee8}
+  .lock svg{height:64px}
+
+  /* favicon */
+  .fav-row{display:flex;align-items:flex-end;gap:56px;padding:44px 48px}
+  .fav{text-align:center}
+  .fav .box{display:flex;align-items:center;justify-content:center;background:#161b28;
+            border:1px dashed #2a3348;border-radius:8px;padding:16px;margin-bottom:10px}
+  .fav svg{color:var(--green);display:block}
+  .fav .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim)}
+  .fav-zoom{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--dim);
+            font-family:'JetBrains Mono',monospace;font-size:11px}
+  .fav-zoom svg{width:96px;height:96px;color:var(--green);image-rendering:pixelated}
+
+  /* app icons */
+  .icon-row{display:flex;gap:56px;padding:48px;align-items:center}
+  .icon-item{text-align:center}
+  .icon-item img{width:144px;height:144px;display:block;margin-bottom:12px}
+  .icon-item .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim)}
+  .squircle{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 0 C85 0 100 15 100 50 C100 85 85 100 50 100 C15 100 0 85 0 50 C0 15 15 0 50 0 Z'/%3E%3C/svg%3E");
+            mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 0 C85 0 100 15 100 50 C100 85 85 100 50 100 C15 100 0 85 0 50 C0 15 15 0 50 0 Z'/%3E%3C/svg%3E");
+            -webkit-mask-size:100% 100%;mask-size:100% 100%}
+  .rounded{border-radius:24px}
+
+  /* banner mock */
+  .banner{display:flex;align-items:center;gap:18px;background:#0b0e16;border:1px solid var(--line);
+          border-radius:14px;padding:22px 32px}
+  .banner svg{width:44px;height:44px;color:var(--green)}
+  .banner .name{font-weight:900;font-size:30px;letter-spacing:-.02em}
+  .banner .tag{color:var(--dim);font-size:15px;margin-left:6px}
+  .banner .badges{margin-left:auto;display:flex;gap:8px;font-family:'JetBrains Mono',monospace;font-size:11px}
+  .banner .badges span{border:1px solid var(--line);border-radius:6px;padding:4px 10px;color:var(--dim)}
+  .banner .badges span b{color:var(--green);font-weight:600}
+
+  /* splash */
+  .splash{background:#05070c;border-radius:20px;border:1px solid var(--line);
+          display:flex;flex-direction:column;align-items:center;justify-content:center;
+          padding:88px 0;box-shadow:0 6px 0 rgba(0,0,0,.45)}
+  .splash svg{width:120px;height:120px;color:var(--green);margin-bottom:26px}
+  .splash .name{font-weight:900;font-size:44px;letter-spacing:-.02em}
+  .splash .tag{color:var(--dim);font-size:15px;margin-top:10px}
+  .splash .boot{margin-top:34px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#414b61}
+  .splash .boot b{color:var(--green);font-weight:600}
+
+  /* mono */
+  .mono-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .mono-cell{display:flex;align-items:center;justify-content:center;padding:56px 0;border-radius:20px;
+             box-shadow:0 6px 0 rgba(0,0,0,.45)}
+  .mono-cell.on-white{background:#fff;border:1px solid #d9dee8}
+  .mono-cell.on-black{background:#000;border:1px solid #1c2333}
+  .mono-cell svg{width:120px;height:120px}
+  .mono-cell.on-white svg{color:#000}
+  .mono-cell.on-black svg{color:#fff}
+
+  /* colors */
+  .swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .sw{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+  .sw .chip{height:72px}
+  .sw .meta{padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);line-height:1.6}
+  .sw .meta b{color:var(--fg);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ 方法说明 ============ -->
+  <div class="method">
+    <span class="tag">方向 · 秒数轮盘</span>
+    <h1>抽中秒数 23 → n = 23 % 20 + 1 = <b style="color:var(--green)">4 号风格：糖果色凸起立体按钮游戏化 Friendly Geometric Candy</b>（Duolingo 系）</h1>
+    <p><b>DNA 迁移：</b>糖果高饱和纯色（Duo 绿→项目绿 <b>#22c55e</b>）、超圆角 + 超粗圆头笔画、硬底阴影的「可按压」质感。<b>降级说明：</b>原风格的 3D 凸起/按压形变无法用纯几何 logo 还原，降级为纯色块 + 底部硬色带（见 app icon 底部 <b>#15803d</b> 色带），不模拟立体质感。</p>
+    <p style="margin-top:8px"><b>概念一句话：</b>把电源键做成网口形状 —— 一根网线从顶部缺口插入，按下即<b>从网络启动</b>（power × ethernet port）。</p>
+    <p class="note" style="margin-top:8px">⚠ 还原度 85% 风格：糖果质感已按上述方式降级为纯几何表达。</p>
+  </div>
+
+  <!-- ============ 主标 ============ -->
+  <div class="sec">
+    <div class="sec-label">Primary Mark</div>
+    <div class="card hero">
+      <svg viewBox="0 0 64 64" fill="none">
+        <path d="M26 15 H21 A6 6 0 0 0 15 21 V43 A6 6 0 0 0 21 49 H43 A6 6 0 0 0 49 43 V21 A6 6 0 0 0 43 15 H38 M32 9 V27"
+              stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ============ Lockup 深/浅 ============ -->
+  <div class="sec">
+    <div class="sec-label">Lockup — Dark / Light</div>
+    <div class="lock-grid">
+      <div class="card lock dark">
+        <svg viewBox="0 0 280 80">
+          <g transform="translate(8 8)">
+            <path d="M26 15 H21 A6 6 0 0 0 15 21 V43 A6 6 0 0 0 21 49 H43 A6 6 0 0 0 49 43 V21 A6 6 0 0 0 43 15 H38 M32 9 V27"
+                  stroke="#22c55e" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </g>
+          <text x="88" y="55" font-family="Archivo, sans-serif" font-weight="800" font-size="44" letter-spacing="-1" fill="#edf0f7">PxeLab</text>
+        </svg>
+      </div>
+      <div class="card lock light">
+        <svg viewBox="0 0 280 80">
+          <g transform="translate(8 8)">
+            <path d="M26 15 H21 A6 6 0 0 0 15 21 V43 A6 6 0 0 0 21 49 H43 A6 6 0 0 0 49 43 V21 A6 6 0 0 0 43 15 H38 M32 9 V27"
+                  stroke="#16a34a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </g>
+          <text x="88" y="55" font-family="Archivo, sans-serif" font-weight="800" font-size="44" letter-spacing="-1" fill="#0e111a">PxeLab</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Favicon 实像素 ============ -->
+  <div class="sec">
+    <div class="sec-label">Favicon — Actual Pixels</div>
+    <div class="card fav-row">
+      <div class="fav">
+        <div class="box">
+          <svg width="16" height="16" viewBox="0 0 64 64" fill="none"><path d="M25 14 H20 A6 6 0 0 0 14 20 V44 A6 6 0 0 0 20 50 H44 A6 6 0 0 0 50 44 V20 A6 6 0 0 0 44 14 H39 M32 8 V28" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="lbl">16 × 16</div>
+      </div>
+      <div class="fav">
+        <div class="box">
+          <svg width="32" height="32" viewBox="0 0 64 64" fill="none"><path d="M25 14 H20 A6 6 0 0 0 14 20 V44 A6 6 0 0 0 20 50 H44 A6 6 0 0 0 50 44 V20 A6 6 0 0 0 44 14 H39 M32 8 V28" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="lbl">32 × 32</div>
+      </div>
+      <div class="fav">
+        <div class="box">
+          <svg width="48" height="48" viewBox="0 0 64 64" fill="none"><path d="M25 14 H20 A6 6 0 0 0 14 20 V44 A6 6 0 0 0 20 50 H44 A6 6 0 0 0 50 44 V20 A6 6 0 0 0 44 14 H39 M32 8 V28" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="lbl">48 × 48</div>
+      </div>
+      <div class="fav-zoom">
+        <span>16px 源图<br>6× 放大对照<br>（pixelated）</span>
+        <svg width="16" height="16" viewBox="0 0 64 64" fill="none" style="width:96px;height:96px"><path d="M25 14 H20 A6 6 0 0 0 14 20 V44 A6 6 0 0 0 20 50 H44 A6 6 0 0 0 50 44 V20 A6 6 0 0 0 44 14 H39 M32 8 V28" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ App Icon ============ -->
+  <div class="sec">
+    <div class="sec-label">App Icon — macOS Squircle / Rounded Rect</div>
+    <div class="card icon-row">
+      <div class="icon-item">
+        <img class="squircle" src="icon.svg" alt="PxeLab icon macOS">
+        <div class="lbl">macOS 连续圆角遮罩（近似）</div>
+      </div>
+      <div class="icon-item">
+        <img class="rounded" src="icon.svg" alt="PxeLab icon rounded">
+        <div class="lbl">普通圆角矩形（rx ≈ 22%）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ README Banner ============ -->
+  <div class="sec">
+    <div class="sec-label">README Banner Mock</div>
+    <div class="banner">
+      <svg viewBox="0 0 64 64" fill="none"><path d="M26 15 H21 A6 6 0 0 0 15 21 V43 A6 6 0 0 0 21 49 H43 A6 6 0 0 0 49 43 V21 A6 6 0 0 0 43 15 H38 M32 9 V27" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="name">PxeLab</span>
+      <span class="tag">Boot any bare metal over the network. No USB sticks.</span>
+      <span class="badges"><span><b>AGPL-3.0</b></span><span>Go</span><span>PXE · DHCP · TFTP · HTTP</span></span>
+    </div>
+  </div>
+
+  <!-- ============ Splash ============ -->
+  <div class="sec">
+    <div class="sec-label">Boot Splash Mock</div>
+    <div class="splash">
+      <svg viewBox="0 0 64 64" fill="none"><path d="M26 15 H21 A6 6 0 0 0 15 21 V43 A6 6 0 0 0 21 49 H43 A6 6 0 0 0 49 43 V21 A6 6 0 0 0 43 15 H38 M32 9 V27" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="name">PxeLab</div>
+      <div class="tag">Boot any bare metal over the network.</div>
+      <div class="boot">DHCP <b>OK</b> · TFTP <b>OK</b> · HTTP <b>OK</b> — listening on :67 :69 :8080</div>
+    </div>
+  </div>
+
+  <!-- ============ 单色版 ============ -->
+  <div class="sec">
+    <div class="sec-label">Monochrome</div>
+    <div class="mono-grid">
+      <div class="mono-cell on-white">
+        <svg viewBox="0 0 64 64" fill="none"><path d="M26 15 H21 A6 6 0 0 0 15 21 V43 A6 6 0 0 0 21 49 H43 A6 6 0 0 0 49 43 V21 A6 6 0 0 0 43 15 H38 M32 9 V27" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="mono-cell on-black">
+        <svg viewBox="0 0 64 64" fill="none"><path d="M26 15 H21 A6 6 0 0 0 15 21 V43 A6 6 0 0 0 21 49 H43 A6 6 0 0 0 49 43 V21 A6 6 0 0 0 43 15 H38 M32 9 V27" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 色值 ============ -->
+  <div class="sec">
+    <div class="sec-label">Colors</div>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#22c55e"></div><div class="meta"><b>#22c55e</b><br>mark · candy green（Duo绿→项目 green）</div></div>
+      <div class="sw"><div class="chip" style="background:#15803d"></div><div class="meta"><b>#15803d</b><br>icon 底部硬色带（按压阴影降级）</div></div>
+      <div class="sw"><div class="chip" style="background:#0e111a"></div><div class="meta"><b>#0e111a / #080a10</b><br>深色底（项目既有）</div></div>
+      <div class="sw"><div class="chip" style="background:#edf0f7"></div><div class="meta"><b>#edf0f7</b><br>前景 / 字标（项目既有）</div></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
