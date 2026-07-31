@@ -11,6 +11,7 @@ export interface SubnetSettings {
   lease_time: number
   next_server: string
   chain_to_ipxe: boolean
+  whitelist_enabled: boolean
 }
 
 export interface InterfaceSettings {
