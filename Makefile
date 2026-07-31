@@ -1,8 +1,17 @@
-.PHONY: build test run clean frontend ipxe-build ipxe-build-embed ipxe-build-all ipxe-clean
+.PHONY: build test run clean frontend ipxe-build ipxe-build-embed ipxe-build-all ipxe-clean sync-bootdist
 
 # Go application build
-build:
+build: sync-bootdist
 	go build -o bin/pxelab ./cmd/pxelab
+
+# Sync boot/ → cmd/pxelab/bootdist/ before embedding
+# Supports both bash and powershell environments
+sync-bootdist:
+	rm -rf cmd/pxelab/bootdist/
+	mkdir -p cmd/pxelab/bootdist/
+	cp -r boot/* cmd/pxelab/bootdist/
+	rm -f cmd/pxelab/bootdist/README.md
+	@echo "bootdist synced"
 
 test:
 	go test ./...

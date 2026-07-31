@@ -1,0 +1,15 @@
+DEFAULT bootos
+PROMPT 0
+TIMEOUT 30
+
+LABEL bootos
+  MENU LABEL ^BootOS
+  MENU DEFAULT
+  # debug mode
+  kernel http://osinstall.newcb.com/bootos/bzImage-new-v5 initrd=http://osinstall.newcb.com/bootos/init-ok.xz root=/dev/ram0 rw ramdisk_size=275000 rootfstype=ext4 audit=0 selinux=0 biosdevname=0 net.ifnames=0 debug  isdebug=yes DEVELOPER=1 rd.retry=1 SERVER_ADDR=http://osinstall.newcb.com DEVELOPER=1 PRE=http://osinstall.newcb.com/bootos/pre.sh
+
+  # normal mode
+  # kernel http://osinstall.newcb.com/bootos/bzImage-new-v3 initrd=http://osinstall.newcb.com/bootos/init-ok.xz root=/dev/ram0 rw ramdisk_size=275000 rootfstype=ext4 audit=0 selinux=0 biosdevname=0 net.ifnames=0  DEVELOPER=1 rd.retry=1 SERVER_ADDR=http://osinstall.newcb.com DEVELOPER=1 PRE=http://osinstall.newcb.com/bootos/pre.sh
+  #kernel http://osinstall.newcb.com/bootos/bzImage-new-v5 initrd=http://osinstall.newcb.com/bootos/init-ok.xz root=/dev/ram0 rw ramdisk_size=275000 rootfstype=ext4 audit=0 selinux=0 biosdevname=0 net.ifnames=0  DEVELOPER=1 rd.retry=1 SERVER_ADDR=http://osinstall.newcb.com DEVELOPER=1 PRE=http://osinstall.newcb.com/bootos/pre.sh enforcing=0 ksdevice=bootif
+  IPAPPEND 2
+
