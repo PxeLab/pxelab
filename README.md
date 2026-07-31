@@ -2,7 +2,9 @@
   <img src="docs/design/logo/lockup.svg" alt="PxeLab" width="320">
 </p>
 
-一体化 PXE 网络引导服务器，内置 DHCP、TFTP、HTTP、DNS、NFS 服务，支持 BIOS/UEFI/ARM64/RISC-V/LoongArch 等多种架构，提供现代 Web UI 与 REST API。
+**一个二进制，多种架构，下载即用。** · PXE in minutes, all-in-one binary.
+
+内置 DHCP、TFTP、HTTP、DNS、NFS 服务，支持 BIOS/UEFI/ARM64/RISC-V/LoongArch 等多种架构，提供现代 Web UI 与 REST API。
 
 - 🌐 官网：https://pxelab.com
 - 📚 文档：https://pxelab.com/docs/
