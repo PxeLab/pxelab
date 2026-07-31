@@ -442,7 +442,10 @@
       "Bash(taskkill //f //pid 45672)",
       "Bash(taskkill //f //im pxelab.exe)",
       "Bash(git rm *)",
-      "Bash(rm -f D:/NewCB/PxeGo/.git/index.lock)"
+      "Bash(rm -f D:/NewCB/PxeGo/.git/index.lock)",
+      "Read(//c/Program Files \\\\\\(x86\\\\\\)/Microsoft/Edge/Application/**)",
+      "Read(//c/Program Files/Microsoft/Edge/Application/**)",
+      "Read(//c/Program Files/Google/Chrome/Application/**)"
     ]
   }
 }
