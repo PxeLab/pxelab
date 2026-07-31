@@ -1508,7 +1508,7 @@
     "confirmImportMsg": "This will import \"{name}\" into your local PxeLab instance. The item will be available immediately after import.",
     "goToBaseline": "View Baseline",
     "storeUnavailable": "Hub Unavailable",
-    "storeUnavailableDesc": "PxeLab Hub (store.pxelab.com) is currently unreachable. Please check your internet connection and try again.",
+    "storeUnavailableDesc": "PxeLab Hub (hub.pxelab.com) is currently unreachable. Please check your internet connection and try again.",
     "retry": "Retry",
     "imported": "Imported",
     "downloads": "Downloads",
