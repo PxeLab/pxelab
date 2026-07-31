@@ -1508,7 +1508,7 @@
     "confirmImportMsg": "将 \"{name}\" 导入到本地 PxeLab 实例。导入后即可立即使用。",
     "goToBaseline": "查看脚本集",
     "storeUnavailable": "Hub 无法访问",
-    "storeUnavailableDesc": "PxeLab Hub（store.pxelab.com）当前不可达，请检查网络连接后重试。",
+    "storeUnavailableDesc": "PxeLab Hub（hub.pxelab.com）当前不可达，请检查网络连接后重试。",
     "retry": "重试",
     "imported": "已导入",
     "downloads": "下载次数",

@@ -44,7 +44,7 @@ export interface ImportResult {
   store_item: string
 }
 
-/** Fetch the store catalog from store.pxelab.com (via PxeLab proxy). */
+/** Fetch the store catalog from hub.pxelab.com (via PxeLab proxy). */
 export async function getStoreCatalog(): Promise<ApiResponse<{ catalog: StoreCatalog }>> {
   return request('GET', '/store/catalog')
 }

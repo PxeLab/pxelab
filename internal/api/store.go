@@ -17,10 +17,10 @@ import (
 	"github.com/pxelab/pxelab/internal/store"
 )
 
-const DefaultStoreEndpoint = "https://store.pxelab.com"
+const DefaultStoreEndpoint = "https://hub.pxelab.com"
 
 // ---------------------------------------------------------------------------
-// Types — API contracts with store.pxelab.com
+// Types — API contracts with hub.pxelab.com
 // ---------------------------------------------------------------------------
 
 // StoreItem is a lightweight item in the catalog listing.
@@ -38,7 +38,7 @@ type StoreItem struct {
 	UpdatedAt   string   `json:"updated_at,omitempty"`
 }
 
-// StoreCatalog is the catalog response from store.pxelab.com.
+// StoreCatalog is the catalog response from hub.pxelab.com.
 type StoreCatalog struct {
 	Items []StoreItem `json:"items"`
 	Total int         `json:"total"`
@@ -109,7 +109,7 @@ type storeCache struct {
 	ttl      time.Duration
 }
 
-// NewStoreHandler creates a handler that talks to store.pxelab.com.
+// NewStoreHandler creates a handler that talks to hub.pxelab.com.
 func NewStoreHandler(st store.Interface) *StoreHandler {
 	return &StoreHandler{
 		store:    st,
@@ -357,7 +357,7 @@ func (h *StoreHandler) importBootTemplate(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// trackDownload sends a fire-and-forget POST to increment the download count on store.pxelab.com.
+// trackDownload sends a fire-and-forget POST to increment the download count on hub.pxelab.com.
 func (h *StoreHandler) trackDownload(ctx context.Context, itemType, itemID string) {
 	go func() {
 		dCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
