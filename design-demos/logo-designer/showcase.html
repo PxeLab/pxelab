@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — Logo Direction: Chermayeff &amp; Geismar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e111a; --bg-deep:#080a10; --fg:#edf0f7; --muted:#8b93a7;
+    --ocean:#3b82f6; --green:#22c55e; --cyan:#06b6d4; --orange:#f97316;
+    --line:#1c2233; --card:#12162490;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font-family:'Archivo',sans-serif;
+       -webkit-font-smoothing:antialiased;padding:56px 64px 96px}
+  .mono{font-family:'JetBrains Mono',monospace}
+  section{margin-bottom:72px}
+  .kicker{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;
+          text-transform:uppercase;color:var(--ocean);margin-bottom:10px}
+  h2{font-size:20px;font-weight:600;margin-bottom:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:32px}
+
+  /* header / method */
+  header{border-bottom:1px solid var(--line);padding-bottom:40px;margin-bottom:56px}
+  header h1{font-size:34px;font-weight:700;letter-spacing:-.01em;margin:14px 0 20px}
+  .method{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:8px}
+  .method h3{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.18em;
+             text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:500}
+  .method p{font-size:14px;line-height:1.65;color:#c4cbdc}
+  .method p b{color:var(--fg)}
+
+  /* hero mark */
+  .hero{display:flex;align-items:center;gap:56px}
+  .hero svg{width:300px;height:300px;flex:none}
+  .hero .note{font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:2;color:var(--muted)}
+  .hero .note b{color:var(--fg);font-weight:500}
+
+  /* lockups */
+  .lockup-row{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .lockup-cell{border-radius:12px;padding:48px;display:flex;align-items:center;justify-content:center}
+  .lockup-cell.dark{background:var(--bg-deep);border:1px solid var(--line)}
+  .lockup-cell.light{background:#f4f6fb}
+  .lockup-svg{display:flex;align-items:center;gap:18px}
+  .lockup-svg .wm{font-size:44px;font-weight:600;letter-spacing:.01em}
+
+  /* favicon */
+  .fav-row{display:flex;align-items:flex-end;gap:56px}
+  .fav{text-align:center}
+  .fav img{display:block;margin:0 auto 12px;image-rendering:auto}
+  .fav .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+  .fav-checker{background:
+    repeating-conic-gradient(#161b29 0% 25%, #10141f 0% 50%) 0 0/16px 16px;
+    border:1px solid var(--line);border-radius:8px;padding:24px;display:inline-block}
+
+  /* app icons */
+  .icon-row{display:flex;gap:56px;align-items:flex-end}
+  .appicon{width:160px;height:160px}
+  .appicon.mac{border-radius:22.37%;overflow:hidden;box-shadow:0 12px 40px #0008}
+  .appicon.sq{border-radius:24px;overflow:hidden;box-shadow:0 12px 40px #0008}
+  .appicon img{width:100%;height:100%;display:block}
+  .icon-item{text-align:center}
+  .icon-item .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-top:12px}
+
+  /* banner / splash */
+  .banner{background:var(--bg-deep);border:1px solid var(--line);border-radius:12px;
+          padding:36px 44px;display:flex;align-items:center;gap:20px}
+  .banner .wm{font-size:34px;font-weight:600}
+  .banner .tag{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);
+               border-left:1px solid var(--line);padding-left:20px;margin-left:8px}
+  .splash{background:var(--bg-deep);border:1px solid var(--line);border-radius:12px;
+          height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}
+  .splash .wm{font-size:40px;font-weight:600;letter-spacing:.01em}
+  .splash .tag{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);letter-spacing:.06em}
+
+  /* mono */
+  .mono-row{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .mono-cell{border-radius:12px;padding:56px;display:flex;align-items:center;justify-content:center;gap:24px}
+  .mono-cell.onwhite{background:#fff}
+  .mono-cell.onblack{background:#000;border:1px solid var(--line)}
+  .mono-cell svg{width:96px;height:96px}
+  .mono-cell .wm{font-size:40px;font-weight:600}
+
+  /* colors */
+  .swatches{display:flex;gap:16px;flex-wrap:wrap}
+  .sw{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:12px 18px 12px 12px}
+  .sw .chip{width:36px;height:36px;border-radius:8px}
+  .sw .name{font-size:13px;font-weight:500}
+  .sw .hex{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">PxeLab · Logo Direction · 最佳设计师方法</div>
+  <h1>Chermayeff &amp; Geismar —— 一个几何 idea，五十年不过时</h1>
+  <div class="method">
+    <div>
+      <h3>选谁</h3>
+      <p><b>Chermayeff &amp; Geismar</b>（Ivan Chermayeff / Tom Geismar）——Chase 八角、NBC 孔雀、Mobil、PBS 的作者，现代主义标志设计中最「耐久」的一脉。</p>
+    </div>
+    <div>
+      <h3>为什么是他</h3>
+      <p>PxeLab 是网络基础设施，不是消费品。C&amp;G 的哲学恰恰是给<b>基础设施级机构</b>做标：纯几何、一个概念、任何尺寸任何年代都成立。运维工具的标志不该追潮流，该像 RFC 一样经得起时间。</p>
+    </div>
+    <div>
+      <h3>哲学如何落地</h3>
+      <p>一个图形只讲一件事：<b>boot 提示符 <span class="mono">&gt;_</span></b>。尖括号 = 网络流向（server→client 的推送方向），光标块 = 等待被点亮启动的裸机。两个几何块，零装饰，负空间即含义。</p>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="kicker">01 / Primary Mark</div>
+  <h2>图形标 —— 网络流向 × 启动光标</h2>
+  <div class="card hero">
+    <svg viewBox="0 0 64 64" fill="#3b82f6">
+      <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+      <rect x="37" y="43.4" width="19" height="8.6"/>
+    </svg>
+    <div class="note">
+      <b>&gt;</b>&nbsp;&nbsp;chevron —— PXE 推送方向，server → client 的网络流<br>
+      <b>_</b>&nbsp;&nbsp;cursor —— 裸机上等待 boot 的闪烁提示符<br>
+      <br>
+      2 shapes · 0 gradients · 0 fonts · single path group<br>
+      64×64 grid · arm 10u · cursor 19×8.6u · currentColor
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">02 / Lockup</div>
+  <h2>横向组合 —— 深底 / 浅底</h2>
+  <div class="lockup-row">
+    <div class="lockup-cell dark">
+      <div class="lockup-svg" style="color:#edf0f7">
+        <svg viewBox="0 0 64 64" width="56" height="56" fill="#3b82f6">
+          <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+          <rect x="37" y="43.4" width="19" height="8.6"/>
+        </svg>
+        <span class="wm">PxeLab</span>
+      </div>
+    </div>
+    <div class="lockup-cell light">
+      <div class="lockup-svg" style="color:#0e111a">
+        <svg viewBox="0 0 64 64" width="56" height="56" fill="#3b82f6">
+          <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+          <rect x="37" y="43.4" width="19" height="8.6"/>
+        </svg>
+        <span class="wm">PxeLab</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">03 / Favicon — Real Pixels</div>
+  <h2>favicon 实际像素渲染</h2>
+  <div class="card">
+    <div class="fav-checker">
+      <div class="fav-row">
+        <div class="fav"><img src="favicon.svg" width="16" height="16" alt="16px"><span class="lbl">16 px</span></div>
+        <div class="fav"><img src="favicon.svg" width="32" height="32" alt="32px"><span class="lbl">32 px</span></div>
+        <div class="fav"><img src="favicon.svg" width="48" height="48" alt="48px"><span class="lbl">48 px</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">04 / App Icon</div>
+  <h2>应用 icon</h2>
+  <div class="card icon-row">
+    <div class="icon-item">
+      <div class="appicon mac"><img src="icon.svg" alt="macOS icon"></div>
+      <div class="lbl">macOS continuous corner · 22.37%</div>
+    </div>
+    <div class="icon-item">
+      <div class="appicon sq"><img src="icon.svg" alt="rounded icon"></div>
+      <div class="lbl">rounded rect · 24px radius</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">05 / README Banner Mock</div>
+  <h2>README 顶部 banner</h2>
+  <div class="banner" style="color:#edf0f7">
+    <svg viewBox="0 0 64 64" width="44" height="44" fill="#3b82f6">
+      <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+      <rect x="37" y="43.4" width="19" height="8.6"/>
+    </svg>
+    <span class="wm">PxeLab</span>
+    <span class="tag">boot bare-metal machines over the network — DHCP · TFTP · HTTP, one binary</span>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">06 / Splash Mock</div>
+  <h2>启动界面</h2>
+  <div class="splash">
+    <svg viewBox="0 0 64 64" width="104" height="104" fill="#3b82f6">
+      <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+      <rect x="37" y="43.4" width="19" height="8.6"/>
+    </svg>
+    <div class="wm">PxeLab</div>
+    <div class="tag">network boot, managed.</div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">07 / Monochrome</div>
+  <h2>单色版</h2>
+  <div class="mono-row">
+    <div class="mono-cell onwhite" style="color:#000">
+      <svg viewBox="0 0 64 64" fill="#000">
+        <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+        <rect x="37" y="43.4" width="19" height="8.6"/>
+      </svg>
+      <span class="wm">PxeLab</span>
+    </div>
+    <div class="mono-cell onblack" style="color:#fff">
+      <svg viewBox="0 0 64 64" fill="#fff">
+        <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+        <rect x="37" y="43.4" width="19" height="8.6"/>
+      </svg>
+      <span class="wm">PxeLab</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">08 / Color</div>
+  <h2>色值标注</h2>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#3b82f6"></div><div><div class="name">Ocean — mark primary</div><div class="hex">#3B82F6</div></div></div>
+    <div class="sw"><div class="chip" style="background:#0e111a"></div><div><div class="name">Surface</div><div class="hex">#0E111A</div></div></div>
+    <div class="sw"><div class="chip" style="background:#080a10"></div><div><div class="name">Surface deep</div><div class="hex">#080A10</div></div></div>
+    <div class="sw"><div class="chip" style="background:#edf0f7"></div><div><div class="name">Foreground</div><div class="hex">#EDF0F7</div></div></div>
+    <div class="sw"><div class="chip" style="background:#22c55e"></div><div><div class="name">Green — accent only</div><div class="hex">#22C55E</div></div></div>
+    <div class="sw"><div class="chip" style="background:#fff;border:1px solid var(--line)"></div><div><div class="name">Mono</div><div class="hex">#000000 / #FFFFFF</div></div></div>
+  </div>
+</section>
+
+</body>
+</html>

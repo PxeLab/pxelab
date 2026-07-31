@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — Direction E · Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Blueprint palette — all oklch */
+    --bp-0: oklch(0.27 0.062 255);        /* deepest sheet blue */
+    --bp-1: oklch(0.305 0.07 255);        /* primary sheet blue  ≈ #16324F */
+    --bp-2: oklch(0.345 0.072 255);       /* raised panel        ≈ #1B3A5C */
+    --bp-3: oklch(0.385 0.075 255);       /* hover / inset panel */
+    --ink: oklch(0.96 0.008 240);         /* white ink           ≈ #F2F6F9 */
+    --ink-dim: oklch(0.80 0.02 245);      /* secondary ink       ≈ #B9C6D2 */
+    --cyan: oklch(0.85 0.065 215);        /* annotation cyan     ≈ #9FD8E8 */
+    --signal: oklch(0.68 0.19 45);        /* signal orange       ≈ #FF5A1F */
+    --signal-deep: oklch(0.60 0.17 43);
+    --line: oklch(0.96 0.008 240 / 0.12); /* hairline white 12%  */
+    --line-soft: oklch(0.96 0.008 240 / 0.07);
+    --line-faint: oklch(0.96 0.008 240 / 0.05);
+    --paper: oklch(0.965 0.01 240);       /* docs paper block    */
+    --paper-ink: oklch(0.28 0.05 255);    /* dark blue ink on paper */
+    --paper-dim: oklch(0.42 0.045 255);
+    --paper-line: oklch(0.28 0.05 255 / 0.16);
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --sans: "Archivo", "Inter", system-ui, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bp-0);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  p, li, h1, h2, h3 { text-wrap: pretty; }
+
+  ::selection { background: var(--signal); color: var(--bp-0); }
+
+  /* ---------- shared primitives ---------- */
+  .mono { font-family: var(--mono); }
+
+  .sheet {
+    position: relative;
+    max-width: 1240px;
+    margin: 0 auto 96px;
+    border: 1px solid var(--line);
+    background:
+      /* fine grid 72px, white 5% */
+      repeating-linear-gradient(0deg, var(--line-faint) 0 1px, transparent 1px 72px),
+      repeating-linear-gradient(90deg, var(--line-faint) 0 1px, transparent 1px 72px),
+      var(--bp-1);
+  }
+
+  /* corner registration crosses */
+  .cross { position: absolute; width: 17px; height: 17px; pointer-events: none; opacity: .55; }
+  .cross::before, .cross::after { content: ""; position: absolute; background: var(--cyan); }
+  .cross::before { left: 8px; top: 0; width: 1px; height: 17px; }
+  .cross::after  { top: 8px; left: 0; height: 1px; width: 17px; }
+  .cross.tl { top: -9px; left: -9px; }
+  .cross.tr { top: -9px; right: -9px; }
+  .cross.bl { bottom: -9px; left: -9px; }
+  .cross.br { bottom: -9px; right: -9px; }
+
+  /* sheet label strip above each site */
+  .sheet-label {
+    max-width: 1240px;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--cyan);
+  }
+  .sheet-label .rule { flex: 1; border-top: 1px dashed oklch(0.85 0.065 215 / 0.35); transform: translateY(-3px); }
+  .sheet-label .no { color: var(--ink-dim); }
+
+  /* ---------- title block (logo) ---------- */
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-mark {
+    width: 24px; height: 24px; flex: none;
+    border: 1.5px solid var(--ink);
+    position: relative;
+  }
+  .brand-mark::before {
+    content: ""; position: absolute; inset: 4px;
+    border: 1px solid var(--signal);
+  }
+  .brand-mark::after {
+    content: ""; position: absolute;
+    top: -5px; left: -5px; width: 7px; height: 7px;
+    border-top: 1.5px solid var(--ink); border-left: 1.5px solid var(--ink);
+  }
+  .brand-name { font-family: var(--mono); font-weight: 700; font-size: 15px; letter-spacing: .02em; color: var(--ink); }
+
+  /* ---------- nav ---------- */
+  .nav {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px; padding: 0 32px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bp-1);
+    position: relative; z-index: 2;
+  }
+  .nav-links { display: flex; align-items: center; gap: 28px; list-style: none; }
+  .nav-links a {
+    font-family: var(--mono); font-size: 12.5px; font-weight: 500;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-dim); text-decoration: none;
+    padding: 4px 0;
+    border-bottom: 1px solid transparent;
+  }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-links a[aria-current="page"] { color: var(--signal); border-bottom-color: var(--signal); }
+  .nav-links a .ext { color: var(--cyan); font-size: 11px; margin-left: 3px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12.5px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase;
+    text-decoration: none; cursor: pointer;
+    padding: 10px 18px; border-radius: 2px;
+    border: 1px solid transparent;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+  }
+  .btn-signal { background: var(--signal); color: oklch(0.24 0.05 45); border-color: var(--signal); }
+  .btn-signal:hover { background: var(--signal-deep); border-color: var(--signal-deep); }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: oklch(0.96 0.008 240 / 0.45); }
+  .btn-ghost:hover { border-color: var(--ink); background: oklch(0.96 0.008 240 / 0.06); }
+
+  /* ---------- FIG tag ---------- */
+  .fig-tag {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--cyan);
+  }
+  .fig-tag::before { content: "+"; color: var(--signal); font-weight: 700; }
+  .fig-tag .dash { width: 24px; border-top: 1px dashed oklch(0.85 0.065 215 / 0.5); }
+
+  /* ============================================================
+     SHEET A — LANDING
+     ============================================================ */
+  .hero {
+    position: relative;
+    padding: 96px 64px 88px;
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .hero h1 {
+    font-size: clamp(44px, 5.6vw, 72px);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    margin: 28px 0 20px;
+    max-width: 12ch;
+  }
+  .hero h1 .u { box-shadow: inset 0 -0.14em 0 0 var(--signal); }
+  .hero .lede {
+    font-size: 19px; font-weight: 500;
+    color: var(--ink-dim);
+    max-width: 46ch;
+    margin-bottom: 40px;
+  }
+  .hero-cta { display: flex; gap: 16px; align-items: center; }
+
+  /* boot-flow annotation, right side of hero */
+  .bootflow {
+    position: absolute; right: 56px; top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: .08em; color: var(--cyan);
+    display: flex; flex-direction: column; gap: 0;
+    width: 190px;
+  }
+  .bootflow .node {
+    border: 1px solid oklch(0.85 0.065 215 / 0.45);
+    background: var(--bp-2);
+    padding: 8px 12px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .bootflow .node b { color: var(--ink); font-weight: 600; }
+  .bootflow .node .idx { color: var(--signal); font-size: 10px; }
+  .bootflow .link {
+    height: 26px; margin-left: 16px;
+    border-left: 1px dashed oklch(0.85 0.065 215 / 0.5);
+    position: relative;
+  }
+  .bootflow .link span {
+    position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+    font-size: 10px; color: oklch(0.85 0.065 215 / 0.75);
+    background: var(--bp-1); padding-right: 4px;
+  }
+  .bootflow .link::after {
+    content: ""; position: absolute; bottom: -1px; left: -3px;
+    border: 2.5px solid transparent; border-top-color: oklch(0.85 0.065 215 / 0.6);
+  }
+  .bootflow .cap { margin-top: 12px; font-size: 10px; letter-spacing: .14em; color: oklch(0.85 0.065 215 / 0.6); text-transform: uppercase; }
+
+  /* hero coordinate ticks, bottom edge */
+  .measure {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 18px;
+    background: repeating-linear-gradient(90deg, oklch(0.96 0.008 240 / 0.25) 0 1px, transparent 1px 72px);
+    mask: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    opacity: .35; pointer-events: none;
+  }
+
+  /* spec strip under hero */
+  .specstrip { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .spec {
+    padding: 28px 32px 32px;
+    border-right: 1px solid var(--line);
+    position: relative;
+  }
+  .spec:last-child { border-right: 0; }
+  .spec .k {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--cyan); margin-bottom: 10px;
+    display: flex; justify-content: space-between;
+  }
+  .spec .k i { font-style: normal; color: oklch(0.85 0.065 215 / 0.55); }
+  .spec .v { font-family: var(--mono); font-size: 30px; font-weight: 700; color: var(--ink); line-height: 1.1; }
+  .spec .v small { font-size: 13px; font-weight: 500; color: var(--ink-dim); margin-left: 4px; }
+  .spec .d { margin-top: 8px; font-size: 13.5px; color: var(--ink-dim); }
+  .spec.hot .v { color: var(--signal); }
+
+  /* ============================================================
+     SHEET B — DOCS
+     ============================================================ */
+  .docs-body {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr) 176px;
+    min-height: 720px;
+  }
+  .docs-side {
+    border-right: 1px solid var(--line);
+    padding: 32px 0;
+    font-family: var(--mono);
+  }
+  .docs-side .grp { margin-bottom: 28px; }
+  .docs-side .grp-t {
+    font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase;
+    color: oklch(0.85 0.065 215 / 0.65);
+    padding: 0 24px 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .docs-side .grp-t::after { content: ""; flex: 1; border-top: 1px dashed oklch(0.85 0.065 215 / 0.3); }
+  .docs-side a {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 7px 24px;
+    font-size: 12.5px; color: var(--ink-dim); text-decoration: none;
+    border-left: 2px solid transparent;
+  }
+  .docs-side a:hover { color: var(--ink); background: oklch(0.96 0.008 240 / 0.04); }
+  .docs-side a .n { font-size: 10px; color: oklch(0.85 0.065 215 / 0.55); }
+  .docs-side a.on { color: var(--signal); border-left-color: var(--signal); background: oklch(0.68 0.19 45 / 0.07); }
+  .docs-side a.on .n { color: var(--signal); }
+
+  /* the paper block — readability-first */
+  .docs-article { padding: 40px 48px 56px; background: var(--bp-1); }
+  .paper {
+    background: var(--paper);
+    color: var(--paper-ink);
+    border: 1px solid var(--paper-line);
+    border-radius: 2px;
+    padding: 56px 64px 64px;
+    position: relative;
+    box-shadow: 8px 8px 0 0 oklch(0.27 0.062 255 / 0.55);
+  }
+  .paper::before {
+    content: "PXELAB DOCS · REV 3.2 · SHEET 1/1";
+    position: absolute; top: 14px; right: 18px;
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em;
+    color: oklch(0.28 0.05 255 / 0.45);
+  }
+  .paper .crumb {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--signal-deep);
+    margin-bottom: 16px;
+  }
+  .paper h1 {
+    font-size: 34px; font-weight: 800; letter-spacing: -0.02em;
+    color: var(--paper-ink); margin-bottom: 18px;
+    padding-bottom: 18px; border-bottom: 1px solid var(--paper-line);
+  }
+  .paper p { font-size: 15.5px; line-height: 1.7; color: var(--paper-dim); margin-bottom: 16px; max-width: 62ch; }
+  .paper p strong { color: var(--paper-ink); }
+  .paper h2 {
+    font-size: 19px; font-weight: 700; color: var(--paper-ink);
+    margin: 32px 0 12px;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .paper h2 .sec { font-family: var(--mono); font-size: 11px; color: var(--signal-deep); letter-spacing: .1em; }
+  .paper code {
+    font-family: var(--mono); font-size: 0.86em;
+    background: oklch(0.28 0.05 255 / 0.08);
+    border: 1px solid oklch(0.28 0.05 255 / 0.14);
+    padding: 1px 5px; border-radius: 2px;
+  }
+
+  .codeblock {
+    background: var(--bp-0);
+    border: 1px solid oklch(0.28 0.05 255 / 0.9);
+    border-radius: 2px;
+    margin: 16px 0 20px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.7;
+    position: relative;
+  }
+  .codeblock .cb-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--cyan);
+  }
+  .codeblock pre { padding: 16px 18px; overflow-x: auto; color: oklch(0.90 0.02 240); }
+  .codeblock .c { color: oklch(0.70 0.05 230); }              /* comment */
+  .codeblock .o { color: var(--signal); font-weight: 600; }     /* command signal */
+
+  .tip {
+    display: flex; gap: 14px;
+    border: 1px solid oklch(0.60 0.17 43 / 0.55);
+    border-left: 3px solid var(--signal);
+    background: oklch(0.68 0.19 45 / 0.07);
+    padding: 14px 18px;
+    margin: 8px 0 4px;
+    border-radius: 2px;
+  }
+  .tip .tk {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: .14em; color: var(--signal-deep);
+    padding-top: 2px; flex: none;
+  }
+  .tip p { font-size: 14px; margin: 0; color: var(--paper-ink); }
+
+  .docs-toc {
+    padding: 40px 24px;
+    font-family: var(--mono);
+  }
+  .docs-toc .t {
+    font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase;
+    color: oklch(0.85 0.065 215 / 0.65); margin-bottom: 14px;
+  }
+  .docs-toc a {
+    display: block; padding: 5px 0 5px 12px;
+    font-size: 11.5px; color: var(--ink-dim); text-decoration: none;
+    border-left: 1px solid var(--line);
+  }
+  .docs-toc a.on { color: var(--signal); border-left-color: var(--signal); }
+  .docs-toc a:hover { color: var(--ink); }
+
+  /* ============================================================
+     SHEET C — STORE
+     ============================================================ */
+  .store-head { padding: 64px 64px 40px; border-bottom: 1px solid var(--line); position: relative; }
+  .store-head h1 { font-size: 44px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 12px; }
+  .store-head .lede { color: var(--ink-dim); font-size: 16.5px; max-width: 56ch; margin-bottom: 32px; }
+
+  .store-tools { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .search {
+    flex: 1; min-width: 260px; max-width: 420px;
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid oklch(0.96 0.008 240 / 0.35);
+    background: var(--bp-0);
+    padding: 10px 14px; border-radius: 2px;
+  }
+  .search .prompt { font-family: var(--mono); color: var(--signal); font-weight: 700; font-size: 13px; }
+  .search input {
+    flex: 1; background: none; border: 0; outline: none;
+    font-family: var(--mono); font-size: 13px; color: var(--ink);
+  }
+  .search input::placeholder { color: oklch(0.80 0.02 245 / 0.55); }
+
+  .chips { display: flex; gap: 8px; }
+  .chip {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
+    letter-spacing: .1em; text-transform: uppercase;
+    padding: 8px 14px; border-radius: 2px; cursor: pointer;
+    border: 1px solid oklch(0.96 0.008 240 / 0.3);
+    color: var(--ink-dim); background: transparent;
+  }
+  .chip:hover { border-color: var(--ink); color: var(--ink); }
+  .chip.on { background: var(--signal); border-color: var(--signal); color: oklch(0.24 0.05 45); font-weight: 700; }
+
+  .store-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 24px; padding: 40px 64px 64px;
+  }
+  .card {
+    position: relative;
+    border: 1px solid var(--line);
+    background: var(--bp-2);
+    border-radius: 2px;
+    padding: 28px 28px 24px;
+    display: flex; flex-direction: column;
+    transition: border-color .12s ease, transform .12s ease;
+  }
+  .card:hover { border-color: oklch(0.85 0.065 215 / 0.55); transform: translateY(-2px); }
+  .card .corner {
+    position: absolute; top: -1px; right: -1px;
+    width: 34px; height: 34px;
+    border-left: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    background: var(--bp-1);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em;
+    color: var(--cyan);
+  }
+  .card .kind {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--signal);
+    border: 1px solid oklch(0.68 0.19 45 / 0.5);
+    display: inline-block; align-self: flex-start;
+    padding: 4px 8px; margin-bottom: 18px; border-radius: 2px;
+  }
+  .card .kind.alt { color: var(--cyan); border-color: oklch(0.85 0.065 215 / 0.45); }
+  .card h3 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 10px; }
+  .card p { font-size: 13.5px; color: var(--ink-dim); line-height: 1.6; margin-bottom: 22px; flex: 1; }
+  .card .meta {
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px dashed oklch(0.96 0.008 240 / 0.18);
+    padding-top: 14px;
+    font-family: var(--mono); font-size: 11px; color: var(--ink-dim);
+  }
+  .card .meta b { color: var(--ink); font-weight: 600; }
+  .card .meta .dl { color: var(--signal); font-weight: 700; }
+
+  /* footer strip on each sheet */
+  .sheet-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--line);
+    padding: 14px 32px;
+    font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: oklch(0.80 0.02 245 / 0.65);
+  }
+  .sheet-foot .sig { color: var(--cyan); }
+
+  .page-head {
+    max-width: 1240px; margin: 0 auto 56px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    padding-top: 8px;
+  }
+  .page-head h0 { display: none; }
+  .page-head .t { font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--cyan); }
+  .page-head .big { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin-top: 8px; }
+  .page-head .rev { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); letter-spacing: .1em; text-align: right; line-height: 1.8; }
+  .page-head .rev b { color: var(--signal); }
+
+  .wrap { padding: 48px 32px 96px; }
+
+  @media (max-width: 1100px) {
+    .bootflow { display: none; }
+    .docs-body { grid-template-columns: 200px minmax(0,1fr); }
+    .docs-toc { display: none; }
+    .store-grid { grid-template-columns: 1fr; }
+    .specstrip { grid-template-columns: repeat(2, 1fr); }
+    .spec:nth-child(2) { border-right: 0; }
+    .spec:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- page head -->
+  <div class="page-head">
+    <div>
+      <div class="t mono">PXELAB · THREE-SITE UNIFICATION · DIRECTION E</div>
+      <div class="big">Blueprint — Infrastructure Drawings</div>
+    </div>
+    <div class="rev mono">
+      SCALE 1:1 · GRID 72PX<br>
+      INK <b>SIGNAL ORANGE</b> / CYAN / WHITE<br>
+      SHEETS A—C
+    </div>
+  </div>
+
+  <!-- ══════════════════════ SHEET A — LANDING ══════════════════════ -->
+  <div class="sheet-label mono"><span>SHEET A</span><span class="no">落地页 — LANDING</span><span class="rule"></span><span class="no">DWG NO. PXL-100</span></div>
+
+  <section class="sheet">
+    <span class="cross tl"></span><span class="cross tr"></span><span class="cross bl"></span><span class="cross br"></span>
+
+    <nav class="nav">
+      <a class="brand" href="#"><span class="brand-mark"></span><span class="brand-name">PxeLab</span></a>
+      <ul class="nav-links">
+        <li><a href="#">Features</a></li>
+        <li><a href="#">Platform</a></li>
+        <li><a href="#">Docs</a></li>
+        <li><a href="#">Store</a></li>
+        <li><a href="#">GitHub<span class="ext">↗</span></a></li>
+        <li><a class="btn btn-signal" href="#">Download</a></li>
+      </ul>
+    </nav>
+
+    <div class="hero">
+      <span class="fig-tag">FIG.01 <span class="dash"></span> PXE SERVER, ALL-IN-ONE</span>
+      <h1>All-in-one <span class="u">PXE</span> server</h1>
+      <p class="lede">Five network services, two interfaces, zero dependencies. One static binary boots your whole rack — bare metal, VMs, and everything in between.</p>
+      <div class="hero-cta">
+        <a class="btn btn-signal" href="#">Get Started</a>
+        <a class="btn btn-ghost" href="#">Documentation</a>
+      </div>
+
+      <!-- boot flow annotation -->
+      <div class="bootflow" aria-hidden="true">
+        <div class="cap" style="margin:0 0 10px">BOOT SEQUENCE · N.011</div>
+        <div class="node"><b>PXE ROM</b><span class="idx">01</span></div>
+        <div class="link"><span>DHCP :67/UDP</span></div>
+        <div class="node"><b>iPXE</b><span class="idx">02</span></div>
+        <div class="link"><span>TFTP :69/UDP</span></div>
+        <div class="node"><b>Boot Menu</b><span class="idx">03</span></div>
+        <div class="link"><span>HTTP :80/TCP</span></div>
+        <div class="node"><b>OS Image</b><span class="idx">04</span></div>
+        <div class="cap">→ TARGET PROVISIONED</div>
+      </div>
+
+      <div class="measure"></div>
+    </div>
+
+    <div class="specstrip">
+      <div class="spec hot">
+        <div class="k"><span>Services</span><i>S.01</i></div>
+        <div class="v">5<small>in 1</small></div>
+        <div class="d">DHCP · TFTP · HTTP · DNS · NFS, wired together out of the box.</div>
+      </div>
+      <div class="spec">
+        <div class="k"><span>Client Arches</span><i>S.02</i></div>
+        <div class="v">11</div>
+        <div class="d">x86 BIOS, x86_64 UEFI, ARM32, ARM64 and more — one menu serves all.</div>
+      </div>
+      <div class="spec">
+        <div class="k"><span>Dependencies</span><i>S.03</i></div>
+        <div class="v">0</div>
+        <div class="d">A single static binary. No runtime, no database, no container required.</div>
+      </div>
+      <div class="spec">
+        <div class="k"><span>License</span><i>S.04</i></div>
+        <div class="v"><small style="font-size:22px; margin:0">AGPL-3.0</small></div>
+        <div class="d">Open source, auditable, fork-friendly. Contributions welcome.</div>
+      </div>
+    </div>
+
+    <div class="sheet-foot mono">
+      <span>PXELAB · LANDING · REV A</span>
+      <span class="sig">GRID 72 · INK W/C/O</span>
+      <span>FIG.01 — FIG.04</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ SHEET B — DOCS ══════════════════════ -->
+  <div class="sheet-label mono"><span>SHEET B</span><span class="no">文档站 — DOCS</span><span class="rule"></span><span class="no">DWG NO. PXL-200</span></div>
+
+  <section class="sheet">
+    <span class="cross tl"></span><span class="cross tr"></span><span class="cross bl"></span><span class="cross br"></span>
+
+    <nav class="nav">
+      <a class="brand" href="#"><span class="brand-mark"></span><span class="brand-name">PxeLab</span></a>
+      <ul class="nav-links">
+        <li><a href="#">Features</a></li>
+        <li><a href="#">Platform</a></li>
+        <li><a href="#" aria-current="page">Docs</a></li>
+        <li><a href="#">Store</a></li>
+        <li><a href="#">GitHub<span class="ext">↗</span></a></li>
+        <li><a class="btn btn-signal" href="#">Download</a></li>
+      </ul>
+    </nav>
+
+    <div class="docs-body">
+      <!-- left sidebar -->
+      <aside class="docs-side">
+        <div class="grp">
+          <div class="grp-t">Start</div>
+          <a href="#" class="on"><span class="n">01</span>快速开始</a>
+          <a href="#"><span class="n">02</span>产品简介</a>
+        </div>
+        <div class="grp">
+          <div class="grp-t">使用指南</div>
+          <a href="#"><span class="n">03</span>DHCP 服务</a>
+          <a href="#"><span class="n">04</span>TFTP 服务</a>
+          <a href="#"><span class="n">05</span>HTTP 服务</a>
+          <a href="#"><span class="n">06</span>启动菜单</a>
+        </div>
+        <div class="grp">
+          <div class="grp-t">Reference</div>
+          <a href="#"><span class="n">07</span>参考文档</a>
+          <a href="#"><span class="n">08</span>API</a>
+        </div>
+      </aside>
+
+      <!-- article on paper -->
+      <article class="docs-article">
+        <div class="paper">
+          <div class="crumb mono">Docs / Start / 01</div>
+          <h1>快速开始</h1>
+          <p>PxeLab 是<strong>单二进制的一体化 PXE 网络引导服务器</strong>。它在同一进程内运行 DHCP、TFTP、HTTP、DNS 与 NFS 五个网络服务，并附带一个 Web 管理界面。下载、运行、打开浏览器 —— 三分钟即可引导第一台机器。</p>
+
+          <h2><span class="sec">§1.1</span>安装</h2>
+          <p>在 Linux 或 macOS 上，使用安装脚本获取最新版本。脚本会将单个静态二进制放入 <code>/usr/local/bin</code>，无其他依赖。</p>
+          <div class="codeblock">
+            <div class="cb-head mono"><span>TERMINAL — INSTALL</span><span>SH</span></div>
+            <pre><span class="c"># download &amp; install the latest release</span>
+<span class="o">curl</span> -fsSL https://pxelab.com/install.sh | <span class="o">bash</span></pre>
+          </div>
+
+          <h2><span class="sec">§1.2</span>运行</h2>
+          <p>直接启动即可。PxeLab 会监听 DHCP <code>:67</code>、TFTP <code>:69</code>、HTTP <code>:80</code>，并在 <code>:8080</code> 提供 Web UI。</p>
+          <div class="codeblock">
+            <div class="cb-head mono"><span>TERMINAL — RUN</span><span>SH</span></div>
+            <pre><span class="o">./pxelab</span>
+<span class="c"># → web ui:  http://localhost:8080
+# → serving: dhcp:67 tftp:69 http:80 dns:53 nfs:2049</span></pre>
+          </div>
+
+          <div class="tip">
+            <span class="tk mono">TIP</span>
+            <p>端口 67/69/80 需要 root 或 <code>CAP_NET_BIND_SERVICE</code>。在测试环境中也可以用 <code>--dhcp-proxy</code> 模式与现有 DHCP 服务器共存，无需改动当前网络。</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- right toc -->
+      <aside class="docs-toc">
+        <div class="t">On this page</div>
+        <a href="#" class="on">快速开始</a>
+        <a href="#">§1.1 安装</a>
+        <a href="#">§1.2 运行</a>
+        <a href="#">下一步</a>
+      </aside>
+    </div>
+
+    <div class="sheet-foot mono">
+      <span>PXELAB · DOCS · REV 3.2</span>
+      <span class="sig">PAPER BLOCK · LONG-FORM READING</span>
+      <span>SHEET 1/1</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ SHEET C — STORE ══════════════════════ -->
+  <div class="sheet-label mono"><span>SHEET C</span><span class="no">STORE</span><span class="rule"></span><span class="no">DWG NO. PXL-300</span></div>
+
+  <section class="sheet">
+    <span class="cross tl"></span><span class="cross tr"></span><span class="cross bl"></span><span class="cross br"></span>
+
+    <nav class="nav">
+      <a class="brand" href="#"><span class="brand-mark"></span><span class="brand-name">PxeLab</span></a>
+      <ul class="nav-links">
+        <li><a href="#">Features</a></li>
+        <li><a href="#">Platform</a></li>
+        <li><a href="#">Docs</a></li>
+        <li><a href="#" aria-current="page">Store</a></li>
+        <li><a href="#">GitHub<span class="ext">↗</span></a></li>
+        <li><a class="btn btn-signal" href="#">Download</a></li>
+      </ul>
+    </nav>
+
+    <div class="store-head">
+      <span class="fig-tag">FIG.02 <span class="dash"></span> COMPONENT INDEX</span>
+      <h1>Community Store</h1>
+      <p class="lede">Security baselines, boot templates, and configurations contributed by the PxeLab community.</p>
+      <div class="store-tools">
+        <label class="search mono"><span class="prompt">&gt;_</span><input type="text" placeholder="Search components…"></label>
+        <div class="chips mono">
+          <button class="chip on">All</button>
+          <button class="chip">Baselines</button>
+          <button class="chip">Boot Templates</button>
+          <button class="chip">Distros</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="store-grid">
+      <div class="card">
+        <span class="corner mono">C.01</span>
+        <span class="kind">Distro</span>
+        <h3>Ubuntu 24.04 Autoinstall</h3>
+        <p>Hands-off Ubuntu Server 24.04 LTS deployment via cloud-init autoinstall. Pre-wired kernel args, mirror config, and a sane default storage layout.</p>
+        <div class="meta"><span><b>v1.4.2</b> · ubuntu</span><span class="dl">↓ 12,408</span></div>
+      </div>
+      <div class="card">
+        <span class="corner mono">C.02</span>
+        <span class="kind alt">Boot Template</span>
+        <h3>Windows 11 Autounattend</h3>
+        <p>Unattended Windows 11 provisioning over HTTP. Includes WinPE bootstrap, answer-file templating, and post-install driver injection hooks.</p>
+        <div class="meta"><span><b>v2.1.0</b> · windows</span><span class="dl">↓ 8,932</span></div>
+      </div>
+      <div class="card">
+        <span class="corner mono">C.03</span>
+        <span class="kind alt">Baseline</span>
+        <h3>CIS Linux Baseline</h3>
+        <p>Hardened first-boot profile implementing CIS Level 1 controls: SSH lockdown, sysctl tuning, auditd rules, and automatic compliance reporting.</p>
+        <div class="meta"><span><b>v0.9.5</b> · security</span><span class="dl">↓ 5,117</span></div>
+      </div>
+    </div>
+
+    <div class="sheet-foot mono">
+      <span>PXELAB · STORE · REV C</span>
+      <span class="sig">COMPONENT BLOCKS · 3 OF 42</span>
+      <span>FIG.02</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

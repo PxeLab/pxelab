@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — Logo v3: 弧线 × 方块的融合</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e111a; --bg-deep:#080a10; --fg:#edf0f7; --muted:#8b93a7;
+    --ocean:#3b82f6; --green:#22c55e; --cyan:#06b6d4; --orange:#f97316;
+    --line:#1c2233; --card:#12162490;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font-family:'Archivo',sans-serif;
+       -webkit-font-smoothing:antialiased;padding:56px 64px 96px}
+  .mono{font-family:'JetBrains Mono',monospace}
+  section{margin-bottom:72px}
+  .kicker{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;
+          text-transform:uppercase;color:var(--ocean);margin-bottom:10px}
+  h2{font-size:20px;font-weight:600;margin-bottom:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:32px}
+
+  header{border-bottom:1px solid var(--line);padding-bottom:36px;margin-bottom:56px}
+  header h1{font-size:32px;font-weight:700;letter-spacing:-.01em;margin:14px 0 16px}
+  header p{font-size:14px;line-height:1.7;color:#c4cbdc;max-width:960px}
+  header p b{color:var(--fg)}
+
+  .variants{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
+  .variant{background:var(--card);border:1px solid var(--line);border-radius:12px;
+           padding:28px;display:flex;flex-direction:column;gap:16px}
+  .variant.rec{border-color:var(--ocean);box-shadow:0 0 0 1px var(--ocean) inset}
+  .variant .badge{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;
+                  text-transform:uppercase;color:var(--muted)}
+  .variant.rec .badge{color:var(--ocean)}
+  .variant .art{background:var(--bg-deep);border:1px solid var(--line);border-radius:10px;
+                height:180px;display:flex;align-items:center;justify-content:center}
+  .variant .art svg{width:120px;height:120px}
+  .variant h3{font-size:16px;font-weight:600}
+  .variant .encodes{font-size:13px;line-height:1.6;color:#c4cbdc}
+  .variant .tradeoff{font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.7;color:var(--muted)}
+  .variant .small{display:flex;align-items:flex-end;gap:20px;border-top:1px solid var(--line);padding-top:14px}
+  .variant .small .cell{text-align:center}
+  .variant .small .lbl{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);display:block;margin-top:6px}
+
+  .hero{display:flex;align-items:center;gap:56px}
+  .hero svg{width:300px;height:300px;flex:none}
+  .hero .note{font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:2;color:var(--muted)}
+  .hero .note b{color:var(--fg);font-weight:500}
+
+  .lockup-row{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .lockup-cell{border-radius:12px;padding:48px;display:flex;align-items:center;justify-content:center}
+  .lockup-cell.dark{background:var(--bg-deep);border:1px solid var(--line)}
+  .lockup-cell.light{background:#f4f6fb}
+  .lockup-svg{display:flex;align-items:center;gap:18px}
+  .lockup-svg .wm{font-size:44px;font-weight:600;letter-spacing:.01em}
+
+  .fav-row{display:flex;align-items:flex-end;gap:56px}
+  .fav{text-align:center}
+  .fav img{display:block;margin:0 auto 12px}
+  .fav .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+  .fav-checker{background:repeating-conic-gradient(#161b29 0% 25%, #10141f 0% 50%) 0 0/16px 16px;
+    border:1px solid var(--line);border-radius:8px;padding:24px;display:inline-block}
+
+  .icon-row{display:flex;gap:56px;align-items:flex-end}
+  .appicon{width:160px;height:160px}
+  .appicon.mac{border-radius:22.37%;overflow:hidden;box-shadow:0 12px 40px #0008}
+  .appicon.sq{border-radius:24px;overflow:hidden;box-shadow:0 12px 40px #0008}
+  .appicon img{width:100%;height:100%;display:block}
+  .icon-item{text-align:center}
+  .icon-item .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-top:12px}
+
+  .banner{background:var(--bg-deep);border:1px solid var(--line);border-radius:12px;
+          padding:36px 44px;display:flex;align-items:center;gap:20px}
+  .banner .wm{font-size:34px;font-weight:600}
+  .banner .tag{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);
+               border-left:1px solid var(--line);padding-left:20px;margin-left:8px}
+  .splash{background:var(--bg-deep);border:1px solid var(--line);border-radius:12px;
+          height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}
+  .splash .wm{font-size:40px;font-weight:600;letter-spacing:.01em}
+  .splash .tag{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);letter-spacing:.06em}
+
+  .mono-row{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .mono-cell{border-radius:12px;padding:56px;display:flex;align-items:center;justify-content:center;gap:24px}
+  .mono-cell.onwhite{background:#fff}
+  .mono-cell.onblack{background:#000;border:1px solid var(--line)}
+  .mono-cell svg{width:96px;height:96px}
+  .mono-cell .wm{font-size:40px;font-weight:600}
+
+  .swatches{display:flex;gap:16px;flex-wrap:wrap}
+  .sw{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:12px 18px 12px 12px}
+  .sw .chip{width:36px;height:36px;border-radius:8px}
+  .sw .name{font-size:13px;font-weight:500}
+  .sw .hex{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">PxeLab · Logo v3 · Chermayeff &amp; Geismar 方法 · 融合修正</div>
+  <h1>让弧线和方块长成一个字形</h1>
+  <p>v2 反馈：Discover 的概念成立，但<b>广播弧像贴在方块上的 wifi 贴纸</b>——弧悬空在方块头顶，两个元素没有融合。v3 保留概念内核（<span class="mono">&gt;</span> 尖括号 + 裸机 + DHCP discover 广播），专攻「弧 × 方块」的融合：F1 用<b>共心几何</b>让弧从方块缺口里长出来，F2 把广播<b>移位</b>到尖括号顶点（共享圆心），F3 把两者压成<b>一体轮廓</b>（负空间弧缝）。</p>
+</header>
+
+<section>
+  <div class="kicker">01 / Three Fusion Techniques</div>
+  <h2>融合手法并排对比</h2>
+  <div class="variants">
+
+    <div class="variant rec">
+      <span class="badge">F1 · Concentric 共心生长 · Recommended</span>
+      <div class="art" style="color:#3b82f6">
+        <svg viewBox="0 0 64 64">
+          <g fill="currentColor">
+            <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+            <path d="M37 43.4 L41.7 43.4 A4.8 4.8 0 0 0 51.3 43.4 L56 43.4 L56 52 L37 52 Z"/>
+          </g>
+          <g fill="none" stroke="currentColor" stroke-width="3.6">
+            <path d="M40.0 42.3 A6.6 6.6 0 0 1 53.0 42.3"/>
+            <path d="M35.7 41.5 A11 11 0 0 1 57.3 41.5"/>
+          </g>
+        </svg>
+      </div>
+      <h3>弧从方块的缺口里长出来</h3>
+      <p class="encodes">方块顶边开一个半圆缺口（天线插座，也暗合网口）。两道弧与缺口<b>同心</b>：内弧的内缘半径 = 缺口半径，弧脚带着笔宽压在方块顶边上。弧不再是悬浮物，而是缺口向外延续的同心环——「缺口即天线」。</p>
+      <p class="tradeoff">取舍：融合靠「同心 + 接触」两个几何证据，概念（裸机发 discover）完整保留；双弧在 16px 仍并线，favicon 档减为单根加粗弧、弧脚直接叠进方块。</p>
+      <div class="small">
+        <div class="cell">
+          <svg width="16" height="16" viewBox="0 0 64 64">
+            <g fill="#3b82f6">
+              <path d="M6 10 L36 32 L6 54 L6 42.2 L21.8 32 L6 21.8 Z"/>
+              <path d="M38 42.2 L44.5 42.2 A3.5 3.5 0 0 0 51.5 42.2 L58 42.2 L58 54 L38 54 Z"/>
+            </g>
+            <path d="M40.1 40.8 A8 8 0 0 1 55.9 40.8" fill="none" stroke="#3b82f6" stroke-width="5"/>
+          </svg>
+          <span class="lbl">16px (favicon版)</span>
+        </div>
+        <div class="cell">
+          <svg width="32" height="32" viewBox="0 0 64 64">
+            <g fill="#3b82f6">
+              <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+              <path d="M37 43.4 L41.7 43.4 A4.8 4.8 0 0 0 51.3 43.4 L56 43.4 L56 52 L37 52 Z"/>
+            </g>
+            <g fill="none" stroke="#3b82f6" stroke-width="3.6">
+              <path d="M40.0 42.3 A6.6 6.6 0 0 1 53.0 42.3"/>
+              <path d="M35.7 41.5 A11 11 0 0 1 57.3 41.5"/>
+            </g>
+          </svg>
+          <span class="lbl">32px</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <span class="badge">F2 · Apex 顶点广播</span>
+      <div class="art" style="color:#3b82f6">
+        <svg viewBox="0 0 64 64">
+          <g fill="currentColor">
+            <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+            <rect x="37" y="43.4" width="19" height="8.6"/>
+          </g>
+          <g fill="none" stroke="currentColor" stroke-width="4.5">
+            <path d="M37.8 23.8 A9 9 0 0 1 42.7 29.7"/>
+            <path d="M39.9 19.3 A14 14 0 0 1 47.5 28.4"/>
+          </g>
+        </svg>
+      </div>
+      <h3>广播从尖括号顶点发出</h3>
+      <p class="encodes">把弧从方块头上挪走：弧以尖括号顶点为<b>圆心</b>发出——server 在广播，方块回归干净光标。融合手法是「共享圆心」：弧与箭头尖点是同一几何中心的放射关系，而非两个零件相邻。</p>
+      <p class="tradeoff">取舍：彻底回避了弧×方块的接触问题，方块也最干净；但概念从「裸机发 discover」变成「server 广播」，且弧悬在箭头尖旁，仔细看仍有一点「贴纸感」，只是换了位置。</p>
+      <div class="small">
+        <div class="cell">
+          <svg width="16" height="16" viewBox="0 0 64 64">
+            <g fill="#3b82f6">
+              <path d="M6 10 L36 32 L6 54 L6 42.2 L21.8 32 L6 21.8 Z"/>
+              <rect x="38" y="42.2" width="20" height="11.8"/>
+            </g>
+            <path d="M40.7 22.0 A11 11 0 0 1 46.6 29.2" fill="none" stroke="#3b82f6" stroke-width="5.5"/>
+          </svg>
+          <span class="lbl">16px (favicon版)</span>
+        </div>
+        <div class="cell">
+          <svg width="32" height="32" viewBox="0 0 64 64">
+            <g fill="#3b82f6">
+              <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+              <rect x="37" y="43.4" width="19" height="8.6"/>
+            </g>
+            <g fill="none" stroke="#3b82f6" stroke-width="4.5">
+              <path d="M37.8 23.8 A9 9 0 0 1 42.7 29.7"/>
+              <path d="M39.9 19.3 A14 14 0 0 1 47.5 28.4"/>
+            </g>
+          </svg>
+          <span class="lbl">32px</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <span class="badge">F3 · Monolith 一体轮廓</span>
+      <div class="art" style="color:#3b82f6">
+        <svg viewBox="0 0 64 64" fill="currentColor">
+          <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+          <path fill-rule="evenodd" d="M37 52 L37 43.4 A9.5 9.5 0 0 1 56 43.4 L56 52 Z M40.2 41.1 A6.7 6.7 0 0 1 52.8 41.1 L51.7 41.5 A5.5 5.5 0 0 0 41.3 41.5 Z M42.8 42.1 A3.9 3.9 0 0 1 50.2 42.1 L49.0 42.5 A2.7 2.7 0 0 0 44.0 42.5 Z"/>
+        </svg>
+      </div>
+      <h3>弧变成实心剪影里的负空间缝</h3>
+      <p class="encodes">方块与广播压成<b>单一实心轮廓</b>（圆顶方块 = 带天线的机器），弧不再是可以「贴歪」的零件，而是剪影内部挖出的负空间弧缝。一个 shape 讲完，物理上不可能分离。</p>
+      <p class="tradeoff">取舍：融合最彻底，剪影感最强；但弧缝宽仅 1.2u，16px 下弧缝消失、只剩「圆顶方块」，广播语义随之丢失——小尺寸语义保留最差。</p>
+      <div class="small">
+        <div class="cell">
+          <svg width="16" height="16" viewBox="0 0 64 64" fill="#3b82f6">
+            <path d="M6 10 L36 32 L6 54 L6 42.2 L21.8 32 L6 21.8 Z"/>
+            <path fill-rule="evenodd" d="M38 54 L38 42.2 A10 10 0 0 1 58 42.2 L58 54 Z M39.7 41.6 A7 7 0 0 1 53.3 41.6 L50.8 42.2 A4.5 4.5 0 0 0 42.2 42.2 Z"/>
+          </svg>
+          <span class="lbl">16px (简化版)</span>
+        </div>
+        <div class="cell">
+          <svg width="32" height="32" viewBox="0 0 64 64" fill="#3b82f6">
+            <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+            <path fill-rule="evenodd" d="M37 52 L37 43.4 A9.5 9.5 0 0 1 56 43.4 L56 52 Z M40.2 41.1 A6.7 6.7 0 0 1 52.8 41.1 L51.7 41.5 A5.5 5.5 0 0 0 41.3 41.5 Z M42.8 42.1 A3.9 3.9 0 0 1 50.2 42.1 L49.0 42.5 A2.7 2.7 0 0 0 44.0 42.5 Z"/>
+          </svg>
+          <span class="lbl">32px</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="kicker">02 / Recommendation</div>
+  <h2>推荐：F1「共心生长」—— 融合有证据，概念不丢</h2>
+  <div class="card hero">
+    <svg viewBox="0 0 64 64" style="color:#3b82f6">
+      <g fill="currentColor">
+        <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+        <path d="M37 43.4 L41.7 43.4 A4.8 4.8 0 0 0 51.3 43.4 L56 43.4 L56 52 L37 52 Z"/>
+      </g>
+      <g fill="none" stroke="currentColor" stroke-width="3.6">
+        <path d="M40.0 42.3 A6.6 6.6 0 0 1 53.0 42.3"/>
+        <path d="M35.7 41.5 A11 11 0 0 1 57.3 41.5"/>
+      </g>
+    </svg>
+    <div class="note">
+      <b>&gt;</b>&nbsp;&nbsp;chevron —— server 应答与镜像流入的方向<br>
+      <b>◠</b>&nbsp;&nbsp;socket —— 方块顶边的半圆缺口：天线插座 / 网口<br>
+      <b>))</b>&nbsp;rings —— 与缺口同心的广播环，从缺口里长出来<br>
+      <br>
+      融合的三重几何证据：<br>
+      ① 同心 —— 缺口与两道弧共享圆心 (46.5, 43.4)<br>
+      ② 连续 —— 内弧内缘半径 4.8 = 缺口半径 4.8<br>
+      ③ 接触 —— 弧脚笔宽压在方块顶边上，无悬浮缝<br>
+      <br>
+      F2 把问题挪走而非解决，F3 解决了融合却丢了小尺寸语义。<br>
+      4 elements · 0 gradients · currentColor · 64×64 grid
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">03 / Lockup</div>
+  <h2>横向组合 —— 深底 / 浅底</h2>
+  <div class="lockup-row">
+    <div class="lockup-cell dark">
+      <div class="lockup-svg" style="color:#edf0f7">
+        <svg viewBox="0 0 64 64" width="56" height="56" style="color:#3b82f6">
+          <g fill="currentColor">
+            <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+            <path d="M37 43.4 L41.7 43.4 A4.8 4.8 0 0 0 51.3 43.4 L56 43.4 L56 52 L37 52 Z"/>
+          </g>
+          <g fill="none" stroke="currentColor" stroke-width="3.6">
+            <path d="M40.0 42.3 A6.6 6.6 0 0 1 53.0 42.3"/>
+            <path d="M35.7 41.5 A11 11 0 0 1 57.3 41.5"/>
+          </g>
+        </svg>
+        <span class="wm">PxeLab</span>
+      </div>
+    </div>
+    <div class="lockup-cell light">
+      <div class="lockup-svg" style="color:#0e111a">
+        <svg viewBox="0 0 64 64" width="56" height="56" style="color:#3b82f6">
+          <g fill="currentColor">
+            <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+            <path d="M37 43.4 L41.7 43.4 A4.8 4.8 0 0 0 51.3 43.4 L56 43.4 L56 52 L37 52 Z"/>
+          </g>
+          <g fill="none" stroke="currentColor" stroke-width="3.6">
+            <path d="M40.0 42.3 A6.6 6.6 0 0 1 53.0 42.3"/>
+            <path d="M35.7 41.5 A11 11 0 0 1 57.3 41.5"/>
+          </g>
+        </svg>
+        <span class="wm">PxeLab</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">04 / Favicon — Real Pixels</div>
+  <h2>favicon 实际像素渲染（简化版 favicon-v3.svg）</h2>
+  <div class="card">
+    <div class="fav-checker">
+      <div class="fav-row">
+        <div class="fav"><img src="favicon-v3.svg" width="16" height="16" alt="16px"><span class="lbl">16 px</span></div>
+        <div class="fav"><img src="favicon-v3.svg" width="32" height="32" alt="32px"><span class="lbl">32 px</span></div>
+        <div class="fav"><img src="favicon-v3.svg" width="48" height="48" alt="48px"><span class="lbl">48 px</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">05 / App Icon</div>
+  <h2>应用 icon</h2>
+  <div class="card icon-row">
+    <div class="icon-item">
+      <div class="appicon mac"><img src="icon-v3.svg" alt="macOS icon"></div>
+      <div class="lbl">macOS continuous corner · 22.37%</div>
+    </div>
+    <div class="icon-item">
+      <div class="appicon sq"><img src="icon-v3.svg" alt="rounded icon"></div>
+      <div class="lbl">rounded rect · 24px radius</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">06 / README Banner Mock</div>
+  <h2>README 顶部 banner</h2>
+  <div class="banner" style="color:#edf0f7">
+    <svg viewBox="0 0 64 64" width="44" height="44" style="color:#3b82f6">
+      <g fill="currentColor">
+        <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+        <path d="M37 43.4 L41.7 43.4 A4.8 4.8 0 0 0 51.3 43.4 L56 43.4 L56 52 L37 52 Z"/>
+      </g>
+      <g fill="none" stroke="currentColor" stroke-width="3.6">
+        <path d="M40.0 42.3 A6.6 6.6 0 0 1 53.0 42.3"/>
+        <path d="M35.7 41.5 A11 11 0 0 1 57.3 41.5"/>
+      </g>
+    </svg>
+    <span class="wm">PxeLab</span>
+    <span class="tag">boot bare-metal machines over the network — DHCP · TFTP · HTTP, one binary</span>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">07 / Splash Mock</div>
+  <h2>启动界面</h2>
+  <div class="splash">
+    <svg viewBox="0 0 64 64" width="104" height="104" style="color:#3b82f6">
+      <g fill="currentColor">
+        <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+        <path d="M37 43.4 L41.7 43.4 A4.8 4.8 0 0 0 51.3 43.4 L56 43.4 L56 52 L37 52 Z"/>
+      </g>
+      <g fill="none" stroke="currentColor" stroke-width="3.6">
+        <path d="M40.0 42.3 A6.6 6.6 0 0 1 53.0 42.3"/>
+        <path d="M35.7 41.5 A11 11 0 0 1 57.3 41.5"/>
+      </g>
+    </svg>
+    <div class="wm">PxeLab</div>
+    <div class="tag">network boot, managed.</div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">08 / Monochrome</div>
+  <h2>单色版</h2>
+  <div class="mono-row">
+    <div class="mono-cell onwhite" style="color:#000">
+      <svg viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+          <path d="M37 43.4 L41.7 43.4 A4.8 4.8 0 0 0 51.3 43.4 L56 43.4 L56 52 L37 52 Z"/>
+        </g>
+        <g fill="none" stroke="currentColor" stroke-width="3.6">
+          <path d="M40.0 42.3 A6.6 6.6 0 0 1 53.0 42.3"/>
+          <path d="M35.7 41.5 A11 11 0 0 1 57.3 41.5"/>
+        </g>
+      </svg>
+      <span class="wm">PxeLab</span>
+    </div>
+    <div class="mono-cell onblack" style="color:#fff">
+      <svg viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+          <path d="M37 43.4 L41.7 43.4 A4.8 4.8 0 0 0 51.3 43.4 L56 43.4 L56 52 L37 52 Z"/>
+        </g>
+        <g fill="none" stroke="currentColor" stroke-width="3.6">
+          <path d="M40.0 42.3 A6.6 6.6 0 0 1 53.0 42.3"/>
+          <path d="M35.7 41.5 A11 11 0 0 1 57.3 41.5"/>
+        </g>
+      </svg>
+      <span class="wm">PxeLab</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">09 / Color</div>
+  <h2>色值标注</h2>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#3b82f6"></div><div><div class="name">Ocean — mark primary</div><div class="hex">#3B82F6</div></div></div>
+    <div class="sw"><div class="chip" style="background:#0e111a"></div><div><div class="name">Surface</div><div class="hex">#0E111A</div></div></div>
+    <div class="sw"><div class="chip" style="background:#080a10"></div><div><div class="name">Surface deep</div><div class="hex">#080A10</div></div></div>
+    <div class="sw"><div class="chip" style="background:#edf0f7"></div><div><div class="name">Foreground</div><div class="hex">#EDF0F7</div></div></div>
+    <div class="sw"><div class="chip" style="background:#fff;border:1px solid var(--line)"></div><div><div class="name">Mono</div><div class="hex">#000000 / #FFFFFF</div></div></div>
+  </div>
+</section>
+
+</body>
+</html>

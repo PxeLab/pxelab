@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- PxeLab app icon: white "Stream" mark on ocean tile. rx = 22% of 512 = 112.64 -->
+  <rect width="512" height="512" rx="112.64" fill="#3B82F6"/>
+  <g transform="translate(256 256) scale(4.6) translate(-32 -32)" fill="#FFFFFF">
+    <rect x="8" y="8" width="9" height="9"/>
+    <rect x="16" y="16" width="9" height="9"/>
+    <rect x="24" y="24" width="9" height="9"/>
+    <rect x="16" y="32" width="9" height="9"/>
+    <rect x="8" y="40" width="9" height="9"/>
+    <rect x="38" y="42" width="18" height="10"/>
+  </g>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64">
+  <!-- PxeLab lockup: mark + Archivo wordmark -->
+  <g fill="#3b82f6">
+    <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+    <rect x="37" y="43.4" width="19" height="8.6"/>
+  </g>
+  <text x="72" y="43" font-family="Archivo, sans-serif" font-weight="600" font-size="36" letter-spacing="0.5" fill="currentColor">PxeLab</text>
+</svg>

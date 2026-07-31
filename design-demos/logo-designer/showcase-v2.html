@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — Logo v2: 把 PXE 编码进 >_</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e111a; --bg-deep:#080a10; --fg:#edf0f7; --muted:#8b93a7;
+    --ocean:#3b82f6; --green:#22c55e; --cyan:#06b6d4; --orange:#f97316;
+    --line:#1c2233; --card:#12162490;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font-family:'Archivo',sans-serif;
+       -webkit-font-smoothing:antialiased;padding:56px 64px 96px}
+  .mono{font-family:'JetBrains Mono',monospace}
+  section{margin-bottom:72px}
+  .kicker{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;
+          text-transform:uppercase;color:var(--ocean);margin-bottom:10px}
+  h2{font-size:20px;font-weight:600;margin-bottom:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:32px}
+
+  header{border-bottom:1px solid var(--line);padding-bottom:36px;margin-bottom:56px}
+  header h1{font-size:32px;font-weight:700;letter-spacing:-.01em;margin:14px 0 16px}
+  header p{font-size:14px;line-height:1.7;color:#c4cbdc;max-width:960px}
+  header p b{color:var(--fg)}
+
+  /* variant comparison */
+  .variants{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
+  .variant{background:var(--card);border:1px solid var(--line);border-radius:12px;
+           padding:28px;display:flex;flex-direction:column;gap:16px}
+  .variant.rec{border-color:var(--ocean);box-shadow:0 0 0 1px var(--ocean) inset}
+  .variant .badge{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.18em;
+                  text-transform:uppercase;color:var(--muted)}
+  .variant.rec .badge{color:var(--ocean)}
+  .variant .art{background:var(--bg-deep);border:1px solid var(--line);border-radius:10px;
+                height:180px;display:flex;align-items:center;justify-content:center}
+  .variant .art svg{width:120px;height:120px}
+  .variant h3{font-size:16px;font-weight:600}
+  .variant .encodes{font-size:13px;line-height:1.6;color:#c4cbdc}
+  .variant .tradeoff{font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.7;color:var(--muted)}
+  .variant .small{display:flex;align-items:flex-end;gap:20px;border-top:1px solid var(--line);padding-top:14px}
+  .variant .small .cell{text-align:center}
+  .variant .small .lbl{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);display:block;margin-top:6px}
+
+  /* hero */
+  .hero{display:flex;align-items:center;gap:56px}
+  .hero svg{width:300px;height:300px;flex:none}
+  .hero .note{font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:2;color:var(--muted)}
+  .hero .note b{color:var(--fg);font-weight:500}
+
+  .lockup-row{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .lockup-cell{border-radius:12px;padding:48px;display:flex;align-items:center;justify-content:center}
+  .lockup-cell.dark{background:var(--bg-deep);border:1px solid var(--line)}
+  .lockup-cell.light{background:#f4f6fb}
+  .lockup-svg{display:flex;align-items:center;gap:18px}
+  .lockup-svg .wm{font-size:44px;font-weight:600;letter-spacing:.01em}
+
+  .fav-row{display:flex;align-items:flex-end;gap:56px}
+  .fav{text-align:center}
+  .fav img{display:block;margin:0 auto 12px}
+  .fav .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+  .fav-checker{background:repeating-conic-gradient(#161b29 0% 25%, #10141f 0% 50%) 0 0/16px 16px;
+    border:1px solid var(--line);border-radius:8px;padding:24px;display:inline-block}
+
+  .icon-row{display:flex;gap:56px;align-items:flex-end}
+  .appicon{width:160px;height:160px}
+  .appicon.mac{border-radius:22.37%;overflow:hidden;box-shadow:0 12px 40px #0008}
+  .appicon.sq{border-radius:24px;overflow:hidden;box-shadow:0 12px 40px #0008}
+  .appicon img{width:100%;height:100%;display:block}
+  .icon-item{text-align:center}
+  .icon-item .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-top:12px}
+
+  .banner{background:var(--bg-deep);border:1px solid var(--line);border-radius:12px;
+          padding:36px 44px;display:flex;align-items:center;gap:20px}
+  .banner .wm{font-size:34px;font-weight:600}
+  .banner .tag{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);
+               border-left:1px solid var(--line);padding-left:20px;margin-left:8px}
+  .splash{background:var(--bg-deep);border:1px solid var(--line);border-radius:12px;
+          height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px}
+  .splash .wm{font-size:40px;font-weight:600;letter-spacing:.01em}
+  .splash .tag{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);letter-spacing:.06em}
+
+  .mono-row{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .mono-cell{border-radius:12px;padding:56px;display:flex;align-items:center;justify-content:center;gap:24px}
+  .mono-cell.onwhite{background:#fff}
+  .mono-cell.onblack{background:#000;border:1px solid var(--line)}
+  .mono-cell svg{width:96px;height:96px}
+  .mono-cell .wm{font-size:40px;font-weight:600}
+
+  .swatches{display:flex;gap:16px;flex-wrap:wrap}
+  .sw{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:12px 18px 12px 12px}
+  .sw .chip{width:36px;height:36px;border-radius:8px}
+  .sw .name{font-size:13px;font-weight:500}
+  .sw .hex{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">PxeLab · Logo v2 · Chermayeff &amp; Geismar 方法 · 进化</div>
+  <h1>把「网络」编码进 <span class="mono">&gt;_</span></h1>
+  <p>v1 反馈：图形成立但读作「通用终端」，PXE 的网络层缺失。v2 在 C&amp;G 哲学不变的前提下（纯几何、一个 idea、负空间即含义、零渐变、任何尺寸成立），探索 3 个把 <b>PXE 显式编码进 mark</b> 的变体，并给出推荐。PXE 的真实流程是：<b>裸机开机 → 广播 DHCP discover → server 应答 → 镜像经 TFTP/HTTP 流入机器</b>——三个变体分别编码这条链路的不同段落。</p>
+</header>
+
+<section>
+  <div class="kicker">01 / Three Variants</div>
+  <h2>变体并排对比</h2>
+  <div class="variants">
+
+    <div class="variant rec">
+      <span class="badge">Variant A · Recommended</span>
+      <div class="art" style="color:#3b82f6">
+        <svg viewBox="0 0 64 64">
+          <g fill="currentColor">
+            <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+            <rect x="37" y="43.4" width="19" height="8.6"/>
+          </g>
+          <g fill="none" stroke="currentColor" stroke-width="4.5">
+            <path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/>
+            <path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/>
+          </g>
+        </svg>
+      </div>
+      <h3>Discover —— 光标即机器，机器在广播</h3>
+      <p class="encodes">光标块变成一台裸机，头顶两道同心弧 = 它开机瞬间发出的 <b>DHCP discover 广播</b>——PXE 流程的第一步。尖括号仍是 server 应答/镜像流入的方向。一个 mark 编码了 client→network→server 的完整握手。</p>
+      <p class="tradeoff">取舍：弧线是小尺寸最先糊的细节，favicon 版减为单根加粗弧；换来三个变体中唯一「双向」的网络语义。</p>
+      <div class="small">
+        <div class="cell">
+          <svg width="16" height="16" viewBox="0 0 64 64">
+            <g fill="#3b82f6"><path d="M6 10 L36 32 L6 54 L6 42.2 L21.8 32 L6 21.8 Z"/><rect x="38" y="42.2" width="20" height="11.8"/></g>
+            <path d="M49.4 36.4 A12 12 0 0 1 59.5 44.1" fill="none" stroke="#3b82f6" stroke-width="6"/>
+          </svg>
+          <span class="lbl">16px (favicon版)</span>
+        </div>
+        <div class="cell">
+          <svg width="32" height="32" viewBox="0 0 64 64">
+            <g fill="#3b82f6"><path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/><rect x="37" y="43.4" width="19" height="8.6"/></g>
+            <g fill="none" stroke="#3b82f6" stroke-width="4.5"><path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/><path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/></g>
+          </svg>
+          <span class="lbl">32px</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <span class="badge">Variant B</span>
+      <div class="art" style="color:#3b82f6">
+        <svg viewBox="0 0 64 64" fill="currentColor">
+          <rect x="8" y="8" width="9" height="9"/>
+          <rect x="16" y="16" width="9" height="9"/>
+          <rect x="24" y="24" width="9" height="9"/>
+          <rect x="16" y="32" width="9" height="9"/>
+          <rect x="8" y="40" width="9" height="9"/>
+          <rect x="38" y="42" width="18" height="10"/>
+        </svg>
+      </div>
+      <h3>Stream —— 包组成的箭头</h3>
+      <p class="encodes">尖括号由 5 个像素方块（<b>数据包</b>）拼成，流向光标——OS 镜像拆成包、经网络流进裸机。编码的是 PXE 链路中 TFTP/HTTP 传输的那一段。</p>
+      <p class="tradeoff">取舍：像素化最「数字原生」，16px 下仍成立；但丢掉的实心箭头让「方向感」变弱，且像素风在 dev tool 里偏常见。</p>
+      <div class="small">
+        <div class="cell">
+          <svg width="16" height="16" viewBox="0 0 64 64" fill="#3b82f6">
+            <rect x="8" y="8" width="9" height="9"/><rect x="16" y="16" width="9" height="9"/><rect x="24" y="24" width="9" height="9"/>
+            <rect x="16" y="32" width="9" height="9"/><rect x="8" y="40" width="9" height="9"/><rect x="38" y="42" width="18" height="10"/>
+          </svg>
+          <span class="lbl">16px</span>
+        </div>
+        <div class="cell">
+          <svg width="32" height="32" viewBox="0 0 64 64" fill="#3b82f6">
+            <rect x="8" y="8" width="9" height="9"/><rect x="16" y="16" width="9" height="9"/><rect x="24" y="24" width="9" height="9"/>
+            <rect x="16" y="32" width="9" height="9"/><rect x="8" y="40" width="9" height="9"/><rect x="38" y="42" width="18" height="10"/>
+          </svg>
+          <span class="lbl">32px</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <span class="badge">Variant C</span>
+      <div class="art" style="color:#3b82f6">
+        <svg viewBox="0 0 64 64" fill="currentColor">
+          <path d="M4 14 L24 32 L4 50 L4 41 L14.5 32 L4 23 Z"/>
+          <path d="M18 14 L38 32 L18 50 L18 41 L28.5 32 L18 23 Z"/>
+          <rect x="43" y="43.4" width="17" height="8.6"/>
+        </svg>
+      </div>
+      <h3>Subnet —— 一对多的层叠</h3>
+      <p class="encodes"><span class="mono">&gt;&gt;_</span>：两个层叠尖括号 = 同一份镜像<b>同时推向整个网段</b>——一台 server，n 台裸机。编码的是 PXE 的广播/组播一对多本质。</p>
+      <p class="tradeoff">取舍：三个变体中小尺寸最稳、几何最纯粹；但 <span class="mono">&gt;&gt;</span> 在 shell 里是「追加」操作符，网络语义最隐晦，需要解释。</p>
+      <div class="small">
+        <div class="cell">
+          <svg width="16" height="16" viewBox="0 0 64 64" fill="#3b82f6">
+            <path d="M4 14 L24 32 L4 50 L4 41 L14.5 32 L4 23 Z"/>
+            <path d="M18 14 L38 32 L18 50 L18 41 L28.5 32 L18 23 Z"/>
+            <rect x="43" y="43.4" width="17" height="8.6"/>
+          </svg>
+          <span class="lbl">16px</span>
+        </div>
+        <div class="cell">
+          <svg width="32" height="32" viewBox="0 0 64 64" fill="#3b82f6">
+            <path d="M4 14 L24 32 L4 50 L4 41 L14.5 32 L4 23 Z"/>
+            <path d="M18 14 L38 32 L18 50 L18 41 L28.5 32 L18 23 Z"/>
+            <rect x="43" y="43.4" width="17" height="8.6"/>
+          </svg>
+          <span class="lbl">32px</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="kicker">02 / Recommendation</div>
+  <h2>推荐：Variant A「Discover」—— 它是唯一讲出完整 PXE 故事的</h2>
+  <div class="card hero">
+    <svg viewBox="0 0 64 64" style="color:#3b82f6">
+      <g fill="currentColor">
+        <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+        <rect x="37" y="43.4" width="19" height="8.6"/>
+      </g>
+      <g fill="none" stroke="currentColor" stroke-width="4.5">
+        <path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/>
+        <path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/>
+      </g>
+    </svg>
+    <div class="note">
+      <b>&gt;</b>&nbsp;&nbsp;chevron —— server 应答与镜像流入的方向<br>
+      <b>_</b>&nbsp;&nbsp;cursor = 裸机 —— 等待启动的机器本体<br>
+      <b>))</b>&nbsp;arcs —— 机器开机瞬间的 DHCP discover 广播<br>
+      <br>
+      B 只编码「传输」、C 只编码「一对多」，A 把 client 发起广播、<br>
+      server 应答推送的完整握手压进 4 个几何元素。广播弧是<br>
+      公共词汇里最直白的「网络」符号，无需解释。<br>
+      <br>
+      4 elements · 0 gradients · 0 fonts · currentColor<br>
+      64×64 grid · favicon 版弧减为 1 根加粗（stroke 6u）
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">03 / Lockup</div>
+  <h2>横向组合 —— 深底 / 浅底</h2>
+  <div class="lockup-row">
+    <div class="lockup-cell dark">
+      <div class="lockup-svg" style="color:#edf0f7">
+        <svg viewBox="0 0 64 64" width="56" height="56" style="color:#3b82f6">
+          <g fill="currentColor"><path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/><rect x="37" y="43.4" width="19" height="8.6"/></g>
+          <g fill="none" stroke="currentColor" stroke-width="4.5"><path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/><path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/></g>
+        </svg>
+        <span class="wm">PxeLab</span>
+      </div>
+    </div>
+    <div class="lockup-cell light">
+      <div class="lockup-svg" style="color:#0e111a">
+        <svg viewBox="0 0 64 64" width="56" height="56" style="color:#3b82f6">
+          <g fill="currentColor"><path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/><rect x="37" y="43.4" width="19" height="8.6"/></g>
+          <g fill="none" stroke="currentColor" stroke-width="4.5"><path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/><path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/></g>
+        </svg>
+        <span class="wm">PxeLab</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">04 / Favicon — Real Pixels</div>
+  <h2>favicon 实际像素渲染（简化版 favicon-v2.svg）</h2>
+  <div class="card">
+    <div class="fav-checker">
+      <div class="fav-row">
+        <div class="fav"><img src="favicon-v2.svg" width="16" height="16" alt="16px"><span class="lbl">16 px</span></div>
+        <div class="fav"><img src="favicon-v2.svg" width="32" height="32" alt="32px"><span class="lbl">32 px</span></div>
+        <div class="fav"><img src="favicon-v2.svg" width="48" height="48" alt="48px"><span class="lbl">48 px</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">05 / App Icon</div>
+  <h2>应用 icon</h2>
+  <div class="card icon-row">
+    <div class="icon-item">
+      <div class="appicon mac"><img src="icon-v2.svg" alt="macOS icon"></div>
+      <div class="lbl">macOS continuous corner · 22.37%</div>
+    </div>
+    <div class="icon-item">
+      <div class="appicon sq"><img src="icon-v2.svg" alt="rounded icon"></div>
+      <div class="lbl">rounded rect · 24px radius</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">06 / README Banner Mock</div>
+  <h2>README 顶部 banner</h2>
+  <div class="banner" style="color:#edf0f7">
+    <svg viewBox="0 0 64 64" width="44" height="44" style="color:#3b82f6">
+      <g fill="currentColor"><path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/><rect x="37" y="43.4" width="19" height="8.6"/></g>
+      <g fill="none" stroke="currentColor" stroke-width="4.5"><path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/><path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/></g>
+    </svg>
+    <span class="wm">PxeLab</span>
+    <span class="tag">boot bare-metal machines over the network — DHCP · TFTP · HTTP, one binary</span>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">07 / Splash Mock</div>
+  <h2>启动界面</h2>
+  <div class="splash">
+    <svg viewBox="0 0 64 64" width="104" height="104" style="color:#3b82f6">
+      <g fill="currentColor"><path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/><rect x="37" y="43.4" width="19" height="8.6"/></g>
+      <g fill="none" stroke="currentColor" stroke-width="4.5"><path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/><path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/></g>
+    </svg>
+    <div class="wm">PxeLab</div>
+    <div class="tag">network boot, managed.</div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">08 / Monochrome</div>
+  <h2>单色版</h2>
+  <div class="mono-row">
+    <div class="mono-cell onwhite" style="color:#000">
+      <svg viewBox="0 0 64 64">
+        <g fill="currentColor"><path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/><rect x="37" y="43.4" width="19" height="8.6"/></g>
+        <g fill="none" stroke="currentColor" stroke-width="4.5"><path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/><path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/></g>
+      </svg>
+      <span class="wm">PxeLab</span>
+    </div>
+    <div class="mono-cell onblack" style="color:#fff">
+      <svg viewBox="0 0 64 64">
+        <g fill="currentColor"><path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/><rect x="37" y="43.4" width="19" height="8.6"/></g>
+        <g fill="none" stroke="currentColor" stroke-width="4.5"><path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/><path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/></g>
+      </svg>
+      <span class="wm">PxeLab</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="kicker">09 / Color</div>
+  <h2>色值标注</h2>
+  <div class="swatches">
+    <div class="sw"><div class="chip" style="background:#3b82f6"></div><div><div class="name">Ocean — mark primary</div><div class="hex">#3B82F6</div></div></div>
+    <div class="sw"><div class="chip" style="background:#0e111a"></div><div><div class="name">Surface</div><div class="hex">#0E111A</div></div></div>
+    <div class="sw"><div class="chip" style="background:#080a10"></div><div><div class="name">Surface deep</div><div class="hex">#080A10</div></div></div>
+    <div class="sw"><div class="chip" style="background:#edf0f7"></div><div><div class="name">Foreground</div><div class="hex">#EDF0F7</div></div></div>
+    <div class="sw"><div class="chip" style="background:#fff;border:1px solid var(--line)"></div><div><div class="name">Mono</div><div class="hex">#000000 / #FFFFFF</div></div></div>
+  </div>
+</section>
+
+</body>
+</html>

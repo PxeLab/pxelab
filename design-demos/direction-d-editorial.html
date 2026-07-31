@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — Direction D · Editorial Ink</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     PXELAB · DIRECTION D — EDITORIAL INK
+     Warm paper, ink typography, one burnt-orange signal color.
+     The deliberate opposite of dark-neon dev-tool styling.
+     Serif display + mono micro-labels is the signature contrast.
+     No gradients. No glow. No glass. No decorative icons.
+     ============================================================ */
+  :root {
+    --paper:      oklch(0.958 0.012 90);    /* warm paper white  */
+    --paper-2:    oklch(0.945 0.013 85);    /* recessed paper    */
+    --ink:        oklch(0.240 0.012 60);    /* near-black warm   */
+    --ink-2:      oklch(0.380 0.014 65);    /* secondary text    */
+    --ink-3:      oklch(0.520 0.016 70);    /* captions / meta   */
+    --hairline:   oklch(0.240 0.012 60 / 11%);
+    --hairline-2: oklch(0.240 0.012 60 / 20%);
+    --signal:     oklch(0.510 0.170 45);    /* burnt orange #C2410C-ish */
+    --signal-ink: oklch(0.450 0.150 45);    /* orange for text on paper */
+    --signal-dim: oklch(0.510 0.170 45 / 8%);
+    --code-bg:    oklch(0.205 0.012 60);    /* ink block on paper */
+    --code-fg:    oklch(0.900 0.014 85);
+    --code-dim:   oklch(0.660 0.016 80);
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --sans:  "Inter", -apple-system, "Segoe UI", sans-serif;
+    --mono:  "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body {
+    background: oklch(0.915 0.010 85);   /* demo backdrop slightly darker than paper */
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  ::selection { background: var(--signal); color: var(--paper); }
+
+  .demo { width: 1440px; margin: 0 auto; padding: 32px 0 80px; }
+  .site {
+    background: var(--paper);
+    border: 1px solid var(--hairline-2);
+    margin-bottom: 48px;
+  }
+  .site:last-child { margin-bottom: 0; }
+
+  /* ---------- micro labels ---------- */
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+  }
+  .site-label {
+    display: flex; align-items: baseline; gap: 16px;
+    padding: 20px 48px;
+    border-bottom: 1px solid var(--hairline-2);
+    color: var(--ink-3);
+  }
+  .site-label .kicker { color: var(--signal-ink); }
+  .site-label .en { font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--ink-2); }
+
+  /* ---------- wordmark ---------- */
+  .wordmark {
+    display: inline-flex; align-items: baseline; gap: 7px;
+    text-decoration: none; color: var(--ink);
+    font-family: var(--serif);
+    font-size: 21px; font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+  .wordmark .mark {
+    width: 9px; height: 9px;
+    background: var(--signal);
+    align-self: center;
+  }
+
+  /* ---------- nav ---------- */
+  .nav {
+    display: flex; align-items: center;
+    height: 64px;
+    padding: 0 48px;
+    border-bottom: 1px solid var(--hairline);
+    background: var(--paper);
+  }
+  .nav-links { display: flex; align-items: center; gap: 30px; margin-left: 48px; flex: 1; }
+  .nav-links a {
+    position: relative;
+    font-size: 13.5px; font-weight: 500;
+    color: var(--ink-2); text-decoration: none;
+    padding: 4px 0;
+    transition: color .15s ease;
+  }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-links a.active {
+    color: var(--ink);
+    box-shadow: 0 2px 0 0 var(--signal);
+  }
+  .nav-links a.active::before {
+    content: "";
+    position: absolute; left: -13px; top: 50%;
+    width: 5px; height: 5px; margin-top: -2.5px;
+    background: var(--signal);
+  }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    height: 40px; padding: 0 22px;
+    border-radius: 3px;
+    font-family: var(--sans);
+    font-size: 13.5px; font-weight: 500;
+    letter-spacing: 0.005em;
+    text-decoration: none; cursor: pointer;
+    border: 1px solid transparent;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .btn-sm { height: 34px; padding: 0 16px; font-size: 13px; }
+  .btn-primary { background: var(--signal); color: var(--paper); }
+  .btn-primary:hover { background: oklch(0.460 0.165 45); }
+  .btn-outline { background: transparent; color: var(--ink); border-color: var(--hairline-2); }
+  .btn-outline:hover { border-color: var(--ink); }
+
+  /* ============================================================
+     1 · LANDING
+     ============================================================ */
+  .hero {
+    padding: 96px 48px 88px;
+    max-width: 1120px;
+  }
+  .hero .kicker { color: var(--signal-ink); display: block; margin-bottom: 28px; }
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: 76px;
+    font-weight: 500;
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    text-wrap: balance;
+    max-width: 14ch;
+  }
+  .hero h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--signal-ink);
+  }
+  .hero .sub {
+    margin-top: 26px;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 46ch;
+    text-wrap: pretty;
+  }
+  .hero-cta { display: flex; align-items: center; gap: 14px; margin-top: 40px; }
+  .hero-term {
+    margin-top: 44px;
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-2);
+    padding: 11px 18px;
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    background: var(--paper-2);
+  }
+  .hero-term .prompt { color: var(--signal-ink); }
+
+  .hero-facts {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--hairline);
+    margin-top: 80px;
+  }
+  .hero-facts > div {
+    padding: 22px 24px 0 0;
+    border-right: 1px solid var(--hairline);
+    margin-right: 24px;
+  }
+  .hero-facts > div:last-child { border-right: 0; margin-right: 0; }
+  .hero-facts .n {
+    font-family: var(--serif);
+    font-size: 30px; font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .hero-facts .t {
+    margin-top: 4px;
+    font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* ============================================================
+     2 · DOCS
+     ============================================================ */
+  .docs-body {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr) 200px;
+    min-height: 720px;
+  }
+  .docs-side {
+    border-right: 1px solid var(--hairline);
+    padding: 36px 0 48px;
+  }
+  .docs-side nav { padding: 0 28px; }
+  .side-group { margin-bottom: 26px; }
+  .side-title {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+  }
+  .docs-side a {
+    display: block;
+    font-size: 13.5px;
+    color: var(--ink-2);
+    text-decoration: none;
+    padding: 5px 0 5px 14px;
+    border-left: 1px solid var(--hairline);
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .docs-side a:hover { color: var(--ink); }
+  .docs-side a.active {
+    color: var(--signal-ink);
+    font-weight: 500;
+    border-left-color: var(--signal);
+  }
+
+  .docs-article {
+    padding: 48px 64px 72px;
+  }
+  .docs-article .crumb {
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 22px;
+  }
+  .docs-article .crumb b { color: var(--signal-ink); font-weight: 500; }
+  .docs-article h1 {
+    font-family: var(--serif);
+    font-size: 46px; font-weight: 500;
+    letter-spacing: -0.02em; line-height: 1.1;
+    color: var(--ink);
+    margin-bottom: 14px;
+  }
+  .docs-article .lede {
+    font-size: 17px; line-height: 1.65;
+    color: var(--ink-2);
+    max-width: 58ch;
+    text-wrap: pretty;
+    margin-bottom: 32px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .docs-article h2 {
+    font-family: var(--serif);
+    font-size: 26px; font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin: 36px 0 14px;
+  }
+  .docs-article p {
+    max-width: 65ch;
+    line-height: 1.7;
+    color: var(--ink-2);
+    margin-bottom: 18px;
+    text-wrap: pretty;
+  }
+  .docs-article p a, .docs-article li a {
+    color: var(--signal-ink);
+    text-decoration: underline;
+    text-decoration-color: oklch(0.510 0.170 45 / 40%);
+    text-underline-offset: 3px;
+  }
+  .docs-article code.inl {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--paper-2);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    padding: 1px 6px;
+    color: var(--ink);
+  }
+  .docs-article ol {
+    max-width: 65ch;
+    margin: 0 0 20px 22px;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+  .docs-article ol li { margin-bottom: 8px; padding-left: 6px; }
+
+  .codeblock {
+    background: var(--code-bg);
+    border-radius: 4px;
+    margin: 22px 0 26px;
+    overflow: hidden;
+  }
+  .codeblock .cb-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 18px;
+    border-bottom: 1px solid oklch(1 0 0 / 8%);
+    font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--code-dim);
+  }
+  .codeblock pre {
+    padding: 18px 20px 20px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--code-fg);
+    overflow-x: auto;
+  }
+  .codeblock .c-dim { color: var(--code-dim); }
+  .codeblock .c-acc { color: oklch(0.720 0.140 55); }
+
+  .tip {
+    display: grid;
+    grid-template-columns: 3px 1fr;
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    margin: 26px 0;
+    background: var(--paper);
+  }
+  .tip::before { content: ""; background: var(--signal); }
+  .tip .tip-in { padding: 16px 20px 18px; }
+  .tip .tip-title {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--signal-ink);
+    margin-bottom: 6px;
+  }
+  .tip p { margin: 0; font-size: 14px; }
+
+  .docs-toc {
+    border-left: 1px solid var(--hairline);
+    padding: 48px 24px;
+  }
+  .docs-toc .side-title { margin-bottom: 14px; }
+  .docs-toc a {
+    display: block;
+    font-size: 12.5px;
+    color: var(--ink-3);
+    text-decoration: none;
+    padding: 4px 0;
+    transition: color .15s ease;
+  }
+  .docs-toc a:hover { color: var(--ink); }
+  .docs-toc a.on { color: var(--signal-ink); }
+
+  /* ============================================================
+     3 · STORE
+     ============================================================ */
+  .store-head { padding: 72px 48px 40px; }
+  .store-head .kicker { color: var(--signal-ink); display: block; margin-bottom: 22px; }
+  .store-head h1 {
+    font-family: var(--serif);
+    font-size: 56px; font-weight: 500;
+    letter-spacing: -0.022em; line-height: 1.05;
+    color: var(--ink);
+  }
+  .store-head .sub {
+    margin-top: 18px;
+    font-size: 16.5px; line-height: 1.6;
+    color: var(--ink-2);
+    max-width: 52ch;
+    text-wrap: pretty;
+  }
+  .store-toolbar {
+    display: flex; align-items: center; gap: 36px;
+    padding: 0 48px 28px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .search {
+    display: flex; align-items: center; gap: 10px;
+    width: 340px; height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--hairline-2);
+    border-radius: 3px;
+    background: var(--paper);
+  }
+  .search svg { flex: none; stroke: var(--ink-3); }
+  .search input {
+    border: 0; outline: 0; background: transparent;
+    font-family: var(--sans); font-size: 13.5px;
+    color: var(--ink); width: 100%;
+  }
+  .search input::placeholder { color: var(--ink-3); }
+  .filters { display: flex; gap: 26px; }
+  .filters a {
+    font-size: 13.5px; font-weight: 500;
+    color: var(--ink-3); text-decoration: none;
+    padding-bottom: 3px;
+    transition: color .15s ease;
+  }
+  .filters a:hover { color: var(--ink); }
+  .filters a.on {
+    color: var(--signal-ink);
+    box-shadow: 0 2px 0 0 var(--signal);
+  }
+  .store-count {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+  }
+
+  .store-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    padding: 40px 48px 72px;
+  }
+  .pkg {
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 26px 26px 22px;
+    display: flex; flex-direction: column;
+    text-decoration: none;
+    transition: border-color .15s ease;
+  }
+  .pkg:hover { border-color: var(--ink); }
+  .pkg-top {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .pkg-kind {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--signal-ink);
+  }
+  .pkg-ver {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--ink-3);
+  }
+  .pkg h3 {
+    font-family: var(--serif);
+    font-size: 23px; font-weight: 500;
+    letter-spacing: -0.015em; line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .pkg p {
+    font-size: 13.5px; line-height: 1.6;
+    color: var(--ink-2);
+    text-wrap: pretty;
+    flex: 1;
+  }
+  .pkg-meta {
+    display: flex; align-items: center; gap: 18px;
+    margin-top: 20px; padding-top: 16px;
+    border-top: 1px solid var(--hairline);
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .pkg-meta .dl b { color: var(--ink); font-weight: 500; }
+  .pkg-meta .go { margin-left: auto; color: var(--signal-ink); }
+
+  /* ---------- footer ---------- */
+  .foot {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 26px 48px;
+    border-top: 1px solid var(--hairline);
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.10em;
+    color: var(--ink-3);
+  }
+  .foot a { color: var(--ink-2); text-decoration: none; }
+  .foot a:hover { color: var(--signal-ink); }
+</style>
+</head>
+<body>
+<div class="demo">
+
+  <!-- ============================== LANDING ============================== -->
+  <section class="site">
+    <div class="site-label">
+      <span class="kicker">01 / Landing</span>
+      <span class="en">营销落地页 · pxelab.com</span>
+    </div>
+
+    <header class="nav">
+      <a class="wordmark" href="#"><span class="mark"></span>PxeLab</a>
+      <nav class="nav-links">
+        <a href="#">Features</a>
+        <a href="#">Platform</a>
+        <a href="#">Docs</a>
+        <a href="#">Store</a>
+        <a href="#">GitHub</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="#">Download</a>
+    </header>
+
+    <div class="hero">
+      <span class="kicker">Open Source · AGPL-3.0</span>
+      <h1>All-in-one <em>PXE</em> server.</h1>
+      <p class="sub">Five network services, two interfaces, zero dependencies.
+        DHCP, TFTP, HTTP, DNS and NFS in a single binary — boot eleven client
+        architectures from one warm, quiet machine.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#">Get Started</a>
+        <a class="btn btn-outline" href="#">Documentation</a>
+      </div>
+      <div>
+        <span class="hero-term"><span class="prompt">$</span> pxelab --mode server</span>
+      </div>
+
+      <div class="hero-facts">
+        <div><div class="n">5</div><div class="t">Network services</div></div>
+        <div><div class="n">11</div><div class="t">Client architectures</div></div>
+        <div><div class="n">1</div><div class="t">Single binary</div></div>
+        <div><div class="n">0</div><div class="t">Dependencies</div></div>
+      </div>
+    </div>
+
+    <footer class="foot">
+      <span>© 2026 PXELAB · AGPL-3.0</span>
+      <span><a href="#">GITHUB</a> &nbsp;·&nbsp; <a href="#">CHANGELOG</a> &nbsp;·&nbsp; <a href="#">RSS</a></span>
+    </footer>
+  </section>
+
+  <!-- ============================== DOCS ============================== -->
+  <section class="site">
+    <div class="site-label">
+      <span class="kicker">02 / Docs</span>
+      <span class="en">文档站 · docs.pxelab.com</span>
+    </div>
+
+    <header class="nav">
+      <a class="wordmark" href="#"><span class="mark"></span>PxeLab</a>
+      <nav class="nav-links">
+        <a href="#">Features</a>
+        <a href="#">Platform</a>
+        <a href="#" class="active">Docs</a>
+        <a href="#">Store</a>
+        <a href="#">GitHub</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="#">Download</a>
+    </header>
+
+    <div class="docs-body">
+      <aside class="docs-side">
+        <nav>
+          <div class="side-group">
+            <div class="side-title">快速开始</div>
+            <a href="#" class="active">安装与启动</a>
+            <a href="#">产品简介</a>
+          </div>
+          <div class="side-group">
+            <div class="side-title">使用指南</div>
+            <a href="#">DHCP 服务</a>
+            <a href="#">TFTP 服务</a>
+            <a href="#">HTTP 服务</a>
+            <a href="#">DNS 服务</a>
+            <a href="#">NFS 服务</a>
+          </div>
+          <div class="side-group">
+            <div class="side-title">参考文档</div>
+            <a href="#">CLI 参数</a>
+            <a href="#">配置文件</a>
+            <a href="#">API 参考</a>
+          </div>
+        </nav>
+      </aside>
+
+      <article class="docs-article">
+        <div class="crumb">Docs / 快速开始 / <b>安装与启动</b></div>
+        <h1>快速开始</h1>
+        <p class="lede">PxeLab 是一个单二进制的一体化 PXE 网络引导服务器。无需安装任何依赖，
+          下载、运行、打开浏览器，三分钟内即可通过网络引导第一台机器。</p>
+
+        <h2>安装</h2>
+        <p>在 Linux 或 macOS 上，使用安装脚本获取最新版本。脚本会根据你的系统架构
+          自动选择对应的二进制文件：</p>
+        <div class="codeblock">
+          <div class="cb-head"><span>Terminal</span><span>bash</span></div>
+          <pre><span class="c-dim"># 下载并安装最新版本</span>
+curl -fsSL https://pxelab.com/install.sh | bash</pre>
+        </div>
+        <p>Windows 用户可以直接从 <a href="#">GitHub Releases</a> 页面下载
+          <code class="inl">pxelab.exe</code>。所有发布产物均附带 SHA-256 校验和。</p>
+
+        <h2>启动服务</h2>
+        <p>在终端中直接运行二进制文件即可启动全部五个网络服务。首次启动时，
+          PxeLab 会在当前目录生成默认配置文件：</p>
+        <div class="codeblock">
+          <div class="cb-head"><span>Terminal</span><span>bash</span></div>
+          <pre>./pxelab
+<span class="c-dim"># pxelab v2.4.1 — listening on 0.0.0.0</span>
+<span class="c-dim"># dhcp :67 · tftp :69 · http :8080 · dns :53 · nfs :2049</span>
+<span class="c-acc"># web ui ready → http://localhost:8080</span></pre>
+        </div>
+
+        <div class="tip">
+          <div class="tip-in">
+            <div class="tip-title">Tip</div>
+            <p>如果 67/69 等特权端口被占用，可以先以 <code class="inl">--mode proxy</code>
+              运行代理 DHCP 模式，与现有 DHCP 服务器共存，无需改动当前网络。</p>
+          </div>
+        </div>
+
+        <h2>打开 Web UI</h2>
+        <p>启动后用浏览器访问 <code class="inl">http://localhost:8080</code>。在
+          Dashboard 中可以看到五个服务的运行状态、实时引导日志，以及已发现的
+          客户端列表。接下来：</p>
+        <ol>
+          <li>在 <a href="#">Boot 菜单</a> 中启用一个引导条目，例如 Ubuntu 24.04 网络安装；</li>
+          <li>将目标机器设置为从网络（PXE）启动；</li>
+          <li>开机，观察它出现在客户端列表中。</li>
+        </ol>
+      </article>
+
+      <aside class="docs-toc">
+        <div class="side-title">本页目录</div>
+        <a href="#" class="on">安装</a>
+        <a href="#">启动服务</a>
+        <a href="#">打开 Web UI</a>
+        <a href="#">下一步</a>
+      </aside>
+    </div>
+
+    <footer class="foot">
+      <span>PXELAB DOCS · v2.4.1</span>
+      <span><a href="#">EDIT THIS PAGE</a> &nbsp;·&nbsp; <a href="#">GITHUB</a></span>
+    </footer>
+  </section>
+
+  <!-- ============================== STORE ============================== -->
+  <section class="site">
+    <div class="site-label">
+      <span class="kicker">03 / Store</span>
+      <span class="en">社区商店 · store.pxelab.com</span>
+    </div>
+
+    <header class="nav">
+      <a class="wordmark" href="#"><span class="mark"></span>PxeLab</a>
+      <nav class="nav-links">
+        <a href="#">Features</a>
+        <a href="#">Platform</a>
+        <a href="#">Docs</a>
+        <a href="#" class="active">Store</a>
+        <a href="#">GitHub</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="#">Download</a>
+    </header>
+
+    <div class="store-head">
+      <span class="kicker">Community Registry</span>
+      <h1>Community Store</h1>
+      <p class="sub">Security baselines, boot templates, and configurations
+        contributed by the PxeLab community.</p>
+    </div>
+
+    <div class="store-toolbar">
+      <div class="search">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke-width="1.6">
+          <circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/>
+        </svg>
+        <input type="text" placeholder="Search packages…">
+      </div>
+      <nav class="filters">
+        <a href="#" class="on">All</a>
+        <a href="#">Baselines</a>
+        <a href="#">Boot Templates</a>
+        <a href="#">Distros</a>
+      </nav>
+      <span class="store-count">3 PACKAGES</span>
+    </div>
+
+    <div class="store-grid">
+      <a class="pkg" href="#">
+        <div class="pkg-top"><span class="pkg-kind">Distro</span><span class="pkg-ver">v24.04.2</span></div>
+        <h3>Ubuntu 24.04 Autoinstall</h3>
+        <p>Hands-off Ubuntu Server installation over PXE, with a ready-made
+          autoinstall user-data template and mirrored package source.</p>
+        <div class="pkg-meta">
+          <span class="dl"><b>12,408</b> downloads</span>
+          <span class="go">View →</span>
+        </div>
+      </a>
+      <a class="pkg" href="#">
+        <div class="pkg-top"><span class="pkg-kind">Boot Template</span><span class="pkg-ver">v1.7.0</span></div>
+        <h3>Windows 11 Autounattend</h3>
+        <p>Unattended Windows 11 setup via WinPE, including autounattend.xml,
+          driver injection hooks, and post-install script stage.</p>
+        <div class="pkg-meta">
+          <span class="dl"><b>8,931</b> downloads</span>
+          <span class="go">View →</span>
+        </div>
+      </a>
+      <a class="pkg" href="#">
+        <div class="pkg-top"><span class="pkg-kind">Baseline</span><span class="pkg-ver">v3.2.1</span></div>
+        <h3>CIS Linux Baseline</h3>
+        <p>CIS benchmark hardening profile applied at first boot — audit rules,
+          sshd configuration, and compliance report in one pass.</p>
+        <div class="pkg-meta">
+          <span class="dl"><b>5,672</b> downloads</span>
+          <span class="go">View →</span>
+        </div>
+      </a>
+    </div>
+
+    <footer class="foot">
+      <span>PXELAB STORE · COMMUNITY REGISTRY</span>
+      <span><a href="#">SUBMIT A PACKAGE</a> &nbsp;·&nbsp; <a href="#">GUIDELINES</a></span>
+    </footer>
+  </section>
+
+</div>
+</body>
+</html>

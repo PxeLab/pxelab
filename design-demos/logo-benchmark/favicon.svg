@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <!-- Favicon: bold 3x2 "push" grid on dark rounded tile — legible at 16px on any tab color -->
+  <rect width="96" height="96" rx="21" fill="#0e111a"/>
+  <!-- left column: server, full weight -->
+  <rect x="10" y="10" width="26" height="26" rx="5.5" fill="#3b82f6"/>
+  <rect x="10" y="35" width="26" height="26" rx="5.5" fill="#edf0f7"/>
+  <rect x="10" y="60" width="26" height="26" rx="5.5" fill="#edf0f7"/>
+  <!-- right column: clients receiving (centered on row centers y=23,48,73) -->
+  <rect x="62" y="16" width="14" height="14" rx="3.5" fill="#edf0f7"/>
+  <rect x="62" y="41" width="14" height="14" rx="3.5" fill="#edf0f7"/>
+  <rect x="62" y="66" width="14" height="14" rx="3.5" fill="#edf0f7"/>
+</svg>

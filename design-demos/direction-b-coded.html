@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PxeLab — Direction B · Unified Skeleton, Functional Color Coding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060709;
+    --card: rgba(255,255,255,0.02);
+    --border: rgba(255,255,255,0.07);
+    --text-1: #F0F1F3;
+    --text-2: #9BA0AB;
+    --text-3: #5C6170;
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-xl: 24px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { background: #020203; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #020203;
+    color: var(--text-1);
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 56px;
+    padding: 56px 0 80px;
+  }
+
+  /* ============ VIEWPORT FRAME (one per site) ============ */
+  .viewport {
+    width: 1440px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .zone-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.015);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .zone-label .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .zone-label .role { color: var(--accent); }
+
+  /* ============ PER-SITE ACCENT ============ */
+  .site-landing { --accent: #6C7BF0; --accent-rgb: 108,123,240; --accent-glow: rgba(108,123,240,0.5); }
+  .site-docs    { --accent: #5CB3FF; --accent-rgb: 92,179,255; --accent-glow: rgba(92,179,255,0.5); }
+  .site-store   { --accent: #10b981; --accent-rgb: 16,185,129; --accent-glow: rgba(16,185,129,0.45); }
+
+  /* ============ SHARED NAV SHELL ============ */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    padding: 0 32px;
+    background: rgba(6,7,9,0.72);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-left { display: flex; align-items: center; gap: 40px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo-sq {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, var(--accent) 0%, #2a2d3f 130%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600; font-size: 13px; color: #fff;
+    box-shadow: 0 0 16px rgba(var(--accent-rgb),0.35), inset 0 1px 0 rgba(255,255,255,0.22);
+  }
+  .brand-name { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  .nav-links { display: flex; align-items: center; gap: 28px; list-style: none; }
+  .nav-links a {
+    font-size: 13.5px; font-weight: 500;
+    color: var(--text-2); text-decoration: none;
+    transition: color 0.15s;
+  }
+  .nav-links a:hover { color: var(--text-1); }
+  .nav-links a.active { color: var(--accent); }
+  .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 36px; padding: 0 18px;
+    border-radius: var(--r-sm);
+    background: var(--accent);
+    color: #060709;
+    font-size: 13.5px; font-weight: 600;
+    text-decoration: none; border: none; cursor: pointer;
+    box-shadow: 0 0 20px rgba(var(--accent-rgb),0.35);
+    transition: filter 0.15s;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-ghost {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 44px; padding: 0 22px;
+    border-radius: var(--r-sm);
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    font-size: 14px; font-weight: 500;
+    text-decoration: none;
+    transition: border-color 0.15s;
+  }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.16); }
+  .btn-hero {
+    height: 44px; padding: 0 24px;
+    font-size: 14px;
+    border-radius: var(--r-sm);
+  }
+
+  /* ============ SHARED TAG / MONO LABEL ============ */
+  .mono-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--accent);
+    padding: 7px 14px;
+    border: 1px solid rgba(var(--accent-rgb),0.28);
+    border-radius: 100px;
+    background: rgba(var(--accent-rgb),0.07);
+  }
+
+  /* ============ LANDING HERO ============ */
+  .hero {
+    position: relative;
+    padding: 120px 32px 130px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%);
+  }
+  .hero::after {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 520px 340px at 50% 8%, rgba(108,123,240,0.16), transparent 70%),
+      radial-gradient(ellipse 380px 260px at 22% 70%, rgba(92,179,255,0.07), transparent 70%),
+      radial-gradient(ellipse 380px 260px at 78% 70%, rgba(185,158,255,0.06), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-inner { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; }
+  .hero h1 {
+    margin-top: 28px;
+    font-size: 64px; font-weight: 700;
+    letter-spacing: -0.035em; line-height: 1.05;
+    text-wrap: balance;
+  }
+  .hero h1 .grad {
+    background: linear-gradient(100deg, #6C7BF0 0%, #5CB3FF 55%, #B99EFF 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero .sub {
+    margin: 22px auto 0;
+    max-width: 560px;
+    font-size: 18px; line-height: 1.6;
+    color: var(--text-2);
+    text-wrap: pretty;
+  }
+  .hero-actions {
+    margin-top: 40px;
+    display: flex; justify-content: center; gap: 14px;
+  }
+  .hero-meta {
+    margin-top: 56px;
+    display: flex; justify-content: center; gap: 36px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: var(--text-3);
+    letter-spacing: 0.06em;
+  }
+  .hero-meta b { color: var(--text-2); font-weight: 500; }
+
+  /* ============ DOCS LAYOUT ============ */
+  .docs-body {
+    display: grid;
+    grid-template-columns: 248px 1fr 208px;
+    min-height: 640px;
+  }
+  .docs-sidebar {
+    border-right: 1px solid var(--border);
+    padding: 28px 20px;
+  }
+  .docs-toc {
+    border-left: 1px solid var(--border);
+    padding: 28px 20px;
+  }
+  .side-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--text-3);
+    margin: 24px 10px 10px;
+  }
+  .side-title:first-child { margin-top: 0; }
+  .side-link {
+    display: block;
+    padding: 7px 10px;
+    margin: 1px 0;
+    border-radius: 7px;
+    font-size: 13.5px; color: var(--text-2);
+    text-decoration: none;
+    transition: color 0.12s, background 0.12s;
+  }
+  .side-link:hover { color: var(--text-1); background: rgba(255,255,255,0.03); }
+  .side-link.active {
+    color: var(--accent);
+    background: rgba(var(--accent-rgb),0.08);
+    font-weight: 500;
+  }
+  .side-link.sub { padding-left: 26px; font-size: 13px; }
+  .side-group-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px;
+    font-size: 13.5px; color: var(--text-1); font-weight: 500;
+  }
+  .side-group-head .chev { color: var(--text-3); font-size: 10px; }
+
+  .docs-article { padding: 40px 48px 64px; max-width: 760px; }
+  .crumb {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; color: var(--text-3); letter-spacing: 0.04em;
+  }
+  .crumb span { color: var(--accent); }
+  .docs-article h1 {
+    margin-top: 14px;
+    font-size: 36px; font-weight: 700; letter-spacing: -0.025em;
+  }
+  .docs-article p {
+    margin-top: 18px;
+    font-size: 15px; line-height: 1.75;
+    color: var(--text-2);
+    text-wrap: pretty;
+  }
+  .docs-article p a { color: var(--accent); text-decoration: none; }
+  .docs-article p code, .tip code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.86em;
+    background: rgba(var(--accent-rgb),0.09);
+    color: var(--accent);
+    padding: 2px 6px; border-radius: 5px;
+  }
+  .codeblock {
+    margin-top: 22px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: #0a0c10;
+    overflow: hidden;
+  }
+  .codeblock-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--text-3);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .codeblock-head .dot3 { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.12); }
+  .codeblock-head span { margin-left: 8px; }
+  .codeblock pre {
+    padding: 18px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; line-height: 1.8;
+    color: var(--text-1);
+    overflow-x: auto;
+  }
+  .codeblock .c { color: var(--text-3); }
+  .codeblock .a { color: var(--accent); }
+  .tip {
+    margin-top: 24px;
+    display: flex; gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid rgba(var(--accent-rgb),0.3);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--r-md);
+    background: rgba(var(--accent-rgb),0.05);
+  }
+  .tip-icon {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(var(--accent-rgb),0.15);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tip-body { font-size: 13.5px; line-height: 1.65; color: var(--text-2); text-wrap: pretty; }
+  .tip-body b { color: var(--text-1); font-weight: 600; }
+
+  .toc-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 12px;
+  }
+  .toc-link {
+    display: block;
+    padding: 5px 0 5px 14px;
+    border-left: 1px solid var(--border);
+    font-size: 12.5px; color: var(--text-3);
+    text-decoration: none;
+  }
+  .toc-link:hover { color: var(--text-2); }
+  .toc-link.active { color: var(--accent); border-left-color: var(--accent); }
+
+  /* ============ STORE ============ */
+  .store-head {
+    position: relative;
+    padding: 76px 32px 0;
+    text-align: center;
+    overflow: hidden;
+  }
+  .store-head::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 460px 260px at 50% 0%, rgba(16,185,129,0.12), transparent 70%);
+    pointer-events: none;
+  }
+  .store-head-inner { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; }
+  .store-head h1 {
+    margin-top: 26px;
+    font-size: 46px; font-weight: 700; letter-spacing: -0.03em;
+  }
+  .store-head .sub {
+    margin: 16px auto 0;
+    max-width: 560px;
+    font-size: 16px; line-height: 1.6;
+    color: var(--text-2);
+    text-wrap: pretty;
+  }
+  .store-search {
+    margin: 34px auto 0;
+    max-width: 480px;
+    display: flex; align-items: center; gap: 10px;
+    height: 46px; padding: 0 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: var(--card);
+    transition: border-color 0.15s;
+  }
+  .store-search:focus-within { border-color: rgba(var(--accent-rgb),0.45); }
+  .store-search svg { flex-shrink: 0; color: var(--text-3); }
+  .store-search input {
+    flex: 1;
+    background: none; border: none; outline: none;
+    color: var(--text-1);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+  }
+  .store-search input::placeholder { color: var(--text-3); }
+  .store-search kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; color: var(--text-3);
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 3px 7px;
+  }
+  .store-pills {
+    margin: 26px auto 0;
+    display: flex; justify-content: center; gap: 8px;
+    position: relative; z-index: 1;
+  }
+  .pill {
+    padding: 8px 16px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    font-size: 13px; font-weight: 500;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .pill:hover { color: var(--text-1); border-color: rgba(255,255,255,0.15); }
+  .pill.active {
+    color: var(--accent);
+    border-color: rgba(var(--accent-rgb),0.4);
+    background: rgba(var(--accent-rgb),0.08);
+  }
+  .store-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 44px 32px 72px;
+  }
+  .pkg-card {
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--card);
+    padding: 24px;
+    transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+  }
+  .pkg-card:hover {
+    border-color: rgba(var(--accent-rgb),0.35);
+    box-shadow: 0 0 32px rgba(var(--accent-rgb),0.1);
+    transform: translateY(-2px);
+  }
+  .pkg-top { display: flex; align-items: flex-start; justify-content: space-between; }
+  .pkg-icon {
+    width: 42px; height: 42px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px; font-weight: 600;
+    color: var(--accent);
+  }
+  .pkg-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid rgba(var(--accent-rgb),0.3);
+    color: var(--accent);
+    background: rgba(var(--accent-rgb),0.07);
+  }
+  .pkg-card h3 {
+    margin-top: 18px;
+    font-size: 16.5px; font-weight: 600; letter-spacing: -0.01em;
+  }
+  .pkg-card .desc {
+    margin-top: 8px;
+    font-size: 13.5px; line-height: 1.6;
+    color: var(--text-2);
+    text-wrap: pretty;
+    min-height: 66px;
+  }
+  .pkg-meta {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; color: var(--text-3);
+  }
+  .pkg-meta .ver { color: var(--text-2); }
+  .pkg-meta .dl { display: flex; align-items: center; gap: 6px; }
+  .pkg-meta .dl svg { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     ZONE 1 — LANDING · INDIGO
+============================================================ -->
+<section class="viewport site-landing">
+  <div class="zone-label"><span class="dot"></span>落地页 LANDING · <span class="role">INDIGO #6C7BF0</span></div>
+
+  <nav class="nav">
+    <div class="nav-left">
+      <div class="brand">
+        <div class="logo-sq">P</div>
+        <span class="brand-name">PxeLab</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#">Features</a></li>
+        <li><a href="#">Platform</a></li>
+        <li><a href="#">Docs</a></li>
+        <li><a href="#">Store</a></li>
+        <li><a href="#">GitHub</a></li>
+      </ul>
+    </div>
+    <a class="btn-primary" href="#">Download</a>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-inner">
+      <span class="mono-tag">Open Source · AGPL-3.0</span>
+      <h1>All-in-one <span class="grad">PXE server</span></h1>
+      <p class="sub">Five network services, two interfaces, zero dependencies.</p>
+      <div class="hero-actions">
+        <a class="btn-primary btn-hero" href="#">Get Started</a>
+        <a class="btn-ghost" href="#">Documentation</a>
+      </div>
+      <div class="hero-meta">
+        <span><b>5</b> SERVICES</span>
+        <span><b>11</b> ARCHITECTURES</span>
+        <span><b>1</b> BINARY</span>
+        <span><b>0</b> DEPENDENCIES</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     ZONE 2 — DOCS · BLUE
+============================================================ -->
+<section class="viewport site-docs">
+  <div class="zone-label"><span class="dot"></span>文档站 DOCS · <span class="role">BLUE #5CB3FF</span></div>
+
+  <nav class="nav">
+    <div class="nav-left">
+      <div class="brand">
+        <div class="logo-sq">P</div>
+        <span class="brand-name">PxeLab</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#">Features</a></li>
+        <li><a href="#">Platform</a></li>
+        <li><a href="#" class="active">Docs</a></li>
+        <li><a href="#">Store</a></li>
+        <li><a href="#">GitHub</a></li>
+      </ul>
+    </div>
+    <a class="btn-primary" href="#">Download</a>
+  </nav>
+
+  <div class="docs-body">
+    <aside class="docs-sidebar">
+      <div class="side-title">Getting Started</div>
+      <a class="side-link active" href="#">快速开始</a>
+      <a class="side-link" href="#">产品简介</a>
+      <div class="side-title">使用指南</div>
+      <div class="side-group-head">网络服务 <span class="chev">▾</span></div>
+      <a class="side-link sub" href="#">DHCP 服务</a>
+      <a class="side-link sub" href="#">TFTP 服务</a>
+      <div class="side-title">Reference</div>
+      <a class="side-link" href="#">参考文档</a>
+    </aside>
+
+    <article class="docs-article">
+      <div class="crumb">docs / getting-started / <span>quickstart</span></div>
+      <h1>快速开始</h1>
+      <p>PxeLab 是一个单二进制的一体化 PXE 网络引导服务器，内置 DHCP、TFTP、HTTP、DNS、NFS 五个网络服务。无需任何外部依赖，下载后即可运行，可引导 11 种客户端架构。</p>
+      <p>在 Linux 或 macOS 上，使用安装脚本获取最新版本：</p>
+
+      <div class="codeblock">
+        <div class="codeblock-head">
+          <span class="dot3"></span><span class="dot3"></span><span class="dot3"></span>
+          <span>terminal</span>
+        </div>
+        <pre><span class="c"># 下载并安装 PxeLab</span>
+<span class="a">curl</span> -fsSL https://pxelab.com/install.sh | bash
+
+<span class="c"># 启动服务（需要特权端口，建议使用 sudo）</span>
+<span class="a">./pxelab</span></pre>
+      </div>
+
+      <p>启动后，在浏览器中打开 <code>http://localhost:8080</code> 进入 Web 管理界面，即可配置引导菜单、管理客户端与镜像。</p>
+
+      <div class="tip">
+        <div class="tip-icon">i</div>
+        <div class="tip-body"><b>提示：</b>PxeLab 默认监听 DHCP（67）、TFTP（69）等特权端口。在生产网络中部署前，请先确认网段内没有其他 DHCP 服务器，避免地址分配冲突。详见 <code>config.yaml</code> 中的 <code>dhcp.subnet</code> 配置。</div>
+      </div>
+    </article>
+
+    <aside class="docs-toc">
+      <div class="toc-title">On this page</div>
+      <a class="toc-link active" href="#">安装</a>
+      <a class="toc-link" href="#">启动服务</a>
+      <a class="toc-link" href="#">访问 Web 界面</a>
+      <a class="toc-link" href="#">下一步</a>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================================================
+     ZONE 3 — STORE · GREEN
+============================================================ -->
+<section class="viewport site-store">
+  <div class="zone-label"><span class="dot"></span>STORE · <span class="role">GREEN #10B981</span></div>
+
+  <nav class="nav">
+    <div class="nav-left">
+      <div class="brand">
+        <div class="logo-sq">P</div>
+        <span class="brand-name">PxeLab</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#">Features</a></li>
+        <li><a href="#">Platform</a></li>
+        <li><a href="#">Docs</a></li>
+        <li><a href="#" class="active">Store</a></li>
+        <li><a href="#">GitHub</a></li>
+      </ul>
+    </div>
+    <a class="btn-primary" href="#">Download</a>
+  </nav>
+
+  <div class="store-head">
+    <div class="store-head-inner">
+      <span class="mono-tag">Community Contributed</span>
+      <h1>Community Store</h1>
+      <p class="sub">Security baselines, boot templates, and configurations contributed by the PxeLab community.</p>
+      <div class="store-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search baselines, templates, distros…">
+        <kbd>⌘K</kbd>
+      </div>
+      <div class="store-pills">
+        <button class="pill active">All</button>
+        <button class="pill">Baselines</button>
+        <button class="pill">Boot Templates</button>
+        <button class="pill">Distros</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="store-grid">
+    <div class="pkg-card">
+      <div class="pkg-top">
+        <div class="pkg-icon">Ub</div>
+        <span class="pkg-badge">Distro</span>
+      </div>
+      <h3>Ubuntu 24.04 Autoinstall</h3>
+      <p class="desc">Fully unattended Ubuntu 24.04 LTS deployment with cloud-init autoinstall, LVM layout, and curated package selection.</p>
+      <div class="pkg-meta">
+        <span class="dl">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+          12,482
+        </span>
+        <span class="ver">v2.3.1</span>
+      </div>
+    </div>
+
+    <div class="pkg-card">
+      <div class="pkg-top">
+        <div class="pkg-icon">W11</div>
+        <span class="pkg-badge">Boot Template</span>
+      </div>
+      <h3>Windows 11 Autounattend</h3>
+      <p class="desc">Boot template for hands-off Windows 11 installation via autounattend.xml, with TPM bypass options and driver injection hooks.</p>
+      <div class="pkg-meta">
+        <span class="dl">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+          8,915
+        </span>
+        <span class="ver">v1.7.0</span>
+      </div>
+    </div>
+
+    <div class="pkg-card">
+      <div class="pkg-top">
+        <div class="pkg-icon">CIS</div>
+        <span class="pkg-badge">Baseline</span>
+      </div>
+      <h3>CIS Linux Baseline</h3>
+      <p class="desc">CIS Benchmark Level 1 hardening profile for Debian and RHEL-family systems, applied as a post-boot provisioning step.</p>
+      <div class="pkg-meta">
+        <span class="dl">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+          5,207
+        </span>
+        <span class="ver">v3.0.2</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

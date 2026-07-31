@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- PxeLab app icon v2: ocean tile, white "Discover" mark. rx = 22% of 512 = 112.64 -->
+  <rect width="512" height="512" rx="112.64" fill="#3b82f6"/>
+  <g transform="translate(256 256) scale(4.6) translate(-32 -32)">
+    <g fill="#ffffff">
+      <path d="M8 12 L34 32 L8 52 L8 41.6 L21.4 32 L8 22.4 Z"/>
+      <rect x="37" y="43.4" width="19" height="8.6"/>
+    </g>
+    <g fill="none" stroke="#ffffff" stroke-width="4.5">
+      <path d="M47.9 39.8 A8 8 0 0 1 54.4 46.3"/>
+      <path d="M48.9 33.9 A14 14 0 0 1 60.3 45.3"/>
+    </g>
+  </g>
+</svg>

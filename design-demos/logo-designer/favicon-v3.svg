@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Favicon v3: heavier chevron/block, single bold arc whose stroke overlaps the
+       block's top edge — block and broadcast fuse into one glyph at 16px -->
+  <g fill="#3b82f6">
+    <path d="M6 10 L36 32 L6 54 L6 42.2 L21.8 32 L6 21.8 Z"/>
+    <path d="M38 42.2 L44.5 42.2 A3.5 3.5 0 0 0 51.5 42.2 L58 42.2 L58 54 L38 54 Z"/>
+  </g>
+  <path d="M40.1 40.8 A8 8 0 0 1 55.9 40.8" fill="none" stroke="#3b82f6" stroke-width="5"/>
+</svg>
