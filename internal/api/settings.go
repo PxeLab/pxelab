@@ -148,14 +148,15 @@ type CatalogDisplaySettings struct {
 }
 
 type SubnetSettings struct {
-	CIDR       string   `json:"cidr"`
-	DHCPMode   string   `json:"dhcp_mode"`
-	Pools      []string `json:"pools"`
-	Gateway    string   `json:"gateway"`
-	DNSServers string   `json:"dns_servers"`
-	LeaseTime  int      `json:"lease_time"`
-	NextServer string   `json:"next_server"`
-	ChainToIPXE bool     `json:"chain_to_ipxe"`
+	CIDR             string   `json:"cidr"`
+	DHCPMode         string   `json:"dhcp_mode"`
+	Pools            []string `json:"pools"`
+	Gateway          string   `json:"gateway"`
+	DNSServers       string   `json:"dns_servers"`
+	LeaseTime        int      `json:"lease_time"`
+	NextServer       string   `json:"next_server"`
+	ChainToIPXE      bool     `json:"chain_to_ipxe"`
+	WhitelistEnabled bool     `json:"whitelist_enabled"`
 }
 
 type InterfaceResponse struct {
@@ -423,14 +424,15 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 					pools = []string{sn.Pool}
 				}
 				ir.Subnets = append(ir.Subnets, SubnetSettings{
-					CIDR:       sn.CIDR,
-					DHCPMode:   dhcpMode,
-					Pools:      pools,
-					Gateway:    sn.Gateway,
-					DNSServers: sn.DNSServers,
-					LeaseTime:  sn.LeaseTime,
-					NextServer: sn.NextServer,
-					ChainToIPXE: sn.ChainToIPXE,
+					CIDR:             sn.CIDR,
+					DHCPMode:         dhcpMode,
+					Pools:            pools,
+					Gateway:          sn.Gateway,
+					DNSServers:       sn.DNSServers,
+					LeaseTime:        sn.LeaseTime,
+					NextServer:       sn.NextServer,
+					ChainToIPXE:      sn.ChainToIPXE,
+					WhitelistEnabled: sn.WhitelistEnabled,
 				})
 			}
 		}
@@ -506,8 +508,9 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				CIDR: ir.Subnet, DHCPMode: "server",
 				Pools: ir.Pools, Gateway: ir.Gateway,
 				DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
-				NextServer: ir.NextServer,
-				ChainToIPXE: false,
+				NextServer:      ir.NextServer,
+				ChainToIPXE:     false,
+				WhitelistEnabled: false,
 			}}
 		}
 		for si, s := range subnets {
@@ -623,26 +626,28 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 			if len(ir.Subnets) > 0 {
 				for _, s := range ir.Subnets {
 					iface.Subnets = append(iface.Subnets, config.SubnetConfig{
-						CIDR:       s.CIDR,
-						DHCP:       s.DHCPMode,
-						Pools:      s.Pools,
-						Gateway:    s.Gateway,
-						DNSServers: s.DNSServers,
-						LeaseTime:  s.LeaseTime,
-						NextServer: s.NextServer,
-						ChainToIPXE: s.ChainToIPXE,
+						CIDR:             s.CIDR,
+						DHCP:             s.DHCPMode,
+						Pools:            s.Pools,
+						Gateway:          s.Gateway,
+						DNSServers:       s.DNSServers,
+						LeaseTime:        s.LeaseTime,
+						NextServer:       s.NextServer,
+						ChainToIPXE:      s.ChainToIPXE,
+						WhitelistEnabled: s.WhitelistEnabled,
 					})
 				}
 			} else if ir.Subnet != "" || len(ir.Pools) > 0 || ir.Gateway != "" || ir.NextServer != "" {
 				iface.Subnets = []config.SubnetConfig{{
-					CIDR:       ir.Subnet,
-					DHCP:       "server",
-					Pools:      ir.Pools,
-					Gateway:    ir.Gateway,
-					DNSServers: ir.DNSServers,
-					NextServer: ir.NextServer,
-					LeaseTime:  ir.LeaseTime,
-					ChainToIPXE: false,
+					CIDR:             ir.Subnet,
+					DHCP:             "server",
+					Pools:            ir.Pools,
+					Gateway:          ir.Gateway,
+					DNSServers:       ir.DNSServers,
+					NextServer:       ir.NextServer,
+					LeaseTime:        ir.LeaseTime,
+					ChainToIPXE:      false,
+					WhitelistEnabled: false,
 				}}
 			}
 			h.cfg.Interfaces = append(h.cfg.Interfaces, iface)
@@ -903,7 +908,8 @@ func (h *SettingsHandler) GetInterfaces(w http.ResponseWriter, r *http.Request) 
 					DNSServers: sn.DNSServers,
 					LeaseTime:  sn.LeaseTime,
 					NextServer: sn.NextServer,
-					ChainToIPXE: sn.ChainToIPXE,
+					ChainToIPXE:      sn.ChainToIPXE,
+					WhitelistEnabled: sn.WhitelistEnabled,
 				})
 			}
 		}

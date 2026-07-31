@@ -323,8 +323,8 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 		}
 	}
 
-	// 3. 子网级白名单
-	if subnetCfg.WhitelistEnabled {
+	// 3. 子网级白名单（全局已开启时跳过，全局白名单已覆盖所有子网）
+	if !h.config.Global.WhitelistEnabled && subnetCfg.WhitelistEnabled {
 		whitelisted, err := h.store.IsWhitelisted(ctx, mac, subnetCfg.CIDR)
 		if err != nil {
 			slog.Error("白名单查询失败，已拒绝", "mac", mac, "error", err)

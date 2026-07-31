@@ -28,6 +28,9 @@ export function DHCPConfigTab() {
   const [editForm, setEditForm] = useState<InterfaceConfig>({ ...defaultIface })
   const [modalSaving, setModalSaving] = useState(false)
 
+  // Global whitelist state
+  const [globalWhitelist, setGlobalWhitelist] = useState(false)
+
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
@@ -36,7 +39,8 @@ export function DHCPConfigTab() {
   async function loadSettings() {
     setLoading(true)
     try {
-      const [res, ifaceRes] = await Promise.all([api.getInterfaceSettings(), api.getInterfaces()])
+      const [res, ifaceRes, settingsRes] = await Promise.all([api.getInterfaceSettings(), api.getInterfaces(), api.getSettings()])
+      setGlobalWhitelist(settingsRes.data.whitelist_enabled)
       setAvailableIfaces(ifaceRes.data)
       const ifaces = res.data.interfaces || []
       if (ifaces.length > 0) {
@@ -51,8 +55,9 @@ export function DHCPConfigTab() {
                 leaseTime: String(s.lease_time || 3600),
                 nextServer: s.next_server || '',
                 chainToIPXE: s.chain_to_ipxe || false,
+                whitelistEnabled: s.whitelist_enabled || false,
               }))
-            : [{ cidr: ir.subnet || '', dhcpMode: 'server', pools: ir.pools?.length ? ir.pools : [''], gateway: ir.gateway || '', dnsServers: ir.dns_servers || '', leaseTime: String(ir.lease_time || 3600), nextServer: ir.next_server || '', chainToIPXE: false }]
+            : [{ cidr: ir.subnet || '', dhcpMode: 'server', pools: ir.pools?.length ? ir.pools : [''], gateway: ir.gateway || '', dnsServers: ir.dns_servers || '', leaseTime: String(ir.lease_time || 3600), nextServer: ir.next_server || '', chainToIPXE: false, whitelistEnabled: false }]
           return {
             name: ir.name || '',
             ip: ir.ip || '',
@@ -68,8 +73,12 @@ export function DHCPConfigTab() {
   }
 
   function openEdit(i: number) {
+    const iface = interfaces[i]
+    if (globalWhitelist) {
+      iface.subnets = iface.subnets.map(s => ({ ...s, whitelistEnabled: true }))
+    }
     setEditIndex(i)
-    setEditForm({ ...interfaces[i] })
+    setEditForm({ ...iface })
     setShowModal(true)
   }
 
@@ -94,7 +103,7 @@ export function DHCPConfigTab() {
         name: iface.name, ip: iface.ip,
         subnets: iface.subnets.map(s => ({
           cidr: s.cidr, dhcp_mode: s.dhcpMode, pools: s.pools.filter(p => p && p.includes('-')),
-          gateway: s.gateway, dns_servers: s.dnsServers, lease_time: parseInt(s.leaseTime) || 3600, next_server: s.nextServer, chain_to_ipxe: s.chainToIPXE,
+          gateway: s.gateway, dns_servers: s.dnsServers, lease_time: parseInt(s.leaseTime) || 3600, next_server: s.nextServer, chain_to_ipxe: s.chainToIPXE, whitelist_enabled: s.whitelistEnabled,
         })),
         subnet: iface.subnets[0]?.cidr || '', pools: [], gateway: iface.subnets[0]?.gateway || '',
         dns_servers: iface.subnets[0]?.dnsServers || '', lease_time: parseInt(iface.subnets[0]?.leaseTime || '3600') || 3600,
@@ -110,20 +119,20 @@ export function DHCPConfigTab() {
     setDeleteTarget(null)
     const next = interfaces.filter((_, j) => j !== i)
     setInterfaces(next)
-    setSaving(true)
-    try {
-      const payload: InterfaceSettings[] = next.filter(iface => iface.name).map(iface => ({
-        name: iface.name, ip: iface.ip,
-        subnets: iface.subnets.map(s => ({
-          cidr: s.cidr, dhcp_mode: s.dhcpMode, pools: s.pools.filter(p => p && p.includes('-')),
-          gateway: s.gateway, dns_servers: s.dnsServers, lease_time: parseInt(s.leaseTime) || 3600, next_server: s.nextServer, chain_to_ipxe: s.chainToIPXE,
-        })),
-        subnet: iface.subnets[0]?.cidr || '', pools: [], gateway: iface.subnets[0]?.gateway || '',
-        dns_servers: iface.subnets[0]?.dnsServers || '', lease_time: parseInt(iface.subnets[0]?.leaseTime || '3600') || 3600,
-        next_server: iface.subnets[0]?.nextServer || '',
-      }))
-      await api.updateInterfaceSettings({ interfaces: payload })
-      success(t('settings.deleted'))
+      setSaving(true)
+      try {
+        const payload: InterfaceSettings[] = next.filter(iface => iface.name).map(iface => ({
+          name: iface.name, ip: iface.ip,
+          subnets: iface.subnets.map(s => ({
+            cidr: s.cidr, dhcp_mode: s.dhcpMode, pools: s.pools.filter(p => p && p.includes('-')),
+            gateway: s.gateway, dns_servers: s.dnsServers, lease_time: parseInt(s.leaseTime) || 3600, next_server: s.nextServer, chain_to_ipxe: s.chainToIPXE, whitelist_enabled: s.whitelistEnabled,
+          })),
+          subnet: iface.subnets[0]?.cidr || '', pools: [], gateway: iface.subnets[0]?.gateway || '',
+          dns_servers: iface.subnets[0]?.dnsServers || '', lease_time: parseInt(iface.subnets[0]?.leaseTime || '3600') || 3600,
+          next_server: iface.subnets[0]?.nextServer || '',
+        }))
+        await api.updateInterfaceSettings({ interfaces: payload })
+        success(t('settings.deleted'))
     } catch (err: any) { showError(err.message || t('settings.deleteFailed')) }
     finally { setSaving(false) }
   }
@@ -184,6 +193,23 @@ export function DHCPConfigTab() {
           </div>
         : <span className="text-xs text-[var(--text-muted)]">—</span>
     ) },
+    { key: 'whitelist', label: t('settings.whitelist'), render: (r) => {
+      return r.iface.subnets.length > 0
+        ? <div className="space-y-1">
+            {r.iface.subnets.map((s, i) => {
+              const wlOn = globalWhitelist || s.whitelistEnabled
+              return (
+                <div key={i} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+                  <span className="font-mono text-[var(--text-muted)]">{s.cidr || '—'}</span>
+                  <Tag color={globalWhitelist ? 'blue' : wlOn ? 'green' : 'red'}>
+                    {globalWhitelist ? t('settings.whitelistGlobal') : wlOn ? t('common.yes') : t('common.no')}
+                  </Tag>
+                </div>
+              )
+            })}
+          </div>
+        : <span className="text-xs text-[var(--text-muted)]">—</span>
+    }},
     { key: '_actions', label: '', width: '80px', render: (r) => (
       <div className="flex gap-1" onClick={e => e.stopPropagation()}>
         <Button variant="ghost" size="sm" onClick={() => openEdit(r.idx)}><Pencil size={13} /></Button>
@@ -211,6 +237,7 @@ export function DHCPConfigTab() {
 
       <InterfaceEditModal open={showModal} onClose={() => setShowModal(false)}
         form={editForm} setForm={setEditForm} onSave={handleModalSave} saving={modalSaving} availableIfaces={availableIfaces}
+        globalWhitelistEnabled={globalWhitelist}
       />
 
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={t('settings.confirmDeleteTitle')} width="400px" disableBackdropClose

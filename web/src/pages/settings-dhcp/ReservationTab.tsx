@@ -58,6 +58,7 @@ export function ReservationTab() {
               leaseTime: String(s.lease_time || 3600),
               nextServer: s.next_server || '',
               chainToIPXE: s.chain_to_ipxe || false,
+              whitelistEnabled: s.whitelist_enabled || false,
             }))
           : []
         return { name: ir.name || '', ip: ir.ip || '', subnets }

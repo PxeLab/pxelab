@@ -1,7 +1,7 @@
 // ── Shared types ──
 
 export interface SubnetConfig {
-  cidr: string; dhcpMode: string; pools: string[]; gateway: string; dnsServers: string; leaseTime: string; nextServer: string; chainToIPXE: boolean
+  cidr: string; dhcpMode: string; pools: string[]; gateway: string; dnsServers: string; leaseTime: string; nextServer: string; chainToIPXE: boolean; whitelistEnabled: boolean
 }
 
 export interface InterfaceConfig {
@@ -11,7 +11,7 @@ export interface InterfaceConfig {
 
 export const defaultIface: InterfaceConfig = {
   name: '', ip: '',
-  subnets: [{ cidr: '', dhcpMode: 'server', pools: [''], gateway: '', dnsServers: '', leaseTime: '3600', nextServer: '', chainToIPXE: false }],
+  subnets: [{ cidr: '', dhcpMode: 'server', pools: [''], gateway: '', dnsServers: '', leaseTime: '3600', nextServer: '', chainToIPXE: false, whitelistEnabled: false }],
 }
 
 export function validateIP(ip: string): boolean {

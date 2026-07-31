@@ -7,12 +7,13 @@ import { type InterfaceInfo } from '../../api/client'
 import { type InterfaceConfig } from './utils'
 
 export function InterfaceEditModal({
-  open, onClose, form, setForm, onSave, saving, availableIfaces,
+  open, onClose, form, setForm, onSave, saving, availableIfaces, globalWhitelistEnabled,
 }: {
   open: boolean; onClose: () => void
   form: InterfaceConfig; setForm: (f: InterfaceConfig) => void
   onSave: () => void; saving: boolean
   availableIfaces: InterfaceInfo[]
+  globalWhitelistEnabled?: boolean
 }) {
   const { t } = useTranslation()
   return (
@@ -142,12 +143,23 @@ export function InterfaceEditModal({
                       <span className="text-xs text-blue-400">{t('settings.chainToIpxeHint')}</span>
                     )}
                   </label>
+                  <label className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                    <input type="checkbox" checked={globalWhitelistEnabled || s.whitelistEnabled}
+                      disabled={globalWhitelistEnabled}
+                      onChange={e => {
+                        const sn = [...form.subnets]; sn[si] = {...sn[si], whitelistEnabled: e.target.checked}; setForm({...form, subnets: sn})
+                      }} className="rounded border-[var(--bg-border)] w-4 h-4" />
+                    <span>{t('settings.enableSubnetWhitelist')}</span>
+                    {globalWhitelistEnabled && (
+                      <span className="text-xs text-blue-400">{t('settings.subnetWhitelistForced')}</span>
+                    )}
+                  </label>
                 </>
               )}
             </div>
           )
         })}
-        <Button variant="secondary" size="sm" onClick={() => setForm({...form, subnets: [...form.subnets, { cidr: '', dhcpMode: 'server', pools: [''], gateway: '', dnsServers: form.ip || '', leaseTime: '3600', nextServer: form.ip || '', chainToIPXE: false }]})}>
+        <Button variant="secondary" size="sm" onClick={() => setForm({...form, subnets: [...form.subnets, { cidr: '', dhcpMode: 'server', pools: [''], gateway: '', dnsServers: form.ip || '', leaseTime: '3600', nextServer: form.ip || '', chainToIPXE: false, whitelistEnabled: !!globalWhitelistEnabled }]})}>
           {t('settings.addSubnet')}
         </Button>
 
