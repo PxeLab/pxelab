@@ -54,7 +54,7 @@
     "bootSettings": "Boot Options",
     "baselines": "Baselines",
     "scripts": "Scripts",
-    "store": "Store"
+    "store": "Hub"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1488,15 +1488,15 @@
     "noScripts": "No scripts yet. Create your first script to reuse across baselines."
   },
   "store": {
-    "title": "Community Store",
+    "title": "PxeLab Hub",
     "description": "Browse and import community-contributed baselines, boot templates, and configurations",
-    "searchPlaceholder": "Search store items...",
+    "searchPlaceholder": "Search Hub items...",
     "import": "Import",
     "importing": "Importing...",
     "importSuccess": "Successfully imported \"{name}\"",
     "importFailed": "Failed to import item: {error}",
-    "loadFailed": "Failed to load store catalog",
-    "noItems": "No items found in the store",
+    "loadFailed": "Failed to load Hub catalog",
+    "noItems": "No items found in the Hub",
     "version": "Version",
     "author": "Author",
     "tags": "Tags",
@@ -1507,21 +1507,21 @@
     "confirmImportTitle": "Import {name}",
     "confirmImportMsg": "This will import \"{name}\" into your local PxeLab instance. The item will be available immediately after import.",
     "goToBaseline": "View Baseline",
-    "storeUnavailable": "Store Unavailable",
-    "storeUnavailableDesc": "The community store at store.pxelab.com is currently unreachable. Please check your internet connection and try again.",
+    "storeUnavailable": "Hub Unavailable",
+    "storeUnavailableDesc": "PxeLab Hub (store.pxelab.com) is currently unreachable. Please check your internet connection and try again.",
     "retry": "Retry",
     "imported": "Imported",
     "downloads": "Downloads",
     "updated": "Updated",
     "created": "Created",
     "detail": {
-      "title": "Store Item Detail",
-      "backToStore": "Back to Store",
+      "title": "Hub Item Detail",
+      "backToStore": "Back to Hub",
       "content": "Content",
       "importConfirm": "Import this item?",
       "download": "Download JSON",
       "import": "Import to PxeLab",
-      "importLocalTitle": "Import Store Item",
+      "importLocalTitle": "Import Hub Item",
       "importLocalSuccess": "Imported \"{name}\" from local file",
       "importLocalFailed": "Failed to import from file: {error}",
       "notFound": "Item not found"
@@ -1529,7 +1529,7 @@
     "exportFailed": "Failed to export",
     "importFromFile": "Import from File",
     "importLocal": "Import Local File",
-    "importLocalHint": "Select a JSON file exported from the store",
+    "importLocalHint": "Select a JSON file exported from the Hub",
     "importLocalBtn": "Select JSON File"
   }
 }

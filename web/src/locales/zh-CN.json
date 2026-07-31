@@ -54,7 +54,7 @@
     "bootSettings": "引导选项",
     "baselines": "初始化脚本",
     "scripts": "脚本管理",
-    "store": "应用商店"
+    "store": "Hub"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -1488,15 +1488,15 @@
     "noScripts": "暂无脚本。创建您的第一个脚本以在脚本集间复用。"
   },
   "store": {
-    "title": "应用商店",
+    "title": "PxeLab Hub",
     "description": "浏览并导入社区贡献的初始化脚本、引导模板和配置方案",
-    "searchPlaceholder": "搜索商店内容...",
+    "searchPlaceholder": "搜索 Hub 内容...",
     "import": "导入",
     "importing": "导入中...",
     "importSuccess": "成功导入 \"{name}\"",
     "importFailed": "导入失败: {error}",
-    "loadFailed": "无法加载商店目录",
-    "noItems": "商店中暂无可用内容",
+    "loadFailed": "无法加载 Hub 目录",
+    "noItems": "Hub 中暂无可用内容",
     "version": "版本",
     "author": "作者",
     "tags": "标签",
@@ -1507,21 +1507,21 @@
     "confirmImportTitle": "导入 {name}",
     "confirmImportMsg": "将 \"{name}\" 导入到本地 PxeLab 实例。导入后即可立即使用。",
     "goToBaseline": "查看脚本集",
-    "storeUnavailable": "商店无法访问",
-    "storeUnavailableDesc": "社区商店 store.pxelab.com 当前不可达，请检查网络连接后重试。",
+    "storeUnavailable": "Hub 无法访问",
+    "storeUnavailableDesc": "PxeLab Hub（store.pxelab.com）当前不可达，请检查网络连接后重试。",
     "retry": "重试",
     "imported": "已导入",
     "downloads": "下载次数",
     "updated": "更新于",
     "created": "创建于",
     "detail": {
-      "title": "商店项目详情",
-      "backToStore": "返回商店",
+      "title": "Hub 项目详情",
+      "backToStore": "返回 Hub",
       "content": "内容",
       "importConfirm": "确认导入此项目？",
       "download": "下载 JSON",
       "import": "导入到 PxeLab",
-      "importLocalTitle": "导入商店项目",
+      "importLocalTitle": "导入 Hub 项目",
       "importLocalSuccess": "已从本地文件导入 \"{name}\"",
       "importLocalFailed": "从文件导入失败: {error}",
       "notFound": "项目未找到"
@@ -1529,7 +1529,7 @@
     "exportFailed": "导出失败",
     "importFromFile": "从文件导入",
     "importLocal": "导入本地文件",
-    "importLocalHint": "选择从商店导出的 JSON 文件",
+    "importLocalHint": "选择从 Hub 导出的 JSON 文件",
     "importLocalBtn": "选择 JSON 文件"
   }
 }
