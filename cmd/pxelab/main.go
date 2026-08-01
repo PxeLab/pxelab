@@ -309,12 +309,12 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 		}
 	}
 
-	// 无接口配置时回退到 :67 + :4011 监听所有地址
+	// 无接口配置时回退到 :67 + :4011 监听所有地址（默认不自动启动，需用户手动开启）
 	if !hasDHCP {
 		dhcpServer := dhcp.NewServer("0.0.0.0:67", dhcpHandler)
-		svcMgr.Register("dhcp/any", "DHCP", dhcpServer, true, false, 67, "UDP")
+		svcMgr.Register("dhcp/any", "DHCP", dhcpServer, false, false, 67, "UDP")
 		proxyDHCP := dhcp.NewProxyServer4011("0.0.0.0:4011", dhcpHandler)
-		svcMgr.Register("proxy/any", "ProxyDHCP", proxyDHCP, true, false, 4011, "UDP")
+		svcMgr.Register("proxy/any", "ProxyDHCP", proxyDHCP, false, false, 4011, "UDP")
 	}
 
 	tftpCfg := cfg.TFTP

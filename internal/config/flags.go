@@ -52,7 +52,7 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	v.SetDefault("dns.local_domain", "pxelab.local")
 
 	// netboot defaults
-	v.SetDefault("netboot.enabled", true)
+	v.SetDefault("netboot.enabled", false)
 	v.SetDefault("netboot.failsafe_prompt", true)
 	v.SetDefault("netboot.sync.url", "https://github.com/netbootxyz/netboot.xyz.git")
 	v.SetDefault("netboot.sync.repo", "contrib/netboot.xyz")
