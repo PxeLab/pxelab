@@ -16,6 +16,10 @@ set pxelab-url http://${pxelab-server}:8080/boot/ipxe/script?mac=${net0/mac}
 
 # Chain to PxeLab server
 chain ${pxelab-url} || goto failsafe
+# IMPORTANT: iPXE labels do not break execution flow. Without this exit,
+# a successful chain (e.g. a menu whose "local disk" entry did `exit`) would
+# fall through into the :dhcp_failed block below and show the Failsafe menu.
+exit
 
 :dhcp_failed
 echo DHCP failed - no network configuration available

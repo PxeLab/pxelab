@@ -1,5 +1,10 @@
-﻿#!ipxe
+#!ipxe
 chain http://{{.Server}}/boot/ipxe/menu?mac=${net0/mac} || goto fs_failsafe
+# IMPORTANT: iPXE labels do not break execution flow. Without this exit,
+# a successful chain (e.g. a menu whose "local disk" entry did `exit`) would
+# fall through into :fs_failsafe below and show the Failsafe menu instead of
+# booting the local disk.
+exit
 
 :fs_failsafe
 menu PxeLab Failsafe Menu
@@ -33,6 +38,8 @@ goto fs_retry
 
 :fs_retry
 chain http://{{.Server}}/boot/ipxe/menu?mac=${net0/mac} || goto fs_failsafe
+# Same as above: without exit, a successful chain falls through into :fs_debug.
+exit
 
 :fs_debug
 echo Type "exit" to return to menu

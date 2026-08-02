@@ -8,6 +8,10 @@ dhcp net0 || goto dhcp_failed
 
 # 优先使用 DHCP Option 175 提供的脚本 URL（PxeLab 已注入）
 isset ${script-url} && chain ${script-url} || goto use_nextserver
+# IMPORTANT: iPXE labels do not break execution flow. Without this exit,
+# a successful chain (e.g. a menu whose "local disk" entry did `exit`) would
+# fall through into :use_nextserver / :dhcp_failed and show the Failsafe menu.
+exit
 
 :use_nextserver
 # 从 DHCP 选项中确定服务器地址
@@ -19,6 +23,10 @@ isset ${pxelab-server} || goto dhcp_failed
 # 构建链式加载 URL
 set pxelab-url http://${pxelab-server}:8080/boot/ipxe/script?mac=${net0/mac}
 chain ${pxelab-url} || goto failsafe
+# IMPORTANT: iPXE labels do not break execution flow. Without this exit,
+# a successful chain would fall through into :dhcp_failed and show the
+# Failsafe menu instead of booting the local disk.
+exit
 
 :dhcp_failed
 echo DHCP failed - no network configuration available
