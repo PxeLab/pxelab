@@ -26,11 +26,13 @@ var dnsTypeMap = map[uint16]string{
 	dns.TypeCNAME: "CNAME",
 	dns.TypeTXT:   "TXT",
 	dns.TypeMX:    "MX",
+	dns.TypePTR:   "PTR",
 }
 
 type Handler struct {
 	store         store.Interface
 	localDomain   string
+	serverName    string
 	upstreams     []string
 	client        *dns.Client
 	eventBus      *eventbus.Bus
@@ -44,6 +46,11 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Hand
 	localDomain := cfg.DNS.LocalDomain
 	if localDomain == "" {
 		localDomain = "pxelab.local"
+	}
+
+	serverName := cfg.Global.ServerName
+	if serverName == "" {
+		serverName = "PxeLab"
 	}
 
 	subnetIPMap := make(map[string]string)
@@ -72,6 +79,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus) *Hand
 	return &Handler{
 		store:         st,
 		localDomain:   localDomain,
+		serverName:    serverName,
 		upstreams:     parseUpstreams(cfg.DNS.Upstream),
 		client:        &dns.Client{ReadTimeout: dnsTimeout},
 		eventBus:      bus,
@@ -169,6 +177,16 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
+	// PTR 反向查询：对已知子网内的 IP 本地应答，避免私有网段
+	// 反向解析转发到上游（上游对 RFC1918 段 PTR 不响应，导致超时报错）
+	if q.Qtype == dns.TypePTR {
+		if answered := h.answerLocalPTR(m, qName, clientIP); answered {
+			h.publishEvent(qName)
+			w.WriteMsg(m)
+			return
+		}
+	}
+
 	// Fallback to upstreams (try in order, first success wins)
 	if len(h.upstreams) > 0 {
 		m = h.forwardToUpstream(r, qName)
@@ -253,6 +271,157 @@ func (h *Handler) matchClientSubnet(clientAddr string) string {
 		}
 	}
 	return ""
+}
+
+// answerLocalPTR 处理 PTR 反向查询。对已知子网内的 IP 本地应答：
+//   - 服务器自身 IP → 返回 PTR 指向 serverName.localDomain
+//   - DHCP 租约内 IP → 返回 PTR 指向 hostname.localDomain
+//   - 其余已知子网 IP → 权威 NXDOMAIN（不转发上游，避免私有网段超时）
+//
+// 返回 true 表示已应答（调用方应直接返回）；false 表示应继续转发上游。
+func (h *Handler) answerLocalPTR(m *dns.Msg, qName string, clientIP string) bool {
+	ip := parseReverseIP(qName)
+	if ip == nil {
+		return false
+	}
+
+	// 仅对已知子网内的 IP 本地应答
+	if !h.ipInKnownSubnet(ip) {
+		return false
+	}
+
+	// 服务器自身 IP：返回 serverName.localDomain
+	if h.isServerIP(ip) {
+		ptrName := fmt.Sprintf("%s.%s.", h.serverName, h.localDomain)
+		rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN PTR %s", m.Question[0].Name, ptrName))
+		if err == nil {
+			m.Answer = append(m.Answer, rr)
+			m.Authoritative = true
+			slog.Info("DNS PTR 本地应答(服务器)", "service", "DNS", "name", qName, "ptr", ptrName, "client", clientIP)
+			return true
+		}
+	}
+
+	// DHCP 租约内 IP：返回租约主机名
+	if hostname := h.leaseHostname(ip); hostname != "" {
+		ptrName := fmt.Sprintf("%s.%s.", hostname, h.localDomain)
+		rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN PTR %s", m.Question[0].Name, ptrName))
+		if err == nil {
+			m.Answer = append(m.Answer, rr)
+			m.Authoritative = true
+			slog.Info("DNS PTR 本地应答(租约)", "service", "DNS", "name", qName, "ptr", ptrName, "client", clientIP)
+			return true
+		}
+	}
+
+	// 已知子网内但无对应记录：权威 NXDOMAIN，不打扰上游
+	m.Authoritative = true
+	m.Rcode = dns.RcodeNameError
+	slog.Info("DNS PTR 本地应答(NXDOMAIN)", "service", "DNS", "name", qName, "client", clientIP)
+	return true
+}
+
+// parseReverseIP 从 PTR 查询名解析出 IP。
+// 支持 in-addr.arpa（IPv4）和 ip6.arpa（IPv6）两种格式，解析失败返回 nil。
+func parseReverseIP(qName string) net.IP {
+	name := strings.TrimSuffix(qName, ".")
+	lower := strings.ToLower(name)
+
+	if ipv4, ok := strings.CutSuffix(lower, ".in-addr.arpa"); ok {
+		parts := strings.Split(ipv4, ".")
+		if len(parts) != 4 {
+			return nil
+		}
+		// 反转字节序: 11.77.77.77.in-addr.arpa → 77.77.77.11
+		for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
+			parts[i], parts[j] = parts[j], parts[i]
+		}
+		ip := net.ParseIP(strings.Join(parts, "."))
+		if ip == nil || ip.To4() == nil {
+			return nil
+		}
+		return ip.To4()
+	}
+
+	if ipv6, ok := strings.CutSuffix(lower, ".ip6.arpa"); ok {
+		// ip6.arpa 是 nibble 反转: 每个十六进制半字节一个标签
+		parts := strings.Split(ipv6, ".")
+		if len(parts) != 32 {
+			return nil
+		}
+		for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
+			parts[i], parts[j] = parts[j], parts[i]
+		}
+		// 每 4 个 nibble 组成一个 16-bit 组
+		var groups []string
+		for i := 0; i < 32; i += 4 {
+			groups = append(groups, strings.Join(parts[i:i+4], ""))
+		}
+		ip := net.ParseIP(strings.Join(groups, ":"))
+		if ip == nil {
+			return nil
+		}
+		return ip
+	}
+
+	return nil
+}
+
+// ipInKnownSubnet 判断 IP 是否属于任一已知子网
+func (h *Handler) ipInKnownSubnet(ip net.IP) bool {
+	for _, cidr := range h.subnetCIDRs {
+		_, cidrNet, err := net.ParseCIDR(cidr)
+		if err == nil && cidrNet.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// isServerIP 判断 IP 是否为任一子网对应的服务器自身 IP 或兜底 IP
+func (h *Handler) isServerIP(ip net.IP) bool {
+	ipStr := ip.String()
+	if h.fallbackIP != "" && ipStr == h.fallbackIP {
+		return true
+	}
+	for _, srvIP := range h.subnetIPMap {
+		if srvIP == ipStr {
+			return true
+		}
+	}
+	return false
+}
+
+// leaseHostname 查询 IP 对应的 DHCP 租约主机名（含主机名合法性校验）
+func (h *Handler) leaseHostname(ip net.IP) string {
+	ctx, cancel := context.WithTimeout(context.Background(), dnsTimeout)
+	defer cancel()
+	leases, err := h.store.ListLeases(ctx)
+	if err != nil {
+		return ""
+	}
+	ipStr := ip.String()
+	for _, l := range leases {
+		if l.IP == ipStr && l.Hostname != nil {
+			if validHostname(*l.Hostname) {
+				return *l.Hostname
+			}
+		}
+	}
+	return ""
+}
+
+// validHostname 校验主机名只能包含字母、数字、连字符和下划线
+func validHostname(s string) bool {
+	if s == "" || len(s) > 63 {
+		return false
+	}
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 // forwardToUpstream tries each upstream in order, returning the first successful response.
