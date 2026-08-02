@@ -253,7 +253,7 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 
 	bootFS := boot.NewBootFileServer(cfg.Boot.RootDir)
 
-	extractBootFiles(cfg.Boot.RootDir)
+	extractBootFiles(cfg.Boot.RootDir, cfg.Boot.AutoUpdateBootFiles)
 
 	leaseMgr := dhcp.NewLeaseManager(st)
 

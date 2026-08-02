@@ -639,6 +639,8 @@
     "modalHttpsProxyHelp": "When enabled, automatically fetches HTTPS boot URLs via a local HTTP proxy, useful for iPXE firmware that does not support HTTPS.",
     "modalCache": "Local Cache",
     "modalCacheHelp": "Cache downloaded boot files locally for faster repeat boots.",
+    "modalAutoUpdateBootFiles": "Auto-update embedded boot files",
+    "modalAutoUpdateBootFilesHelp": "When enabled, checks the embedded boot file version on startup and overwrites outdated files. Disable to keep your custom boot files untouched (missing files are still restored).",
     "cachePath": "Cache Path",
     "cacheStats": "Disk Usage",
     "cacheFiles": "files",

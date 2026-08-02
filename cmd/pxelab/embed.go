@@ -62,18 +62,19 @@ const bootdistMarker = ".bootdist-version"
 
 // extractBootFiles 将嵌入的启动文件释放到 rootDir。
 //
-// 升级语义：rootDir 下的 .bootdist-version 标记缺失或与当前 bootdistVersion
+// autoUpdate=true（默认）：
+// rootDir 下的 .bootdist-version 标记缺失或与当前 bootdistVersion
 // 不一致时，覆盖释放内嵌清单中的所有文件（用户额外上传的自定义文件不受影响），
 // 并写入新标记；标记一致时直接跳过，避免重复 IO。
-func extractBootFiles(rootDir string) {
+//
+// autoUpdate=false：
+// 仅补发缺失的内嵌文件（首次运行 / 用户删除了默认文件），
+// 绝不覆盖已存在的文件——用户自定义或修改过的文件保持原样，
+// 也不更新版本标记。
+func extractBootFiles(rootDir string, autoUpdate bool) {
 	if err := os.MkdirAll(rootDir, 0755); err != nil {
 		slog.Warn("创建启动目录失败", "error", err)
 		return
-	}
-
-	markerPath := filepath.Join(rootDir, bootdistMarker)
-	if data, err := os.ReadFile(markerPath); err == nil && strings.TrimSpace(string(data)) == bootdistVersion {
-		return // 版本一致，跳过
 	}
 
 	srcFS, err := fs.Sub(embeddedBootFS, "bootdist")
@@ -82,7 +83,15 @@ func extractBootFiles(rootDir string) {
 		return
 	}
 
-	// 覆盖释放内嵌文件，保证升级后与当前二进制一致
+	markerPath := filepath.Join(rootDir, bootdistMarker)
+	if autoUpdate {
+		if data, err := os.ReadFile(markerPath); err == nil && strings.TrimSpace(string(data)) == bootdistVersion {
+			return // 版本一致，跳过
+		}
+	}
+
+	// 覆盖释放内嵌文件（autoUpdate）或仅补发缺失文件（autoUpdate=false），
+	// 保证升级后与当前二进制一致
 	if err := fs.WalkDir(srcFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -100,12 +109,24 @@ func extractBootFiles(rootDir string) {
 			return err
 		}
 		dst := filepath.Join(rootDir, path)
+		if !autoUpdate {
+			// 手动模式：已存在文件一律不覆盖，保留用户自定义内容
+			if _, err := os.Stat(dst); err == nil {
+				return nil
+			}
+		}
 		if err := os.WriteFile(dst, data, 0644); err != nil {
 			slog.Warn("释放启动文件失败", "path", path, "error", err)
 		}
 		return nil
 	}); err != nil {
 		slog.Warn("释放启动文件失败", "error", err)
+		return
+	}
+
+	if !autoUpdate {
+		// 手动模式不写入版本标记，下次启动仍只补缺失文件
+		slog.Info("已补发缺失的内嵌启动文件", "dir", rootDir)
 		return
 	}
 

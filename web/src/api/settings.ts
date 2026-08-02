@@ -158,6 +158,7 @@ export interface NetbootSettingsData {
   enabled: boolean
   proxy_https: boolean
   cache_enabled: boolean
+  auto_update_boot_files: boolean
   catalog_redirect: BootSettings['catalog_redirect']
   catalog_display: BootSettings['catalog_display']
 }
