@@ -87,8 +87,8 @@ func (s *memoryStore) Migrate() error { return nil }
 func (s *memoryStore) Seed() error {
 	if len(s.profiles) == 0 {
 		profile := &models.Profile{
-			Name:        "默认引导配置",
-			Description: "系统自动创建的默认引导配置，首条为本地硬盘启动",
+			Name:        "Default Boot Configuration",
+			Description: "Auto-created default boot configuration; first entry boots from local disk",
 			IsDefault:   true,
 			Arch:        "x86_64",
 		}

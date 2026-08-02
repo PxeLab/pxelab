@@ -439,6 +439,11 @@ func (h *StoreHandler) importProfile(w http.ResponseWriter, r *http.Request, det
 	if profileName == "" {
 		profileName = detail.ID
 	}
+	// iPXE's BIOS console font is ASCII-only — fall back to a safe ID-derived
+	// name when the catalog name contains non-ASCII characters (e.g. Chinese).
+	if !isPrintableASCII(profileName) {
+		profileName = toSafeID(detail.Name)
+	}
 
 	finalScript := script
 	if len(detail.VariableValues) > 0 {

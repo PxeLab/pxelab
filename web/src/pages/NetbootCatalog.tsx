@@ -635,7 +635,11 @@ export default function NetbootCatalog() {
             <Input
               type="text"
               value={createName}
-              onChange={e => setCreateName(e.target.value)}
+              onChange={e => {
+                // iPXE BIOS menu font is ASCII-only — block non-ASCII input (e.g. Chinese)
+                const v = e.target.value
+                if (/^[\x20-\x7E]*$/.test(v)) setCreateName(v)
+              }}
               placeholder={t('netbootCatalog.profileNamePlaceholder')}
               autoFocus
             />
