@@ -156,13 +156,17 @@ type ArchEntry struct {
 }
 
 type BootConfig struct {
-	RootDir         string                `yaml:"root_dir" mapstructure:"root_dir"`
-	DefaultMenu     DefaultMenuConfig     `yaml:"default_menu" mapstructure:"default_menu"`
-	CatalogRedirect CatalogRedirectConfig `yaml:"catalog_redirect" mapstructure:"catalog_redirect"`
-	CatalogDisplay  CatalogDisplayConfig  `yaml:"catalog_display" mapstructure:"catalog_display"`
-	PXEConfigFile   string                `yaml:"pxe_config_file" mapstructure:"pxe_config_file"`
-	GRUBConfigFile  string                `yaml:"grub_config_file" mapstructure:"grub_config_file"`
-	ArchMap         map[int]ArchEntry     `yaml:"arch_map,omitempty" mapstructure:"arch_map,omitempty"`
+	RootDir string `yaml:"root_dir" mapstructure:"root_dir"`
+	// AutoUpdateBootFiles 是否在启动时检查并覆盖释放内嵌启动文件。
+	// 开启（默认）时按 bootdist 版本标记自动覆盖；关闭时仅补发缺失文件，
+	// 不覆盖用户自定义或修改过的文件。
+	AutoUpdateBootFiles bool                  `yaml:"auto_update_boot_files" mapstructure:"auto_update_boot_files"`
+	DefaultMenu         DefaultMenuConfig     `yaml:"default_menu" mapstructure:"default_menu"`
+	CatalogRedirect     CatalogRedirectConfig `yaml:"catalog_redirect" mapstructure:"catalog_redirect"`
+	CatalogDisplay      CatalogDisplayConfig  `yaml:"catalog_display" mapstructure:"catalog_display"`
+	PXEConfigFile       string                `yaml:"pxe_config_file" mapstructure:"pxe_config_file"`
+	GRUBConfigFile      string                `yaml:"grub_config_file" mapstructure:"grub_config_file"`
+	ArchMap             map[int]ArchEntry     `yaml:"arch_map,omitempty" mapstructure:"arch_map,omitempty"`
 }
 
 type DefaultMenuConfig struct {

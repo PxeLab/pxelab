@@ -430,6 +430,12 @@ function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: 
           )}
         </div>
       </SettingsField>
+      <SettingsField label={t('settings.modalAutoUpdateBootFiles')}>
+        <div className="flex flex-col gap-1">
+          <Toggle checked={data.auto_update_boot_files} onChange={v => onChange({...data, auto_update_boot_files: v})} />
+          <p className="text-xs text-[var(--text-muted)]">{t('settings.modalAutoUpdateBootFilesHelp')}</p>
+        </div>
+      </SettingsField>
       <SettingsField label={t('settings.modalMenuTitle')}>
         <input className={inputCls} value={data.catalog_display.title}
           onChange={e => onChange({...data, catalog_display: {...data.catalog_display, title: e.target.value}})} />

@@ -28,9 +28,10 @@ func DefaultConfig() *Config {
 			Timeout: DefaultTFTPTimeout,
 		},
 		Boot: BootConfig{
-			RootDir:        "./boot",
-			PXEConfigFile:  "pxelinux.cfg/default",
-			GRUBConfigFile: "grub2/grub.cfg",
+			RootDir:             "./boot",
+			AutoUpdateBootFiles: true,
+			PXEConfigFile:       "pxelinux.cfg/default",
+			GRUBConfigFile:      "grub2/grub.cfg",
 		},
 		Netboot: NetbootConfig{
 			Enabled:        true,

@@ -267,11 +267,12 @@ type NFSSettingsResponse struct {
 }
 
 type NetbootSettingsResponse struct {
-	Enabled         bool                    `json:"enabled"`
-	ProxyHTTPS      bool                    `json:"proxy_https"`
-	CacheEnabled    bool                    `json:"cache_enabled"`
-	CatalogRedirect CatalogRedirectSettings `json:"catalog_redirect"`
-	CatalogDisplay  CatalogDisplaySettings  `json:"catalog_display"`
+	Enabled             bool                    `json:"enabled"`
+	ProxyHTTPS          bool                    `json:"proxy_https"`
+	CacheEnabled        bool                    `json:"cache_enabled"`
+	AutoUpdateBootFiles bool                    `json:"auto_update_boot_files"`
+	CatalogRedirect     CatalogRedirectSettings `json:"catalog_redirect"`
+	CatalogDisplay      CatalogDisplaySettings  `json:"catalog_display"`
 }
 
 // IPXEScriptSettingsResponse iPXE 脚本配置（DHCP Option 175）
@@ -1679,6 +1680,7 @@ func (h *SettingsHandler) GetNetboot(w http.ResponseWriter, r *http.Request) {
 		Enabled: cfg.Netboot.Enabled,
 		ProxyHTTPS: cfg.Netboot.ProxyHTTPS,
 		CacheEnabled: cfg.Netboot.CacheEnabled,
+		AutoUpdateBootFiles: cfg.Boot.AutoUpdateBootFiles,
 		CatalogRedirect: CatalogRedirectSettings{
 			Enabled:    cfg.Netboot.Boot.CatalogRedirect.Enabled,
 			TargetURL:  cfg.Netboot.Boot.CatalogRedirect.TargetURL,
@@ -1703,12 +1705,14 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	oldEnabled := h.cfg.Netboot.Enabled
 	oldProxyHTTPS := h.cfg.Netboot.ProxyHTTPS
 	oldCacheEnabled := h.cfg.Netboot.CacheEnabled
+	oldAutoUpdateBootFiles := h.cfg.Boot.AutoUpdateBootFiles
 	oldCatalogRedirectEnabled := h.cfg.Netboot.Boot.CatalogRedirect.Enabled
 	oldCatalogRedirectTargetURL := h.cfg.Netboot.Boot.CatalogRedirect.TargetURL
 
 	h.cfg.Netboot.Enabled = req.Enabled
 	h.cfg.Netboot.ProxyHTTPS = req.ProxyHTTPS
 	h.cfg.Netboot.CacheEnabled = req.CacheEnabled
+	h.cfg.Boot.AutoUpdateBootFiles = req.AutoUpdateBootFiles
 	h.cfg.Netboot.Boot.CatalogRedirect = config.CatalogRedirectConfig{
 		Enabled:    req.CatalogRedirect.Enabled,
 		TargetURL:  req.CatalogRedirect.TargetURL,
@@ -1734,6 +1738,9 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	}
 	if oldCacheEnabled != req.CacheEnabled {
 		changes = append(changes, fmt.Sprintf("缓存: %t→%t", oldCacheEnabled, req.CacheEnabled))
+	}
+	if oldAutoUpdateBootFiles != req.AutoUpdateBootFiles {
+		changes = append(changes, fmt.Sprintf("内嵌启动文件自动更新: %t→%t", oldAutoUpdateBootFiles, req.AutoUpdateBootFiles))
 	}
 	if oldCatalogRedirectEnabled != req.CatalogRedirect.Enabled {
 		changes = append(changes, fmt.Sprintf("目录重定向: %t→%t", oldCatalogRedirectEnabled, req.CatalogRedirect.Enabled))
