@@ -263,6 +263,7 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 
 	// DHCP/ProxyDHCP — 按子网 DHCP 模式注册对应服务
 	hasDHCP := false
+	registered67 := false
 	for i, iface := range cfg.Interfaces {
 		if iface.IP == "" {
 			continue
@@ -294,15 +295,22 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 		hasDHCP = true
 		ifaceHandler := dhcpHandler.WithInterfaceFilter(i)
 
-		if needsDHCP {
-			dhcpAddr := iface.IP + ":67"
+		// 67 端口最多注册一次：无论 server 还是 proxy 模式都必须应答，
+		// PXE 客户端先发 DISCOVER 到 67（代理模式返回 yiaddr=0 的 offer），
+		// 收到响应后才会进入 4011 阶段请求 bootfile。
+		if (needsDHCP || needsProxy) && !registered67 {
+			// 绑定 0.0.0.0 以接收发往受限广播地址(255.255.255.255)的 DHCP 请求；
+			// 绑定具体接口 IP 时 Windows 收不到此类广播。接口过滤由 handler 完成。
+			dhcpAddr := "0.0.0.0:67"
 			dhcpServer := dhcp.NewServer(dhcpAddr, ifaceHandler)
 			svcMgr.Register("dhcp/"+iface.Name, "DHCP ("+iface.Name+")", dhcpServer, iface.AutoStart, false, 67, "UDP")
 			slog.Info("DHCP 服务", "addr", dhcpAddr, "interface", iface.Name)
+			registered67 = true
 		}
 
 		if needsProxy {
-			proxyAddr := iface.IP + ":4011"
+			// 同上：ProxyDHCP 必须绑定 0.0.0.0 才能收到 PXE 广播
+			proxyAddr := "0.0.0.0:4011"
 			proxyDHCP := dhcp.NewProxyServer4011(proxyAddr, ifaceHandler)
 			svcMgr.Register("proxy/"+iface.Name, "ProxyDHCP ("+iface.Name+")", proxyDHCP, iface.AutoStart, false, 4011, "UDP")
 			slog.Info("ProxyDHCP 服务", "addr", proxyAddr, "interface", iface.Name)

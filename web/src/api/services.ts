@@ -43,6 +43,25 @@ export function updateAutoStart(name: string, enabled: boolean): Promise<ApiResp
   return request<ServiceInfo>('PUT', `/services/${encodeURIComponent(name)}/auto-start`, { enabled })
 }
 
+// ── Port Check ──
+export interface PortProcess {
+  pid: number
+  name: string
+  path?: string
+}
+
+export interface PortCheckResult {
+  port: number
+  protocol: string
+  occupied: boolean
+  processes: PortProcess[]
+  descriptor: string
+}
+
+export function portCheck(port: number, protocol: string): Promise<ApiResponse<PortCheckResult>> {
+  return request<PortCheckResult>('GET', `/services/port-check?port=${port}&protocol=${encodeURIComponent(protocol)}`)
+}
+
 // ── Metrics ──
 export interface TimeBucket {
   t: number

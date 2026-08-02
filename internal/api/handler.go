@@ -185,6 +185,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/interfaces", h.ListInterfaces)
 
 		r.Get("/services", h.Service.ListServices)
+		r.Get("/services/port-check", h.Service.PortCheck)
 		r.Post("/services/{name}/start", h.Service.StartService)
 		r.Post("/services/{name}/stop", h.Service.StopService)
 		r.Post("/services/{name}/restart", h.Service.RestartService)

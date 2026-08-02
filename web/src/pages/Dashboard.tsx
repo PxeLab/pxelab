@@ -308,6 +308,9 @@ export default function Dashboard() {
                     {st === 'running' && (
                       <div className="text-[9px] font-mono text-[var(--text-muted)] mt-0.5">{t('dashboard.startedAt')} {startTime}</div>
                     )}
+                    {st === 'error' && svcInfo?.error_msg && (
+                      <div className="text-[9px] font-mono text-accent-red/80 mt-0.5 truncate max-w-[160px]" title={svcInfo.error_msg}>{svcInfo.error_msg}</div>
+                    )}
                   </div>
                   <div className="flex flex-col items-end gap-0.5">
                     <span className={`text-[10px] font-semibold tracking-wide ${

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 
 	"github.com/miekg/dns"
 	"github.com/pxelab/pxelab/internal/config"
@@ -40,15 +41,21 @@ func (s *Server) Start(ctx context.Context) error {
 	mux := dns.NewServeMux()
 	mux.Handle(".", s.handler)
 
-	s.dnsSrv = &dns.Server{
-		Addr:    fmt.Sprintf(":%d", s.port),
-		Net:     "udp",
-		Handler: mux,
+	addr := fmt.Sprintf(":%d", s.port)
+	// 同步绑定 UDP 端口：端口被占用等错误立即返回，避免"假成功"（服务显示运行但实际没监听）
+	pc, err := net.ListenPacket("udp", addr)
+	if err != nil {
+		return fmt.Errorf("监听 UDP %s 失败: %w", addr, err)
 	}
 
-	slog.Info("DNS 服务启动", "service", "DNS", "addr", s.dnsSrv.Addr)
+	s.dnsSrv = &dns.Server{
+		PacketConn: pc,
+		Handler:    mux,
+	}
+
+	slog.Info("DNS 服务启动", "service", "DNS", "addr", addr)
 	go func() {
-		if err := s.dnsSrv.ListenAndServe(); err != nil {
+		if err := s.dnsSrv.ActivateAndServe(); err != nil {
 			slog.Error("DNS 服务异常退出", "service", "DNS", "error", err)
 		}
 	}()
@@ -57,5 +64,8 @@ func (s *Server) Start(ctx context.Context) error {
 
 func (s *Server) Stop(ctx context.Context) error {
 	slog.Info("DNS 服务关闭", "service", "DNS")
+	if s.dnsSrv == nil {
+		return nil
+	}
 	return s.dnsSrv.Shutdown()
 }
