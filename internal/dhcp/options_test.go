@@ -74,3 +74,31 @@ func TestBuildSubOption(t *testing.T) {
 		t.Error("expected data bytes 0x01, 0x02, 0x03")
 	}
 }
+
+func TestSubnetBroadcastAddr(t *testing.T) {
+	tests := []struct {
+		cidr string
+		want string
+	}{
+		{"77.77.77.0/24", "77.77.77.255"},
+		{"192.168.31.0/24", "192.168.31.255"},
+		{"10.0.0.0/8", "10.255.255.255"},
+		{"172.16.0.0/16", "172.16.255.255"},
+		{"192.168.1.128/25", "192.168.1.255"},
+		{"invalid-cidr", ""},
+		{"", ""},
+		{"fe80::/64", ""}, // IPv6 not applicable
+	}
+	for _, tt := range tests {
+		got := subnetBroadcastAddr(tt.cidr)
+		if tt.want == "" {
+			if got != nil {
+				t.Errorf("subnetBroadcastAddr(%q) = %v, want nil", tt.cidr, got)
+			}
+			continue
+		}
+		if got == nil || got.String() != tt.want {
+			t.Errorf("subnetBroadcastAddr(%q) = %v, want %s", tt.cidr, got, tt.want)
+		}
+	}
+}
