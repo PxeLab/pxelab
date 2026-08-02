@@ -386,7 +386,20 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 	if reply != nil {
 		dst := peer
 		if peerIP.IsUnspecified() {
-			dst = &net.UDPAddr{IP: net.IPv4bcast, Port: peer.(*net.UDPAddr).Port}
+			// 客户端从 0.0.0.0 广播发请求（无中继 giaddr=0）：
+			// 回复必须发往"子网定向广播"（如 77.77.77.255）而非全局广播 255.255.255.255。
+			// 原因：DHCP socket 绑定 0.0.0.0，Windows 向全局广播发送时走默认路由接口
+			//（通常带网关的物理网卡），多网卡场景下 OFFER 从错误接口发出导致 PXE-E51
+			// "No DHCP or proxyDHCP offers were received"；而定向广播命中直连子网路由，
+			// 会从请求实际到达的接口发出。
+			// 无匹配子网时（理论不发生）退化为全局广播。
+			bcastIP := net.IPv4bcast
+			if subnetCfg != nil && subnetCfg.CIDR != "" {
+				if ip := subnetBroadcastAddr(subnetCfg.CIDR); ip != nil {
+					bcastIP = ip
+				}
+			}
+			dst = &net.UDPAddr{IP: bcastIP, Port: peer.(*net.UDPAddr).Port}
 		}
 		if _, err := conn.WriteTo(reply.ToBytes(), dst); err != nil {
 			slog.Error("发送 DHCP 响应失败", "service", "DHCP", "error", err)
@@ -396,9 +409,28 @@ func (h *Handler) Handle(ctx context.Context, conn net.PacketConn, peer net.Addr
 				"mac", mac,
 				"yiaddr", reply.YourIPAddr,
 				"type", mt.String(),
+				"dst", dst.String(),
 			)
 		}
 	}
+}
+
+// subnetBroadcastAddr 计算 CIDR 子网的定向广播地址（如 77.77.77.0/24 → 77.77.77.255）。
+// 解析失败返回 nil。
+func subnetBroadcastAddr(cidr string) net.IP {
+	_, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil
+	}
+	ip4 := ipnet.IP.To4()
+	if ip4 == nil {
+		return nil
+	}
+	bcast := make(net.IP, 4)
+	for i := 0; i < 4; i++ {
+		bcast[i] = ip4[i] | ^ipnet.Mask[i]
+	}
+	return bcast
 }
 
 // appendProxyPXEOptions 填充 ProxyDHCP 专属选项（yiaddr=0 全程，无网关/DNS/租期）
