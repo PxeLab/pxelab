@@ -50,18 +50,40 @@ func spaHandler() http.Handler {
 //go:embed all:bootdist
 var embeddedBootFS embed.FS
 
-// extractBootFiles 将嵌入的启动文件释放到 rootDir（仅首次，已存在则跳过）
+// bootdistVersion 内嵌启动文件集版本号。
+// 每次 bootdist/ 内容（NBP、脚本、配置模板）发生变更时递增该值，
+// 使已部署机器下次启动时自动覆盖释放更新后的文件。
+// 注：bootdistVersion 从 "2" 起步，因为老版本从未写入版本标记，
+// 缺失标记即视为需要首次升级释放。
+const bootdistVersion = "2"
+
+// bootdistMarker 存放在 rootDir 下、记录已释放的 bootdist 版本。
+const bootdistMarker = ".bootdist-version"
+
+// extractBootFiles 将嵌入的启动文件释放到 rootDir。
+//
+// 升级语义：rootDir 下的 .bootdist-version 标记缺失或与当前 bootdistVersion
+// 不一致时，覆盖释放内嵌清单中的所有文件（用户额外上传的自定义文件不受影响），
+// 并写入新标记；标记一致时直接跳过，避免重复 IO。
 func extractBootFiles(rootDir string) {
+	if err := os.MkdirAll(rootDir, 0755); err != nil {
+		slog.Warn("创建启动目录失败", "error", err)
+		return
+	}
+
+	markerPath := filepath.Join(rootDir, bootdistMarker)
+	if data, err := os.ReadFile(markerPath); err == nil && strings.TrimSpace(string(data)) == bootdistVersion {
+		return // 版本一致，跳过
+	}
+
 	srcFS, err := fs.Sub(embeddedBootFS, "bootdist")
 	if err != nil {
 		slog.Warn("读取嵌入启动文件失败", "error", err)
 		return
 	}
-	if err := os.MkdirAll(rootDir, 0755); err != nil {
-		slog.Warn("创建启动目录失败", "error", err)
-		return
-	}
-	fs.WalkDir(srcFS, ".", func(path string, d fs.DirEntry, err error) error {
+
+	// 覆盖释放内嵌文件，保证升级后与当前二进制一致
+	if err := fs.WalkDir(srcFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -73,17 +95,24 @@ func extractBootFiles(rootDir string) {
 			}
 			return nil
 		}
-		dst := filepath.Join(rootDir, path)
-		if _, err := os.Stat(dst); err == nil {
-			return nil // 已存在，跳过
-		}
 		data, err := fs.ReadFile(srcFS, path)
 		if err != nil {
-			return nil
+			return err
 		}
+		dst := filepath.Join(rootDir, path)
 		if err := os.WriteFile(dst, data, 0644); err != nil {
 			slog.Warn("释放启动文件失败", "path", path, "error", err)
 		}
 		return nil
-	})
+	}); err != nil {
+		slog.Warn("释放启动文件失败", "error", err)
+		return
+	}
+
+	// 全部释放成功后才写入版本标记
+	if err := os.WriteFile(markerPath, []byte(bootdistVersion), 0644); err != nil {
+		slog.Warn("写入 bootdist 版本标记失败", "path", markerPath, "error", err)
+		return
+	}
+	slog.Info("已释放内嵌启动文件", "version", bootdistVersion, "dir", rootDir)
 }
