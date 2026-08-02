@@ -7,11 +7,13 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/pxelab/pxelab/internal/app"
+	"github.com/pxelab/pxelab/internal/portcheck"
 )
 
 type Status string
@@ -103,7 +105,7 @@ func (m *Manager) Start(name string) error {
 				// 由 Stop() 触发关闭，非异常退出
 			default:
 				svc.status = StatusError
-			svc.errorMsg = err.Error()
+				svc.errorMsg = enrichError(svc, err)
 				slog.Error("服务异常退出", "name", name, "error", err)
 			}
 			svc.mu.Unlock()
@@ -114,6 +116,27 @@ func (m *Manager) Start(name string) error {
 	now := time.Now()
 	svc.startedAt = &now
 	return nil
+}
+
+// enrichError 在服务启动/运行失败时，若错误疑似端口占用（bind 失败），
+// 附加占用该端口的进程信息，帮助用户定位冲突来源。
+func enrichError(svc *managedService, err error) string {
+	msg := err.Error()
+	if svc.port <= 0 {
+		return msg
+	}
+	// 仅当错误疑似端口占用时才附加进程信息，避免误导
+	if !strings.Contains(msg, "address already in use") &&
+		!strings.Contains(msg, "bind") &&
+		!strings.Contains(msg, "监听") &&
+		!strings.Contains(msg, "Only one usage") {
+		return msg
+	}
+	procs, perr := portcheck.WhoOccupies(svc.port, strings.ToLower(svc.protocol))
+	if perr != nil || len(procs) == 0 {
+		return msg
+	}
+	return fmt.Sprintf("%s（端口 %d 被 %s 占用）", msg, svc.port, portcheck.Describe(procs))
 }
 
 func (m *Manager) Stop(name string) error {

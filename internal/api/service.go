@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/portcheck"
 	"github.com/pxelab/pxelab/internal/servicemanager"
 	"github.com/pxelab/pxelab/internal/store"
 )
@@ -41,6 +43,35 @@ func (h *ServiceHandler) ListServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	OK(w, h.ctrl.List())
+}
+
+// PortCheck 检测指定端口被哪个进程占用，帮助用户排查端口冲突。
+// 请求参数: port (必填), protocol (可选, 默认 udp, 可选 tcp)
+func (h *ServiceHandler) PortCheck(w http.ResponseWriter, r *http.Request) {
+	portStr := r.URL.Query().Get("port")
+	if portStr == "" {
+		Error(w, http.StatusBadRequest, "missing port parameter")
+		return
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 1 || port > 65535 {
+		Error(w, http.StatusBadRequest, "invalid port: must be 1-65535")
+		return
+	}
+	protocol := r.URL.Query().Get("protocol")
+	if protocol == "" {
+		protocol = "udp"
+	}
+
+	procs, perr := portcheck.WhoOccupies(port, protocol)
+	occupied := perr == nil && len(procs) > 0
+	OK(w, map[string]any{
+		"port":       port,
+		"protocol":   strings.ToLower(protocol),
+		"occupied":   occupied,
+		"processes":  procs,
+		"descriptor": portcheck.Describe(procs),
+	})
 }
 
 func (h *ServiceHandler) rejectProtected(name string) bool {
