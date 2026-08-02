@@ -23,6 +23,19 @@ func strPtr(s string) *string {
 	return &s
 }
 
+// isPrintableASCII reports whether s contains only printable ASCII characters
+// (0x20-0x7E). The iPXE BIOS console font only contains ASCII glyphs, so menu
+// names containing non-ASCII characters (e.g. Chinese) would render as garbage
+// on the boot menu.
+func isPrintableASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 || s[i] > 0x7E {
+			return false
+		}
+	}
+	return true
+}
+
 type ProfileHandler struct {
 	store     store.Interface
 	netbootMgr *netboot.Manager
@@ -53,6 +66,14 @@ func (h *ProfileHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "无效的请求体")
 		return
 	}
+	if profile.Name == "" {
+		Error(w, http.StatusBadRequest, "菜单名称不能为空")
+		return
+	}
+	if !isPrintableASCII(profile.Name) {
+		Error(w, http.StatusBadRequest, "菜单名称只能包含英文、数字和符号（中文无法在启动菜单中显示）")
+		return
+	}
 	profile.ID = uuid.New().String()
 	if err := h.store.CreateProfile(r.Context(), &profile); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
@@ -71,6 +92,14 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var profile models.Profile
 	if err := json.NewDecoder(r.Body).Decode(&profile); err != nil {
 		Error(w, http.StatusBadRequest, "无效的请求体")
+		return
+	}
+	if profile.Name == "" {
+		Error(w, http.StatusBadRequest, "菜单名称不能为空")
+		return
+	}
+	if !isPrintableASCII(profile.Name) {
+		Error(w, http.StatusBadRequest, "菜单名称只能包含英文、数字和符号（中文无法在启动菜单中显示）")
 		return
 	}
 	profile.ID = id
@@ -344,6 +373,10 @@ func (h *ProfileHandler) CreateFromNetboot(w http.ResponseWriter, r *http.Reques
 	}
 	if req.DistroName == "" || req.VersionCodename == "" || req.ProfileName == "" {
 		Error(w, http.StatusBadRequest, "distro_name, version_codename, profile_name 为必填项")
+		return
+	}
+	if !isPrintableASCII(req.ProfileName) {
+		Error(w, http.StatusBadRequest, "菜单名称只能包含英文、数字和符号（中文无法在启动菜单中显示）")
 		return
 	}
 

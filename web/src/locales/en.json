@@ -215,6 +215,7 @@
     "default": "Default",
     "basicInfo": "Basic Info",
     "nameRequired": "Boot menu name is required",
+    "nameAsciiOnly": "English letters, numbers and symbols only (Chinese characters cannot be displayed in the BIOS boot menu)",
     "archHint": "(can be left empty if using variables)",
     "auto": "Auto",
     "bootEntry": "Boot Entry",

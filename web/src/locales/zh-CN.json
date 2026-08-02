@@ -215,6 +215,7 @@
     "default": "默认",
     "basicInfo": "基本信息",
     "nameRequired": "请输入菜单名称",
+    "nameAsciiOnly": "仅支持英文、数字和符号（中文无法在 BIOS 启动菜单中显示）",
     "archHint": "（如使用变量可留空）",
     "auto": "自动",
     "bootEntry": "引导项",

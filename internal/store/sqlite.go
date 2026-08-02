@@ -194,8 +194,8 @@ func (s *sqliteStore) Seed() error {
 	if count == 0 {
 		profile := &models.Profile{
 			ID:          uuid.New().String(),
-			Name:        "默认引导配置",
-			Description: "系统自动创建的默认引导配置，首条为本地硬盘启动",
+			Name:        "Default Boot Configuration",
+			Description: "Auto-created default boot configuration; first entry boots from local disk",
 			IsDefault:   true,
 			Arch:        "x86_64",
 		}

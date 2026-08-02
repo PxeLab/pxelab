@@ -25,6 +25,7 @@ export default function Profiles() {
   const [showScriptPreview, setShowScriptPreview] = useState(false)
   const [saving, setSaving] = useState(false)
   const [nameError, setNameError] = useState(false)
+  const [nameAsciiError, setNameAsciiError] = useState(false)
   const [previewProfile, setPreviewProfile] = useState<Profile | null>(null)
   const [osCatalog, setOSCatalog] = useState<NetbootDistro[]>([])
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -60,6 +61,8 @@ export default function Profiles() {
     setEditing(null)
     setShowVars(false)
     setShowScriptPreview(false)
+    setNameError(false)
+    setNameAsciiError(false)
     setForm({ name: '', description: '', arch: '', is_default: false, baselines: [], variables: {}, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '', script: '', san_action: '' as MenuEntry['san_action'], san_no_describe: false, san_drive: '', san_keep_san: false } })
     setShowModal(true)
   }
@@ -68,6 +71,8 @@ export default function Profiles() {
     setEditing(p)
     setShowVars(false)
     setShowScriptPreview(false)
+    setNameError(false)
+    setNameAsciiError(false)
     const e = p.menu?.entries?.[0] || { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '' }
     setForm({
       name: p.name,
@@ -98,7 +103,13 @@ export default function Profiles() {
       setNameError(true)
       return
     }
+    // iPXE BIOS menu font is ASCII-only — Chinese/non-ASCII names garble on screen
+    if (!/^[\x20-\x7E]+$/.test(form.name)) {
+      setNameAsciiError(true)
+      return
+    }
     setNameError(false)
+    setNameAsciiError(false)
     setSaving(true)
     try {
       const label = form.name || t('common.unnamed')
@@ -346,8 +357,19 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.name')}</label>
-                <input autoFocus className={`w-full bg-[var(--bg-input)] border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors ${nameError ? 'border-accent-red focus:border-accent-red' : 'border-[var(--bg-border)] focus:border-blue-500'}`} value={form.name} onChange={e => { setNameError(false); setForm({...form, name: e.target.value}) }} placeholder={t('profiles.namePlaceholder')} />
-                {nameError && <p className="text-xs text-accent-red mt-1">{t('profiles.nameRequired')}</p>}
+            <input autoFocus className={`w-full bg-[var(--bg-input)] border rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none transition-colors ${nameError || nameAsciiError ? 'border-accent-red focus:border-accent-red' : 'border-[var(--bg-border)] focus:border-blue-500'}`} value={form.name} onChange={e => {
+              const v = e.target.value
+              // iPXE BIOS menu font is ASCII-only — block non-ASCII input (e.g. Chinese)
+              if (!/^[\x20-\x7E]*$/.test(v)) {
+                setNameAsciiError(true)
+                return
+              }
+              setNameAsciiError(false)
+              setNameError(false)
+              setForm({ ...form, name: v })
+            }} placeholder={t('profiles.namePlaceholder')} />
+            {nameError && <p className="text-xs text-accent-red mt-1">{t('profiles.nameRequired')}</p>}
+            {nameAsciiError && <p className="text-xs text-accent-red mt-1">{t('profiles.nameAsciiOnly')}</p>}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.arch')} <span className="text-[var(--text-muted)] font-normal">{t('profiles.archHint')}</span></label>
