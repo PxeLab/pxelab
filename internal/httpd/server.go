@@ -437,7 +437,12 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 
 	// 4. 默认引导菜单
 	var ipxeEntries []ipxe.MenuEntryData
+	// 菜单标题固定为 "PxeLab Boot Menu"，可用 default_menu.title 覆盖；
+	// 不使用 Profile 名作为标题（仅默认模式曾错误地覆盖为 defProfile.Name）
 	menuTitle := "PxeLab Boot Menu"
+	if t := cfg.Netboot.Boot.DefaultMenu.Title; t != "" {
+		menuTitle = t
+	}
 
 	if defProfile, err := st.GetDefaultProfile(ctx); err == nil && defProfile != nil {
 		if bootMenu, err := defProfile.GetMenu(); err == nil && len(bootMenu.Entries) > 0 {
@@ -461,7 +466,6 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 
 			if cfg.Netboot.Boot.DefaultMenu.ListAllProfiles {
 				// 全部展示模式：列出所有 Profile，默认 Profile 排第一
-				menuTitle = "PxeLab Boot Menu"
 				ipxeEntries = append(ipxeEntries, makeEntry(defProfile.Name, entry))
 				if allProfiles, err := st.ListProfiles(ctx); err == nil {
 					for _, p := range allProfiles {
@@ -475,7 +479,6 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 				}
 			} else {
 				// 仅默认模式：只显示默认 Profile 的引导项
-				menuTitle = defProfile.Name
 				ipxeEntries = append(ipxeEntries, makeEntry(defProfile.Name, entry))
 			}
 		}
@@ -665,6 +668,9 @@ func generateFailsafeScript(serverAddr, mac string) string {
 	b.WriteString("goto fs_retry\n")
 	b.WriteString("\n:fs_retry\n")
 	fmt.Fprintf(&b, "chain %s || goto fs_failsafe\n", chainURL)
+	// iPXE labels do not break execution flow — without exit, a successful
+	// chain would fall through into :fs_debug below.
+	b.WriteString("exit\n")
 	b.WriteString("\n:fs_debug\n")
 	b.WriteString("echo Type \"exit\" to return to menu\n")
 	b.WriteString("shell\n")

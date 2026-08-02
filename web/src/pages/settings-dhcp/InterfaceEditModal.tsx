@@ -57,7 +57,9 @@ export function InterfaceEditModal({
           const subnetMode = s.dhcpMode || 'server'
           const isOffSubnet = subnetMode === 'off'
           const isProxySubnet = subnetMode === 'proxy'
-          const disableFields = isOffSubnet || isProxySubnet
+          // Proxy 模式不分配 IP：隐藏地址池/网关/DNS/租期（后端不写入这些选项），
+          // 但保留 Next Server（proxy 用它作 next-server）、链式加载与白名单（后端对 proxy 生效）
+          const hidePoolFields = isOffSubnet || isProxySubnet
           return (
             <div key={si} className="border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -84,56 +86,72 @@ export function InterfaceEditModal({
                   </Select>
                 </SettingsField>
               </div>
-              {disableFields ? (
+              {isOffSubnet ? (
                 <p className="text-xs text-[var(--text-muted)] italic">
-                  {isOffSubnet ? t('settings.dhcpOffHelp') : t('settings.dhcpProxyHelp')}
+                  {t('settings.dhcpOffHelp')}
                 </p>
               ) : (
                 <>
-                  <div className="space-y-2">
-                    <label className="block text-xs font-semibold text-[var(--text-secondary)]">{t('settings.addressPool')}</label>
-                    {s.pools.map((pool, pi) => (
-                      <div key={pi} className="flex items-center gap-2">
-                        <Input type="text" value={pool} onChange={e => {
-                          const sn = [...form.subnets]; const pools = [...sn[si].pools]; pools[pi] = e.target.value
-                          sn[si] = {...sn[si], pools}; setForm({...form, subnets: sn})
-                        }} placeholder="192.168.1.100-192.168.1.200"
-                          className="flex-1" />
+                  {isProxySubnet && (
+                    <p className="text-xs text-[var(--text-muted)] italic">
+                      {t('settings.dhcpProxyHelp')}
+                    </p>
+                  )}
+                  {!hidePoolFields && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="block text-xs font-semibold text-[var(--text-secondary)]">{t('settings.addressPool')}</label>
+                        {s.pools.map((pool, pi) => (
+                          <div key={pi} className="flex items-center gap-2">
+                            <Input type="text" value={pool} onChange={e => {
+                              const sn = [...form.subnets]; const pools = [...sn[si].pools]; pools[pi] = e.target.value
+                              sn[si] = {...sn[si], pools}; setForm({...form, subnets: sn})
+                            }} placeholder="192.168.1.100-192.168.1.200"
+                              className="flex-1" />
+                            <button onClick={() => {
+                              const sn = [...form.subnets]; sn[si] = {...sn[si], pools: sn[si].pools.filter((_, j) => j !== pi)}
+                              setForm({...form, subnets: sn})
+                            }} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-accent-red transition-colors text-xs font-bold">✕</button>
+                          </div>
+                        ))}
                         <button onClick={() => {
-                          const sn = [...form.subnets]; sn[si] = {...sn[si], pools: sn[si].pools.filter((_, j) => j !== pi)}
+                          const sn = [...form.subnets]; sn[si] = {...sn[si], pools: [...sn[si].pools, '']}
                           setForm({...form, subnets: sn})
-                        }} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-accent-red transition-colors text-xs font-bold">✕</button>
+                        }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{t('settings.addAddressRange')}</button>
                       </div>
-                    ))}
-                    <button onClick={() => {
-                      const sn = [...form.subnets]; sn[si] = {...sn[si], pools: [...sn[si].pools, '']}
-                      setForm({...form, subnets: sn})
-                    }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{t('settings.addAddressRange')}</button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <SettingsField label={t('settings.gateway')}>
-                      <SettingsInput value={s.gateway} onChange={v => {
-                        const sn = [...form.subnets]; sn[si] = {...sn[si], gateway: v}; setForm({...form, subnets: sn})
-                      }} placeholder="192.168.1.1" />
-                    </SettingsField>
-                    <SettingsField label={t('settings.dnsServer')}>
-                      <SettingsInput value={s.dnsServers} onChange={v => {
-                        const sn = [...form.subnets]; sn[si] = {...sn[si], dnsServers: v}; setForm({...form, subnets: sn})
-                      }} placeholder={form.ip || t('settings.dnsServerPlaceholder')} />
-                    </SettingsField>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <SettingsField label={t('settings.leaseTimeSeconds')}>
-                      <SettingsInput value={s.leaseTime} onChange={v => {
-                        const sn = [...form.subnets]; sn[si] = {...sn[si], leaseTime: v}; setForm({...form, subnets: sn})
-                      }} />
-                    </SettingsField>
+                      <div className="grid grid-cols-2 gap-4">
+                        <SettingsField label={t('settings.gateway')}>
+                          <SettingsInput value={s.gateway} onChange={v => {
+                            const sn = [...form.subnets]; sn[si] = {...sn[si], gateway: v}; setForm({...form, subnets: sn})
+                          }} placeholder="192.168.1.1" />
+                        </SettingsField>
+                        <SettingsField label={t('settings.dnsServer')}>
+                          <SettingsInput value={s.dnsServers} onChange={v => {
+                            const sn = [...form.subnets]; sn[si] = {...sn[si], dnsServers: v}; setForm({...form, subnets: sn})
+                          }} placeholder={form.ip || t('settings.dnsServerPlaceholder')} />
+                        </SettingsField>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <SettingsField label={t('settings.leaseTimeSeconds')}>
+                          <SettingsInput value={s.leaseTime} onChange={v => {
+                            const sn = [...form.subnets]; sn[si] = {...sn[si], leaseTime: v}; setForm({...form, subnets: sn})
+                          }} />
+                        </SettingsField>
+                        <SettingsField label={t('settings.nextServer')}>
+                          <SettingsInput value={s.nextServer} onChange={v => {
+                            const sn = [...form.subnets]; sn[si] = {...sn[si], nextServer: v}; setForm({...form, subnets: sn})
+                          }} placeholder={t('settings.nextServerPlaceholder')} />
+                        </SettingsField>
+                      </div>
+                    </>
+                  )}
+                  {isProxySubnet && (
                     <SettingsField label={t('settings.nextServer')}>
                       <SettingsInput value={s.nextServer} onChange={v => {
                         const sn = [...form.subnets]; sn[si] = {...sn[si], nextServer: v}; setForm({...form, subnets: sn})
                       }} placeholder={t('settings.nextServerPlaceholder')} />
                     </SettingsField>
-                  </div>
+                  )}
                   <label className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)] cursor-pointer pt-1">
                     <input type="checkbox" checked={s.chainToIPXE} onChange={e => {
                       const sn = [...form.subnets]; sn[si] = {...sn[si], chainToIPXE: e.target.checked}; setForm({...form, subnets: sn})

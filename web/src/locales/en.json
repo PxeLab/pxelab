@@ -575,7 +575,7 @@
     "dhcpModeProxy": "proxy (Proxy DHCP)",
     "dhcpModeOff": "off",
     "dhcpOffHelp": "DHCP is disabled, no need to configure address pools.",
-    "dhcpProxyHelp": "Proxy DHCP does not assign IPs, no need to configure address pools/gateways.",
+    "dhcpProxyHelp": "Proxy DHCP does not assign IPs: address pool/gateway/DNS/lease time are not used. Next Server, Chain-load to iPXE and Whitelist still apply.",
     "addressPool": "Address Pool",
     "addAddressRange": "+ Add Address Range",
     "gateway": "Gateway",

@@ -575,7 +575,7 @@
     "dhcpModeProxy": "proxy（Proxy DHCP）",
     "dhcpModeOff": "off",
     "dhcpOffHelp": "DHCP 已关闭，无需配置地址池等信息。",
-    "dhcpProxyHelp": "代理 DHCP 不分配 IP，地址池/网关等无需配置。",
+    "dhcpProxyHelp": "代理 DHCP 不分配 IP：地址池/网关/DNS/租期不会下发。Next Server、链式加载到 iPXE 与白名单仍然生效。",
     "addressPool": "地址池",
     "addAddressRange": "+ 添加地址范围",
     "gateway": "网关",
