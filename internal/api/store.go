@@ -66,10 +66,10 @@ type StoreItemDetail struct {
 
 // baselineStoreContent is the "content" field of a baseline-type store item.
 type baselineStoreContent struct {
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	OSFilter    string                 `json:"os_filter,omitempty"`
-	Variables   string                 `json:"variables,omitempty"`
+	Name        string                  `json:"name"`
+	Description string                  `json:"description"`
+	OSFilter    string                  `json:"os_filter,omitempty"`
+	Variables   string                  `json:"variables,omitempty"`
 	Scripts     []baselineScriptContent `json:"scripts"`
 }
 
@@ -197,6 +197,8 @@ func (h *StoreHandler) ImportItem(w http.ResponseWriter, r *http.Request) {
 		h.importBaseline(w, r, detail)
 	case "boot_template":
 		h.importBootTemplate(w, r, detail)
+	case "netboot_distro":
+		h.importHubNetbootDistro(w, r, detail)
 	default:
 		Error(w, http.StatusBadRequest, "不支持的导入类型: "+detail.Type)
 	}
@@ -223,7 +225,7 @@ func (h *StoreHandler) fetchCatalog() (*StoreCatalog, error) {
 	}
 
 	var cat StoreCatalog
-	if err := json.Unmarshal(body, &cat); err != nil {
+	if err := json.Unmarshal(stripUTF8BOM(body), &cat); err != nil {
 		return nil, fmt.Errorf("解析商店目录失败: %w", err)
 	}
 	return &cat, nil
@@ -247,10 +249,20 @@ func (h *StoreHandler) fetchItem(itemType, itemID string) (*StoreItemDetail, err
 	}
 
 	var detail StoreItemDetail
-	if err := json.Unmarshal(body, &detail); err != nil {
+	if err := json.Unmarshal(stripUTF8BOM(body), &detail); err != nil {
 		return nil, fmt.Errorf("解析应用详情失败: %w", err)
 	}
 	return &detail, nil
+}
+
+// stripUTF8BOM removes a leading UTF-8 byte-order mark (EF BB BF).
+// hub.pxelab.com serves its JSON payloads with a BOM prefix, which
+// encoding/json rejects; tolerate it so catalog/detail parsing succeeds.
+func stripUTF8BOM(b []byte) []byte {
+	if len(b) >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF {
+		return b[3:]
+	}
+	return b
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +366,95 @@ func (h *StoreHandler) importBootTemplate(w http.ResponseWriter, r *http.Request
 		emptyErrMsg:     "启动模板内容为空",
 		auditMsg:        "从商店导入启动模板: ",
 		responseType:    "boot_template",
+	})
+}
+
+// hubNetbootDistroContent is the "content" shape of netboot_distro store items
+// served by hub.pxelab.com. Unlike boot_template (whose content is an iPXE
+// script string), netboot_distro content is a distro descriptor whose versions
+// carry bootable kernel/initrd URLs — mirroring the local netboot catalog.
+type hubNetbootDistroContent struct {
+	DistroName string                    `json:"distro_name"`
+	Versions   []hubNetbootDistroVersion `json:"versions"`
+}
+
+type hubNetbootDistroVersion struct {
+	Codename string `json:"codename"`
+	Name     string `json:"name"`
+	Arch     string `json:"arch"`
+	Remote   *struct {
+		Kernel string `json:"kernel"`
+		Initrd string `json:"initrd"`
+	} `json:"remote"`
+	Enabled *bool `json:"enabled"`
+}
+
+// importHubNetbootDistro imports a hub netboot_distro item as a Profile whose
+// boot menu contains one direct-boot entry per enabled, kernel-bearing version.
+func (h *StoreHandler) importHubNetbootDistro(w http.ResponseWriter, r *http.Request, detail *StoreItemDetail) {
+	var content hubNetbootDistroContent
+	if err := json.Unmarshal(stripUTF8BOM(detail.Content), &content); err != nil {
+		Error(w, http.StatusBadRequest, "解析网络启动内容失败: "+err.Error())
+		return
+	}
+
+	entries := make([]models.MenuEntry, 0, len(content.Versions))
+	for _, v := range content.Versions {
+		if v.Enabled != nil && !*v.Enabled {
+			continue
+		}
+		if v.Remote == nil || v.Remote.Kernel == "" {
+			continue
+		}
+		label := v.Name
+		if !isPrintableASCII(label) {
+			label = v.Codename
+		}
+		if label == "" {
+			continue
+		}
+		entries = append(entries, models.MenuEntry{
+			Label:  label,
+			Type:   "direct",
+			Kernel: strPtr(v.Remote.Kernel),
+			Initrd: strPtr(v.Remote.Initrd),
+		})
+	}
+	if len(entries) == 0 {
+		Error(w, http.StatusBadRequest, "该网络启动项没有可用版本")
+		return
+	}
+
+	profileID := toSafeID(detail.ID)
+	if existing, _ := h.store.GetProfile(r.Context(), profileID); existing != nil {
+		profileID = profileID + "-" + fmt.Sprintf("%d", time.Now().Unix())
+	}
+	profileName := detail.Name
+	if !isPrintableASCII(profileName) {
+		profileName = toSafeID(detail.Name)
+	}
+	profile := &models.Profile{
+		ID:          profileID,
+		Name:        profileName,
+		Description: detail.Description,
+		Arch:        "x86_64",
+	}
+	if err := profile.SetMenu(&models.BootMenu{Entries: entries}); err != nil {
+		Error(w, http.StatusInternalServerError, "构建菜单失败: "+err.Error())
+		return
+	}
+	if err := h.store.CreateProfile(r.Context(), profile); err != nil {
+		Error(w, http.StatusInternalServerError, "创建引导配置失败: "+err.Error())
+		return
+	}
+
+	h.trackDownload(r.Context(), detail.Type, detail.ID)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profileID, remoteIP(r), "从商店导入网络启动发行版: "+profileName)
+	Created(w, map[string]any{
+		"id":         profileID,
+		"name":       profileName,
+		"type":       "netboot_distro",
+		"store_item": detail.ID,
 	})
 }
 
