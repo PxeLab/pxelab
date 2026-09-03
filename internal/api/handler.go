@@ -79,7 +79,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		InstallTask:     &InstallTaskHandler{store: st},
 		Service:         NewServiceHandler(svcController, cfg, st, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:            NewAuthHandler(cfg, sessions),
-		Access:          &AccessHandler{store: st},
+		Access:          NewAccessHandler(st),
 		DNSRecord:       &DNSRecordHandler{store: st, localDomain: cfg.DNS.LocalDomain},
 		BMC:             NewBMCHandler(st),
 		DHCPReservation: &DHCPReservationHandler{store: st},
