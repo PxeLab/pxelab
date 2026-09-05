@@ -1,4 +1,4 @@
-﻿package store
+package store
 
 import (
 	"context"
@@ -99,7 +99,6 @@ func (s *sqliteStore) migrateAddColumn(table, column, typ string) {
 		s.db.Exec("ALTER TABLE " + table + " ADD COLUMN " + column + " " + typ)
 	}
 }
-
 
 // migrateEmptyProfileIDs assigns UUIDs to profiles that have empty IDs.
 func (s *sqliteStore) migrateEmptyProfileIDs() {
@@ -285,6 +284,38 @@ func (s *sqliteStore) GetHostByMAC(ctx context.Context, mac string) (*models.Hos
 		return nil, err
 	}
 	return &host, nil
+}
+
+func (s *sqliteStore) GetHostBySN(ctx context.Context, sn string) (*models.Host, error) {
+	var host models.Host
+	if err := s.db.WithContext(ctx).First(&host, "sn <> '' AND lower(sn) = lower(?)", sn).Error; err != nil {
+		return nil, err
+	}
+	return &host, nil
+}
+
+// CountHostsByScript 统计 script_ids（JSON 数字数组）中直接引用该脚本的主机数。
+func (s *sqliteStore) CountHostsByScript(ctx context.Context, scriptID uint) (int64, error) {
+	var hosts []models.Host
+	if err := s.db.WithContext(ctx).
+		Where("script_ids <> '' AND script_ids IS NOT NULL AND script_ids <> 'null'").
+		Find(&hosts).Error; err != nil {
+		return 0, err
+	}
+	var n int64
+	for i := range hosts {
+		ids, err := hosts[i].GetScriptIDs()
+		if err != nil {
+			continue
+		}
+		for _, id := range ids {
+			if id == scriptID {
+				n++
+				break
+			}
+		}
+	}
+	return n, nil
 }
 
 func (s *sqliteStore) CreateHost(ctx context.Context, host *models.Host) error {

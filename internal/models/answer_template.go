@@ -6,24 +6,27 @@ import (
 )
 
 type AnswerTemplate struct {
-	ID             uint      `json:"id" gorm:"primaryKey"`
-	Name           string    `json:"name" gorm:"not null"`
-	Description    string    `json:"description"`
-	Type           string    `json:"type" gorm:"not null"` // kickstart / preseed / subiquity / autoyast / autounattend
-	Content        string    `json:"content" gorm:"type:text;not null"`
-	CurrentVersion int       `json:"current_version" gorm:"default:1"`
-	Variables      string    `json:"-" gorm:"type:text"` // JSON
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             uint   `json:"id" gorm:"primaryKey"`
+	Name           string `json:"name" gorm:"not null"`
+	Description    string `json:"description"`
+	Type           string `json:"type" gorm:"not null"` // kickstart / preseed / subiquity / autoyast / autounattend
+	Content        string `json:"content" gorm:"type:text;not null"`
+	CurrentVersion int    `json:"current_version" gorm:"default:1"`
+	Variables      string `json:"-" gorm:"type:text"` // JSON
+	// EnableBaselinePull 勾选后，平台在分发该应答文件时自动注入
+	// “拉取并执行该主机初始化基线”的钩子（按 Type 对应 OS 注入）。
+	EnableBaselinePull bool      `json:"enable_baseline_pull" gorm:"default:false"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 type AnswerTemplateVersion struct {
-	ID           uint      `json:"id" gorm:"primaryKey"`
-	TemplateID   uint      `json:"template_id" gorm:"not null;index"`
-	Version      int       `json:"version" gorm:"not null"`
-	Content      string    `json:"content" gorm:"type:text;not null"`
-	Description  string    `json:"description"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	TemplateID  uint      `json:"template_id" gorm:"not null;index"`
+	Version     int       `json:"version" gorm:"not null"`
+	Content     string    `json:"content" gorm:"type:text;not null"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func (t *AnswerTemplate) GetVariables() ([]string, error) {

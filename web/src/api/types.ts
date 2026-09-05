@@ -3,10 +3,13 @@ export interface Host {
   name: string
   mac: string
   ip: string
+  sn?: string
   profile_id?: string
   bmc_addr?: string
   bmc_user?: string
   bmc_pass?: string
+  baseline_ids?: string[]
+  script_ids?: number[]
   last_online?: string
   boot_count: number
   created_at: string

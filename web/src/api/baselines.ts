@@ -60,6 +60,30 @@ export function setBaselineScripts(baselineId: string, scripts: SetScriptsItem[]
   return request<{ scripts: SetScriptsItem[] }>('PUT', `/baselines/${baselineId}/scripts`, { scripts })
 }
 
+export interface InlineCreatedScript {
+  id: number
+  name: string
+  type: string
+  content: string
+  description?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface InlineCreateScriptResult {
+  baseline_id: string
+  seq: number
+  script: InlineCreatedScript
+}
+
+/** 一步动作：在共享脚本库中新建脚本，并自动追加到该脚本集末尾（L2 inline create）。 */
+export function createAndAddBaselineScript(
+  baselineId: string,
+  data: { name: string; type?: string; content: string; description?: string }
+): Promise<ApiResponse<InlineCreateScriptResult>> {
+  return request<InlineCreateScriptResult>('POST', `/baselines/${baselineId}/scripts`, data)
+}
+
 // ── Assigned Scripts (machine pull) ──
 
 export function getAssignedBaselineScripts(mac: string): Promise<ApiResponse<BaselineScriptAssignment[]>> {

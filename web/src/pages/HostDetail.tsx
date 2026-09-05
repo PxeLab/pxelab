@@ -11,7 +11,7 @@ import { StatusDot } from '../components/ui/StatusDot'
 import { useToast } from '../components/ui/Toast'
 import { Input, Select } from '../components/ui/FormControls'
 import { DataTable } from '../components/ui/DataTable'
-import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord } from '../api/client'
+import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord, type Profile, type Baseline, type scriptDTO } from '../api/client'
 
 // 电源操作 action → i18n key 显式映射（key 不是 action 的简单拼接）
 const powerLabelKeys: Record<string, string> = {
@@ -54,9 +54,19 @@ export default function HostDetail() {
 
   // Edit host state
   const [showEdit, setShowEdit] = useState(false)
-  const [editForm, setEditForm] = useState({ name: '', mac: '', ip: '', profile_id: '', bmc_addr: '', bmc_user: '' })
+  const [editForm, setEditForm] = useState<{
+    name: string; mac: string; ip: string; sn: string; profile_id: string
+    bmc_addr: string; bmc_user: string
+    baseline_ids: string[]; script_ids: number[]
+  }>({ name: '', mac: '', ip: '', sn: '', profile_id: '', bmc_addr: '', bmc_user: '', baseline_ids: [], script_ids: [] })
   const [editSaving, setEditSaving] = useState(false)
-  const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([])
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [allBaselines, setAllBaselines] = useState<Baseline[]>([])
+  const [allScripts, setAllScripts] = useState<scriptDTO[]>([])
+
+  function toggleArr<T>(arr: T[], v: T): T[] {
+    return arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
+  }
 
   // WOL state
   const [wolHistory, setWolHistory] = useState<WOLHistoryRecord[]>([])
@@ -92,9 +102,9 @@ export default function HostDetail() {
   }, [id])
 
   useEffect(() => {
-    api.getProfiles().then(res => {
-      setProfiles(res.data.map(p => ({ id: p.id, name: p.name })))
-    }).catch(() => {})
+    api.getProfiles().then(res => setProfiles(res.data)).catch(() => {})
+    api.getBaselines().then(res => setAllBaselines(res.data ?? [])).catch(() => {})
+    api.getScripts().then(res => setAllScripts(res.data ?? [])).catch(() => {})
   }, [])
 
   async function handlePower(action: string) {
@@ -176,9 +186,12 @@ export default function HostDetail() {
         name: editForm.name,
         mac: editForm.mac,
         ip: editForm.ip,
+        sn: editForm.sn || undefined,
         profile_id: editForm.profile_id || undefined,
         bmc_addr: editForm.bmc_addr,
         bmc_user: editForm.bmc_user,
+        baseline_ids: editForm.baseline_ids,
+        script_ids: editForm.script_ids,
       })
       setHost(res.data)
       setShowEdit(false)
@@ -189,6 +202,11 @@ export default function HostDetail() {
       setEditSaving(false)
     }
   }
+
+  // 初始化脚本选择（P1）：Profile 继承的基线只读展示，主机可再追加
+  const editProfile = profiles.find(p => p.id === editForm.profile_id)
+  const editInherited: string[] = editProfile?.baselines ?? []
+  const editIsInherited = (id: string) => editInherited.includes(id)
 
   if (loading) {
     return <div className="space-y-6">
@@ -224,9 +242,12 @@ export default function HostDetail() {
               name: host.name || '',
               mac: host.mac || '',
               ip: host.ip || '',
+              sn: host.sn || '',
               profile_id: host.profile_id || '',
               bmc_addr: host.bmc_addr || '',
               bmc_user: host.bmc_user || '',
+              baseline_ids: host.baseline_ids ?? [],
+              script_ids: host.script_ids ?? [],
             })
             setShowEdit(true)
           }}>
@@ -659,6 +680,71 @@ export default function HostDetail() {
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('bmc.username')}</label>
               <Input placeholder="admin" value={editForm.bmc_user} onChange={e => setEditForm({ ...editForm, bmc_user: e.target.value })} />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">SN</label>
+            <Input placeholder={t('hosts.snPlaceholder', 'Serial Number（可选，配合 global.identity_attr=sn 使用）')} value={editForm.sn} onChange={e => setEditForm({ ...editForm, sn: e.target.value })} />
+          </div>
+
+          {/* 初始化脚本：勾选即装机后自动执行 */}
+          <div className="rounded-lg border border-[var(--bg-border)] p-3 space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-[var(--text-primary)]">{t('hosts.initSection')}</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{t('hosts.initHint')}</p>
+            </div>
+            {editInherited.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{t('hosts.inheritedBaselines')}</span>
+                {editInherited.map(id => {
+                  const b = allBaselines.find(x => x.id === id)
+                  return (
+                    <span key={id} className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">{b ? b.name : id}</span>
+                  )
+                })}
+              </div>
+            )}
+            <div>
+              <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addBaselines')}</p>
+              <div className="max-h-32 overflow-y-auto rounded border border-[var(--bg-border)] p-2 space-y-1">
+                {allBaselines.map(b => {
+                  const on = editIsInherited(b.id) || editForm.baseline_ids.includes(b.id)
+                  return (
+                    <label key={b.id} className={`flex items-center gap-2 text-xs ${editIsInherited(b.id) ? 'opacity-60' : 'cursor-pointer hover:text-[var(--text-primary)]'}`}>
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        disabled={editIsInherited(b.id)}
+                        onChange={() => setEditForm({ ...editForm, baseline_ids: toggleArr(editForm.baseline_ids, b.id) })}
+                        className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+                      />
+                      <span className="text-[var(--text-muted)]">{b.name}</span>
+                    </label>
+                  )
+                })}
+                {allBaselines.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{t('baselines.noBaselines')}</p>}
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addScripts')}</p>
+              <div className="max-h-32 overflow-y-auto rounded border border-[var(--bg-border)] p-2 space-y-1">
+                {allScripts.map(sc => {
+                  const on = editForm.script_ids.includes(sc.id)
+                  return (
+                    <label key={sc.id} className="flex items-center gap-2 text-xs cursor-pointer hover:text-[var(--text-primary)]">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => setEditForm({ ...editForm, script_ids: toggleArr(editForm.script_ids, sc.id) })}
+                        className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+                      />
+                      <span className="text-[var(--text-muted)]">{sc.name}</span>
+                      <span className="ml-auto px-1 py-px rounded text-[9px] uppercase text-[var(--text-muted)] bg-[var(--bg-hover)]">{sc.type}</span>
+                    </label>
+                  )
+                })}
+                {allScripts.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{t('scripts.noScripts')}</p>}
+              </div>
             </div>
           </div>
         </div>

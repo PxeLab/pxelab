@@ -1,9 +1,12 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/baseline"
@@ -13,7 +16,15 @@ import (
 
 // BaselineHandler 管理安全基线及其脚本。
 type BaselineHandler struct {
-	store store.Interface
+	store        store.Interface
+	identityAttr string // "mac"（默认）或 "sn"：机器拉取初始化基线时用哪个主机身份键
+}
+
+func NewBaselineHandler(st store.Interface, identityAttr string) *BaselineHandler {
+	if identityAttr == "" {
+		identityAttr = "mac"
+	}
+	return &BaselineHandler{store: st, identityAttr: identityAttr}
 }
 
 // baselineDTO 是 API 层的基线响应结构。
@@ -206,80 +217,238 @@ func (h *BaselineHandler) SetScripts(w http.ResponseWriter, r *http.Request) {
 	OK(w, map[string]any{"scripts": req.Scripts})
 }
 
+// inlineScriptReq creates a new library script and appends it to the baseline.
+type inlineScriptReq struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Content     string `json:"content"`
+	Description string `json:"description"`
+}
+
+// CreateAndAddScript creates a script in the shared script library and appends
+// it to the end of the baseline's ordered script list in one user action
+// (L2 inline create — no separate trip to the 脚本库 view needed).
+func (h *BaselineHandler) CreateAndAddScript(w http.ResponseWriter, r *http.Request) {
+	blID := chi.URLParam(r, "id")
+	if _, err := h.store.GetBaseline(r.Context(), blID); err != nil {
+		Error(w, http.StatusNotFound, "脚本集未找到")
+		return
+	}
+	var req inlineScriptReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "无效的请求体")
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		Error(w, http.StatusBadRequest, "脚本名称不能为空")
+		return
+	}
+	if strings.TrimSpace(req.Content) == "" {
+		Error(w, http.StatusBadRequest, "脚本内容不能为空")
+		return
+	}
+	scriptType := req.Type
+	if scriptType == "" {
+		scriptType = "shell"
+	}
+	sc := &models.Script{
+		Name:        strings.TrimSpace(req.Name),
+		Type:        scriptType,
+		Content:     req.Content,
+		Description: req.Description,
+	}
+	if err := h.store.CreateScript(r.Context(), sc); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	assignments, err := h.store.ListBaselineScripts(r.Context(), blID)
+	if err != nil {
+		h.store.DeleteScript(r.Context(), sc.ID)
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	nextSeq := 1
+	for _, a := range assignments {
+		if a.Seq >= nextSeq {
+			nextSeq = a.Seq + 1
+		}
+	}
+	assignments = append(assignments, models.BaselineScriptAssignment{
+		BaselineID: blID,
+		ScriptID:   sc.ID,
+		Seq:        nextSeq,
+	})
+	if err := h.store.SetBaselineScripts(r.Context(), blID, assignments); err != nil {
+		h.store.DeleteScript(r.Context(), sc.ID)
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "script", fmt.Sprintf("%d", sc.ID), remoteIP(r), "新建脚本: "+sc.Name)
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "baseline", blID, remoteIP(r), "新增脚本到脚本集: "+sc.Name)
+	Created(w, map[string]any{
+		"baseline_id": blID,
+		"seq":         nextSeq,
+		"script":      toScriptDTO(sc),
+	})
+}
+
 // GetAssigned 根据 MAC 地址获取机器关联的所有基线脚本（已渲染变量）。
 // GET /baselines/assigned?mac=xx:xx:xx:xx:xx
+// 语义：主机未注册 → 404（调试用）；已注册但无任何配置 → 200 空列表。
 func (h *BaselineHandler) GetAssigned(w http.ResponseWriter, r *http.Request) {
-	mac := r.URL.Query().Get("mac")
+	mac := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("mac")))
 	if mac == "" {
 		Error(w, http.StatusBadRequest, "mac 参数不能为空")
 		return
 	}
-
-	// 1. 通过 MAC 查找 Host
 	host, err := h.store.GetHostByMAC(r.Context(), mac)
 	if err != nil {
 		Error(w, http.StatusNotFound, "未找到该 MAC 对应的主机")
 		return
 	}
-
-	// 2. 通过 Host 的 ProfileID 查找 Profile
-	if host.ProfileID == nil || *host.ProfileID == "" {
-		Error(w, http.StatusNotFound, "该主机未关联任何 Profile")
-		return
-	}
-	prof, err := h.store.GetProfile(r.Context(), *host.ProfileID)
+	scripts, err := h.collectScripts(r.Context(), host, "")
 	if err != nil {
-		Error(w, http.StatusNotFound, "关联的 Profile 未找到")
+		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	OK(w, map[string]any{"scripts": scripts})
+}
 
-	// 3. 获取 profile 关联的 baseline IDs
-	baselineIDs, err := prof.GetBaselines()
-	if err != nil || len(baselineIDs) == 0 {
+// PullScripts 是给自动应答/装机钩子用的拉取接口（无配置一律 200 空列表）。
+// GET /baselines/pull?mac=xx|sn=xx [&type=shell|bat|powershell]
+func (h *BaselineHandler) PullScripts(w http.ResponseWriter, r *http.Request) {
+	host, found := h.resolveHost(r)
+	if !found {
 		OK(w, map[string]any{"scripts": []assignedScriptDTO{}})
 		return
 	}
+	typeFilter := strings.TrimSpace(r.URL.Query().Get("type"))
+	scripts, err := h.collectScripts(r.Context(), host, typeFilter)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	OK(w, map[string]any{"scripts": scripts})
+}
 
-	// 4. 收集所有关联的基线 + 脚本
-	profileVars, _ := prof.GetVariablesMap()
-
-	var allScripts []assignedScriptDTO
-	for _, blID := range baselineIDs {
-		bl, err := h.store.GetBaseline(r.Context(), blID)
-		if err != nil {
-			continue
+// resolveHost 按配置的身份键（mac/sn）查找主机；查不到返回 found=false。
+func (h *BaselineHandler) resolveHost(r *http.Request) (*models.Host, bool) {
+	ctx := r.Context()
+	if h.identityAttr == "sn" {
+		sn := strings.TrimSpace(r.URL.Query().Get("sn"))
+		if sn == "" {
+			return nil, false
 		}
-		baselineVars, _ := bl.GetVariablesMap()
-
-		assignments, err := h.store.ListBaselineScripts(r.Context(), blID)
+		host, err := h.store.GetHostBySN(ctx, sn)
 		if err != nil {
-			continue
+			return nil, false
 		}
+		return host, true
+	}
+	mac := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("mac")))
+	if mac == "" {
+		return nil, false
+	}
+	host, err := h.store.GetHostByMAC(ctx, mac)
+	if err != nil {
+		return nil, false
+	}
+	return host, true
+}
 
-		for _, a := range assignments {
-			sc, err := h.store.GetScript(r.Context(), a.ScriptID)
-			if err != nil {
-				continue
+// collectScripts 汇总主机应执行的初始化脚本：
+//
+//	生效脚本集 = 所属 Profile 的基线（继承）+ 主机额外勾选的基线（追加，去重）
+//	生效单脚本 = 主机直接勾选的脚本库脚本（追加）
+//
+// 顺序：基线按（Profile 列表 → 主机追加列表）展开、集内按 seq；最后是直选脚本。
+// 全程按脚本 ID 全局去重；可选 type 过滤；变量按 baseline > profile 合并渲染。
+func (h *BaselineHandler) collectScripts(ctx context.Context, host *models.Host, typeFilter string) ([]assignedScriptDTO, error) {
+	// 1. 生效脚本集（继承 + 追加，去重保序）：先 Profile 继承、后主机追加
+	var baselineIDs []string
+	seenBl := map[string]bool{}
+	addBL := func(ids []string) {
+		for _, id := range ids {
+			if id != "" && !seenBl[id] {
+				seenBl[id] = true
+				baselineIDs = append(baselineIDs, id)
 			}
-			rendered, err := baseline.RenderScript(sc.Content, baselineVars, profileVars, nil)
-			if err != nil {
-				rendered = sc.Content // 渲染失败时回退到原始内容
-			}
-
-			allScripts = append(allScripts, assignedScriptDTO{
-				Seq:         a.Seq,
-				Name:        sc.Name,
-				Type:        sc.Type,
-				Content:     rendered,
-				Description: sc.Description,
-			})
 		}
 	}
 
-	// 按 seq 排序
-	sort.Slice(allScripts, func(i, j int) bool { return allScripts[i].Seq < allScripts[j].Seq })
+	profileVars := map[string]string{}
+	if host.ProfileID != nil && *host.ProfileID != "" {
+		if prof, err := h.store.GetProfile(ctx, *host.ProfileID); err == nil {
+			if pid, err := prof.GetBaselines(); err == nil {
+				addBL(pid) // 先继承
+			}
+			if pv, err := prof.GetVariablesMap(); err == nil && pv != nil {
+				profileVars = pv
+			}
+		}
+	}
+	if hostExtra, err := host.GetBaselineIDs(); err == nil {
+		addBL(hostExtra) // 后追加
+	}
 
-	OK(w, map[string]any{"scripts": allScripts})
+	// 2. 直选单脚本（先取出 ID，追加在基线脚本之后）
+	directIDs, err := host.GetScriptIDs()
+	if err != nil {
+		return nil, err
+	}
+
+	var out []assignedScriptDTO
+	seenScript := map[uint]bool{}
+
+	seq := 1
+	for _, blID := range baselineIDs {
+		bl, err := h.store.GetBaseline(ctx, blID)
+		if err != nil {
+			continue
+		}
+		blVars, _ := bl.GetVariablesMap()
+		assignments, err := h.store.ListBaselineScripts(ctx, blID)
+		if err != nil {
+			continue
+		}
+		for _, a := range assignments {
+			sc, err := h.store.GetScript(ctx, a.ScriptID)
+			if err != nil || seenScript[sc.ID] {
+				continue
+			}
+			if typeFilter != "" && sc.Type != typeFilter {
+				continue
+			}
+			seenScript[sc.ID] = true
+			rendered := sc.Content
+			if r2, err := baseline.RenderScript(sc.Content, blVars, profileVars, nil); err == nil {
+				rendered = r2
+			}
+			out = append(out, assignedScriptDTO{Seq: seq, Name: sc.Name, Type: sc.Type, Content: rendered, Description: sc.Description})
+			seq++
+		}
+	}
+	for _, sid := range directIDs {
+		sc, err := h.store.GetScript(ctx, sid)
+		if err != nil || seenScript[sc.ID] {
+			continue
+		}
+		if typeFilter != "" && sc.Type != typeFilter {
+			continue
+		}
+		seenScript[sc.ID] = true
+		rendered := sc.Content
+		if r2, err := baseline.RenderScript(sc.Content, nil, profileVars, nil); err == nil {
+			rendered = r2
+		}
+		out = append(out, assignedScriptDTO{Seq: seq, Name: sc.Name, Type: sc.Type, Content: rendered, Description: sc.Description})
+		seq++
+	}
+
+	sort.Slice(out, func(i, j int) bool { return out[i].Seq < out[j].Seq })
+	return out, nil
 }
 
 // --- helper ---

@@ -308,22 +308,30 @@ func (h *StoreHandler) importBaseline(w http.ResponseWriter, r *http.Request, de
 		return
 	}
 
-	// Import scripts.
+	// Import scripts — reuse library scripts with identical name/type/content so
+	// repeated imports stay idempotent and don't pollute the shared script
+	// library (脚本库) with duplicates.
+	library, _ := h.store.ListScripts(r.Context())
 	for _, sc := range content.Scripts {
 		scriptType := sc.Type
 		if scriptType == "" {
 			scriptType = "shell"
 		}
-		script := &models.Script{
-			Name:        sc.Name,
-			Type:        scriptType,
-			Content:     sc.Content,
-			Description: sc.Description,
-		}
-		if err := h.store.CreateScript(r.Context(), script); err != nil {
-			Error(w, http.StatusInternalServerError, "导入脚本失败: "+err.Error())
-			h.store.DeleteBaseline(r.Context(), blID)
-			return
+		script := findLibraryScript(library, sc.Name, scriptType, sc.Content)
+		if script == nil {
+			created := &models.Script{
+				Name:        sc.Name,
+				Type:        scriptType,
+				Content:     sc.Content,
+				Description: sc.Description,
+			}
+			if err := h.store.CreateScript(r.Context(), created); err != nil {
+				Error(w, http.StatusInternalServerError, "导入脚本失败: "+err.Error())
+				h.store.DeleteBaseline(r.Context(), blID)
+				return
+			}
+			library = append(library, *created)
+			script = created
 		}
 		assign := models.BaselineScriptAssignment{
 			BaselineID: blID,
@@ -598,6 +606,22 @@ func (h *StoreHandler) importProfile(w http.ResponseWriter, r *http.Request, det
 		"type":       cfg.responseType,
 		"store_item": detail.ID,
 	})
+}
+
+// findLibraryScript looks up a script in the shared script library that matches
+// name/type/content exactly, so imports can reuse it instead of duplicating.
+func findLibraryScript(library []models.Script, name, typ, content string) *models.Script {
+	for i := range library {
+		s := library[i]
+		sType := s.Type
+		if sType == "" {
+			sType = "shell"
+		}
+		if s.Name == name && sType == typ && s.Content == content {
+			return &s
+		}
+	}
+	return nil
 }
 
 // toSafeID converts an arbitrary string into a safe baseline ID.

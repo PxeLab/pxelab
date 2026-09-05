@@ -53,7 +53,7 @@
     "network": "网络诊断",
     "bootSettings": "引导选项",
     "baselines": "初始化脚本",
-    "scripts": "脚本管理",
+    "scripts": "脚本库",
     "store": "Hub"
   },
   "dashboard": {
@@ -99,6 +99,11 @@
     "noEvents": "暂无事件"
   },
   "hosts": {
+    "addScripts": "追加脚本",
+    "addBaselines": "追加脚本集",
+    "inheritedBaselines": "继承自引导菜单",
+    "initHint": "选中的脚本集/脚本会在安装阶段自动拉取并按顺序执行；未勾选则不执行。所属引导菜单绑定的基线自动继承。",
+    "initSection": "初始化脚本（装机后自动执行）",
     "title": "主机管理",
     "search": "搜索 MAC / 主机名 / IP ...",
     "addHost": "新建主机",
@@ -779,6 +784,9 @@
     "invalidJSON": "JSON 格式无效"
   },
   "answerTemplates": {
+    "baselinePullInjected": "已自动注入「拉取并执行初始化基线」钩子",
+    "baselinePullHint": "平台分发应答文件时按系统类型自动注入钩子；若模板已有同名阶段，请用预览核对合并结果。",
+    "baselinePull": "安装时自动拉取并执行该主机的初始化基线",
     "title": "应答模板管理",
     "deleteTemplate": "删除模板",
     "deleteConfirm": "确定删除模板「{{name}}」？此操作不可恢复。",
@@ -1447,7 +1455,7 @@
   },
   "baselines": {
     "title": "初始化脚本",
-    "listTitle": "初始化脚本",
+    "listTitle": "初始化脚本", "pageDescription": "双视图：脚本集按顺序组合脚本库中的脚本，并配置变量与系统过滤；脚本内容在脚本库中统一维护。",
     "createTitle": "创建脚本集",
     "editTitle": "编辑脚本集",
     "name": "名称",
@@ -1461,7 +1469,7 @@
     "updateSuccess": "脚本集已更新",
     "deleteSuccess": "脚本集已删除",
     "deleteConfirmTitle": "删除脚本集",
-    "deleteConfirmMsg": "确定要删除此脚本集吗？所有关联的脚本也将被移除。",
+    "deleteConfirmMsg": "删除后将解除此脚本集与脚本库中脚本的关联，脚本库中的脚本内容会被保留。",
     "addVariable": "添加变量",
     "key": "键",
     "value": "值",
@@ -1469,6 +1477,7 @@
     "scriptSeq": "顺序",
     "scriptContent": "内容",
     "addScript": "添加脚本",
+    "newScriptAndAdd": "新建并加入本集",
     "editScript": "编辑脚本",
     "deleteScriptConfirm": "确定删除此脚本？",
     "noScripts": "此脚本集中暂无脚本。",
@@ -1481,8 +1490,8 @@
     "confirmDelete": "删除"
   },
   "scripts": {
-    "title": "脚本管理",
-    "description": "管理可跨脚本集复用的独立脚本",
+    "title": "脚本库",
+    "description": "共享脚本库：脚本内容在这里统一维护，初始化脚本（脚本集）按顺序引用其中的脚本。",
     "create": "创建脚本",
     "createDescription": "创建一个新脚本",
     "editDescription": "编辑脚本详情",

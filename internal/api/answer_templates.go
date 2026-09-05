@@ -38,8 +38,8 @@ func (h *AnswerTemplateHandler) Validate(w http.ResponseWriter, r *http.Request)
 	}
 
 	OK(w, map[string]any{
-		"valid":  err == nil,
-		"error":  parseErr,
+		"valid": err == nil,
+		"error": parseErr,
 	})
 }
 
@@ -57,21 +57,24 @@ func (h *AnswerTemplateHandler) Preview(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var req struct {
-		HostName    string `json:"host_name"`
-		HostIP      string `json:"host_ip"`
-		HostMAC     string `json:"host_mac"`
-		HostCIDR    string `json:"host_cidr"`
-		Gateway     string `json:"gateway"`
-		DNSServers  string `json:"dns_servers"`
-		Disk        string `json:"disk"`
-		KeyboardLayout string `json:"keyboard_layout"`
-		Arch        string `json:"arch"`
-		ProductKey    string `json:"product_key"`
-		ComputerName  string `json:"computer_name"`
-		JoinDomain    string `json:"join_domain"`
-		DomainOU      string `json:"domain_ou"`
-		AdminPassword string `json:"admin_password"`
-		TimeZone      string `json:"time_zone"`
+		Type               string `json:"type"`
+		Content            string `json:"content"`
+		EnableBaselinePull *bool  `json:"enable_baseline_pull"`
+		HostName           string `json:"host_name"`
+		HostIP             string `json:"host_ip"`
+		HostMAC            string `json:"host_mac"`
+		HostCIDR           string `json:"host_cidr"`
+		Gateway            string `json:"gateway"`
+		DNSServers         string `json:"dns_servers"`
+		Disk               string `json:"disk"`
+		KeyboardLayout     string `json:"keyboard_layout"`
+		Arch               string `json:"arch"`
+		ProductKey         string `json:"product_key"`
+		ComputerName       string `json:"computer_name"`
+		JoinDomain         string `json:"join_domain"`
+		DomainOU           string `json:"domain_ou"`
+		AdminPassword      string `json:"admin_password"`
+		TimeZone           string `json:"time_zone"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -79,32 +82,56 @@ func (h *AnswerTemplateHandler) Preview(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	data := netboot.AnswerData{
-		HostName:    req.HostName,
-		HostIP:      req.HostIP,
-		HostMAC:     req.HostMAC,
-		HostCIDR:    req.HostCIDR,
-		Gateway:     req.Gateway,
-		DNSServers:  req.DNSServers,
-		Disk:        req.Disk,
-		KeyboardLayout: req.KeyboardLayout,
-		Arch:        req.Arch,
-		ProductKey:    req.ProductKey,
-		ComputerName:  req.ComputerName,
-		JoinDomain:    req.JoinDomain,
-		DomainOU:      req.DomainOU,
-		AdminPassword: req.AdminPassword,
-		TimeZone:      req.TimeZone,
+	// 支持预览“未保存”的编辑内容与开关状态
+	srcType := tpl.Type
+	srcContent := tpl.Content
+	enabled := tpl.EnableBaselinePull
+	if req.Type != "" {
+		srcType = req.Type
+	}
+	if req.Content != "" {
+		srcContent = req.Content
+	}
+	if req.EnableBaselinePull != nil {
+		enabled = *req.EnableBaselinePull
 	}
 
-	rendered, err := netboot.RenderAnswerTemplate(tpl.Content, data)
+	data := netboot.AnswerData{
+		HostName:       req.HostName,
+		HostIP:         req.HostIP,
+		HostMAC:        req.HostMAC,
+		HostCIDR:       req.HostCIDR,
+		Gateway:        req.Gateway,
+		DNSServers:     req.DNSServers,
+		Disk:           req.Disk,
+		KeyboardLayout: req.KeyboardLayout,
+		Arch:           req.Arch,
+		ProductKey:     req.ProductKey,
+		ComputerName:   req.ComputerName,
+		JoinDomain:     req.JoinDomain,
+		DomainOU:       req.DomainOU,
+		AdminPassword:  req.AdminPassword,
+		TimeZone:       req.TimeZone,
+	}
+
+	rendered, err := netboot.RenderAnswerTemplate(srcContent, data)
 	if err != nil {
 		Error(w, http.StatusBadRequest, "render failed: "+err.Error())
 		return
 	}
 
+	// 预览同样展示“基线自动下发”注入后的完整文件，方便管理员确认钩子
+	injected := false
+	if enabled {
+		if out, ok := augmentBaselinePull(rendered, srcType, r.Host, req.HostMAC, "", ""); ok {
+			rendered = out
+			injected = true
+		}
+	}
+
 	OK(w, map[string]any{
-		"rendered": rendered,
+		"rendered":               rendered,
+		"baseline_pull_injected": injected,
 	})
 }
 
@@ -129,9 +156,9 @@ func (h *AnswerTemplateHandler) Presets(w http.ResponseWriter, r *http.Request) 
 }
 
 var builtinPresets = map[string][]struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Content     string `json:"content"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Content     string   `json:"content"`
 	Variables   []string `json:"variables"`
 }{
 	"preseed": {{

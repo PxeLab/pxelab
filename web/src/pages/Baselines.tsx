@@ -11,6 +11,7 @@ import { useToast } from '../components/ui/Toast'
 import { Input, Textarea } from '../components/ui/FormControls'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { api, type Baseline } from '../api/client'
+import Scripts from './Scripts'
 
 export default function Baselines() {
   const navigate = useNavigate()
@@ -32,6 +33,9 @@ export default function Baselines() {
 
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<Baseline | null>(null)
+
+  // 双视图：脚本集（默认） / 脚本库
+  const [view, setView] = useState<'sets' | 'library'>('sets')
 
   const loadBaselines = async () => {
     setLoading(true)
@@ -201,19 +205,52 @@ export default function Baselines() {
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <PageHeader
-        title={t('baselines.listTitle')}
+        title={t('baselines.title')}
+        description={t('baselines.pageDescription')}
         className="mb-0"
-        actions={
-          <Button variant="primary" size="sm" onClick={openCreate}>
-            <Plus size={14} />
-            {t('baselines.createTitle')}
-          </Button>
-        }
       />
 
-      {loadError && (
+      {/* 视图切换：脚本集 / 脚本库 */}
+      <div className="flex items-center gap-5 border-b border-[var(--bg-border)]">
+        {(
+          [
+            { key: 'sets', label: t('baselines.title') },
+            { key: 'library', label: t('scripts.title') },
+          ] as { key: 'sets' | 'library'; label: string }[]
+        ).map(tab => {
+          const active = view === tab.key
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setView(tab.key); setShowForm(false); setDeleteTarget(null) }}
+              className={`-mb-px border-b-2 px-1 py-2 text-sm transition-colors ${
+                active
+                  ? 'border-blue-500 font-medium text-[var(--text-primary)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {view === 'sets' ? (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
+              {t('baselines.title')}
+              <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">{baselines.length}</span>
+            </h2>
+            <Button variant="primary" size="sm" onClick={openCreate}>
+              <Plus size={14} />
+              {t('baselines.createTitle')}
+            </Button>
+          </div>
+
+          {loadError && (
         <Card>
           <div className="py-8 text-center text-sm text-accent-red">{loadError}</div>
         </Card>
@@ -292,6 +329,10 @@ export default function Baselines() {
         title={t('baselines.deleteConfirmTitle')}
         message={deleteTarget ? t('baselines.deleteConfirmMsg') : ''}
       />
+        </>
+      ) : (
+        <Scripts embedded />
+      )}
     </div>
   )
 }

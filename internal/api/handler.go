@@ -88,7 +88,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Bootloader:      NewBootloaderHandler(bootFS),
 		AuditLog:        NewAuditLogHandler(st),
 		Version:         NewVersionHandler(version, updateChecker),
-		Baseline:        &BaselineHandler{store: st},
+		Baseline:        NewBaselineHandler(st, cfg.Global.IdentityAttr),
 		Script:          NewScriptHandler(st),
 		Store:           NewStoreHandler(st),
 		svcController:   svcController,
@@ -318,8 +318,14 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Delete("/baselines/{id}", h.Baseline.Delete)
 		r.Get("/baselines/{id}/scripts", h.Baseline.ListScripts)
 		r.Put("/baselines/{id}/scripts", h.Baseline.SetScripts)
+		r.Post("/baselines/{id}/scripts", h.Baseline.CreateAndAddScript)
 		// Machine pull endpoint — NOT under /baselines to keep it clean for client use
 		r.Get("/baselines/assigned", h.Baseline.GetAssigned)
+		// Answer-template bootstrap pull — 200-empty semantics for installers
+		r.Get("/baselines/pull", h.Baseline.PullScripts)
+		// Exec-bundles for answer hooks: sh / powershell
+		r.Get("/baselines/pull.sh", h.Baseline.PullShellScript)
+		r.Get("/baselines/pull.ps1", h.Baseline.PullPowerShellScript)
 
 		// Scripts — standalone reusable scripts
 		r.Get("/scripts", h.Script.List)

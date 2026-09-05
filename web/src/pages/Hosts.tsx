@@ -11,7 +11,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { Input } from '../components/ui/FormControls'
-import { api, type Host } from '../api/client'
+import { api, type Host, type Profile, type Baseline, type scriptDTO } from '../api/client'
 import { useUIConfig } from '../contexts/UIConfigContext'
 
 export default function Hosts() {
@@ -24,22 +24,37 @@ export default function Hosts() {
   const [total, setTotal] = useState(0)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
-  const [newHost, setNewHost] = useState({ name: '', mac: '', ip: '', profile_id: '' })
-  const [profiles, setProfiles] = useState<{ id: string; name: string }[]>([])
+  const [newHost, setNewHost] = useState<{
+    name: string; mac: string; ip: string; sn: string; profile_id: string
+    baseline_ids: string[]; script_ids: number[]
+  }>({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [allBaselines, setAllBaselines] = useState<Baseline[]>([])
+  const [allScripts, setAllScripts] = useState<scriptDTO[]>([])
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [sortField, setSortField] = useState('')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   const { pageSize } = useUIConfig()
 
+  function openCreate() {
+    setNewHost({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
+    setCreateError('')
+    setShowModal(true)
+  }
+
+  function toggleArr<T>(arr: T[], v: T): T[] {
+    return arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
+  }
+
   useEffect(() => {
     loadHosts()
   }, [page, search])
 
   useEffect(() => {
-    api.getProfiles().then(res => {
-      setProfiles(res.data.map(p => ({ id: p.id, name: p.name })))
-    }).catch(() => {})
+    api.getProfiles().then(res => setProfiles(res.data)).catch(() => {})
+    api.getBaselines().then(res => setAllBaselines(res.data ?? [])).catch(() => {})
+    api.getScripts().then(res => setAllScripts(res.data ?? [])).catch(() => {})
   }, [])
 
   async function loadHosts() {
@@ -71,10 +86,18 @@ export default function Hosts() {
     }
     setCreateError('')
     try {
-      await api.createHost({ ...newHost, mac })
+      await api.createHost({
+        name: newHost.name,
+        mac,
+        ip: newHost.ip || undefined,
+        sn: newHost.sn || undefined,
+        profile_id: newHost.profile_id || undefined,
+        baseline_ids: newHost.baseline_ids,
+        script_ids: newHost.script_ids,
+      })
       success(t('hosts.created'))
       setShowModal(false)
-      setNewHost({ name: '', mac: '', ip: '', profile_id: '' })
+      setNewHost({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
       loadHosts()
     } catch (err: any) {
       setCreateError(err.message)
@@ -108,6 +131,11 @@ export default function Hosts() {
     else { setSortField(field); setSortDir('asc') }
   }
 
+  // 初始化脚本（P1：继承自 Profile 的基线 + 主机追加的基线/脚本）
+  const selectedProfile = profiles.find(p => p.id === newHost.profile_id)
+  const inheritedBaselineIds: string[] = selectedProfile?.baselines ?? []
+  const isInherited = (id: string) => inheritedBaselineIds.includes(id)
+
   const sortedHosts = sortField
     ? [...hosts].sort((a, b) => {
         const cmp = String(a[sortField as keyof Host] ?? '').localeCompare(String(b[sortField as keyof Host] ?? ''))
@@ -133,7 +161,7 @@ export default function Hosts() {
       <PageHeader
         title={t('hosts.title')}
         actions={
-          <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
+          <Button variant="primary" size="sm" onClick={openCreate}>
             <Plus size={14} /> {t('hosts.addHost')}
           </Button>
         }
@@ -171,7 +199,7 @@ export default function Hosts() {
 
       <Modal
         open={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => { setShowModal(false); setNewHost({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] }) }}
         title={t('hosts.addHost')}
         footer={
           <>
@@ -209,6 +237,71 @@ export default function Hosts() {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">SN</label>
+            <Input placeholder={t('hosts.snPlaceholder', 'Serial Number（可选，配合 global.identity_attr=sn 使用）')} value={newHost.sn} onChange={e => setNewHost({ ...newHost, sn: e.target.value })} />
+          </div>
+
+          {/* 初始化脚本：勾选即装机后自动执行 */}
+          <div className="rounded-lg border border-[var(--bg-border)] p-3 space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-[var(--text-primary)]">{t('hosts.initSection')}</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{t('hosts.initHint')}</p>
+            </div>
+            {inheritedBaselineIds.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">{t('hosts.inheritedBaselines')}</span>
+                {inheritedBaselineIds.map(id => {
+                  const b = allBaselines.find(x => x.id === id)
+                  return (
+                    <span key={id} className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">{b ? b.name : id}</span>
+                  )
+                })}
+              </div>
+            )}
+            <div>
+              <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addBaselines')}</p>
+              <div className="max-h-32 overflow-y-auto rounded border border-[var(--bg-border)] p-2 space-y-1">
+                {allBaselines.map(b => {
+                  const on = isInherited(b.id) || newHost.baseline_ids.includes(b.id)
+                  return (
+                    <label key={b.id} className={`flex items-center gap-2 text-xs ${isInherited(b.id) ? 'opacity-60' : 'cursor-pointer hover:text-[var(--text-primary)]'}`}>
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        disabled={isInherited(b.id)}
+                        onChange={() => setNewHost({ ...newHost, baseline_ids: toggleArr(newHost.baseline_ids, b.id) })}
+                        className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+                      />
+                      <span className="text-[var(--text-muted)]">{b.name}</span>
+                    </label>
+                  )
+                })}
+                {allBaselines.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{t('baselines.noBaselines')}</p>}
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addScripts')}</p>
+              <div className="max-h-32 overflow-y-auto rounded border border-[var(--bg-border)] p-2 space-y-1">
+                {allScripts.map(sc => {
+                  const on = newHost.script_ids.includes(sc.id)
+                  return (
+                    <label key={sc.id} className="flex items-center gap-2 text-xs cursor-pointer hover:text-[var(--text-primary)]">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() => setNewHost({ ...newHost, script_ids: toggleArr(newHost.script_ids, sc.id) })}
+                        className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+                      />
+                      <span className="text-[var(--text-muted)]">{sc.name}</span>
+                      <span className="ml-auto px-1 py-px rounded text-[9px] uppercase text-[var(--text-muted)] bg-[var(--bg-hover)]">{sc.type}</span>
+                    </label>
+                  )
+                })}
+                {allScripts.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{t('scripts.noScripts')}</p>}
+              </div>
             </div>
           </div>
         </div>
