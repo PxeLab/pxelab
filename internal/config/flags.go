@@ -1,4 +1,4 @@
-﻿package config
+package config
 
 import (
 	"path/filepath"
@@ -30,6 +30,7 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	}
 
 	v.SetDefault("global.listen_addr", ":8080")
+	v.SetDefault("global.identity_attr", "mac")
 	v.SetDefault("store.dsn", "")
 	v.SetDefault("boot.root_dir", "")
 	v.SetDefault("log.level", "info")

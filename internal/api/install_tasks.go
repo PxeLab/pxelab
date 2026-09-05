@@ -1,8 +1,9 @@
-﻿package api
+package api
 
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -54,7 +55,7 @@ func (h *InstallTaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 func (h *InstallTaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	
+
 	// 保存旧值
 	oldTask, _ := h.store.GetInstallTask(r.Context(), id)
 
@@ -160,11 +161,28 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 
 	data := netboot.AnswerDataFromHost(host, task.Arch)
 
-
 	rendered, err := netboot.RenderAnswerTemplate(tmpl.Content, data)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "模板渲染失败: "+err.Error())
 		return
+	}
+
+	// 勾选了“自动下发初始化基线”时，注入拉取并执行的钩子（身份按配置取 mac/sn）
+	if tmpl.EnableBaselinePull {
+		mac, sn := "", ""
+		if host != nil && host.ID != "" && host.MAC != "" {
+			mac = host.MAC
+			sn = host.SN
+		} else if real, e := h.store.GetHost(r.Context(), task.HostID); e == nil && real != nil {
+			mac = real.MAC
+			sn = real.SN
+		}
+		if augmented, ok := augmentBaselinePull(rendered, tmpl.Type, r.Host, mac, sn, ""); ok {
+			rendered = augmented
+		} else {
+			slog.Warn("应答模板启用了基线自动下发，但无法安全注入（请人工添加钩子）",
+				"template_type", tmpl.Type, "template_id", tmpl.ID)
+		}
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

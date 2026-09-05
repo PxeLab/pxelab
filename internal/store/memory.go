@@ -1,4 +1,4 @@
-﻿package store
+package store
 
 import (
 	"context"
@@ -187,6 +187,36 @@ func (s *memoryStore) GetHostByMAC(_ context.Context, mac string) (*models.Host,
 		}
 	}
 	return nil, ErrNotFound
+}
+
+func (s *memoryStore) GetHostBySN(_ context.Context, sn string) (*models.Host, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, h := range s.hosts {
+		if h.SN != "" && strings.EqualFold(h.SN, sn) {
+			return h, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (s *memoryStore) CountHostsByScript(_ context.Context, scriptID uint) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var n int64
+	for _, h := range s.hosts {
+		ids, err := h.GetScriptIDs()
+		if err != nil {
+			continue
+		}
+		for _, id := range ids {
+			if id == scriptID {
+				n++
+				break
+			}
+		}
+	}
+	return n, nil
 }
 
 func (s *memoryStore) CreateHost(_ context.Context, host *models.Host) error {

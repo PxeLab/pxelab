@@ -10,7 +10,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { Input, Textarea } from '../components/ui/FormControls'
 import { DataTable, type Column } from '../components/ui/DataTable'
-import { api, type Baseline, type BaselineScriptAssignment, type scriptDTO, type SetScriptsItem } from '../api/client'
+import { api, createAndAddBaselineScript, type Baseline, type BaselineScriptAssignment, type scriptDTO, type SetScriptsItem } from '../api/client'
 
 const SCRIPT_TYPE_COLORS: Record<string, string> = {
   shell: 'bg-accent-green/15 text-accent-green',
@@ -45,6 +45,49 @@ export default function BaselineDetail() {
 
   // Delete confirm
   const [deleteScriptTarget, setDeleteScriptTarget] = useState<number | null>(null)
+
+  // Inline create — new library script appended to this baseline (L2)
+  const [showInline, setShowInline] = useState(false)
+  const [inlineName, setInlineName] = useState('')
+  const [inlineType, setInlineType] = useState('shell')
+  const [inlineContent, setInlineContent] = useState('')
+  const [inlineDesc, setInlineDesc] = useState('')
+  const [inlineSaving, setInlineSaving] = useState(false)
+  const [inlineError, setInlineError] = useState('')
+
+  function openInlineCreate() {
+    setInlineName('')
+    setInlineType('shell')
+    setInlineContent('')
+    setInlineDesc('')
+    setInlineError('')
+    setShowInline(true)
+  }
+
+  async function saveInlineCreate() {
+    if (!id) return
+    if (!inlineName.trim() || !inlineContent.trim()) {
+      setInlineError(t('common.fieldRequired'))
+      return
+    }
+    setInlineSaving(true)
+    setInlineError('')
+    try {
+      await createAndAddBaselineScript(id, {
+        name: inlineName.trim(),
+        type: inlineType,
+        content: inlineContent,
+        description: inlineDesc.trim() || undefined,
+      })
+      success(t('baselines.scriptSaved'))
+      setShowInline(false)
+      loadBaseline()
+    } catch (err: any) {
+      setInlineError(err.message || t('common.saveFailed'))
+    } finally {
+      setInlineSaving(false)
+    }
+  }
 
   const loadBaseline = useCallback(async () => {
     if (!id) return
@@ -394,6 +437,10 @@ export default function BaselineDetail() {
                 {t('common.save')}
               </Button>
             )}
+            <Button variant="secondary" size="sm" onClick={openInlineCreate}>
+              <Plus size={14} />
+              {t('baselines.newScriptAndAdd')}
+            </Button>
             <Button variant="primary" size="sm" onClick={openAddScript}>
               <Plus size={14} />
               {t('baselines.addScript')}
@@ -470,6 +517,51 @@ export default function BaselineDetail() {
               </label>
             ))
           )}
+        </div>
+      </Modal>
+
+      {/* Inline Create & Add Modal (L2) */}
+      <Modal
+        open={showInline}
+        onClose={() => setShowInline(false)}
+        title={t('baselines.newScriptAndAdd')}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setShowInline(false)}>{t('common.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={saveInlineCreate} disabled={inlineSaving}>
+              {inlineSaving ? t('common.processing') : t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        {inlineError && (
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">{inlineError}</div>
+        )}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('common.name')} *</label>
+            <Input size="sm" type="text" value={inlineName} onChange={e => setInlineName(e.target.value)} placeholder="my-script" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('common.type')}</label>
+            <select
+              value={inlineType}
+              onChange={e => setInlineType(e.target.value)}
+              className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] text-[var(--text-primary)] outline-none transition-all rounded-lg px-3.5 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+            >
+              <option value="shell">Shell</option>
+              <option value="bat">BAT</option>
+              <option value="powershell">PowerShell</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('common.content')} *</label>
+            <Textarea size="sm" value={inlineContent} onChange={e => setInlineContent(e.target.value)} rows={10} className="font-mono text-sm" placeholder="#!/bin/bash" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('common.description')}</label>
+            <Textarea size="sm" value={inlineDesc} onChange={e => setInlineDesc(e.target.value)} rows={2} />
+          </div>
         </div>
       </Modal>
 

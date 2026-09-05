@@ -57,6 +57,8 @@ type HostStore interface {
 	ListHosts(ctx context.Context, search string, page, size int) ([]models.Host, int64, error)
 	GetHost(ctx context.Context, id string) (*models.Host, error)
 	GetHostByMAC(ctx context.Context, mac string) (*models.Host, error)
+	GetHostBySN(ctx context.Context, sn string) (*models.Host, error)
+	CountHostsByScript(ctx context.Context, scriptID uint) (int64, error)
 	CreateHost(ctx context.Context, host *models.Host) error
 	UpdateHost(ctx context.Context, host *models.Host) error
 	DeleteHost(ctx context.Context, id string) error

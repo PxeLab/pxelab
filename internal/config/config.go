@@ -8,28 +8,28 @@ import (
 
 // IPXEScriptConfig 定义 iPXE 脚本相关配置（用于 DHCP Option 175）
 type IPXEScriptConfig struct {
-	Enabled      bool   `yaml:"enabled" mapstructure:"enabled"`           // 是否发送 Option 175（iPXE 脚本 URL）
-	Port         int    `yaml:"port" mapstructure:"port"`                 // HTTP 端口，用于生成脚本 URL，默认 8080
-	Path         string `yaml:"path" mapstructure:"path"`                 // 脚本路径，默认 "/boot/ipxe/script"
+	Enabled      bool   `yaml:"enabled" mapstructure:"enabled"`             // 是否发送 Option 175（iPXE 脚本 URL）
+	Port         int    `yaml:"port" mapstructure:"port"`                   // HTTP 端口，用于生成脚本 URL，默认 8080
+	Path         string `yaml:"path" mapstructure:"path"`                   // 脚本路径，默认 "/boot/ipxe/script"
 	FeatureFlags int    `yaml:"feature_flags" mapstructure:"feature_flags"` // 子选项 177 值，默认 0x01（HTTP 模式）
 }
 
 type Config struct {
-	ConfigPath       string                  `yaml:"-" json:"-" mapstructure:"-"` // 配置文件的完整路径，运行时追踪用
-	Global           GlobalConfig            `yaml:"global" mapstructure:"global"`
-	Interfaces       []InterfaceConfig       `yaml:"interfaces" mapstructure:"interfaces"`
-	Auth             AuthConfig              `yaml:"auth" mapstructure:"auth"`
-	DNS              DNSConfig               `yaml:"dns" mapstructure:"dns"`
-	NFS              NFSConfig               `yaml:"nfs" mapstructure:"nfs"`
-	Boot             BootConfig              `yaml:"boot" mapstructure:"boot"`
-	TFTP             TFTPConfig              `yaml:"tftp" mapstructure:"tftp"`
-	Netboot          NetbootConfig           `yaml:"netboot" mapstructure:"netboot"`
-	Store            StoreConfig             `yaml:"store" mapstructure:"store"`
-	Log              LogConfig               `yaml:"log" mapstructure:"log"`
-	ServiceAutoStart ServiceAutoStartConfig  `yaml:"service_auto_start" mapstructure:"service_auto_start"`
-	IPXEScript       IPXEScriptConfig        `yaml:"ipxe_script" mapstructure:"ipxe_script"`
-	BlacklistSeeds   []MACEntry              `yaml:"blacklist,omitempty" mapstructure:"blacklist,omitempty"`
-	WhitelistSeeds   []WhitelistSeedEntry    `yaml:"whitelist,omitempty" mapstructure:"whitelist,omitempty"`
+	ConfigPath       string                 `yaml:"-" json:"-" mapstructure:"-"` // 配置文件的完整路径，运行时追踪用
+	Global           GlobalConfig           `yaml:"global" mapstructure:"global"`
+	Interfaces       []InterfaceConfig      `yaml:"interfaces" mapstructure:"interfaces"`
+	Auth             AuthConfig             `yaml:"auth" mapstructure:"auth"`
+	DNS              DNSConfig              `yaml:"dns" mapstructure:"dns"`
+	NFS              NFSConfig              `yaml:"nfs" mapstructure:"nfs"`
+	Boot             BootConfig             `yaml:"boot" mapstructure:"boot"`
+	TFTP             TFTPConfig             `yaml:"tftp" mapstructure:"tftp"`
+	Netboot          NetbootConfig          `yaml:"netboot" mapstructure:"netboot"`
+	Store            StoreConfig            `yaml:"store" mapstructure:"store"`
+	Log              LogConfig              `yaml:"log" mapstructure:"log"`
+	ServiceAutoStart ServiceAutoStartConfig `yaml:"service_auto_start" mapstructure:"service_auto_start"`
+	IPXEScript       IPXEScriptConfig       `yaml:"ipxe_script" mapstructure:"ipxe_script"`
+	BlacklistSeeds   []MACEntry             `yaml:"blacklist,omitempty" mapstructure:"blacklist,omitempty"`
+	WhitelistSeeds   []WhitelistSeedEntry   `yaml:"whitelist,omitempty" mapstructure:"whitelist,omitempty"`
 }
 
 type ServiceAutoStartConfig struct {
@@ -46,22 +46,25 @@ type GlobalConfig struct {
 	ListenAddr       string `yaml:"listen_addr" mapstructure:"listen_addr"`
 	WhitelistEnabled bool   `yaml:"whitelist_enabled" mapstructure:"whitelist_enabled"`
 	PageSize         int    `yaml:"page_size" mapstructure:"page_size"`
+	// IdentityAttr 机器拉取初始化基线时使用的主机身份键：mac（默认）或 sn。
+	// 应答模板钩子据此生成 /baselines/pull?mac=… 或 ?sn=…。
+	IdentityAttr string `yaml:"identity_attr" mapstructure:"identity_attr"`
 }
 
 type InterfaceConfig struct {
-	Name        string         `yaml:"name" mapstructure:"name"`
-	IP          string         `yaml:"ip" mapstructure:"ip"`
-	Subnets     []SubnetConfig `yaml:"subnets" mapstructure:"subnets"`
-	TFTP        bool           `yaml:"tftp" mapstructure:"tftp"`
-	HTTP        bool           `yaml:"http" mapstructure:"http"`
-	AutoStart   bool           `yaml:"auto_start" mapstructure:"auto_start"`      // auto-start DHCP/ProxyDHCP for this interface
+	Name      string         `yaml:"name" mapstructure:"name"`
+	IP        string         `yaml:"ip" mapstructure:"ip"`
+	Subnets   []SubnetConfig `yaml:"subnets" mapstructure:"subnets"`
+	TFTP      bool           `yaml:"tftp" mapstructure:"tftp"`
+	HTTP      bool           `yaml:"http" mapstructure:"http"`
+	AutoStart bool           `yaml:"auto_start" mapstructure:"auto_start"` // auto-start DHCP/ProxyDHCP for this interface
 }
 
 type SubnetConfig struct {
 	CIDR             string   `yaml:"cidr" mapstructure:"cidr"`
 	DHCP             string   `yaml:"dhcp" mapstructure:"dhcp"`
-	Pool             string   `yaml:"pool" mapstructure:"pool"`                // 兼容旧格式单地址池
-	Pools            []string `yaml:"pools" mapstructure:"pools"`              // 多地址池 ["start1-end1", "start2-end2"]
+	Pool             string   `yaml:"pool" mapstructure:"pool"`   // 兼容旧格式单地址池
+	Pools            []string `yaml:"pools" mapstructure:"pools"` // 多地址池 ["start1-end1", "start2-end2"]
 	Gateway          string   `yaml:"gateway" mapstructure:"gateway"`
 	DNSServers       string   `yaml:"dns_servers" mapstructure:"dns_servers"`
 	NextServer       string   `yaml:"next_server" mapstructure:"next_server"`
@@ -149,10 +152,10 @@ type ArchEntry struct {
 
 	// Secure Boot 支持
 	SecureBoot bool   `yaml:"secure_boot" mapstructure:"secure_boot"`
-	IPXESB     string `yaml:"ipxe_sb" mapstructure:"ipxe_sb"`       // Secure Boot 签名的 iPXE 二进制文件（shim 加载此文件）
-	ShimIPXE   string `yaml:"shim_ipxe" mapstructure:"shim_ipxe"`   // iPXE 的 UEFI Shim（NBP=ipxe + SB 时使用）
-	GRUBSB     string `yaml:"grub_sb" mapstructure:"grub_sb"`       // Secure Boot 签名的 GRUB2 二进制文件（shim 加载此文件）
-	ShimGRUB   string `yaml:"shim_grub" mapstructure:"shim_grub"`   // GRUB2 的 UEFI Shim（NBP=grub2 + SB 时使用）
+	IPXESB     string `yaml:"ipxe_sb" mapstructure:"ipxe_sb"`     // Secure Boot 签名的 iPXE 二进制文件（shim 加载此文件）
+	ShimIPXE   string `yaml:"shim_ipxe" mapstructure:"shim_ipxe"` // iPXE 的 UEFI Shim（NBP=ipxe + SB 时使用）
+	GRUBSB     string `yaml:"grub_sb" mapstructure:"grub_sb"`     // Secure Boot 签名的 GRUB2 二进制文件（shim 加载此文件）
+	ShimGRUB   string `yaml:"shim_grub" mapstructure:"shim_grub"` // GRUB2 的 UEFI Shim（NBP=grub2 + SB 时使用）
 }
 
 type BootConfig struct {
@@ -213,12 +216,12 @@ type StoreConfig struct {
 type LogConfig struct {
 	Level           string `yaml:"level" mapstructure:"level"`
 	Format          string `yaml:"format" mapstructure:"format"`
-	File            string `yaml:"file" mapstructure:"file"`                               // 日志文件路径，为空则不写文件
-	MaxSizeMB       int    `yaml:"max_size_mb" mapstructure:"max_size_mb"`                 // 单文件最大体积 (MB)，0=不限制
-	MaxBackups      int    `yaml:"max_backups" mapstructure:"max_backups"`                 // 保留轮转文件数，0=不限制
-	MaxAgeDays      int    `yaml:"max_age_days" mapstructure:"max_age_days"`               // 保留天数，0=不限制
-	Compress        bool   `yaml:"compress" mapstructure:"compress"`                       // 是否 gzip 压缩旧日志
-	CleanupInterval int    `yaml:"cleanup_interval" mapstructure:"cleanup_interval"`       // 清理检查间隔（小时），0=不自动清理
+	File            string `yaml:"file" mapstructure:"file"`                         // 日志文件路径，为空则不写文件
+	MaxSizeMB       int    `yaml:"max_size_mb" mapstructure:"max_size_mb"`           // 单文件最大体积 (MB)，0=不限制
+	MaxBackups      int    `yaml:"max_backups" mapstructure:"max_backups"`           // 保留轮转文件数，0=不限制
+	MaxAgeDays      int    `yaml:"max_age_days" mapstructure:"max_age_days"`         // 保留天数，0=不限制
+	Compress        bool   `yaml:"compress" mapstructure:"compress"`                 // 是否 gzip 压缩旧日志
+	CleanupInterval int    `yaml:"cleanup_interval" mapstructure:"cleanup_interval"` // 清理检查间隔（小时），0=不自动清理
 }
 
 func (c *Config) Validate() error {
@@ -228,6 +231,9 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("interface %s subnet %s: 无效的 DHCP 模式: %s", iface.Name, sn.CIDR, sn.DHCP)
 			}
 		}
+	}
+	if c.Global.IdentityAttr != "" && c.Global.IdentityAttr != "mac" && c.Global.IdentityAttr != "sn" {
+		return fmt.Errorf("global.identity_attr 无效: %s（仅支持 mac 或 sn）", c.Global.IdentityAttr)
 	}
 	return nil
 }

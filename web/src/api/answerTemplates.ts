@@ -10,6 +10,7 @@ export interface AnswerTemplate {
   content: string
   current_version?: number
   variables?: string[]
+  enable_baseline_pull?: boolean
   created_at?: string
   updated_at?: string
 }
@@ -63,8 +64,12 @@ export function validateAnswerTemplateById(id: number, content: string): Promise
   return request('POST', `/netboot/answer-templates/${id}/validate`, content)
 }
 
-export function previewAnswerTemplate(id: number, vars: Record<string, string>): Promise<ApiResponse<{ rendered: string }>> {
-  return request('POST', `/netboot/answer-templates/${id}/preview`, vars)
+export function previewAnswerTemplate(
+  id: number,
+  vars: Record<string, string>,
+  overrides?: { type?: string; content?: string; enable_baseline_pull?: boolean }
+): Promise<ApiResponse<{ rendered: string; baseline_pull_injected: boolean }>> {
+  return request('POST', `/netboot/answer-templates/${id}/preview`, { ...vars, ...overrides })
 }
 
 export function getAnswerTemplatePresets(type?: string): Promise<ApiResponse<{ presets: { type: string; count?: number }[] } | { presets: { name: string; description: string; content: string; variables: string[] }[] }>> {

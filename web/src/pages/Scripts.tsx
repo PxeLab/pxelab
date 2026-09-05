@@ -22,7 +22,7 @@ function formatTime(s: string) {
   try { return new Date(s).toLocaleString() } catch { return s }
 }
 
-export default function Scripts() {
+export default function Scripts({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { success, error: showError } = useToast()
@@ -160,19 +160,31 @@ export default function Scripts() {
     },
   ]
 
+  const createAction = (
+    <Button variant="primary" size="sm" onClick={openCreate}>
+      <Plus size={14} />
+      {t('scripts.create')}
+    </Button>
+  )
+
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title={t('scripts.title')}
-        description={t('scripts.description')}
-        className="mb-0"
-        actions={
-          <Button variant="primary" size="sm" onClick={openCreate}>
-            <Plus size={14} />
-            {t('scripts.create')}
-          </Button>
-        }
-      />
+    <div className={embedded ? 'space-y-3' : 'space-y-5'}>
+      {embedded ? (
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">
+            {t('scripts.title')}
+            <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">{scripts.length}</span>
+          </h2>
+          {createAction}
+        </div>
+      ) : (
+        <PageHeader
+          title={t('scripts.title')}
+          description={t('scripts.description')}
+          className="mb-0"
+          actions={createAction}
+        />
+      )}
 
       {loadError && (
         <Card>

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -144,12 +145,45 @@ func (h *ScriptHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "无效的脚本 ID")
 		return
 	}
+	// 引用保护：脚本仍被任一初始化脚本（脚本集）或主机直接引用时禁止删除，
+	// 避免静默破坏引用它的脚本集 / 主机初始化配置。
+	refBaselines, _ := h.referencingBaselines(r.Context(), uint(id))
+	hostRefs, _ := h.store.CountHostsByScript(r.Context(), uint(id))
+	refCount := len(refBaselines) + int(hostRefs)
+	if refCount > 0 {
+		Error(w, http.StatusConflict,
+			fmt.Sprintf("该脚本正被 %d 处引用（脚本集 %d 处、主机 %d 处），请先解除引用后再删除",
+				refCount, len(refBaselines), hostRefs))
+		return
+	}
 	if err := h.store.DeleteScript(r.Context(), uint(id)); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	RecordAudit(r.Context(), h.store, models.AuditDelete, "script", fmt.Sprintf("%d", id), remoteIP(r), "删除脚本")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// referencingBaselines returns the IDs of baselines that reference the script.
+func (h *ScriptHandler) referencingBaselines(ctx context.Context, scriptID uint) ([]string, error) {
+	baselines, err := h.store.ListBaselines(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var refs []string
+	for i := range baselines {
+		assignments, err := h.store.ListBaselineScripts(ctx, baselines[i].ID)
+		if err != nil {
+			continue
+		}
+		for _, a := range assignments {
+			if a.ScriptID == scriptID {
+				refs = append(refs, baselines[i].ID)
+				break
+			}
+		}
+	}
+	return refs, nil
 }
 
 // --- helpers ---

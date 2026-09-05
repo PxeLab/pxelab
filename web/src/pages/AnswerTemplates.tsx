@@ -58,6 +58,7 @@ export default function AnswerTemplates() {
   // Preview state
   const [showPreview, setShowPreview] = useState(false)
   const [previewResult, setPreviewResult] = useState('')
+  const [previewInjected, setPreviewInjected] = useState(false)
 
   // Preset state
   const [showPresets, setShowPresets] = useState(false)
@@ -235,7 +236,32 @@ export default function AnswerTemplates() {
     return rendered
   }
 
-  const openPreview = () => {
+  const openPreview = async () => {
+    if (!editing) return
+    setPreviewInjected(false)
+    // 启用了“基线自动下发”时走服务端预览，展示真实注入后的完整文件
+    if (editing.enable_baseline_pull && editing.id) {
+      try {
+        const res = await api.previewAnswerTemplate(editing.id, {
+          host_name: 'node-01',
+          host_mac: '00:11:22:33:44:55',
+          host_ip: '192.168.1.100',
+          arch: 'amd64',
+        }, {
+          type: editing.type,
+          content: editing.content,
+          enable_baseline_pull: true,
+        })
+        setPreviewResult(res.data.rendered)
+        setPreviewInjected(res.data.baseline_pull_injected)
+        setShowPreview(true)
+        return
+      } catch (err: any) {
+        setPreviewResult(renderTemplate())
+        setShowPreview(true)
+        return
+      }
+    }
     setPreviewResult(renderTemplate())
     setShowPreview(true)
   }
@@ -568,6 +594,20 @@ export default function AnswerTemplates() {
               />
             </div>
 
+            {/* 安装时自动拉取并执行该主机的初始化基线 */}
+            <label className="mb-4 flex items-start gap-2.5 p-3 rounded-lg border border-[var(--bg-border)] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors">
+              <input
+                type="checkbox"
+                checked={!!editing.enable_baseline_pull}
+                onChange={e => setEditing({ ...editing, enable_baseline_pull: e.target.checked })}
+                className="mt-0.5 rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+              />
+              <span>
+                <span className="block text-sm font-medium text-[var(--text-primary)]">{t('answerTemplates.baselinePull')}</span>
+                <span className="block text-[11px] text-[var(--text-muted)] mt-0.5">{t('answerTemplates.baselinePullHint')}</span>
+              </span>
+            </label>
+
             {/* Validation result */}
             {validationResult && (
               <div className={`mb-4 px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${
@@ -632,6 +672,11 @@ export default function AnswerTemplates() {
         }
       >
         <div className="rounded-lg border border-[var(--bg-border)] overflow-hidden">
+          {previewInjected && (
+            <div className="px-3 py-2 text-[11px] bg-accent-green/10 text-accent-green border-b border-[var(--bg-border)]">
+              {t('answerTemplates.baselinePullInjected')}
+            </div>
+          )}
           <pre className="p-3 max-h-80 overflow-y-auto text-[11px] font-mono whitespace-pre-wrap text-[var(--text-primary)]">
             {previewResult || editing?.content || ''}
           </pre>

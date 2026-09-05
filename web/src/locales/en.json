@@ -52,8 +52,7 @@
     "osImages": "OS Images",
     "network": "Network Diagnostics",
     "bootSettings": "Boot Options",
-    "baselines": "Baselines",
-    "scripts": "Scripts",
+    "baselines": "Baselines", "scripts": "Script Library",
     "store": "Hub"
   },
   "dashboard": {
@@ -99,6 +98,11 @@
     "noEvents": "No events"
   },
   "hosts": {
+    "addScripts": "Add scripts",
+    "addBaselines": "Add baselines",
+    "inheritedBaselines": "Inherited from profile",
+    "initHint": "Selected baselines/scripts are fetched and run in order during install; unselected are skipped. Baselines bound to the profile are inherited automatically.",
+    "initSection": "Init scripts (run after install)",
     "title": "Hosts",
     "search": "Search MAC / Hostname / IP ...",
     "addHost": "Add Host",
@@ -779,6 +783,9 @@
     "invalidJSON": "Invalid JSON format"
   },
   "answerTemplates": {
+    "baselinePullInjected": "Baseline pull hook injected",
+    "baselinePullHint": "PxeLab appends the per-OS hook when serving the answer file; check the preview if your template already defines the same phase.",
+    "baselinePull": "Fetch and run this host's init baselines during install",
     "title": "Answer Templates",
     "deleteTemplate": "Delete Template",
     "deleteConfirm": "Delete template \"{{name}}\"? This cannot be undone.",
@@ -1447,7 +1454,7 @@
   },
   "baselines": {
     "title": "Baselines",
-    "listTitle": "Baselines",
+    "listTitle": "Baselines", "pageDescription": "Dual view: baselines order scripts from the library with variables and OS filters; script content is maintained in the script library.",
     "createTitle": "Create Baseline",
     "editTitle": "Edit Baseline",
     "name": "Name",
@@ -1461,7 +1468,7 @@
     "updateSuccess": "Baseline updated",
     "deleteSuccess": "Baseline deleted",
     "deleteConfirmTitle": "Delete Baseline",
-    "deleteConfirmMsg": "Are you sure you want to delete this baseline? All associated scripts will also be removed.",
+    "deleteConfirmMsg": "Deleting removes this baseline's links to library scripts; the scripts themselves are kept in the library.",
     "addVariable": "Add Variable",
     "key": "Key",
     "value": "Value",
@@ -1469,6 +1476,7 @@
     "scriptSeq": "Order",
     "scriptContent": "Content",
     "addScript": "Add Script",
+    "newScriptAndAdd": "Create & Add Script",
     "editScript": "Edit Script",
     "deleteScriptConfirm": "Delete this script?",
     "noScripts": "No scripts in this baseline.",
@@ -1481,8 +1489,8 @@
     "confirmDelete": "Delete"
   },
   "scripts": {
-    "title": "Scripts",
-    "description": "Manage standalone scripts reusable across baselines",
+    "title": "Script Library",
+    "description": "Shared script library: maintain script content here once; initialization baselines reference these scripts in order.",
     "create": "Create Script",
     "createDescription": "Create a new script",
     "editDescription": "Edit script details",
