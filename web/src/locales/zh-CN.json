@@ -42,7 +42,7 @@
     "logs": "实时日志",
     "services": "服务管理",
     "about": "关于",
-    "netboot": "OS 安装目录",
+    "netboot": "系统目录",
     "leases": "DHCP 租约",
     "installTasks": "安装任务",
     "bmc": "带外管理",
@@ -1352,7 +1352,9 @@
     "viewDetails": "查看详情"
   },
   "netbootCatalog": {
-    "title": "OS 安装目录",
+    "title": "本地系统目录",
+    "description": "本地已安装的网络启动发行版（内置 + 从 PxeLab Hub 导入），可配置镜像源与启动参数",
+    "importFromStore": "从 Store 导入",
     "loadFailed": "加载发行版数据失败",
     "overlaySaveFailed": "保存覆盖配置失败",
     "overlayDeleteFailed": "删除覆盖配置失败",
@@ -1538,6 +1540,7 @@
     "import": "导入",
     "importing": "导入中...",
     "importSuccess": "成功导入 \"{name}\"",
+    "importedToCatalog": "已将 \"{name}\" 导入本地系统目录",
     "importFailed": "导入失败: {error}",
     "loadFailed": "无法加载 Hub 目录",
     "noItems": "Hub 中暂无可用内容",

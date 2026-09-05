@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"context"
@@ -39,6 +39,46 @@ func isPrintableASCII(s string) bool {
 type ProfileHandler struct {
 	store     store.Interface
 	netbootMgr *netboot.Manager
+}
+
+// menuEntryFromVersion maps a netboot catalog version to a boot menu entry.
+// Remote URLs are preferred over Local paths for portability across deployments.
+// Shared by CreateFromNetboot and the store netboot_distro importer.
+func menuEntryFromVersion(v *netboot.Version, label string) models.MenuEntry {
+	var kernel, initrd string
+	if v.Remote != nil {
+		kernel = v.Remote.Kernel
+		initrd = v.Remote.Initrd
+	} else if v.Local != nil {
+		kernel = v.Local.Kernel
+		initrd = v.Local.Initrd
+	}
+	entry := models.MenuEntry{
+		Label:   label,
+		Cmdline: strPtr(v.Cmdline),
+	}
+	switch v.BootType {
+	case netboot.BootKernel, netboot.BootMemdisk, netboot.BootMemtest, "":
+		entry.Type = "direct"
+		entry.Kernel = strPtr(kernel)
+		entry.Initrd = strPtr(initrd)
+	case netboot.BootWimboot:
+		entry.Type = "wds"
+		entry.WIM = strPtr(initrd)
+		entry.URL = strPtr(kernel)
+	case netboot.BootSanboot:
+		entry.Type = "sanboot"
+		entry.URL = strPtr(kernel)
+		entry.SANAction = v.SANAction
+		entry.SANNoDescribe = v.SANNoDescribe
+		entry.SANDrive = v.SANDrive
+		entry.SANKeepSAN = v.SANKeepSAN
+	default:
+		entry.Type = "custom"
+		s := fmt.Sprintf("# %s — please configure boot parameters manually", v.BootType)
+		entry.Script = &s
+	}
+	return entry
 }
 
 func (h *ProfileHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -402,45 +442,8 @@ func (h *ProfileHandler) CreateFromNetboot(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Determine boot files — prefer Remote (full URLs) over Local (relative paths)
-	// for portability across deployments. Local paths can't be used directly
-	// since the PXE server address is not known at API handler time.
-	var kernel, initrd string
-	if matchedVersion.Remote != nil {
-		kernel = matchedVersion.Remote.Kernel
-		initrd = matchedVersion.Remote.Initrd
-	} else if matchedVersion.Local != nil {
-		kernel = matchedVersion.Local.Kernel
-		initrd = matchedVersion.Local.Initrd
-	}
-	cmdline := matchedVersion.Cmdline
-
 	// Map catalog BootType to engine entry type and populate type-specific fields
-	entry := models.MenuEntry{
-		Label:    req.ProfileName,
-		Cmdline:  strPtr(cmdline),
-	}
-	switch matchedVersion.BootType {
-	case netboot.BootKernel, netboot.BootMemdisk, netboot.BootMemtest, "":
-		entry.Type = "direct"
-		entry.Kernel = strPtr(kernel)
-		entry.Initrd = strPtr(initrd)
-	case netboot.BootWimboot:
-		entry.Type = "wds"
-		entry.WIM = strPtr(initrd)
-		entry.URL = strPtr(kernel)
-	case netboot.BootSanboot:
-		entry.Type = "sanboot"
-		entry.URL = strPtr(kernel)
-		entry.SANAction = matchedVersion.SANAction
-		entry.SANNoDescribe = matchedVersion.SANNoDescribe
-		entry.SANDrive = matchedVersion.SANDrive
-		entry.SANKeepSAN = matchedVersion.SANKeepSAN
-	default:
-		entry.Type = "custom"
-		s := fmt.Sprintf("# %s — please configure boot parameters manually", matchedVersion.BootType)
-		entry.Script = &s
-	}
+	entry := menuEntryFromVersion(matchedVersion, req.ProfileName)
 
 	profile := &models.Profile{
 		ID:          uuid.New().String(),

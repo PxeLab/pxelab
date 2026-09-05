@@ -91,7 +91,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Version:         NewVersionHandler(version, updateChecker),
 		Baseline:        NewBaselineHandler(st, cfg.Global.IdentityAttr),
 		Script:          NewScriptHandler(st),
-		Store:           NewStoreHandler(st),
+		Store:           NewStoreHandler(st, netboot.CatalogDir(cfg.Global.DataDir), netbootMgr),
 		PxeBoot:         NewPxeBootHandler(st),
 		svcController:   svcController,
 		sessions:        sessions,

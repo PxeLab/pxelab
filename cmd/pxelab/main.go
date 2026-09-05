@@ -336,7 +336,7 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 	svcMgr.Register("tftp", "TFTP", tftpServer, cfg.ServiceAutoStart.TFTP, false, tftpCfg.Port, "UDP")
 
 	// Create netboot manager — extract embedded seed, then load from disk
-	catalogDir := filepath.Join(cfg.Global.DataDir, "netboot", "catalog")
+	catalogDir := netboot.CatalogDir(cfg.Global.DataDir)
 	os.MkdirAll(catalogDir, 0755)
 	netboot.ExtractSeed(catalogDir)
 	// Extract netboot.xyz menu files for static serving
