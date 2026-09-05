@@ -98,6 +98,23 @@
     "noEvents": "No events"
   },
   "hosts": {
+    "recordsCleared": "Boot records cleared",
+    "recordsClearAllConfirm": "Clear ALL PXE boot records? This cannot be undone.",
+    "recordsClearUnknownConfirm": "Ignore all unclaimed boot records? (claimed are kept)",
+    "recordsClearAll": "Clear all",
+    "recordsClearUnknown": "Ignore all unclaimed",
+    "recordsClearTitle": "Clear boot records",
+    "recordsIgnore": "Ignore",
+    "recordsClaim": "Create Host",
+    "recordsNotClaimed": "Not claimed",
+    "recordsClaimed": "Claimed",
+    "recordsContext": "Entry / menu",
+    "recordsLoader": "Loader",
+    "recordsCount": "Count",
+    "recordsLastSeen": "Last seen",
+    "recordsEmpty": "No boot records yet. PXE booting a machine will show it here.",
+    "recordsHint": "Machines that PXE booted but are not registered as hosts (unregistered machines never run baselines). Click 'Create Host' to pre-fill the MAC.",
+    "recordsTitle": "PXE Boot Records",
     "addScripts": "Add scripts",
     "addBaselines": "Add baselines",
     "inheritedBaselines": "Inherited from profile",
@@ -714,6 +731,7 @@
     "showing": "Showing {{from}}-{{to}} of {{total}}"
   },
   "common": {
+    "createdAt": "Created At",
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
@@ -780,8 +798,21 @@
     "serviceOpSuccess": "{{name}} {{op}} succeeded",
     "serviceCount": "{{count}} services",
     "fieldRequired": "This field is required",
-    "invalidJSON": "Invalid JSON format"
-  },
+    "invalidJSON": "Invalid JSON format",
+  
+    "name": "Name",
+    "type": "Type",
+    "description": "Description",
+    "content": "Content",
+    "status": "Status",
+    "preview": "Preview",
+    "previewIdentityNote": "Note: the MAC here is a placeholder; at serve time PxeLab replaces it with the install task's host identity.",
+    "add": "Add",
+    "up": "Up",
+    "down": "Down",
+    "loadFailed": "Load failed",
+    "deleteFailed": "Delete failed"
+},
   "answerTemplates": {
     "baselinePullInjected": "Baseline pull hook injected",
     "baselinePullHint": "PxeLab appends the per-OS hook when serving the answer file; check the preview if your template already defines the same phase.",
@@ -827,6 +858,7 @@
     "rollbackConfirm": "Rollback to version {{version}}? Current content will be saved as a new version.",
     "importJsonError": "Invalid JSON format, import failed",
     "preview": "Preview",
+    "previewIdentityNote": "Note: the MAC here is a placeholder; at serve time PxeLab replaces it with the install task's host identity.",
     "validate": "Validate",
     "validTemplate": "✓ Valid template syntax",
     "validationError": "✗ Validation error",

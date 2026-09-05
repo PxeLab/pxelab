@@ -34,6 +34,7 @@ type Interface interface {
 	AuditLogStore
 	BaselineStore
 	ScriptStore
+	PxeBootRecordStore
 	Close() error
 	Migrate() error
 	Seed() error
@@ -62,6 +63,15 @@ type HostStore interface {
 	CreateHost(ctx context.Context, host *models.Host) error
 	UpdateHost(ctx context.Context, host *models.Host) error
 	DeleteHost(ctx context.Context, id string) error
+}
+
+// PxeBootRecordStore 记录 PXE 引导留痕（认领主机用）。
+type PxeBootRecordStore interface {
+	UpsertPxeBootRecord(ctx context.Context, mac, loader, context, ip string) error
+	ListPxeBootRecords(ctx context.Context) ([]models.PxeBootRecord, error)
+	DeletePxeBootRecord(ctx context.Context, mac string) error
+	ClearPxeBootRecords(ctx context.Context) error
+	ClaimPxeBootRecord(ctx context.Context, mac, hostID string) error
 }
 
 type ProfileStore interface {

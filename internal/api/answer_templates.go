@@ -16,7 +16,8 @@ import (
 )
 
 type AnswerTemplateHandler struct {
-	store store.Interface
+	store      store.Interface
+	serverBase string // 可被局域网访问的 HTTP 基址（host:port），用于预览注入钩子
 }
 
 func (h *AnswerTemplateHandler) Validate(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +124,8 @@ func (h *AnswerTemplateHandler) Preview(w http.ResponseWriter, r *http.Request) 
 	// 预览同样展示“基线自动下发”注入后的完整文件，方便管理员确认钩子
 	injected := false
 	if enabled {
-		if out, ok := augmentBaselinePull(rendered, srcType, r.Host, req.HostMAC, "", ""); ok {
+		base := chooseServerBase(h.serverBase, r.Host)
+		if out, ok := augmentBaselinePull(rendered, srcType, base, req.HostMAC, "", ""); ok {
 			rendered = out
 			injected = true
 		}

@@ -56,6 +56,7 @@ type Handler struct {
 	Baseline        *BaselineHandler
 	Script          *ScriptHandler
 	Store           *StoreHandler
+	PxeBoot         *PxeBootHandler
 	svcController   ServiceController
 	sessions        *session.Store
 	version         string
@@ -75,8 +76,8 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Logs:            NewLogStreamHandler(bus, logDir(cfg)),
 		Netboot:         NewNetbootHandler(netbootMgr),
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
-		AnswerTemplate:  &AnswerTemplateHandler{store: st},
-		InstallTask:     &InstallTaskHandler{store: st},
+		AnswerTemplate:  &AnswerTemplateHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr)},
+		InstallTask:     &InstallTaskHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr)},
 		Service:         NewServiceHandler(svcController, cfg, st, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:            NewAuthHandler(cfg, sessions),
 		Access:          NewAccessHandler(st),
@@ -91,6 +92,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Baseline:        NewBaselineHandler(st, cfg.Global.IdentityAttr),
 		Script:          NewScriptHandler(st),
 		Store:           NewStoreHandler(st),
+		PxeBoot:         NewPxeBootHandler(st),
 		svcController:   svcController,
 		sessions:        sessions,
 		version:         version,
@@ -343,6 +345,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		// PXE runtime endpoints (no auth, registered in isPublicPath)
 		r.Get("/netboot/task/by-mac/{mac}", h.InstallTask.GetTaskByMAC)
 		r.Get("/netboot/answer/{task_id}", h.InstallTask.GetAnswerFile)
+
+		// PXE 引导记录 / 主机认领
+		r.Get("/pxe-boot/records", h.PxeBoot.List)
+		r.Delete("/pxe-boot/records/{mac}", h.PxeBoot.Delete)
+		r.Post("/pxe-boot/records/clear", h.PxeBoot.Clear)
+		r.Post("/pxe-boot/records/{mac}/claim", h.PxeBoot.Claim)
 	})
 }
 

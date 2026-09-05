@@ -24,6 +24,7 @@ export * from './bootloader'
 export * from './version'
 export * from './baselines'
 export * from './scripts'
+export * from './pxeboot'
 export * from './store'
 
 import { getMetrics, getStatus } from './services'

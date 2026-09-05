@@ -15,7 +15,8 @@ import (
 )
 
 type InstallTaskHandler struct {
-	store store.Interface
+	store      store.Interface
+	serverBase string // 可被局域网访问的 HTTP 基址（host:port），用于注入应答钩子
 }
 
 func (h *InstallTaskHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -129,6 +130,10 @@ func (h *InstallTaskHandler) GetTaskByMAC(w http.ResponseWriter, r *http.Request
 	// Enrich with overlay answer_param info
 	overlay, _ := h.store.GetNetbootOverlay(r.Context(), task.DistroName)
 	taskInfo := buildBootTaskInfo(task, overlay, r.Host)
+
+	// PXE 引导留痕归因：该 MAC 正在走某发行版的无人值守安装
+	_ = h.store.UpsertPxeBootRecord(r.Context(), mac, "", "install-task:"+task.DistroName, remoteIP(r))
+
 	OK(w, taskInfo)
 }
 
@@ -177,7 +182,8 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 			mac = real.MAC
 			sn = real.SN
 		}
-		if augmented, ok := augmentBaselinePull(rendered, tmpl.Type, r.Host, mac, sn, ""); ok {
+		base := chooseServerBase(h.serverBase, r.Host)
+		if augmented, ok := augmentBaselinePull(rendered, tmpl.Type, base, mac, sn, ""); ok {
 			rendered = augmented
 		} else {
 			slog.Warn("应答模板启用了基线自动下发，但无法安全注入（请人工添加钩子）",

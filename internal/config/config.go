@@ -49,6 +49,9 @@ type GlobalConfig struct {
 	// IdentityAttr 机器拉取初始化基线时使用的主机身份键：mac（默认）或 sn。
 	// 应答模板钩子据此生成 /baselines/pull?mac=… 或 ?sn=…。
 	IdentityAttr string `yaml:"identity_attr" mapstructure:"identity_attr"`
+	// HTTPBase 应答模板注入钩子使用的外部可访问地址（host:port，如 192.168.1.10:8080）。
+	// 为空时自动使用第一个非回环网卡 IP + listen 端口；客户端以局域网地址访问时优先用请求 Host。
+	HTTPBase string `yaml:"http_base" mapstructure:"http_base"`
 }
 
 type InterfaceConfig struct {

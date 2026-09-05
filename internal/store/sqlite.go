@@ -73,6 +73,7 @@ func (s *sqliteStore) Migrate() error {
 		&models.Baseline{},
 		&models.Script{},
 		&models.BaselineScriptAssignment{},
+		&models.PxeBootRecord{},
 	); err != nil {
 		return err
 	}

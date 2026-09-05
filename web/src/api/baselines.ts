@@ -30,8 +30,9 @@ export interface SetScriptsItem {
 
 // ── Baselines ──
 
-export function getBaselines(): Promise<ApiResponse<Baseline[]>> {
-  return request<Baseline[]>('GET', '/baselines')
+export async function getBaselines(): Promise<ApiResponse<Baseline[]>> {
+  const res = await request<{ baselines: Baseline[] }>('GET', '/baselines')
+  return { ...res, data: res.data?.baselines ?? [] }
 }
 
 export function getBaseline(id: string): Promise<ApiResponse<Baseline>> {
@@ -52,8 +53,9 @@ export function deleteBaseline(id: string): Promise<ApiResponse<unknown>> {
 
 // ── Baseline Script Associations ──
 
-export function getBaselineScripts(baselineId: string): Promise<ApiResponse<BaselineScriptAssignment[]>> {
-  return request<BaselineScriptAssignment[]>('GET', `/baselines/${baselineId}/scripts`)
+export async function getBaselineScripts(baselineId: string): Promise<ApiResponse<BaselineScriptAssignment[]>> {
+  const res = await request<{ scripts: BaselineScriptAssignment[] }>('GET', `/baselines/${baselineId}/scripts`)
+  return { ...res, data: res.data?.scripts ?? [] }
 }
 
 export function setBaselineScripts(baselineId: string, scripts: SetScriptsItem[]): Promise<ApiResponse<{ scripts: SetScriptsItem[] }>> {

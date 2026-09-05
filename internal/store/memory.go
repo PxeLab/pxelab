@@ -55,6 +55,7 @@ type memoryStore struct {
 	baselines        map[string]*memoryBaseline
 	scIdx            uint
 	scripts          map[uint]*models.Script
+	pxeBoot          map[string]models.PxeBootRecord
 }
 
 func NewMemory() Interface {
@@ -79,6 +80,7 @@ func NewMemory() Interface {
 		osImages:         make(map[uint]*models.OSImage),
 		baselines:        make(map[string]*memoryBaseline),
 		scripts:          make(map[uint]*models.Script),
+		pxeBoot:          make(map[string]models.PxeBootRecord),
 	}
 }
 

@@ -22,8 +22,9 @@ export interface ScriptReq {
 
 // ── Scripts ──
 
-export function getScripts(): Promise<ApiResponse<scriptDTO[]>> {
-  return request<scriptDTO[]>('GET', '/scripts')
+export async function getScripts(): Promise<ApiResponse<scriptDTO[]>> {
+  const res = await request<{ scripts: scriptDTO[] }>('GET', '/scripts')
+  return { ...res, data: res.data?.scripts ?? [] }
 }
 
 export function getScript(id: number): Promise<ApiResponse<scriptDTO>> {
