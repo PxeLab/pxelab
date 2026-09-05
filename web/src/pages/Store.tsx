@@ -79,6 +79,9 @@ export default function Store() {
       setImportTarget(null)
       if (res.data.type === 'baseline') {
         navigate(`/baselines/${res.data.id}`)
+      } else if (res.data.type === 'boot_template') {
+        // boot_template 导入产物是 Profile，跳过去让用户立即看到结果
+        navigate('/profiles')
       }
     } catch (err: any) {
       showError(t('store.importFailed', { error: err?.message || '' }))

@@ -58,6 +58,10 @@ export default function StoreDetail() {
       success(t('store.importSuccess', { name: item.name }))
       if (item.type === 'baseline') {
         navigate(`/baselines/${res.data.id}`)
+      } else if (item.type === 'boot_template') {
+        navigate('/profiles')
+      } else if (item.type === 'netboot_distro') {
+        navigate('/netboot-catalog')
       }
     } catch (err: any) {
       showError(err.message || t('store.importFailed', { error: '' }))
