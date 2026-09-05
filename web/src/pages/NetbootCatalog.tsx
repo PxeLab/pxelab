@@ -496,10 +496,16 @@ export default function NetbootCatalog() {
     <div>
       <PageHeader
         title={t('netbootCatalog.title')}
+        description={t('netbootCatalog.description')}
         actions={
-          <Button variant="secondary" size="sm" onClick={loadData} disabled={loading}>
-            <RefreshCw size={14} /> {t('netbootCatalog.refresh')}
-          </Button>
+          <>
+            <Button variant="secondary" size="sm" onClick={() => navigate('/store')}>
+              <Package size={14} /> {t('netbootCatalog.importFromStore')}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={loadData} disabled={loading}>
+              <RefreshCw size={14} /> {t('netbootCatalog.refresh')}
+            </Button>
+          </>
         }
       />
 

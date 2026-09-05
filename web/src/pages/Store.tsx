@@ -69,6 +69,12 @@ export default function Store() {
     setImporting(true)
     try {
       const res = await importStoreItem(item.id, item.type)
+      if (res.data.type === 'netboot_distro') {
+        success(t('store.importedToCatalog', { name: res.data.name }))
+        setImportTarget(null)
+        navigate('/netboot-catalog')
+        return
+      }
       success(t('store.importSuccess', { name: res.data.name }))
       setImportTarget(null)
       if (res.data.type === 'baseline') {

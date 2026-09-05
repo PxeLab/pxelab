@@ -9,6 +9,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// CatalogDir returns the on-disk netboot catalog directory for a data dir.
+// The catalog lives on disk (seeded from embedded YAML at startup) so users
+// and store imports can override or extend the built-in entries.
+func CatalogDir(dataDir string) string {
+	return filepath.Join(dataDir, "netboot", "catalog")
+}
+
 // LoadDistro reads a single distro YAML file
 func LoadDistro(path string) (*Distro, error) {
 	data, err := os.ReadFile(path)

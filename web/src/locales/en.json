@@ -1351,7 +1351,9 @@
     "viewDetails": "View Details"
   },
   "netbootCatalog": {
-    "title": "OS Catalog",
+    "title": "Local OS Catalog",
+    "description": "Locally installed netboot distros (built-in + imported from PxeLab Hub); configure mirrors and boot parameters here",
+    "importFromStore": "Import from Store",
     "loadFailed": "Failed to load catalog data",
     "overlaySaveFailed": "Failed to save overlay",
     "overlayDeleteFailed": "Failed to delete overlay",
@@ -1537,6 +1539,7 @@
     "import": "Import",
     "importing": "Importing...",
     "importSuccess": "Successfully imported \"{name}\"",
+    "importedToCatalog": "Imported \"{name}\" into the local OS catalog",
     "importFailed": "Failed to import item: {error}",
     "loadFailed": "Failed to load Hub catalog",
     "noItems": "No items found in the Hub",

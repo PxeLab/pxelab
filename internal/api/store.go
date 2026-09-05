@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/pxelab/pxelab/internal/store"
 )
 
@@ -81,25 +84,18 @@ type baselineScriptContent struct {
 	Description string `json:"description,omitempty"`
 }
 
-// bootTemplateStoreContent mirrors the fields from a boot_template store item
-// that are needed to create a Profile with a custom iPXE script.
-type bootTemplateStoreContent struct {
-	TemplateVariables map[string]string `json:"template_variables,omitempty"`
-	VariableValues    map[string]string `json:"variable_values,omitempty"`
-	Releases          []string          `json:"releases,omitempty"`
-	Source            string            `json:"source,omitempty"`
-}
-
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
 // StoreHandler exposes the community store inside PxeLab.
 type StoreHandler struct {
-	store    store.Interface
-	endpoint string
-	client   *http.Client
-	cache    *storeCache
+	store      store.Interface
+	endpoint   string
+	client     *http.Client
+	cache      *storeCache
+	catalogDir string           // local netboot catalog dir; netboot_distro imports are written here
+	netbootMgr *netboot.Manager // reloaded after a netboot_distro import
 }
 
 type storeCache struct {
@@ -110,12 +106,16 @@ type storeCache struct {
 }
 
 // NewStoreHandler creates a handler that talks to hub.pxelab.com.
-func NewStoreHandler(st store.Interface) *StoreHandler {
+// catalogDir/netbootMgr may be nil — netboot_distro imports then only create a
+// Profile without touching the local catalog.
+func NewStoreHandler(st store.Interface, catalogDir string, netbootMgr *netboot.Manager) *StoreHandler {
 	return &StoreHandler{
-		store:    st,
-		endpoint: DefaultStoreEndpoint,
-		client:   &http.Client{Timeout: 15 * time.Second},
-		cache:    &storeCache{ttl: 5 * time.Minute},
+		store:      st,
+		endpoint:   DefaultStoreEndpoint,
+		client:     &http.Client{Timeout: 15 * time.Second},
+		cache:      &storeCache{ttl: 5 * time.Minute},
+		catalogDir: catalogDir,
+		netbootMgr: netbootMgr,
 	}
 }
 
@@ -357,14 +357,14 @@ func (h *StoreHandler) importBaseline(w http.ResponseWriter, r *http.Request, de
 	})
 }
 
-// importProfileConfig holds the parameters that differ between importing a
-// boot_template vs a netboot_distro store item — both produce a local Profile.
+// importProfileConfig parameterizes importProfile, which turns a boot_template
+// store item (an iPXE script) into a local Profile.
 type importProfileConfig struct {
-	defaultIDPrefix string // e.g. "boot-template-" or "netboot-"
+	defaultIDPrefix string
 	parseErrMsg     string
 	emptyErrMsg     string
 	auditMsg        string
-	responseType    string // e.g. "boot_template" or "netboot_distro"
+	responseType    string
 }
 
 func (h *StoreHandler) importBootTemplate(w http.ResponseWriter, r *http.Request, detail *StoreItemDetail) {
@@ -377,41 +377,45 @@ func (h *StoreHandler) importBootTemplate(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// hubNetbootDistroContent is the "content" shape of netboot_distro store items
-// served by hub.pxelab.com. Unlike boot_template (whose content is an iPXE
-// script string), netboot_distro content is a distro descriptor whose versions
-// carry bootable kernel/initrd URLs — mirroring the local netboot catalog.
-type hubNetbootDistroContent struct {
-	DistroName string                    `json:"distro_name"`
-	Versions   []hubNetbootDistroVersion `json:"versions"`
+// netbootDistroStoreContent is the "content" shape of netboot_distro store
+// items. Newer hub items carry a full netboot.Distro descriptor; older items
+// used "distro_name" instead of "name" — both are accepted.
+type netbootDistroStoreContent struct {
+	netboot.Distro
+	DistroName string `json:"distro_name"` // legacy field from older hub items
 }
 
-type hubNetbootDistroVersion struct {
-	Codename string `json:"codename"`
-	Name     string `json:"name"`
-	Arch     string `json:"arch"`
-	Remote   *struct {
-		Kernel string `json:"kernel"`
-		Initrd string `json:"initrd"`
-	} `json:"remote"`
-	Enabled *bool `json:"enabled"`
-}
-
-// importHubNetbootDistro imports a hub netboot_distro item as a Profile whose
-// boot menu contains one direct-boot entry per enabled, kernel-bearing version.
+// importHubNetbootDistro imports a hub netboot_distro item. The distro
+// descriptor is written back into the local netboot catalog (store is the
+// source of truth — a same-name YAML is overwritten), the catalog manager is
+// reloaded, and a ready-to-assign Profile covering all enabled versions is
+// created. Used by both online (ImportItem) and offline (ImportLocalItem)
+// imports.
 func (h *StoreHandler) importHubNetbootDistro(w http.ResponseWriter, r *http.Request, detail *StoreItemDetail) {
-	var content hubNetbootDistroContent
+	var content netbootDistroStoreContent
 	if err := json.Unmarshal(stripUTF8BOM(detail.Content), &content); err != nil {
 		Error(w, http.StatusBadRequest, "解析网络启动内容失败: "+err.Error())
 		return
 	}
+	distro := content.Distro
+	if distro.Name == "" {
+		distro.Name = content.DistroName
+	}
+	if distro.Name == "" {
+		distro.Name = detail.Name
+	}
+	if distro.Name == "" {
+		Error(w, http.StatusBadRequest, "网络启动内容缺少发行版名称")
+		return
+	}
 
-	entries := make([]models.MenuEntry, 0, len(content.Versions))
-	for _, v := range content.Versions {
-		if v.Enabled != nil && !*v.Enabled {
+	entries := make([]models.MenuEntry, 0, len(distro.Versions))
+	for _, v := range distro.Versions {
+		if !v.Enabled {
 			continue
 		}
-		if v.Remote == nil || v.Remote.Kernel == "" {
+		hasBootFile := (v.Remote != nil && v.Remote.Kernel != "") || (v.Local != nil && v.Local.Kernel != "")
+		if !hasBootFile {
 			continue
 		}
 		label := v.Name
@@ -421,26 +425,37 @@ func (h *StoreHandler) importHubNetbootDistro(w http.ResponseWriter, r *http.Req
 		if label == "" {
 			continue
 		}
-		entries = append(entries, models.MenuEntry{
-			Label:  label,
-			Type:   "direct",
-			Kernel: strPtr(v.Remote.Kernel),
-			Initrd: strPtr(v.Remote.Initrd),
-		})
+		entries = append(entries, menuEntryFromVersion(v, label))
 	}
 	if len(entries) == 0 {
 		Error(w, http.StatusBadRequest, "该网络启动项没有可用版本")
 		return
 	}
 
+	// Write back into the local catalog and reload, so the imported distro is
+	// usable by the catalog page, profile creation and install-task answer
+	// injection — not just the generated Profile.
+	if h.catalogDir != "" && h.netbootMgr != nil {
+		if err := h.saveDistroToCatalog(&distro); err != nil {
+			Error(w, http.StatusInternalServerError, "写入本地目录失败: "+err.Error())
+			return
+		}
+	}
+
 	profileID := toSafeID(detail.ID)
+	if profileID == "" || profileID == "imported" {
+		profileID = "netboot-" + toSafeID(distro.Name)
+	}
 	if existing, _ := h.store.GetProfile(r.Context(), profileID); existing != nil {
 		profileID = profileID + "-" + fmt.Sprintf("%d", time.Now().Unix())
 	}
 	profileName := detail.Name
 	if !isPrintableASCII(profileName) {
-		profileName = toSafeID(detail.Name)
+		profileName = toSafeID(distro.Name)
 	}
+	// profiles.name has a UNIQUE constraint in the SQLite store — dedupe like
+	// the ID above so repeated imports don't fail on the name collision.
+	profileName = h.uniqueProfileName(r, profileName)
 	profile := &models.Profile{
 		ID:          profileID,
 		Name:        profileName,
@@ -457,13 +472,64 @@ func (h *StoreHandler) importHubNetbootDistro(w http.ResponseWriter, r *http.Req
 	}
 
 	h.trackDownload(r.Context(), detail.Type, detail.ID)
-	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profileID, remoteIP(r), "从商店导入网络启动发行版: "+profileName)
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profileID, remoteIP(r), "从商店导入网络启动发行版: "+distro.Name)
 	Created(w, map[string]any{
-		"id":         profileID,
-		"name":       profileName,
-		"type":       "netboot_distro",
-		"store_item": detail.ID,
+		"id":          profileID,
+		"name":        profileName,
+		"type":        "netboot_distro",
+		"store_item":  detail.ID,
+		"distro_name": distro.Name,
 	})
+}
+
+// saveDistroToCatalog persists the distro as a YAML file in the local catalog
+// directory and reloads the manager. If an existing catalog file already
+// defines a distro with the same name (e.g. an embedded seed file), that file
+// is overwritten so imports update in place instead of creating duplicates.
+// On reload failure the written file is rolled back so the on-disk catalog
+// stays consistent with the in-memory one.
+func (h *StoreHandler) saveDistroToCatalog(distro *netboot.Distro) error {
+	path := filepath.Join(h.catalogDir, catalogFileName(h.catalogDir, distro.Name))
+	// Remember prior content so a failed reload can be rolled back.
+	oldContent, readErr := os.ReadFile(path)
+	existed := readErr == nil
+	if err := netboot.SaveDistro(path, distro); err != nil {
+		return err
+	}
+	cat, err := netboot.LoadCatalog(h.catalogDir)
+	if err != nil || len(cat.Distros) == 0 {
+		if existed {
+			os.WriteFile(path, oldContent, 0644)
+		} else {
+			os.Remove(path)
+		}
+		if err == nil {
+			err = fmt.Errorf("catalog reload returned no distros")
+		}
+		return err
+	}
+	h.netbootMgr.Reload(cat)
+	return nil
+}
+
+// catalogFileName returns the file name to use for a distro: the existing file
+// that already defines it (matched by distro name), or a name-derived file
+// name for new distros.
+func catalogFileName(catalogDir, distroName string) string {
+	fallback := toSafeID(distroName) + ".yaml"
+	entries, err := os.ReadDir(catalogDir)
+	if err != nil {
+		return fallback
+	}
+	for _, e := range entries {
+		if e.IsDir() || (!strings.HasSuffix(e.Name(), ".yaml") && !strings.HasSuffix(e.Name(), ".yml")) {
+			continue
+		}
+		if d, err := netboot.LoadDistro(filepath.Join(catalogDir, e.Name())); err == nil && d.Name == distroName {
+			return e.Name()
+		}
+	}
+	return fallback
 }
 
 // trackDownload sends a fire-and-forget POST to increment the download count on hub.pxelab.com.
@@ -505,24 +571,14 @@ func (h *StoreHandler) ImportLocalItem(w http.ResponseWriter, r *http.Request) {
 	case "boot_template":
 		h.importBootTemplate(w, r, &detail)
 	case "netboot_distro":
-		h.importNetbootDistro(w, r, &detail)
+		h.importHubNetbootDistro(w, r, &detail)
 	default:
 		Error(w, http.StatusBadRequest, "不支持的导入类型: "+detail.Type)
 	}
 }
 
-func (h *StoreHandler) importNetbootDistro(w http.ResponseWriter, r *http.Request, detail *StoreItemDetail) {
-	h.importProfile(w, r, detail, importProfileConfig{
-		defaultIDPrefix: "netboot-",
-		parseErrMsg:     "解析网络启动内容失败: ",
-		emptyErrMsg:     "网络启动内容为空",
-		auditMsg:        "从本地文件导入网络启动配置: ",
-		responseType:    "netboot_distro",
-	})
-}
-
-// importProfile is the shared implementation for creating a Profile from either
-// a boot_template or netboot_distro store item.
+// importProfile creates a Profile from a boot_template store item whose
+// content is a raw iPXE script string.
 func (h *StoreHandler) importProfile(w http.ResponseWriter, r *http.Request, detail *StoreItemDetail, cfg importProfileConfig) {
 	var script string
 	if err := json.Unmarshal(detail.Content, &script); err != nil {
@@ -622,6 +678,28 @@ func findLibraryScript(library []models.Script, name, typ, content string) *mode
 		}
 	}
 	return nil
+}
+
+// uniqueProfileName appends a numeric suffix when a profile with the same
+// name already exists (profiles.name is UNIQUE in the SQLite store).
+func (h *StoreHandler) uniqueProfileName(r *http.Request, name string) string {
+	profiles, err := h.store.ListProfiles(r.Context())
+	if err != nil {
+		return name
+	}
+	taken := make(map[string]bool, len(profiles))
+	for _, p := range profiles {
+		taken[p.Name] = true
+	}
+	if !taken[name] {
+		return name
+	}
+	for i := 2; ; i++ {
+		candidate := fmt.Sprintf("%s (%d)", name, i)
+		if !taken[candidate] {
+			return candidate
+		}
+	}
 }
 
 // toSafeID converts an arbitrary string into a safe baseline ID.
