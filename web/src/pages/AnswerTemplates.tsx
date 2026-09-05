@@ -266,6 +266,21 @@ export default function AnswerTemplates() {
     setShowPreview(true)
   }
 
+  const openRowPreview = async (tpl: AnswerTemplate) => {
+    setPreviewInjected(false)
+    if (!tpl.id) { setPreviewResult(tpl.content); setShowPreview(true); return }
+    try {
+      const res = await api.previewAnswerTemplate(tpl.id, {
+        host_name: 'node-01', host_mac: '00:00:00:00:00:00', host_ip: '192.168.1.100', arch: 'amd64',
+      }, {})
+      setPreviewResult(res.data.rendered)
+      setPreviewInjected(!!res.data.baseline_pull_injected)
+    } catch (err: any) {
+      setPreviewResult(tpl.content)
+    }
+    setShowPreview(true)
+  }
+
   const openVersions = async (tplId: number) => {
     setVersionTemplateId(tplId)
     setShowVersions(true)
@@ -355,9 +370,19 @@ export default function AnswerTemplates() {
     }
   }
 
-  const exportSingle = (tpl: AnswerTemplate) => {
+  const exportSingle = async (tpl: AnswerTemplate) => {
     const ext = TYPE_EXTENSIONS[tpl.type] || 'txt'
-    const blob = new Blob([tpl.content], { type: 'text/plain;charset=utf-8' })
+    let out = tpl.content
+    // 勾选了“自动下发基线”的模板：导出=渲染+注入后的完整文件（身份为示例占位）
+    if (tpl.enable_baseline_pull && tpl.id) {
+      try {
+        const res = await api.previewAnswerTemplate(tpl.id, {
+          host_name: 'node-01', host_mac: '00:00:00:00:00:00', host_ip: '192.168.1.100', arch: 'amd64',
+        }, {})
+        if (res.data && typeof res.data.rendered === 'string') out = res.data.rendered
+      } catch { /* fallback to raw content */ }
+    }
+    const blob = new Blob([out], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -481,6 +506,7 @@ export default function AnswerTemplates() {
       className: 'text-right',
       render: (tpl) => (
         <>
+          <Button variant="ghost" size="sm" onClick={() => openRowPreview(tpl)}>{t('answerTemplates.preview')}</Button>
           <Button variant="ghost" size="sm" onClick={() => openEdit(tpl)}>{t('common.edit')}</Button>
           <Button variant="ghost" size="sm" onClick={() => exportSingle(tpl)}>{t('answerTemplates.export')}</Button>
           <Button variant="ghost" size="sm" onClick={() => tpl.id && openVersions(tpl.id)}>{t('answerTemplates.versions')}</Button>
@@ -673,8 +699,9 @@ export default function AnswerTemplates() {
       >
         <div className="rounded-lg border border-[var(--bg-border)] overflow-hidden">
           {previewInjected && (
-            <div className="px-3 py-2 text-[11px] bg-accent-green/10 text-accent-green border-b border-[var(--bg-border)]">
-              {t('answerTemplates.baselinePullInjected')}
+            <div className="px-3 py-2 text-[11px] space-y-0.5 bg-accent-green/10 text-accent-green border-b border-[var(--bg-border)]">
+              <div>{t('answerTemplates.baselinePullInjected')}</div>
+              <div className="text-accent-green/70">{t('answerTemplates.previewIdentityNote')}</div>
             </div>
           )}
           <pre className="p-3 max-h-80 overflow-y-auto text-[11px] font-mono whitespace-pre-wrap text-[var(--text-primary)]">

@@ -11,7 +11,8 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { Input } from '../components/ui/FormControls'
-import { api, type Host, type Profile, type Baseline, type scriptDTO } from '../api/client'
+import { api, type Host, type Profile, type Baseline, type scriptDTO, type PxeBootRecord } from '../api/client'
+import { getPxeBootRecords, claimPxeBootRecord, deletePxeBootRecord, clearPxeBootRecords } from '../api/pxeboot'
 import { useUIConfig } from '../contexts/UIConfigContext'
 
 export default function Hosts() {
@@ -24,6 +25,10 @@ export default function Hosts() {
   const [total, setTotal] = useState(0)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [view, setView] = useState<'hosts' | 'records'>('hosts')
+  const [records, setRecords] = useState<PxeBootRecord[]>([])
+  const [pendingClaimMac, setPendingClaimMac] = useState<string | null>(null)
+  const [clearMode, setClearMode] = useState<'' | 'unknown' | 'all'>('')
   const [newHost, setNewHost] = useState<{
     name: string; mac: string; ip: string; sn: string; profile_id: string
     baseline_ids: string[]; script_ids: number[]
@@ -37,8 +42,13 @@ export default function Hosts() {
 
   const { pageSize } = useUIConfig()
 
-  function openCreate() {
-    setNewHost({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
+  function loadRecords() {
+    getPxeBootRecords().then(res => setRecords(res.data?.records ?? [])).catch(() => {})
+  }
+
+  function openCreate(prefillMac?: string) {
+    setNewHost({ name: '', mac: prefillMac ?? '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
+    setPendingClaimMac(prefillMac ?? null)
     setCreateError('')
     setShowModal(true)
   }
@@ -86,7 +96,7 @@ export default function Hosts() {
     }
     setCreateError('')
     try {
-      await api.createHost({
+      const res = await api.createHost({
         name: newHost.name,
         mac,
         ip: newHost.ip || undefined,
@@ -95,13 +105,39 @@ export default function Hosts() {
         baseline_ids: newHost.baseline_ids,
         script_ids: newHost.script_ids,
       })
+      if (pendingClaimMac) {
+        try {
+          await claimPxeBootRecord(pendingClaimMac, res.data.id)
+          loadRecords()
+        } catch { /* 认领失败不阻塞保存 */ }
+      }
       success(t('hosts.created'))
       setShowModal(false)
       setNewHost({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
+      setPendingClaimMac(null)
       loadHosts()
     } catch (err: any) {
       setCreateError(err.message)
     }
+  }
+
+  async function ignoreRecord(mac: string) {
+    try { await deletePxeBootRecord(mac); loadRecords() } catch (e: any) { error(e.message) }
+  }
+
+  async function doClearRecords() {
+    try {
+      if (clearMode === 'unknown') {
+        for (const rec of records.filter(r => !r.claimed_host_id)) {
+          await deletePxeBootRecord(rec.mac).catch(() => {})
+        }
+      } else {
+        await clearPxeBootRecords()
+      }
+      loadRecords()
+      success(t('hosts.recordsCleared'))
+    } catch (e: any) { error(e.message) }
+    finally { setClearMode('') }
   }
 
   async function handleDelete(id: string) {
@@ -136,6 +172,27 @@ export default function Hosts() {
   const inheritedBaselineIds: string[] = selectedProfile?.baselines ?? []
   const isInherited = (id: string) => inheritedBaselineIds.includes(id)
 
+  const recColumns: Column<PxeBootRecord>[] = [
+    { key: 'mac', label: 'MAC', render: (r) => <span className="font-mono text-xs text-[var(--text-primary)]">{r.mac}</span> },
+    { key: 'last_seen', label: t('hosts.recordsLastSeen'), render: (r) => <span className="font-mono text-xs text-[var(--text-muted)]">{new Date(r.last_seen).toLocaleString()}</span> },
+    { key: 'count', label: t('hosts.recordsCount'), render: (r) => <span className="font-mono text-xs">{r.count}</span> },
+    { key: 'loader', label: t('hosts.recordsLoader'), render: (r) => <span className="text-xs">{r.loader || '—'}</span> },
+    { key: 'last_context', label: t('hosts.recordsContext'), render: (r) => <span className="text-xs text-[var(--text-muted)]">{r.last_context || '—'}</span> },
+    { key: 'claimed', label: t('hosts.recordsClaimed'), render: (r) => (
+      r.claimed_host_id
+        ? <span className="text-xs text-accent-green">{r.claimed_host || r.claimed_host_id}</span>
+        : <span className="text-xs text-accent-yellow">{t('hosts.recordsNotClaimed')}</span>
+    ) },
+    { key: 'actions', label: '', className: 'text-right', render: (r) => (
+      <div className="flex items-center justify-end gap-2">
+        {!r.claimed_host_id && (
+          <Button variant="primary" size="sm" onClick={() => openCreate(r.mac)}>{t('hosts.recordsClaim')}</Button>
+        )}
+        <Button variant="ghost" size="sm" onClick={() => ignoreRecord(r.mac)}>{t('hosts.recordsIgnore')}</Button>
+      </div>
+    ) },
+  ]
+
   const sortedHosts = sortField
     ? [...hosts].sort((a, b) => {
         const cmp = String(a[sortField as keyof Host] ?? '').localeCompare(String(b[sortField as keyof Host] ?? ''))
@@ -166,6 +223,37 @@ export default function Hosts() {
           </Button>
         }
       />
+      <div className="flex items-center gap-5 border-b border-[var(--bg-border)] mb-6">
+        {(
+          [
+            { key: 'hosts', label: t('hosts.title') },
+            { key: 'records', label: t('hosts.recordsTitle') },
+          ] as { key: 'hosts' | 'records'; label: string }[]
+        ).map(tab => {
+          const active = view === tab.key
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setView(tab.key); if (tab.key === 'records') loadRecords() }}
+              className={`-mb-px border-b-2 px-1 py-2 text-sm transition-colors ${
+                active
+                  ? 'border-blue-500 font-medium text-[var(--text-primary)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {tab.label}
+              {tab.key === 'records' && records.filter(r => !r.claimed_host_id).length > 0 && (
+                <span className="ml-1.5 px-1.5 py-px rounded-full bg-accent-red/15 text-accent-red text-[10px]">
+                  {records.filter(r => !r.claimed_host_id).length}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {view === 'hosts' && (
+      <>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -196,6 +284,48 @@ export default function Hosts() {
           <Pagination page={page} total={total} size={pageSize} onChange={setPage} />
         </div>
       </Card>
+      </>
+      )}
+
+      {/* PXE 引导记录面板 */}
+      {view === 'records' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-[var(--text-muted)]">{t('hosts.recordsHint')}</p>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setClearMode('unknown')} disabled={records.filter(r => !r.claimed_host_id).length === 0}>
+                {t('hosts.recordsClearUnknown')}
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => setClearMode('all')} disabled={records.length === 0}>
+                {t('hosts.recordsClearAll')}
+              </Button>
+            </div>
+          </div>
+
+          {records.length === 0 ? (
+            <Card>
+              <div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('hosts.recordsEmpty')}</div>
+            </Card>
+          ) : (
+            <Card padding={false}>
+              <DataTable
+                columns={recColumns}
+                data={records}
+                rowKey={r => r.mac}
+              />
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* 清空引导记录确认 */}
+      <ConfirmDialog
+        open={clearMode !== ''}
+        onClose={() => setClearMode('')}
+        onConfirm={doClearRecords}
+        title={t('hosts.recordsClearTitle')}
+        message={clearMode === 'unknown' ? t('hosts.recordsClearUnknownConfirm') : t('hosts.recordsClearAllConfirm')}
+      />
 
       <Modal
         open={showModal}

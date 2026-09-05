@@ -23,8 +23,8 @@ import (
 	"github.com/pxelab/pxelab/internal/boot/configgen"
 	"github.com/pxelab/pxelab/internal/boot/ipxe"
 	"github.com/pxelab/pxelab/internal/config"
-	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/pxelab/pxelab/internal/netboot/menus"
 	"github.com/pxelab/pxelab/internal/session"
@@ -87,6 +87,9 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		}
 		// failsafe 未启用——直接返回引导菜单
 		mac := r.URL.Query().Get("mac")
+		if mac != "" {
+			recordBootSeen(cfg, st, mac, remoteIPOf(r), "ipxe", "default-menu")
+		}
 		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
 		if err != nil {
 			slog.Error("生成 iPXE 菜单失败", "service", "HTTP", "error", err)
@@ -102,6 +105,9 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 	// iPXE 引导菜单端点（不含 failsafe，供 autoexec chain 调用）
 	r.Get("/boot/ipxe/menu", func(w http.ResponseWriter, r *http.Request) {
 		mac := r.URL.Query().Get("mac")
+		if mac != "" {
+			recordBootSeen(cfg, st, mac, remoteIPOf(r), "ipxe", "default-menu")
+		}
 		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
 		if err != nil {
 			slog.Error("生成 iPXE 菜单失败", "service", "HTTP", "error", err)
@@ -162,6 +168,11 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 				var profile *models.Profile
 				var err error
 				if configMac != "" {
+					perMacLoader := "pxelinux"
+					if strings.Contains(filePath, grubConfigFile) {
+						perMacLoader = "grub"
+					}
+					recordBootSeen(cfgLocal, stLocal, configMac, clientIP, perMacLoader, "default-menu")
 					host, hErr := stLocal.GetHostByMAC(r.Context(), configMac)
 					if hErr == nil && host != nil && host.ProfileID != nil {
 						profile, err = stLocal.GetProfile(r.Context(), *host.ProfileID)
@@ -223,8 +234,8 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 			if filePath == "boot.cfg" {
 				data, err := fs.ReadFile(menuFS, "boot.cfg")
 				if err != nil {
-				http.NotFound(w, r)
-				return
+					http.NotFound(w, r)
+					return
 				}
 				s := strings.Replace(string(data),
 					"set boot_domain boot.netboot.xyz/3.0.2",
@@ -322,19 +333,22 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		})
 	}
 
-		// Failsafe 菜单端点 — 提供自包含的故障恢复 iPXE 菜单
-		if cfg.Netboot.FailsafePrompt {
-			r.Get("/boot/ipxe/failsafe", func(w http.ResponseWriter, r *http.Request) {
-				mac := r.URL.Query().Get("mac")
-				script := generateFailsafeScript(r.Host, mac)
-				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-				w.Header().Set("Content-Length", strconv.Itoa(len(script)))
-				w.Write([]byte(script))
-			})
-		}
+	// Failsafe 菜单端点 — 提供自包含的故障恢复 iPXE 菜单
+	if cfg.Netboot.FailsafePrompt {
+		r.Get("/boot/ipxe/failsafe", func(w http.ResponseWriter, r *http.Request) {
+			mac := r.URL.Query().Get("mac")
+			if mac != "" {
+				recordBootSeen(cfg, st, mac, remoteIPOf(r), "ipxe", "failsafe")
+			}
+			script := generateFailsafeScript(r.Host, mac)
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Header().Set("Content-Length", strconv.Itoa(len(script)))
+			w.Write([]byte(script))
+		})
+	}
 
-		// 前端 SPA
-		if spaHandler != nil {
+	// 前端 SPA
+	if spaHandler != nil {
 		r.Handle("/*", spaHandler)
 	}
 
@@ -378,14 +392,14 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 					var entries []ipxe.MenuEntryData
 					for _, e := range bootMenu.Entries {
 						entry := ipxe.MenuEntryData{
-							Script: ptrStr(e.Script),
-							Label: e.Label,
-							Type:  ipxe.BootType(e.Type),
-							Kernel:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Kernel), serverAddr, mac)),
-							Initrd:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Initrd), serverAddr, mac)),
-							Cmdline: replaceBootVars(ptrStr(e.Cmdline), serverAddr, mac),
-							URL:     replaceBootVars(ptrStr(e.URL), serverAddr, mac),
-							WIM:     ptrStr(e.WIM),
+							Script:        ptrStr(e.Script),
+							Label:         e.Label,
+							Type:          ipxe.BootType(e.Type),
+							Kernel:        urlJoin(serverAddr, replaceBootVars(ptrStr(e.Kernel), serverAddr, mac)),
+							Initrd:        urlJoin(serverAddr, replaceBootVars(ptrStr(e.Initrd), serverAddr, mac)),
+							Cmdline:       replaceBootVars(ptrStr(e.Cmdline), serverAddr, mac),
+							URL:           replaceBootVars(ptrStr(e.URL), serverAddr, mac),
+							WIM:           ptrStr(e.WIM),
 							SANAction:     e.SANAction,
 							SANNoDescribe: e.SANNoDescribe,
 							SANDrive:      e.SANDrive,
@@ -393,7 +407,6 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 						}
 						entries = append(entries, entry)
 					}
-
 
 					if cfg.Netboot.FailsafePrompt {
 						entries = appendFailsafeEntry(entries, serverAddr, mac)
@@ -449,14 +462,14 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 			entry := bootMenu.Entries[0]
 			makeEntry := func(label string, e models.MenuEntry) ipxe.MenuEntryData {
 				return ipxe.MenuEntryData{
-						Script: ptrStr(e.Script),
-					Label:   label,
-					Type:    ipxe.BootType(e.Type),
-					Kernel:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Kernel), serverAddr, mac)),
-					Initrd:  urlJoin(serverAddr, replaceBootVars(ptrStr(e.Initrd), serverAddr, mac)),
-					Cmdline: replaceBootVars(ptrStr(e.Cmdline), serverAddr, mac),
-					URL:     replaceBootVars(ptrStr(e.URL), serverAddr, mac),
-					WIM:     ptrStr(e.WIM),
+					Script:        ptrStr(e.Script),
+					Label:         label,
+					Type:          ipxe.BootType(e.Type),
+					Kernel:        urlJoin(serverAddr, replaceBootVars(ptrStr(e.Kernel), serverAddr, mac)),
+					Initrd:        urlJoin(serverAddr, replaceBootVars(ptrStr(e.Initrd), serverAddr, mac)),
+					Cmdline:       replaceBootVars(ptrStr(e.Cmdline), serverAddr, mac),
+					URL:           replaceBootVars(ptrStr(e.URL), serverAddr, mac),
+					WIM:           ptrStr(e.WIM),
 					SANAction:     e.SANAction,
 					SANNoDescribe: e.SANNoDescribe,
 					SANDrive:      e.SANDrive,
@@ -510,9 +523,41 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 	}
 	return script, nil
 }
+
 // GenerateBootMenu is the exported wrapper for generateBootMenu, usable by API handlers.
 func GenerateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr string, ctx context.Context) (string, error) {
 	return generateBootMenu(cfg, st, mac, serverAddr, ctx)
+}
+
+// remoteIPOf 从请求 RemoteAddr 提取纯 IP。
+func remoteIPOf(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+// recordBootSeen PXE 引导留痕：记录“该 MAC 来引导过 + 大致入口/菜单”。
+// hint 是调用点已知的上下文（default-menu/failsafe），若该 MAC 已登记并绑定
+// Profile 则升级为 host-profile:<名称>（说明它用了这台主机的配置）。
+func recordBootSeen(_ *config.Config, st store.Interface, mac, ip, loader, hint string) {
+	if mac == "" || st == nil {
+		return
+	}
+	label := hint
+	if label == "" {
+		label = "default-menu"
+	}
+	if host, err := st.GetHostByMAC(context.Background(), mac); err == nil && host != nil && host.ProfileID != nil && *host.ProfileID != "" {
+		if p, err := st.GetProfile(context.Background(), *host.ProfileID); err == nil && p != nil {
+			label = "host-profile:" + p.Name
+		}
+	}
+	_ = st.UpsertPxeBootRecord(context.Background(), mac, loader, label, ip)
 }
 
 //go:embed autoexec.ipxe
@@ -701,10 +746,10 @@ func extractPXEMac(filePath string, cfg *config.Config) string {
 			prefix = cfg.Boot.GRUBConfigFile + "-01-"
 		}
 	} else if grubDir := grubConfigDir(cfg.Boot.GRUBConfigFile); grubDir != "" && strings.HasPrefix(filePath, grubDir+"/01-") {
-			// GRUB2 short MAC file: "<grubDir>/01-aa-bb-cc-dd-ee-ff"
-			prefix = grubDir + "/01-"
-		}
-		if prefix == "" {
+		// GRUB2 short MAC file: "<grubDir>/01-aa-bb-cc-dd-ee-ff"
+		prefix = grubDir + "/01-"
+	}
+	if prefix == "" {
 		return ""
 	}
 	if !strings.HasPrefix(filePath, prefix) {
@@ -732,6 +777,7 @@ func extractPXEMac(filePath string, cfg *config.Config) string {
 	// Rejoin with colons for store lookup
 	return strings.Join(parts, ":")
 }
+
 // grubConfigDir returns the directory portion of a GRUB config file path.
 func grubConfigDir(configPath string) string {
 	idx := strings.LastIndex(configPath, "/")
@@ -740,8 +786,6 @@ func grubConfigDir(configPath string) string {
 	}
 	return configPath[:idx]
 }
-
-
 
 func (s *Server) Start(ctx context.Context) error {
 	addr := s.cfg.Global.ListenAddr
