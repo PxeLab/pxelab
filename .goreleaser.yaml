@@ -2,8 +2,6 @@ version: 2
 
 before:
   hooks:
-    - go mod tidy
-    - go generate ./...
     - cd web && npm ci && npm run build
     - sh scripts/update-version-json.sh
 
@@ -16,12 +14,8 @@ builds:
     goos:
       - linux
       - windows
-      - darwin
     goarch:
       - amd64
-      - arm64
-    goarm:
-      - "7"
     ldflags:
       - -s -w -X main.Version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     tags:
@@ -70,49 +64,5 @@ changelog:
       - "^ci:"
 
 release:
-  github:
-    owner: pxelab
-    name: pxelab
   draft: true
   prerelease: auto
-
-nfpms:
-  - id: packages
-    package_name: pxelab
-    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    vendor: PxeLab
-    homepage: https://github.com/pxelab/pxelab
-    maintainer: PxeLab Team
-    description: All-in-one PXE server (DHCP/TFTP/DNS/HTTP)
-    license: MIT
-    formats:
-      - deb
-      - rpm
-    contents:
-      - src: contrib/pxelab.service
-        dst: /etc/systemd/system/pxelab.service
-        type: config
-      - src: contrib/config.example.yaml
-        dst: /etc/pxelab/config.yaml
-        type: config
-    scripts:
-      postinstall: contrib/postinstall.sh
-
-brews:
-  - name: pxelab
-    repository:
-      owner: pxelab
-      name: homebrew-tap
-    homepage: https://github.com/pxelab/pxelab
-    description: All-in-one PXE server
-    license: MIT
-    commit_author:
-      name: goreleaserbot
-      email: bot@pxelab.com
-    install: |
-      bin.install "pxelab"
-      (etc/"pxelab").install "contrib/config.example.yaml"
-    service: |
-      run [opt_bin/"pxelab"]
-      keep_alive true
-      run_at_load true
