@@ -12,6 +12,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
 import { Input } from '../components/ui/FormControls'
 import { ChecklistPicker } from '../components/ui/ChecklistPicker'
+import { Toggle } from '../components/ui/Toggle'
 import { api, type Host, type Profile, type Baseline, type scriptDTO, type PxeBootRecord } from '../api/client'
 import { getPxeBootRecords, claimPxeBootRecord, deletePxeBootRecord, clearPxeBootRecords } from '../api/pxeboot'
 import { useUIConfig } from '../contexts/UIConfigContext'
@@ -29,6 +30,8 @@ export default function Hosts() {
   const [view, setView] = useState<'hosts' | 'records'>('hosts')
   const [records, setRecords] = useState<PxeBootRecord[]>([])
   const [pendingClaimMac, setPendingClaimMac] = useState<string | null>(null)
+  const [createShowBaselines, setCreateShowBaselines] = useState(false)
+  const [createShowScripts, setCreateShowScripts] = useState(false)
   const [clearMode, setClearMode] = useState<'' | 'unknown' | 'all'>('')
   const [newHost, setNewHost] = useState<{
     name: string; mac: string; ip: string; sn: string; profile_id: string
@@ -49,6 +52,8 @@ export default function Hosts() {
 
   function openCreate(prefillMac?: string) {
     setNewHost({ name: '', mac: prefillMac ?? '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
+    setCreateShowBaselines(false)
+    setCreateShowScripts(false)
     setPendingClaimMac(prefillMac ?? null)
     setCreateError('')
     setShowModal(true)
@@ -392,23 +397,45 @@ export default function Hosts() {
               </div>
             )}
             <div>
-              <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addBaselines')}</p>
-              <ChecklistPicker
-                items={allBaselines.map(b => ({ id: b.id, name: b.name }))}
-                selected={newHost.baseline_ids}
-                disabledIds={inheritedBaselineIds}
-                onToggle={id => setNewHost({ ...newHost, baseline_ids: toggleArr(newHost.baseline_ids, id) })}
-                emptyText={t('baselines.noBaselines')}
+              <Toggle
+                checked={createShowBaselines}
+                onChange={v => {
+                  setCreateShowBaselines(v)
+                  if (!v) setNewHost({ ...newHost, baseline_ids: [] })
+                }}
+                label={t('hosts.addBaselines')}
               />
+              {createShowBaselines && (
+                <div className="mt-1.5">
+                  <ChecklistPicker
+                    items={allBaselines.map(b => ({ id: b.id, name: b.name }))}
+                    selected={newHost.baseline_ids}
+                    disabledIds={inheritedBaselineIds}
+                    onToggle={id => setNewHost({ ...newHost, baseline_ids: toggleArr(newHost.baseline_ids, id) })}
+                    emptyText={t('baselines.noBaselines')}
+                  />
+                </div>
+              )}
             </div>
             <div>
-              <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addScripts')}</p>
-              <ChecklistPicker
-                items={allScripts.map(sc => ({ id: sc.id, name: sc.name, badge: sc.type }))}
-                selected={newHost.script_ids}
-                onToggle={id => setNewHost({ ...newHost, script_ids: toggleArr(newHost.script_ids, id) })}
-                emptyText={t('scripts.noScripts')}
+              <Toggle
+                checked={createShowScripts}
+                onChange={v => {
+                  setCreateShowScripts(v)
+                  if (!v) setNewHost({ ...newHost, script_ids: [] })
+                }}
+                label={t('hosts.addScripts')}
               />
+              {createShowScripts && (
+                <div className="mt-1.5">
+                  <ChecklistPicker
+                    items={allScripts.map(sc => ({ id: sc.id, name: sc.name, badge: sc.type }))}
+                    selected={newHost.script_ids}
+                    onToggle={id => setNewHost({ ...newHost, script_ids: toggleArr(newHost.script_ids, id) })}
+                    emptyText={t('scripts.noScripts')}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
