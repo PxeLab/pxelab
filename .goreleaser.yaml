@@ -64,5 +64,5 @@ changelog:
       - "^ci:"
 
 release:
-  draft: true
+  draft: false
   prerelease: auto
