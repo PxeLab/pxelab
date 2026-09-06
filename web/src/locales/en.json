@@ -818,7 +818,7 @@
   "answerTemplates": {
     "baselinePullInjected": "Baseline pull hook injected",
     "baselinePullHint": "PxeLab appends the per-OS hook when serving the answer file; check the preview if your template already defines the same phase.",
-    "baselinePull": "Fetch and run this host's init baselines during install",
+    "baselinePull": "Run baseline scripts during install",
     "title": "Answer Templates",
     "deleteTemplate": "Delete Template",
     "deleteConfirm": "Delete template \"{{name}}\"? This cannot be undone.",

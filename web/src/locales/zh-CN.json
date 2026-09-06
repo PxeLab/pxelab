@@ -819,7 +819,7 @@
   "answerTemplates": {
     "baselinePullInjected": "已自动注入「拉取并执行初始化基线」钩子",
     "baselinePullHint": "平台分发应答文件时按系统类型自动注入钩子；若模板已有同名阶段，请用预览核对合并结果。",
-    "baselinePull": "安装时自动拉取并执行该主机的初始化基线",
+    "baselinePull": "装机时自动执行基线脚本",
     "title": "应答模板管理",
     "deleteTemplate": "删除模板",
     "deleteConfirm": "确定删除模板「{{name}}」？此操作不可恢复。",
