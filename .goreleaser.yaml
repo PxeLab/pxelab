@@ -2,11 +2,8 @@ version: 2
 
 before:
   hooks:
-    - cmd: npm ci
-      dir: web
-    - cmd: npm run build
-      dir: web
-    - cmd: sh scripts/update-version-json.sh
+    - sh -c "cd web && npm ci && npm run build"
+    - sh scripts/update-version-json.sh
 
 builds:
   - id: pxelab
