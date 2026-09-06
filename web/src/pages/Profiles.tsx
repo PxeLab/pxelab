@@ -10,7 +10,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Tag } from '../components/ui/Tag'
 import { useToast } from '../components/ui/Toast'
 import { Input, Select, Textarea } from '../components/ui/FormControls'
-import { api, getNetbootCatalog, getBaselines, type Profile, type MenuEntry, type NetbootDistro, type ProfileScriptVersion, type Baseline } from '../api/client'
+import { api, getNetbootCatalog, type Profile, type MenuEntry, type NetbootDistro, type ProfileScriptVersion } from '../api/client'
 
 export default function Profiles() {
   const { t } = useTranslation()
@@ -34,14 +34,10 @@ export default function Profiles() {
   const [diffContent, setDiffContent] = useState('')
   const [showDiff, setShowDiff] = useState(false)
   const [versionLoading, setVersionLoading] = useState(false)
-  const [allBaselines, setAllBaselines] = useState<Baseline[]>([])
 
   useEffect(() => { loadProfiles() }, [])
   useEffect(() => {
     getNetbootCatalog().then(res => setOSCatalog(res.data?.distros || [])).catch(() => {})
-  }, [])
-  useEffect(() => {
-    getBaselines().then(res => setAllBaselines(res.data || [])).catch(() => {})
   }, [])
 
   async function loadProfiles() {
@@ -392,37 +388,6 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
               <span className="text-sm text-[var(--text-secondary)]">{t('profiles.isDefault')}</span>
             </label>
           </div>
-
-          {/* Baselines 关联 */}
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t('baselines.title')}</h3>
-            {!Array.isArray(allBaselines) || allBaselines.length === 0 ? (
-              <p className="text-xs text-[var(--text-muted)] italic">{t('baselines.noBaselines')}</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                {allBaselines.map(bl => {
-                  const checked = form.baselines.includes(bl.id)
-                  return (
-                    <label key={bl.id} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${checked ? 'border-blue-500/40 bg-blue-500/5' : 'border-[var(--bg-border)] hover:bg-[var(--bg-hover)]'}`}>
-                      <input type="checkbox" className="accent-blue-500 shrink-0" checked={checked} onChange={() => {
-                        setForm(prev => ({
-                          ...prev,
-                          baselines: checked
-                            ? prev.baselines.filter(id => id !== bl.id)
-                            : [...prev.baselines, bl.id],
-                        }))
-                      }} />
-                      <div className="min-w-0">
-                        <div className="text-sm text-[var(--text-primary)] truncate">{bl.name}</div>
-                        {bl.description && <div className="text-[10px] text-[var(--text-muted)] truncate">{bl.description}</div>}
-                      </div>
-                    </label>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
           {/* 自定义变量 */}
           <div>
             <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t('profiles.variables')}</h3>
