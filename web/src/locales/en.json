@@ -742,6 +742,8 @@
     "edit": "Edit",
     "create": "Create",
     "search": "Search",
+    "selectedCount": "{{count}} selected",
+    "noMatch": "No matches",
     "back": "Back",
     "refresh": "Refresh",
     "reload": "Reload Config",

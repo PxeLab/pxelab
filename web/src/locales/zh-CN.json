@@ -743,6 +743,8 @@
     "edit": "编辑",
     "create": "创建",
     "search": "搜索",
+    "selectedCount": "已选 {{count}} 项",
+    "noMatch": "无匹配项",
     "back": "返回",
     "refresh": "刷新",
     "reload": "重载配置",
