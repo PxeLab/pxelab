@@ -59,10 +59,10 @@ type GlobalConfig struct {
 // BaselineHooksConfig 各类应答文件的基线拉取钩子模板。
 // 模板支持 {{URL}} 占位符，注入时替换为聚合产物 /baselines/pull.{sh,ps1} 的完整地址。
 type BaselineHooksConfig struct {
-	Kickstart    string `yaml:"kickstart" mapstructure:"kickstart"`       // 完整 %post 块
-	Preseed      string `yaml:"preseed" mapstructure:"preseed"`           // late_command 追加的命令
-	Subiquity    string `yaml:"subiquity" mapstructure:"subiquity"`       // late-commands YAML 块
-	AutoUnattend string `yaml:"autounattend" mapstructure:"autounattend"` // FirstLogonCommands 的命令行
+	Kickstart    string `yaml:"kickstart" mapstructure:"kickstart" json:"kickstart"`          // 完整 %post 块
+	Preseed      string `yaml:"preseed" mapstructure:"preseed" json:"preseed"`                // late_command 追加的命令
+	Subiquity    string `yaml:"subiquity" mapstructure:"subiquity" json:"subiquity"`          // late-commands YAML 块
+	AutoUnattend string `yaml:"autounattend" mapstructure:"autounattend" json:"autounattend"` // FirstLogonCommands 的命令行
 }
 
 type InterfaceConfig struct {
