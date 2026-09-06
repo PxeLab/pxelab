@@ -170,7 +170,6 @@ export default function Hosts() {
   // 初始化脚本（P1：继承自 Profile 的基线 + 主机追加的基线/脚本）
   const selectedProfile = profiles.find(p => p.id === newHost.profile_id)
   const inheritedBaselineIds: string[] = selectedProfile?.baselines ?? []
-  const isInherited = (id: string) => inheritedBaselineIds.includes(id)
 
   const recColumns: Column<PxeBootRecord>[] = [
     { key: 'mac', label: 'MAC', render: (r) => <span className="font-mono text-xs text-[var(--text-primary)]">{r.mac}</span> },
@@ -218,7 +217,7 @@ export default function Hosts() {
       <PageHeader
         title={t('hosts.title')}
         actions={
-          <Button variant="primary" size="sm" onClick={openCreate}>
+          <Button variant="primary" size="sm" onClick={() => openCreate()}>
             <Plus size={14} /> {t('hosts.addHost')}
           </Button>
         }
@@ -393,45 +392,22 @@ export default function Hosts() {
             )}
             <div>
               <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addBaselines')}</p>
-              <div className="max-h-32 overflow-y-auto rounded border border-[var(--bg-border)] p-2 space-y-1">
-                {allBaselines.map(b => {
-                  const on = isInherited(b.id) || newHost.baseline_ids.includes(b.id)
-                  return (
-                    <label key={b.id} className={`flex items-center gap-2 text-xs ${isInherited(b.id) ? 'opacity-60' : 'cursor-pointer hover:text-[var(--text-primary)]'}`}>
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        disabled={isInherited(b.id)}
-                        onChange={() => setNewHost({ ...newHost, baseline_ids: toggleArr(newHost.baseline_ids, b.id) })}
-                        className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
-                      />
-                      <span className="text-[var(--text-muted)]">{b.name}</span>
-                    </label>
-                  )
-                })}
-                {allBaselines.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{t('baselines.noBaselines')}</p>}
-              </div>
+              <ChecklistPicker
+                items={allBaselines.map(b => ({ id: b.id, name: b.name }))}
+                selected={newHost.baseline_ids}
+                disabledIds={inheritedBaselineIds}
+                onToggle={id => setNewHost({ ...newHost, baseline_ids: toggleArr(newHost.baseline_ids, id) })}
+                emptyText={t('baselines.noBaselines')}
+              />
             </div>
             <div>
               <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addScripts')}</p>
-              <div className="max-h-32 overflow-y-auto rounded border border-[var(--bg-border)] p-2 space-y-1">
-                {allScripts.map(sc => {
-                  const on = newHost.script_ids.includes(sc.id)
-                  return (
-                    <label key={sc.id} className="flex items-center gap-2 text-xs cursor-pointer hover:text-[var(--text-primary)]">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => setNewHost({ ...newHost, script_ids: toggleArr(newHost.script_ids, sc.id) })}
-                        className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
-                      />
-                      <span className="text-[var(--text-muted)]">{sc.name}</span>
-                      <span className="ml-auto px-1 py-px rounded text-[9px] uppercase text-[var(--text-muted)] bg-[var(--bg-hover)]">{sc.type}</span>
-                    </label>
-                  )
-                })}
-                {allScripts.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{t('scripts.noScripts')}</p>}
-              </div>
+              <ChecklistPicker
+                items={allScripts.map(sc => ({ id: sc.id, name: sc.name, badge: sc.type }))}
+                selected={newHost.script_ids}
+                onToggle={id => setNewHost({ ...newHost, script_ids: toggleArr(newHost.script_ids, id) })}
+                emptyText={t('scripts.noScripts')}
+              />
             </div>
           </div>
         </div>
@@ -443,6 +419,69 @@ export default function Hosts() {
         title={t('hosts.deleteTitle')}
         message={t('hosts.deleteConfirm')}
       />
+    </div>
+  )
+}
+
+// ChecklistPicker 带搜索过滤的勾选列表：已选项置顶，数据多时可按名称过滤。
+function ChecklistPicker<T extends string | number>(props: {
+  items: { id: T; name: string; badge?: string }[]
+  selected: T[]
+  disabledIds?: T[]
+  onToggle: (id: T) => void
+  emptyText: string
+}) {
+  const { t } = useTranslation()
+  const [filter, setFilter] = useState('')
+  const disabled = new Set(props.disabledIds ?? [])
+  const q = filter.trim().toLowerCase()
+  const visible = (q ? props.items.filter(i => i.name.toLowerCase().includes(q)) : props.items)
+    .slice()
+    .sort((a, b) => {
+      const aOn = props.selected.includes(a.id) || disabled.has(a.id) ? 0 : 1
+      const bOn = props.selected.includes(b.id) || disabled.has(b.id) ? 0 : 1
+      return aOn - bOn
+    })
+  return (
+    <div className="rounded border border-[var(--bg-border)]">
+      <div className="flex items-center gap-2 px-2 py-1.5 border-b border-[var(--bg-border)]">
+        <Search size={12} className="text-[var(--text-muted)] shrink-0" />
+        <input
+          className="flex-1 min-w-0 bg-transparent text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+          placeholder={t('common.search')}
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+        />
+        {props.selected.length > 0 && (
+          <span className="shrink-0 px-1.5 py-px rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">
+            {t('common.selectedCount', { count: props.selected.length })}
+          </span>
+        )}
+      </div>
+      <div className="max-h-36 overflow-y-auto p-2 space-y-1">
+        {visible.map(item => {
+          const isDisabled = disabled.has(item.id)
+          const on = isDisabled || props.selected.includes(item.id)
+          return (
+            <label key={String(item.id)} className={`flex items-center gap-2 text-xs ${isDisabled ? 'opacity-60' : 'cursor-pointer hover:text-[var(--text-primary)]'}`}>
+              <input
+                type="checkbox"
+                checked={on}
+                disabled={isDisabled}
+                onChange={() => props.onToggle(item.id)}
+                className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+              />
+              <span className="text-[var(--text-muted)] truncate">{item.name}</span>
+              {item.badge && (
+                <span className="ml-auto px-1 py-px rounded text-[9px] uppercase text-[var(--text-muted)] bg-[var(--bg-hover)]">{item.badge}</span>
+              )}
+            </label>
+          )
+        })}
+        {visible.length === 0 && (
+          <p className="text-[11px] text-[var(--text-muted)]">{props.items.length === 0 ? props.emptyText : t('common.noMatch')}</p>
+        )}
+      </div>
     </div>
   )
 }
