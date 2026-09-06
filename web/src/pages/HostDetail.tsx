@@ -10,6 +10,8 @@ import { Tag } from '../components/ui/Tag'
 import { StatusDot } from '../components/ui/StatusDot'
 import { useToast } from '../components/ui/Toast'
 import { Input, Select } from '../components/ui/FormControls'
+import { Toggle } from '../components/ui/Toggle'
+import { ChecklistPicker } from '../components/ui/ChecklistPicker'
 import { DataTable } from '../components/ui/DataTable'
 import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord, type Profile, type Baseline, type scriptDTO } from '../api/client'
 
@@ -60,6 +62,8 @@ export default function HostDetail() {
     baseline_ids: string[]; script_ids: number[]
   }>({ name: '', mac: '', ip: '', sn: '', profile_id: '', bmc_addr: '', bmc_user: '', baseline_ids: [], script_ids: [] })
   const [editSaving, setEditSaving] = useState(false)
+  const [editShowBaselines, setEditShowBaselines] = useState(false)
+  const [editShowScripts, setEditShowScripts] = useState(false)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [allBaselines, setAllBaselines] = useState<Baseline[]>([])
   const [allScripts, setAllScripts] = useState<scriptDTO[]>([])
@@ -206,7 +210,6 @@ export default function HostDetail() {
   // 初始化脚本选择（P1）：Profile 继承的基线只读展示，主机可再追加
   const editProfile = profiles.find(p => p.id === editForm.profile_id)
   const editInherited: string[] = editProfile?.baselines ?? []
-  const editIsInherited = (id: string) => editInherited.includes(id)
 
   if (loading) {
     return <div className="space-y-6">
@@ -249,6 +252,8 @@ export default function HostDetail() {
               baseline_ids: host.baseline_ids ?? [],
               script_ids: host.script_ids ?? [],
             })
+            setEditShowBaselines((host.baseline_ids ?? []).length > 0)
+            setEditShowScripts((host.script_ids ?? []).length > 0)
             setShowEdit(true)
           }}>
             {t('common.edit')}
@@ -705,46 +710,45 @@ export default function HostDetail() {
               </div>
             )}
             <div>
-              <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addBaselines')}</p>
-              <div className="max-h-32 overflow-y-auto rounded border border-[var(--bg-border)] p-2 space-y-1">
-                {allBaselines.map(b => {
-                  const on = editIsInherited(b.id) || editForm.baseline_ids.includes(b.id)
-                  return (
-                    <label key={b.id} className={`flex items-center gap-2 text-xs ${editIsInherited(b.id) ? 'opacity-60' : 'cursor-pointer hover:text-[var(--text-primary)]'}`}>
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        disabled={editIsInherited(b.id)}
-                        onChange={() => setEditForm({ ...editForm, baseline_ids: toggleArr(editForm.baseline_ids, b.id) })}
-                        className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
-                      />
-                      <span className="text-[var(--text-muted)]">{b.name}</span>
-                    </label>
-                  )
-                })}
-                {allBaselines.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{t('baselines.noBaselines')}</p>}
-              </div>
+              <Toggle
+                checked={editShowBaselines}
+                onChange={v => {
+                  setEditShowBaselines(v)
+                  if (!v) setEditForm({ ...editForm, baseline_ids: [] })
+                }}
+                label={t('hosts.addBaselines')}
+              />
+              {editShowBaselines && (
+                <div className="mt-1.5">
+                  <ChecklistPicker
+                    items={allBaselines.map(b => ({ id: b.id, name: b.name }))}
+                    selected={editForm.baseline_ids}
+                    disabledIds={editInherited}
+                    onToggle={id => setEditForm({ ...editForm, baseline_ids: toggleArr(editForm.baseline_ids, id) })}
+                    emptyText={t('baselines.noBaselines')}
+                  />
+                </div>
+              )}
             </div>
             <div>
-              <p className="text-[11px] font-medium text-[var(--text-muted)] mb-1">{t('hosts.addScripts')}</p>
-              <div className="max-h-32 overflow-y-auto rounded border border-[var(--bg-border)] p-2 space-y-1">
-                {allScripts.map(sc => {
-                  const on = editForm.script_ids.includes(sc.id)
-                  return (
-                    <label key={sc.id} className="flex items-center gap-2 text-xs cursor-pointer hover:text-[var(--text-primary)]">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => setEditForm({ ...editForm, script_ids: toggleArr(editForm.script_ids, sc.id) })}
-                        className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
-                      />
-                      <span className="text-[var(--text-muted)]">{sc.name}</span>
-                      <span className="ml-auto px-1 py-px rounded text-[9px] uppercase text-[var(--text-muted)] bg-[var(--bg-hover)]">{sc.type}</span>
-                    </label>
-                  )
-                })}
-                {allScripts.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">{t('scripts.noScripts')}</p>}
-              </div>
+              <Toggle
+                checked={editShowScripts}
+                onChange={v => {
+                  setEditShowScripts(v)
+                  if (!v) setEditForm({ ...editForm, script_ids: [] })
+                }}
+                label={t('hosts.addScripts')}
+              />
+              {editShowScripts && (
+                <div className="mt-1.5">
+                  <ChecklistPicker
+                    items={allScripts.map(sc => ({ id: sc.id, name: sc.name, badge: sc.type }))}
+                    selected={editForm.script_ids}
+                    onToggle={id => setEditForm({ ...editForm, script_ids: toggleArr(editForm.script_ids, id) })}
+                    emptyText={t('scripts.noScripts')}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
