@@ -2,8 +2,11 @@ version: 2
 
 before:
   hooks:
-    - cd web && npm ci && npm run build
-    - sh scripts/update-version-json.sh
+    - cmd: npm ci
+      dir: web
+    - cmd: npm run build
+      dir: web
+    - cmd: sh scripts/update-version-json.sh
 
 builds:
   - id: pxelab
@@ -42,7 +45,7 @@ checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
 
 snapshot:
-  name_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+  version_template: "{{ incpatch .Version }}-SNAPSHOT-{{ .ShortCommit }}"
 
 changelog:
   use: github
