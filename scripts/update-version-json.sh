@@ -7,6 +7,9 @@ set -e
 VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")"
 DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
+# website/ is a submodule and may be absent (e.g. release CI checkouts)
+mkdir -p website/apps/web/public
+
 cat > website/apps/web/public/version.json <<- VERSION_EOF
 {
   "latest_version": "${VERSION}",
