@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/pxelab/pxelab/internal/store"
@@ -17,6 +18,7 @@ import (
 type InstallTaskHandler struct {
 	store      store.Interface
 	serverBase string // 可被局域网访问的 HTTP 基址（host:port），用于注入应答钩子
+	cfg        *config.Config
 }
 
 func (h *InstallTaskHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -183,7 +185,7 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 			sn = real.SN
 		}
 		base := chooseServerBase(h.serverBase, r.Host)
-		if augmented, ok := augmentBaselinePull(rendered, tmpl.Type, base, mac, sn, ""); ok {
+		if augmented, ok := augmentBaselinePull(rendered, tmpl.Type, base, mac, sn, h.cfg.Global.BaselineHooks); ok {
 			rendered = augmented
 		} else {
 			slog.Warn("应答模板启用了基线自动下发，但无法安全注入（请人工添加钩子）",

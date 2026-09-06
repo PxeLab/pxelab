@@ -31,7 +31,8 @@
       "dhcp": "DHCP",
       "dns": "DNS",
       "nfs": "NFS",
-      "netboot": "Netboot"
+      "netboot": "Netboot",
+      "baselineHooks": "Baseline Hooks"
     },
     "dashboard": "Dashboard",
     "hosts": "Hosts",
@@ -1487,6 +1488,16 @@
     "deleteConfirmPre": "Delete",
     "deleteConfirmPost": "? This will remove the ISO file and all extracted data.",
     "cancel": "Cancel"
+  },
+  "baselineHooks": {
+    "title": "Baseline Injection Hooks",
+    "description": "When an answer template enables \"Run baseline scripts during install\", PxeLab injects the matching hook into the served answer file. {{URL}} is replaced with the baseline bundle URL; content identical to the built-in default is treated as default.",
+    "kickstart": "Kickstart (appended %post section)",
+    "preseed": "Preseed (late_command command)",
+    "subiquity": "Subiquity (late-commands block)",
+    "autounattend": "AutoUnattend (FirstLogonCommands command line)",
+    "customized": "Customized",
+    "resetDefaults": "Reset to defaults"
   },
   "baselines": {
     "title": "Baselines",

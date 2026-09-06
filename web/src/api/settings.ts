@@ -294,3 +294,25 @@ export function getNetbootSettings(): Promise<ApiResponse<NetbootSettingsData>> 
 export function updateNetbootSettings(data: NetbootSettingsData): Promise<ApiResponse<unknown>> {
   return request<unknown>('PUT', '/settings/netboot', data)
 }
+
+// ── Baseline Hooks（基线注入钩子模板）──
+
+export interface BaselineHooksData {
+  kickstart: string
+  preseed: string
+  subiquity: string
+  autounattend: string
+}
+
+export interface BaselineHooksSettings {
+  hooks: BaselineHooksData    // 自定义值；空字符串 = 使用默认
+  defaults: BaselineHooksData // 内置默认（只读）
+}
+
+export function getBaselineHooks(): Promise<ApiResponse<BaselineHooksSettings>> {
+  return request<BaselineHooksSettings>('GET', '/settings/baseline-hooks')
+}
+
+export function updateBaselineHooks(hooks: BaselineHooksData): Promise<ApiResponse<unknown>> {
+  return request<unknown>('PUT', '/settings/baseline-hooks', { hooks })
+}

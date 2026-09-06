@@ -76,8 +76,8 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Logs:            NewLogStreamHandler(bus, logDir(cfg)),
 		Netboot:         NewNetbootHandler(netbootMgr),
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
-		AnswerTemplate:  &AnswerTemplateHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr)},
-		InstallTask:     &InstallTaskHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr)},
+		AnswerTemplate:  &AnswerTemplateHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg},
+		InstallTask:     &InstallTaskHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg},
 		Service:         NewServiceHandler(svcController, cfg, st, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:            NewAuthHandler(cfg, sessions),
 		Access:          NewAccessHandler(st),
@@ -177,6 +177,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/services/ipxe-script", h.Settings.UpdateIPXEScript)
 		r.Get("/settings/netboot", h.Settings.GetNetboot)
 		r.Put("/settings/netboot", h.Settings.UpdateNetboot)
+		r.Get("/settings/baseline-hooks", h.Settings.GetBaselineHooks)
+		r.Put("/settings/baseline-hooks", h.Settings.UpdateBaselineHooks)
 		r.Get("/settings/logging", h.Settings.GetLoggingSettings)
 		r.Put("/settings/logging", h.Settings.UpdateLoggingSettings)
 		r.Get("/netboot/cache-stats", h.Settings.GetCacheStats)

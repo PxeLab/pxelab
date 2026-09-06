@@ -52,6 +52,17 @@ type GlobalConfig struct {
 	// HTTPBase 应答模板注入钩子使用的外部可访问地址（host:port，如 192.168.1.10:8080）。
 	// 为空时自动使用第一个非回环网卡 IP + listen 端口；客户端以局域网地址访问时优先用请求 Host。
 	HTTPBase string `yaml:"http_base" mapstructure:"http_base"`
+	// BaselineHooks 应答模板“基线自动下发”注入钩子的自定义模板；留空表示用内置默认。
+	BaselineHooks BaselineHooksConfig `yaml:"baseline_hooks" mapstructure:"baseline_hooks"`
+}
+
+// BaselineHooksConfig 各类应答文件的基线拉取钩子模板。
+// 模板支持 {{URL}} 占位符，注入时替换为聚合产物 /baselines/pull.{sh,ps1} 的完整地址。
+type BaselineHooksConfig struct {
+	Kickstart    string `yaml:"kickstart" mapstructure:"kickstart"`       // 完整 %post 块
+	Preseed      string `yaml:"preseed" mapstructure:"preseed"`           // late_command 追加的命令
+	Subiquity    string `yaml:"subiquity" mapstructure:"subiquity"`       // late-commands YAML 块
+	AutoUnattend string `yaml:"autounattend" mapstructure:"autounattend"` // FirstLogonCommands 的命令行
 }
 
 type InterfaceConfig struct {

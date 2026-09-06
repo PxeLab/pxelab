@@ -2048,3 +2048,41 @@ func copyDir(src, dst string) error {
 	}
 	return nil
 }
+
+// ── Baseline Hooks（应答模板基线注入钩子模板）──
+
+// BaselineHooksSettingsResponse hooks 为当前自定义值（空字符串 = 使用内置默认），
+// defaults 为内置默认模板，仅供前端展示与“恢复默认”。
+type BaselineHooksSettingsResponse struct {
+	Hooks    config.BaselineHooksConfig `json:"hooks"`
+	Defaults config.BaselineHooksConfig `json:"defaults"`
+}
+
+func (h *SettingsHandler) GetBaselineHooks(w http.ResponseWriter, r *http.Request) {
+	OK(w, BaselineHooksSettingsResponse{
+		Hooks:    h.cfg.Global.BaselineHooks,
+		Defaults: DefaultBaselineHooks(),
+	})
+}
+
+func (h *SettingsHandler) UpdateBaselineHooks(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Hooks config.BaselineHooksConfig `json:"hooks"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	h.mu.Lock()
+	h.cfg.Global.BaselineHooks = req.Hooks
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "baseline_hooks", "", remoteIP(r), "保存基线注入钩子模板")
+	OK(w, map[string]string{"status": "saved"})
+}
