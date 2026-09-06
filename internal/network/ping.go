@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -119,7 +118,7 @@ func pingWindows(ctx context.Context, host, ip string, opts PingOptions, onPacke
 	args = append(args, "-w", strconv.Itoa(int(opts.Timeout.Milliseconds())), ip)
 
 	cmd := exec.CommandContext(ctx, "ping", args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	hideWindow(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("启动 ping 失败: %w", err)
