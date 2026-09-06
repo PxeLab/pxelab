@@ -31,7 +31,8 @@
       "dhcp": "DHCP",
       "dns": "DNS",
       "nfs": "NFS",
-      "netboot": "Netboot"
+      "netboot": "Netboot",
+      "baselineHooks": "基线钩子"
     },
     "dashboard": "仪表板",
     "hosts": "主机管理",
@@ -1488,6 +1489,16 @@
     "deleteConfirmPre": "确定要删除",
     "deleteConfirmPost": "吗？这将删除 ISO 文件和所有提取的数据。",
     "cancel": "取消"
+  },
+  "baselineHooks": {
+    "title": "基线注入钩子",
+    "description": "应答模板勾选「装机时自动执行基线脚本」后，平台按模板类型把对应钩子注入应答文件。模板中的 {{URL}} 会被替换为基线聚合产物地址；内容与内置默认一致时按默认处理。",
+    "kickstart": "Kickstart（追加 %post 段）",
+    "preseed": "Preseed（late_command 追加命令）",
+    "subiquity": "Subiquity（追加 late-commands 块）",
+    "autounattend": "AutoUnattend（FirstLogonCommands 命令行）",
+    "customized": "已自定义",
+    "resetDefaults": "恢复默认"
   },
   "baselines": {
     "title": "基线脚本",

@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/pxelab/pxelab/internal/store"
@@ -18,6 +19,7 @@ import (
 type AnswerTemplateHandler struct {
 	store      store.Interface
 	serverBase string // 可被局域网访问的 HTTP 基址（host:port），用于预览注入钩子
+	cfg        *config.Config
 }
 
 func (h *AnswerTemplateHandler) Validate(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +127,7 @@ func (h *AnswerTemplateHandler) Preview(w http.ResponseWriter, r *http.Request) 
 	injected := false
 	if enabled {
 		base := chooseServerBase(h.serverBase, r.Host)
-		if out, ok := augmentBaselinePull(rendered, srcType, base, req.HostMAC, "", ""); ok {
+		if out, ok := augmentBaselinePull(rendered, srcType, base, req.HostMAC, "", h.cfg.Global.BaselineHooks); ok {
 			rendered = out
 			injected = true
 		}

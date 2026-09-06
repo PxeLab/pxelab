@@ -12,9 +12,48 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/pxelab/pxelab/internal/config"
 )
 
 const baselinePullMarker = "pxelab-baseline-pull"
+
+// 内置默认钩子模板。{{URL}} 在注入时替换为聚合产物地址（pull.sh / pull.ps1）。
+// 与 global.baseline_hooks 配置一一对应；配置留空即用这里的默认值。
+const (
+	defaultKickstartHook = `%post --interpreter=/bin/bash
+# PxeLab baseline pull (pxelab-baseline-pull)
+set +e
+if command -v curl >/dev/null 2>&1; then curl -fsSL '{{URL}}' | bash
+elif command -v wget >/dev/null 2>&1; then wget -qO- '{{URL}}' | bash
+fi
+%end`
+
+	defaultPreseedHook = `in-target sh -c "if command -v curl >/dev/null 2>&1; then curl -fsSL '{{URL}}' | sh; else wget -qO- '{{URL}}' | sh; fi" || true`
+
+	defaultSubiquityHook = `late-commands:
+  - sh -c "curl -fsSL '{{URL}}' | sh || true"`
+
+	defaultAutoUnattendHook = `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "try { $u='{{URL}}'; (New-Object Net.WebClient).DownloadString($u) | Invoke-Expression } catch {}"`
+)
+
+// DefaultBaselineHooks 返回内置默认钩子模板（供设置页展示/重置）。
+func DefaultBaselineHooks() config.BaselineHooksConfig {
+	return config.BaselineHooksConfig{
+		Kickstart:    defaultKickstartHook,
+		Preseed:      defaultPreseedHook,
+		Subiquity:    defaultSubiquityHook,
+		AutoUnattend: defaultAutoUnattendHook,
+	}
+}
+
+// renderHook 用 url 替换模板中的 {{URL}}；tpl 为空时用 fallback 默认模板。
+func renderHook(tpl, fallback, url string) string {
+	if strings.TrimSpace(tpl) == "" {
+		tpl = fallback
+	}
+	return strings.ReplaceAll(tpl, "{{URL}}", url)
+}
 
 // identityParam 按配置的身份键生成查询参数（mac/sn）。
 func (h *BaselineHandler) identityParam(mac, sn string) string {
@@ -78,11 +117,11 @@ func buildPullURL(baseURL, execExt, identityParam string) string {
 // augmentBaselinePull 在渲染后的应答文件上追加/合并“拉取并执行基线”的钩子。
 // 返回注入后的内容；applied=false 表示该类型暂时无法安全注入（调用方应告警）。
 // 幂等：内容已含标记则跳过。
-func augmentBaselinePull(content, answerType, baseURL, mac, sn string, identityAttr string) (string, bool) {
+// hooks 为 global.baseline_hooks 自定义模板，空字段回落到内置默认。
+func augmentBaselinePull(content, answerType, baseURL, mac, sn string, hooks config.BaselineHooksConfig) (string, bool) {
 	if strings.Contains(content, baselinePullMarker) {
 		return content, true
 	}
-	_ = identityAttr
 	// 同时带上可用身份键；/baselines/pull.{sh,ps1} 按 global.identity_attr 取用其一
 	parts := []string{}
 	if mac != "" {
@@ -100,18 +139,18 @@ func augmentBaselinePull(content, answerType, baseURL, mac, sn string, identityA
 
 	switch answerType {
 	case "preseed", "subiquity":
-		return augmentLinuxPreseed(content, shURL)
+		return augmentLinuxPreseed(content, shURL, hooks)
 	case "kickstart":
-		return augmentKickstart(content, shURL)
+		return augmentKickstart(content, shURL, hooks)
 	case "autounattend":
-		return augmentAutoUnattend(content, psURL)
+		return augmentAutoUnattend(content, psURL, hooks)
 	default:
 		return content, false
 	}
 }
 
 // augmentLinuxPreseed 覆盖 debian-installer preseed 与 Ubuntu subiquity(autoinstall, YAML)。
-func augmentLinuxPreseed(content, shURL string) (string, bool) {
+func augmentLinuxPreseed(content, shURL string, hooks config.BaselineHooksConfig) (string, bool) {
 	block := ""
 	switch {
 	case strings.Contains(content, "d-i preseed/late_command string"):
@@ -127,40 +166,33 @@ func augmentLinuxPreseed(content, shURL string) (string, bool) {
 			}
 			kept = append(kept, ln)
 		}
-		all := append(existing,
-			fmt.Sprintf("in-target sh -c \"if command -v curl >/dev/null 2>&1; then curl -fsSL '%s' | sh; else wget -qO- '%s' | sh; fi\" || true", shURL, shURL))
+		all := append(existing, renderHook(hooks.Preseed, defaultPreseedHook, shURL))
 		block = "d-i preseed/late_command string " + strings.Join(all, " && ")
 		content = strings.Join(kept, "\n")
 	case strings.Contains(content, "late-commands:"):
 		// subiquity：已有 late-commands 列表时无法安全插入，交由人工确认（返回未注入）
 		return content, false
 	default:
-		block = "# PxeLab baseline pull (" + baselinePullMarker + ")\n" +
-			"late-commands:\n" +
-			fmt.Sprintf("  - sh -c \"curl -fsSL '%s' | sh || true\"\n", shURL)
+		block = renderHook(hooks.Subiquity, defaultSubiquityHook, shURL)
 	}
 	return content + "\n# PxeLab baseline pull (" + baselinePullMarker + ")\n" + block + "\n", true
 }
 
 // augmentKickstart 在末尾追加 %post 段（anaconda 允许多个 %post）。
-func augmentKickstart(content, shURL string) (string, bool) {
-	block := fmt.Sprintf("%%post --interpreter=/bin/bash\n# PxeLab baseline pull (%s)\nset +e\nif command -v curl >/dev/null 2>&1; then curl -fsSL '%s' | bash\nelif command -v wget >/dev/null 2>&1; then wget -qO- '%s' | bash\nfi\n%%end\n", baselinePullMarker, shURL, shURL)
-	return content + "\n" + block, true
+func augmentKickstart(content, shURL string, hooks config.BaselineHooksConfig) (string, bool) {
+	return content + "\n" + renderHook(hooks.Kickstart, defaultKickstartHook, shURL) + "\n", true
 }
 
 // augmentAutoUnattend 在 oobeSystem 的 Microsoft-Windows-Shell-Setup 组件里注入 FirstLogonCommands。
-func augmentAutoUnattend(content, psURL string) (string, bool) {
+func augmentAutoUnattend(content, psURL string, hooks config.BaselineHooksConfig) (string, bool) {
 	if !strings.Contains(content, "oobeSystem") || !strings.Contains(content, "Microsoft-Windows-Shell-Setup") {
 		return content, false
 	}
 	if strings.Contains(content, "<FirstLogonCommands") {
 		return content, false // 已有 FirstLogonCommands：请人工合并
 	}
-	cmd := fmt.Sprintf(
-		"powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"try { $u='%s'; (New-Object Net.WebClient).DownloadString($u) | Invoke-Expression } catch {}\"",
-		psURL)
-	// XML 转义
-	cmd = xmlEscape(cmd)
+	// 模板渲染后再做 XML 转义
+	cmd := xmlEscape(renderHook(hooks.AutoUnattend, defaultAutoUnattendHook, psURL))
 	snippet := "\n<FirstLogonCommands>\n<SynchronousCommand wcm:action=\"add\">\n<CommandLine>" + cmd +
 		"</CommandLine>\n<Description>PxeLab baseline pull</Description>\n<Order>1</Order>\n</SynchronousCommand>\n</FirstLogonCommands>"
 

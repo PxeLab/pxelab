@@ -37,6 +37,7 @@ const Scripts = lazy(() => import('./pages/Scripts'))
 const ScriptDetail = lazy(() => import('./pages/ScriptDetail'))
 const Store = lazy(() => import('./pages/Store'))
 const StoreDetail = lazy(() => import('./pages/StoreDetail'))
+const SettingsBaselineHooks = lazy(() => import('./pages/SettingsBaselineHooks'))
 
 function LoadingFallback() {
   const { t } = useTranslation()
@@ -118,6 +119,7 @@ function AppContent() {
             <Route path="tftp" element={<SettingsTFTP />} />
             <Route path="dns" element={<SettingsDNS />} />
             <Route path="nfs" element={<SettingsNFS />} />
+            <Route path="baseline-hooks" element={<SettingsBaselineHooks />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
