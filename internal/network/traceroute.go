@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"golang.org/x/net/ipv4"
@@ -242,7 +241,7 @@ func parseTracertRTTs(rest string) []float64 {
 func tracerouteWindows(ctx context.Context, ip4Str string, opts TracerouteOptions, result *TracerouteResult, onHop func(TracerouteHop)) (*TracerouteResult, error) {
 	args := []string{"-h", strconv.Itoa(opts.MaxHops), "-w", strconv.Itoa(int(opts.Timeout.Milliseconds())), ip4Str}
 	cmd := exec.CommandContext(ctx, "tracert", args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	hideWindow(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("启动 tracert 失败: %w", err)
