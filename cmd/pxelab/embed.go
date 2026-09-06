@@ -34,12 +34,19 @@ func spaHandler() http.Handler {
 		// 检查请求的是否是真实文件（有扩展名且文件存在）
 		ext := filepath.Ext(r.URL.Path)
 		if ext != "" {
+			// 带内容哈希的构建产物可长缓存；其余静态文件每次协商，避免更新后浏览器沿用旧副本
+			if strings.HasPrefix(r.URL.Path, "/assets/") {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			} else {
+				w.Header().Set("Cache-Control", "no-cache")
+			}
 			fileServer.ServeHTTP(w, r)
 			return
 		}
 
-		// SPA fallback：所有无扩展名的路径返回 index.html
+		// SPA fallback：所有无扩展名的路径返回 index.html（不缓存，保证更新后立即可见）
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(indexStr))
 	})
