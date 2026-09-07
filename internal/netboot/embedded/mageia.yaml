@@ -8,6 +8,7 @@ versions:
       name: cauldron
       arch: amd64
       enabled: true
+      cmdline: "vga=788 splash=silent"
       remote:
         kernel: http://mirrors.kernel.org/mageia/cauldron/amd64/linux
         initrd: http://mirrors.kernel.org/mageia/cauldron/amd64/initrd.gz

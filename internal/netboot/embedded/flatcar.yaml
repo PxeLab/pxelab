@@ -8,18 +8,22 @@ versions:
       arch: amd64
       enabled: true
       install_type: legacy
+      cmdline: "flatcar.autologin=tty1 flatcar.autologin=ttyS0"
     - codename: beta
       name: Beta Channel
       arch: amd64
       enabled: true
       install_type: legacy
+      cmdline: "flatcar.autologin=tty1 flatcar.autologin=ttyS0"
     - codename: alpha
       name: Alpha Channel
       arch: amd64
       enabled: true
       install_type: legacy
+      cmdline: "flatcar.autologin=tty1 flatcar.autologin=ttyS0"
     - codename: edge
       name: Edge Channel
       arch: amd64
       enabled: true
       install_type: legacy
+      cmdline: "flatcar.autologin=tty1 flatcar.autologin=ttyS0"
