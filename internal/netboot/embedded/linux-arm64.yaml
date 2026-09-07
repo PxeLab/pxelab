@@ -6,6 +6,7 @@ versions:
     name: "Ubuntu 26.04 LTS Netboot"
     arch: arm64
     enabled: true
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/26.04-c15b14d8/filesystem.squashfs initrd=initrd"
     remote:
       kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/26.04-c15b14d8/vmlinuz
       initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/26.04-c15b14d8/initrd
@@ -13,6 +14,7 @@ versions:
     name: "Ubuntu 25.10 Netboot"
     arch: arm64
     enabled: true
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/25.10-9fc235de/filesystem.squashfs initrd=initrd"
     remote:
       kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/25.10-9fc235de/vmlinuz
       initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/25.10-9fc235de/initrd
@@ -20,6 +22,7 @@ versions:
     name: "Ubuntu 25.04 Netboot"
     arch: arm64
     enabled: true
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/25.04-63097bc7/filesystem.squashfs initrd=initrd"
     remote:
       kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/25.04-63097bc7/vmlinuz
       initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/25.04-63097bc7/initrd
@@ -27,6 +30,7 @@ versions:
     name: "Ubuntu 24.10 Netboot"
     arch: arm64
     enabled: true
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/24.10-f22a7742/filesystem.squashfs initrd=initrd"
     remote:
       kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/24.10-f22a7742/vmlinuz
       initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/24.10-f22a7742/initrd
@@ -34,6 +38,7 @@ versions:
     name: "Ubuntu 24.04 LTS Netboot"
     arch: arm64
     enabled: true
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/24.04.4-b13d6c2e/filesystem.squashfs initrd=initrd"
     remote:
       kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/24.04.4-b13d6c2e/vmlinuz
       initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/24.04.4-b13d6c2e/initrd
@@ -41,6 +46,7 @@ versions:
     name: "Ubuntu 24.04 LTS Netboot (HWE)"
     arch: arm64
     enabled: true
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/24.04.4-940f2f1c/filesystem.squashfs initrd=initrd"
     remote:
       kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/24.04.4-940f2f1c/vmlinuz
       initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/24.04.4-940f2f1c/initrd
@@ -48,6 +54,7 @@ versions:
     name: "Ubuntu 22.04 LTS Netboot"
     arch: arm64
     enabled: true
+    cmdline: "boot=casper netboot=url url=https://github.com/netbootxyz/ubuntu-squash/releases/download/22.04.5-9d9df014/filesystem.squashfs initrd=initrd"
     remote:
       kernel: https://github.com/netbootxyz/ubuntu-squash/releases/download/22.04.5-9d9df014/vmlinuz
       initrd: https://github.com/netbootxyz/ubuntu-squash/releases/download/22.04.5-9d9df014/initrd
@@ -55,6 +62,7 @@ versions:
     name: "Gentoo"
     arch: arm64
     enabled: true
+    cmdline: "ip=dhcp root=/dev/ram0 init=/linuxrc loop=/image.squashfs looptype=squashfs cdroot=1"
     remote:
       kernel: https://github.com/netbootxyz/asset-mirror/releases/download/20260531T234604Z-3c528165/vmlinuz
       initrd: https://github.com/netbootxyz/asset-mirror/releases/download/20260531T234604Z-3c528165/initrd
@@ -62,6 +70,7 @@ versions:
     name: "VMware Photon OS 4.0"
     arch: arm64
     enabled: true
+    cmdline: "root=/dev/ram0 loglevel=3 repo=https://packages.vmware.com/photon/4.0/photon_release_4.0_aarch64"
     remote:
       kernel: https://github.com/netbootxyz/asset-mirror/releases/download/4.0-ed208546/vmlinuz
       initrd: https://github.com/netbootxyz/asset-mirror/releases/download/4.0-ed208546/initrd.img
@@ -69,6 +78,7 @@ versions:
     name: "Oracle Linux 9"
     arch: arm64
     enabled: true
+    cmdline: "root=live:https://github.com/netbootxyz/asset-mirror/releases/download/U1-f576e989/squashfs.img ro rd.live.image rd.lvm=0 rd.luks=0 rd.dm=0"
     remote:
       kernel: https://github.com/netbootxyz/asset-mirror/releases/download/U1-f576e989/vmlinuz
       initrd: https://github.com/netbootxyz/asset-mirror/releases/download/U1-f576e989/initrd

@@ -8,6 +8,7 @@ versions:
       name: 10 (Latest)
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://download.rockylinux.org/pub/rocky/10/amd64/linux
         initrd: http://download.rockylinux.org/pub/rocky/10/amd64/initrd.gz
@@ -16,6 +17,7 @@ versions:
       name: 9 (Latest)
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://download.rockylinux.org/pub/rocky/9/amd64/linux
         initrd: http://download.rockylinux.org/pub/rocky/9/amd64/initrd.gz
@@ -24,6 +26,7 @@ versions:
       name: 8 (Latest)
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://download.rockylinux.org/pub/rocky/8/amd64/linux
         initrd: http://download.rockylinux.org/pub/rocky/8/amd64/initrd.gz

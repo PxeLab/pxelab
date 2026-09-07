@@ -8,6 +8,7 @@ versions:
       name: 2.29 Core202
       arch: amd64
       enabled: true
+      cmdline: "vga=791"
       remote:
         kernel: https://downloads.ipfire.org/releases/ipfire-2.x/2.29-core202/amd64/linux
         initrd: https://downloads.ipfire.org/releases/ipfire-2.x/2.29-core202/amd64/initrd.gz

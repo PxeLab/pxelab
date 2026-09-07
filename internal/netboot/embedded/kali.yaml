@@ -8,6 +8,7 @@ versions:
       name: Rolling Edition
       arch: amd64
       enabled: true
+      cmdline: "vga=788 -- quiet"
       remote:
         kernel: http://http.kali.org/kali/rolling/amd64/linux
         initrd: http://http.kali.org/kali/rolling/amd64/initrd.gz

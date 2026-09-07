@@ -8,6 +8,7 @@ versions:
       name: Excalibur (testing)
       arch: amd64
       enabled: true
+      cmdline: "auto=true priority=critical"
       remote:
         kernel: http://deb.devuan.org/devuan/excalibur/amd64/linux
         initrd: http://deb.devuan.org/devuan/excalibur/amd64/initrd.gz
@@ -16,6 +17,7 @@ versions:
       name: 5.0 Daedalus (stable)
       arch: amd64
       enabled: true
+      cmdline: "auto=true priority=critical"
       remote:
         kernel: http://deb.devuan.org/devuan/daedalus/amd64/linux
         initrd: http://deb.devuan.org/devuan/daedalus/amd64/initrd.gz
@@ -24,6 +26,7 @@ versions:
       name: 4.0 Chimaera (oldstable)
       arch: amd64
       enabled: true
+      cmdline: "auto=true priority=critical"
       remote:
         kernel: http://deb.devuan.org/devuan/chimaera/amd64/linux
         initrd: http://deb.devuan.org/devuan/chimaera/amd64/initrd.gz
@@ -32,6 +35,7 @@ versions:
       name: 3.1 Beowulf (oldoldstable)
       arch: amd64
       enabled: true
+      cmdline: "auto=true priority=critical"
       remote:
         kernel: http://deb.devuan.org/devuan/beowulf/amd64/linux
         initrd: http://deb.devuan.org/devuan/beowulf/amd64/initrd.gz

@@ -8,6 +8,7 @@ versions:
       name: 9.0.20250222-0
       arch: amd64
       enabled: true
+      cmdline: "ip=dhcp rd.neednet=1"
       remote:
         kernel: https://cloud.centos.org/centos/scos/9.0.20250222-0/amd64/linux
         initrd: https://cloud.centos.org/centos/scos/9.0.20250222-0/amd64/initrd.gz
@@ -16,6 +17,7 @@ versions:
       name: 9.0.20250411-0
       arch: amd64
       enabled: true
+      cmdline: "ip=dhcp rd.neednet=1"
       remote:
         kernel: https://cloud.centos.org/centos/scos/9.0.20250411-0/amd64/linux
         initrd: https://cloud.centos.org/centos/scos/9.0.20250411-0/amd64/initrd.gz
@@ -24,6 +26,7 @@ versions:
       name: 9.0.20250510-0
       arch: amd64
       enabled: true
+      cmdline: "ip=dhcp rd.neednet=1"
       remote:
         kernel: https://cloud.centos.org/centos/scos/9.0.20250510-0/amd64/linux
         initrd: https://cloud.centos.org/centos/scos/9.0.20250510-0/amd64/initrd.gz
@@ -32,6 +35,7 @@ versions:
       name: 10.0.20250628-0
       arch: amd64
       enabled: true
+      cmdline: "ip=dhcp rd.neednet=1"
       remote:
         kernel: https://cloud.centos.org/centos/scos/10.0.20250628-0/amd64/linux
         initrd: https://cloud.centos.org/centos/scos/10.0.20250628-0/amd64/initrd.gz
@@ -40,6 +44,7 @@ versions:
       name: 10.0.20251103-0
       arch: amd64
       enabled: true
+      cmdline: "ip=dhcp rd.neednet=1"
       remote:
         kernel: https://cloud.centos.org/centos/scos/10.0.20251103-0/amd64/linux
         initrd: https://cloud.centos.org/centos/scos/10.0.20251103-0/amd64/initrd.gz

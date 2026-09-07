@@ -8,6 +8,7 @@ versions:
       name: 2026.06.01
       arch: amd64
       enabled: true
+      cmdline: "archisobasedir=arch net.ifnames=0"
       remote:
         kernel: mirrors.kernel.org/archlinux/2026.06.01/amd64/linux
         initrd: mirrors.kernel.org/archlinux/2026.06.01/amd64/initrd.gz
