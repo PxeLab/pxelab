@@ -174,6 +174,14 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// winpeshl 模式下，模板内容作为 install.bat 返回；winpeshl.ini 由后端
+	// 生成一个引用 X:\install.bat 的包装，通过 ?file=winpeshl.ini 访问，
+	// 避免与 install.bat 返回同一内容。
+	if r.URL.Query().Get("file") == "winpeshl.ini" {
+		rendered = "[LaunchApp]\n" +
+			"AppPath = X:\\install.bat\n"
+	}
+
 	// 勾选了“自动下发初始化基线”时，注入拉取并执行的钩子（身份按配置取 mac/sn）
 	if tmpl.EnableBaselinePull {
 		mac, sn := "", ""

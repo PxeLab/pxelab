@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Upload, Trash2, RefreshCw, Disc, FileArchive, HardDrive, Search, AlertCircle, CheckCircle, Clock, FolderInput, Pencil, FolderOpen, Folder, ArrowUp } from 'lucide-react'
+import { Upload, Trash2, RefreshCw, Disc, FileArchive, HardDrive, Search, AlertCircle, CheckCircle, Clock, FolderInput, Pencil, FolderOpen, Folder, ArrowUp, CloudDownload } from 'lucide-react'
 import { PieChart, Pie, Cell } from 'recharts'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -104,6 +104,8 @@ export default function OSImages() {
   const [browseState, setBrowseState] = useState<{ path: string; parent: string; dirs: string[] } | null>(null)
   const [editTarget, setEditTarget] = useState<OSImage | null>(null)
   const [editForm, setEditForm] = useState({ name: '', distro: '', version: '', arch: '' })
+  const [wdsTarget, setWdsTarget] = useState<OSImage | null>(null)
+  const [wdsName, setWdsName] = useState('')
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -172,6 +174,29 @@ export default function OSImages() {
       await api.mountOSImage(id)
       success(t('osImages.mounted'))
       await loadImages()
+    } catch (err: any) { showError(err.message) }
+  }
+
+  const openCreateWds = (img: OSImage) => {
+    setWdsName(`${img.name?.replace(/[^A-Za-z0-9\-_ ]/g, '') || img.filename} PE`.trim())
+    setWdsTarget(img)
+  }
+
+  const handleCreateWds = async () => {
+    if (!wdsTarget?.id) return
+    const name = wdsName.trim()
+    if (!name) { showError(t('osImages.wdsNameRequired')); return }
+    try {
+      await api.createWdsProfileFromOSImage(wdsTarget.id, name)
+      success(t('osImages.wdsCreated', { name }))
+      setWdsTarget(null)
+    } catch (err: any) { showError(err.message) }
+  }
+
+  const handleSetCatalogLocal = async (id: number) => {
+    try {
+      await api.setCatalogLocal(id)
+      success(t('osImages.setCatalogLocalDone'))
     } catch (err: any) { showError(err.message) }
   }
 
@@ -339,6 +364,16 @@ export default function OSImages() {
                 </button>
               )}
             </>
+          )}
+          {distroKind(img.distro) === 'windows' && img.extracted_to && (
+            <button onClick={() => openCreateWds(img)} className={`${actionBtn} hover:bg-violet-500/15 hover:text-violet-400`}>
+              <Disc size={11} /> {t('osImages.createWdsProfile')}
+            </button>
+          )}
+          {distroKind(img.distro) === 'windows' && img.extracted_to && (
+            <button onClick={() => handleSetCatalogLocal(img.id!)} className={`${actionBtn} hover:bg-accent-green/15 hover:text-accent-green`} title={t('osImages.setCatalogLocalHint')}>
+              <CloudDownload size={11} /> {t('osImages.setCatalogLocal')}
+            </button>
           )}
           <button onClick={() => openEdit(img)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-blue-400`}>
             <Pencil size={11} /> {t('osImages.edit')}
@@ -531,6 +566,30 @@ export default function OSImages() {
         title={t('osImages.unmount')}
         message={t('osImages.confirmUnmount', { name: unmountTarget?.name })}
       />
+
+      {/* 从本地 Windows ISO 创建 wds Profile */}
+      <Modal open={!!wdsTarget} onClose={() => setWdsTarget(null)} title={t('osImages.createWdsTitle')}>
+        <div className="space-y-4">
+          {wdsTarget?.extracted_to && (
+            <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+              {t('osImages.createWdsHint')}
+              <div className="mt-1.5 font-mono text-[11px] text-[var(--text-primary)] break-all">
+                wimboot: {window.location.origin}/netboot/menu/wimboot<br />
+                win base: {window.location.origin}/boot/isos/{wdsTarget.extracted_to.split(/[\\/]/).pop()}/
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('osImages.wdsNameLabel')}</label>
+            <Input value={wdsName} onChange={e => setWdsName(e.target.value)} placeholder={t('osImages.wdsNamePlaceholder')} />
+            <p className="text-[10px] text-[var(--text-muted)] mt-1">{t('osImages.wdsNameAsciiHint')}</p>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" size="sm" onClick={() => setWdsTarget(null)}>{t('common.cancel')}</Button>
+            <Button size="sm" onClick={handleCreateWds}>{t('osImages.createWdsConfirm')}</Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* 导入目录 */}
       <Modal open={importOpen} onClose={() => { setImportOpen(false); setBrowseState(null) }} title={t('osImages.importDirTitle')}>

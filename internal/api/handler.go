@@ -85,7 +85,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		BMC:             NewBMCHandler(st),
 		DHCPReservation: &DHCPReservationHandler{store: st},
 		Network:         &NetworkHandler{},
-		OSImage:         NewOSImageHandler(st, cfg, bus),
+		OSImage:         NewOSImageHandler(st, cfg, bus, netbootMgr),
 		Bootloader:      NewBootloaderHandler(bootFS),
 		AuditLog:        NewAuditLogHandler(st),
 		Version:         NewVersionHandler(version, updateChecker),
@@ -139,6 +139,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/profiles/{id}", h.Profile.Update)
 		r.Delete("/profiles/{id}", h.Profile.Delete)
 		r.Post("/profiles/from-netboot", h.Profile.CreateFromNetboot)
+		r.Post("/profiles/from-os-image", h.Profile.CreateFromOSImage)
 		r.Get("/profiles/{profileId}/script-versions", h.Profile.ListScriptVersions)
 		r.Get("/profiles/{profileId}/script-versions/{verId}", h.Profile.GetScriptVersion)
 		r.Get("/profiles/{profileId}/script-diff/{verId}", h.Profile.DiffScriptVersion)
@@ -308,6 +309,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/os-images/{id}/reprocess", h.OSImage.Reprocess)
 		r.Post("/os-images/{id}/mount", h.OSImage.Mount)
 		r.Post("/os-images/{id}/unmount", h.OSImage.Unmount)
+		r.Post("/os-images/{id}/set-catalog-local", h.OSImage.SetCatalogLocal)
 
 		// Bootloader management
 		r.Get("/bootloader/check", h.Bootloader.Check)
