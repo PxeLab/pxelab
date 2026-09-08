@@ -386,6 +386,12 @@ func FindKernelInitrd(mountPoint string, distro string) (kernel string, initrd s
 	case "systemrescue":
 		kernel = filepath.Join(mountPoint, "sysresccd", "boot", "x86_64", "vmlinuz")
 		initrd = filepath.Join(mountPoint, "sysresccd", "boot", "x86_64", "sysresccd.img")
+	case "windows":
+		// Windows ISO 采用 wimboot 引导：kernel 为 wimboot 二进制（由 PxeLab
+		// 自身提供 /netboot/menu/wimboot），Windows 基础目录即挂载/提取根。
+		// 因此这里不返回 kernel/initrd 对，字段留空由上层按 wds 类型映射。
+		kernel = ""
+		initrd = ""
 	default:
 		kernel = filepath.Join(mountPoint, "casper", "vmlinuz")
 		initrd = filepath.Join(mountPoint, "casper", "initrd")

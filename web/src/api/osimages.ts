@@ -113,3 +113,22 @@ export function mountOSImage(id: number): Promise<ApiResponse<OSImage>> {
 export function unmountOSImage(id: number): Promise<ApiResponse<OSImage>> {
   return request<OSImage>('POST', `/os-images/${id}/unmount`)
 }
+
+// 把已提取的本地 Windows ISO 设为 Netboot Catalog 的 Windows PE 本地源
+// （离线可引导，且安装任务的应答文件注入不受影响）
+export function setCatalogLocal(id: number): Promise<ApiResponse<{ catalog_local: string; wimboot: string }>> {
+  return request<{ catalog_local: string; wimboot: string }>('POST', `/os-images/${id}/set-catalog-local`)
+}
+
+// 把已提取的本地 Windows ISO 一键生成为 wds 类型 Profile（本机 wimboot + 本机提取目录）
+export function createWdsProfileFromOSImage(
+  osImageId: number,
+  profileName: string,
+  description?: string,
+): Promise<ApiResponse<Record<string, unknown>>> {
+  return request<Record<string, unknown>>('POST', '/profiles/from-os-image', {
+    os_image_id: osImageId,
+    profile_name: profileName,
+    description,
+  })
+}

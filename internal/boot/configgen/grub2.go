@@ -47,6 +47,10 @@ func generateGRUB2(entries []models.MenuEntry, serverAddr, mac string) string {
 				fmt.Fprintf(&b, "  chainloader %s\n", url)
 				b.WriteString("}\n\n")
 			}
+
+		default:
+			// wds/sanboot/custom 依赖 iPXE 脚本，GRUB2 无法执行，输出注释提示
+			fmt.Fprintf(&b, "# [grub2] \"%s\" 的类型 %s 需要 iPXE NBP，已跳过\n\n", label, e.Type)
 		}
 	}
 

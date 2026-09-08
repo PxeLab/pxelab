@@ -571,6 +571,17 @@ export default function HostDetail() {
             </Select>
           </div>
 
+          {(() => {
+            const distro = distros.find(d => d.name === newTask.distro_name)
+            const ver = distro?.versions.find(v => v.codename === newTask.version_codename)
+            if (!ver || ver.local || !ver.remote) return null
+            return (
+              <div className="text-xs text-amber-400 bg-[var(--bg-card)] border border-amber-400/30 rounded px-3 py-1.5">
+                {t('netbootCatalog.remoteOnlyTitle')}
+              </div>
+            )
+          })()}
+
           <div>
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('hosts.detail.answerTemplate')}</label>
             <Select
