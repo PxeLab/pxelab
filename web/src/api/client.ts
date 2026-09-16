@@ -141,7 +141,7 @@ import {
 import { deleteOSImage, extractOSImage, getOSImage, getOSImages, importOSImages, browseFs, mountOSImage, reprocessOSImage, unmountOSImage, updateOSImage, uploadOSImage, uploadOSImageWithProgress, createWdsProfileFromOSImage, setCatalogLocal } from './osimages'
 import { getNetworkInterfaces, networkPing, networkPingStream, networkTraceroute, networkTracerouteStream } from './network'
 import { checkBootloaderFile, getBootloaderCheck, getBootloaderFiles } from './bootloader'
-import { getBaselines, getBaseline, createBaseline, updateBaseline, deleteBaseline, getBaselineScripts, setBaselineScripts, getAssignedBaselineScripts } from './baselines'
+import { getBaselines, getBaseline, createBaseline, updateBaseline, deleteBaseline, getBaselineScripts, setBaselineScripts, getAssignedBaselineScripts, getBaselineReports } from './baselines'
 import { getScripts, getScript, createScript, updateScript, deleteScript } from './scripts'
 import { getStoreCatalog, getStoreItem, importStoreItem } from './store'
 import { batchService, getServices, restartService, startService, stopService, updateAutoStart } from './services'
@@ -316,6 +316,7 @@ export const api = {
   getBaselineScripts,
   setBaselineScripts,
   getAssignedBaselineScripts,
+  getBaselineReports,
   getScripts,
   getScript,
   createScript,

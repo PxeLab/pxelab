@@ -132,6 +132,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/hosts/{id}/wake", h.WOL.Wake)
 		r.Post("/hosts/{id}/power", h.IPMI.PowerAction)
 		r.Get("/hosts/{id}/boot-config", h.Host.PreviewBootConfig)
+		// 基线执行回执查询（R2）
+		r.Get("/hosts/{id}/baseline-reports", h.Baseline.ListReports)
 
 		r.Get("/profiles", h.Profile.List)
 		r.Post("/profiles", h.Profile.Create)
@@ -332,6 +334,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		// Exec-bundles for answer hooks: sh / powershell
 		r.Get("/baselines/pull.sh", h.Baseline.PullShellScript)
 		r.Get("/baselines/pull.ps1", h.Baseline.PullPowerShellScript)
+		// 基线执行回执（无鉴权，与 pull.sh 同级；publicAPIPaths 已白名单）
+		r.Post("/baselines/report", h.Baseline.Report)
 
 		// Scripts — standalone reusable scripts
 		r.Get("/scripts", h.Script.List)

@@ -1,4 +1,4 @@
-﻿package httpd
+package httpd
 
 import (
 	"crypto/sha256"
@@ -87,8 +87,10 @@ var publicAPIPaths = []string{
 	"/api/v1/events/stream",
 	"/api/v1/logs/stream",
 	"/api/v1/auth/",
-		"/api/v1/netboot/task/by-mac/",
-		"/api/v1/netboot/answer/",
+	"/api/v1/netboot/task/by-mac/",
+	"/api/v1/netboot/answer/",
+	"/api/v1/baselines/pull.",
+	"/api/v1/baselines/report",
 }
 
 func CORSMiddleware(next http.Handler) http.Handler {

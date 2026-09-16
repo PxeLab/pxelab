@@ -56,6 +56,8 @@ type memoryStore struct {
 	scIdx            uint
 	scripts          map[uint]*models.Script
 	pxeBoot          map[string]models.PxeBootRecord
+	baselineReports  []models.BaselineReport
+	baselineRepIdx   uint
 }
 
 func NewMemory() Interface {
@@ -1414,6 +1416,64 @@ func (s *memoryStore) DeleteBaseline(_ context.Context, id string) error {
 		return ErrNotFound
 	}
 	delete(s.baselines, id)
+	return nil
+}
+
+// ── Baseline ↔ Script Associations (many-to-many) ──
+
+func (s *memoryStore) CreateBaselineReport(_ context.Context, r *models.BaselineReport) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.baselineRepIdx++
+	r.ID = s.baselineRepIdx
+	r.CreatedAt = time.Now()
+	s.baselineReports = append(s.baselineReports, *r)
+	return nil
+}
+
+func (s *memoryStore) ListBaselineReports(_ context.Context, hostID string) ([]models.BaselineReport, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out []models.BaselineReport
+	for _, r := range s.baselineReports {
+		if r.HostID == hostID {
+			out = append(out, r)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt.Equal(out[j].CreatedAt) {
+			return out[i].ID > out[j].ID
+		}
+		return out[i].CreatedAt.After(out[j].CreatedAt)
+	})
+	return out, nil
+}
+
+func (s *memoryStore) PruneBaselineReports(_ context.Context, hostID string, keep int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// 该主机的报告按时间倒序取需保留的 ID
+	var ids []uint
+	for _, r := range s.baselineReports {
+		if r.HostID == hostID {
+			ids = append(ids, r.ID)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] > ids[j] })
+	if len(ids) <= keep {
+		return nil
+	}
+	keepSet := map[uint]bool{}
+	for _, id := range ids[:keep] {
+		keepSet[id] = true
+	}
+	filtered := s.baselineReports[:0]
+	for _, r := range s.baselineReports {
+		if r.HostID != hostID || keepSet[r.ID] {
+			filtered = append(filtered, r)
+		}
+	}
+	s.baselineReports = filtered
 	return nil
 }
 

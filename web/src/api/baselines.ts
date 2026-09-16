@@ -91,3 +91,21 @@ export function createAndAddBaselineScript(
 export function getAssignedBaselineScripts(mac: string): Promise<ApiResponse<BaselineScriptAssignment[]>> {
   return request<BaselineScriptAssignment[]>('GET', `/baselines/assigned?mac=${encodeURIComponent(mac)}`)
 }
+
+// ── Baseline Reports (执行回执) ──
+
+export interface BaselineReport {
+  id: number
+  host_id: string
+  script_name: string
+  seq: number
+  exit_code: number
+  duration_ms: number
+  output_tail?: string
+  created_at: string
+}
+
+export async function getBaselineReports(hostId: string): Promise<ApiResponse<BaselineReport[]>> {
+  const res = await request<{ reports: BaselineReport[] }>('GET', `/hosts/${hostId}/baseline-reports`)
+  return { ...res, data: res.data?.reports ?? [] }
+}
