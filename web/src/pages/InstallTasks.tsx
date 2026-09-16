@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { HardDrive, Plus, Trash2 } from 'lucide-react'
 import { Card } from '../components/ui/Card'
@@ -17,6 +17,8 @@ export default function InstallTasks() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { success, error: showError } = useToast()
+  const [searchParams] = useSearchParams()
+  const highlightIds = new Set((searchParams.get('highlight') || '').split(',').filter(Boolean))
 
   const [tasks, setTasks] = useState<InstallTask[]>([])
   const [hosts, setHosts] = useState<Host[]>([])
@@ -113,7 +115,8 @@ export default function InstallTasks() {
       label: t('installTasks.colHost'),
       render: task => {
         const host = task.host_id ? hostMap.get(task.host_id) : undefined
-        return host ? (
+        const highlighted = highlightIds.has(String(task.id))
+        const name = host ? (
           <button
             onClick={() => navigate(`/hosts/${host.id}`)}
             className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
@@ -123,6 +126,12 @@ export default function InstallTasks() {
         ) : (
           <span className="text-sm text-[var(--text-muted)]">{task.host_id}</span>
         )
+        return highlighted ? (
+          <span className="inline-flex items-center gap-2 -ml-1 px-1.5 py-0.5 rounded-md ring-1 ring-accent-green/50 bg-accent-green/10">
+            {name}
+            <Tag color="green">{t('installTasks.newBadge')}</Tag>
+          </span>
+        ) : name
       },
     },
     {
