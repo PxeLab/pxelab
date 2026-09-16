@@ -8,6 +8,7 @@ versions:
       name: Core
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//core/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//core/x86/initrd.gz
@@ -16,6 +17,7 @@ versions:
       name: CorePure
       arch: x86_64
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//corepure/x86_64/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//corepure/x86_64/initrd.gz
@@ -24,6 +26,7 @@ versions:
       name: dCore Bionic
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorebionic/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorebionic/x86/initrd.gz
@@ -32,6 +35,7 @@ versions:
       name: dCore Bionic Plus
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorebionicplus/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorebionicplus/x86/initrd.gz
@@ -40,6 +44,7 @@ versions:
       name: dCore Jessie
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorejessie/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorejessie/x86/initrd.gz
@@ -48,6 +53,7 @@ versions:
       name: dCore Jessie Plus
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorejessieplus/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorejessieplus/x86/initrd.gz
@@ -56,6 +62,7 @@ versions:
       name: dCore Stretch
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorestretch/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorestretch/x86/initrd.gz
@@ -64,6 +71,7 @@ versions:
       name: dCore Stretch Plus
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorestretchplus/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorestretchplus/x86/initrd.gz
@@ -72,6 +80,7 @@ versions:
       name: dCore Trusty
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcoretrusty/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcoretrusty/x86/initrd.gz
@@ -80,6 +89,7 @@ versions:
       name: dCore Trusty Plus
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcoretrustyplus/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcoretrustyplus/x86/initrd.gz
@@ -88,6 +98,7 @@ versions:
       name: dCore Wheezy
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorewheezy/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorewheezy/x86/initrd.gz
@@ -96,6 +107,7 @@ versions:
       name: dCore Wheezy Plus
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorewheezyplus/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorewheezyplus/x86/initrd.gz
@@ -104,6 +116,7 @@ versions:
       name: dCore Xenial
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorexenial/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorexenial/x86/initrd.gz
@@ -112,6 +125,7 @@ versions:
       name: dCore Xenial Plus
       arch: x86
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcorexenialplus/x86/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcorexenialplus/x86/initrd.gz
@@ -120,6 +134,7 @@ versions:
       name: dCore64 Bionic
       arch: x86_64
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcore64bionic/x86_64/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcore64bionic/x86_64/initrd.gz
@@ -128,6 +143,7 @@ versions:
       name: dCore64 Bionic Plus
       arch: x86_64
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcore64bionicplus/x86_64/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcore64bionicplus/x86_64/initrd.gz
@@ -136,6 +152,7 @@ versions:
       name: dCore64 Buster
       arch: x86_64
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcore64buster/x86_64/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcore64buster/x86_64/initrd.gz
@@ -144,6 +161,7 @@ versions:
       name: dCore64 Buster Plus
       arch: x86_64
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcore64busterplus/x86_64/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcore64busterplus/x86_64/initrd.gz
@@ -152,6 +170,7 @@ versions:
       name: dCore64 Stretch
       arch: x86_64
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcore64stretch/x86_64/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcore64stretch/x86_64/initrd.gz
@@ -160,6 +179,7 @@ versions:
       name: dCore Stretch Plus
       arch: x86_64
       enabled: true
+      cmdline: "loglevel=3"
       remote:
         kernel: http://distro.ibiblio.org/tinycorelinux//dcore64stretchplus/x86_64/linux
         initrd: http://distro.ibiblio.org/tinycorelinux//dcore64stretchplus/x86_64/initrd.gz

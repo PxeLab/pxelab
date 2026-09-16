@@ -206,8 +206,8 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, t
 	var kernelURL, initrdURL string
 
 	if v.Local != nil {
-		kernelURL = fmt.Sprintf("http://%s%s/%s", serverAddr, bootPrefix, v.Local.Kernel)
-		initrdURL = fmt.Sprintf("http://%s%s/%s", serverAddr, bootPrefix, v.Local.Initrd)
+		kernelURL = resolveLocalURL(serverAddr, bootPrefix, v.Local.Kernel)
+		initrdURL = resolveLocalURL(serverAddr, bootPrefix, v.Local.Initrd)
 	} else if v.Remote != nil {
 		kernelURL = proxyRemoteURL(serverAddr, bootPrefix, v.Remote.Kernel, proxyHTTPS)
 		initrdURL = proxyRemoteURL(serverAddr, bootPrefix, v.Remote.Initrd, proxyHTTPS)
@@ -218,19 +218,19 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, t
 		if kernelURL == "" {
 			return "# No boot file configured\n"
 		}
-		return  fmt.Sprintf("kernel %s\nboot\n", kernelURL)
+		return fmt.Sprintf("kernel %s\nboot\n", kernelURL)
 
 	case BootWimboot:
 		if kernelURL == "" || initrdURL == "" {
 			return "# Windows PE requires wimboot URL (kernel) and Windows base URL (initrd)\n"
 		}
-		return  generateWimbootLine(kernelURL, initrdURL, task)
+		return generateWimbootLine(kernelURL, initrdURL, task)
 
 	case BootMemdisk:
 		if initrdURL == "" {
 			return "# No boot file configured\n"
 		}
-		return  fmt.Sprintf("kernel memdisk\ninitrd %s\nboot\n", initrdURL)
+		return fmt.Sprintf("kernel memdisk\ninitrd %s\nboot\n", initrdURL)
 
 	case BootSanboot:
 		url := initrdURL
@@ -269,9 +269,9 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, t
 		}
 		params := buildCmdline(v.Cmdline, kernelParams, task)
 		if params != "" {
-			return  fmt.Sprintf("kernel %s %s\ninitrd %s\nboot\n", kernelURL, params, initrdURL)
+			return fmt.Sprintf("kernel %s %s\ninitrd %s\nboot\n", kernelURL, params, initrdURL)
 		}
-		return  fmt.Sprintf("kernel %s\ninitrd %s\nboot\n", kernelURL, initrdURL)
+		return fmt.Sprintf("kernel %s\ninitrd %s\nboot\n", kernelURL, initrdURL)
 	}
 }
 
@@ -281,8 +281,10 @@ func generateWimbootLine(kernelURL, initrdURL string, task *BootTaskInfo) string
 	if task != nil && task.AnswerURL != "" {
 		switch task.AnswerType {
 		case "winpeshl":
-			// winpeshl.ini + install.bat approach
-			return fmt.Sprintf("kernel %s\ninitrd %s/bootmgr bootmgr\ninitrd %s/bootmgr.efi bootmgr.efi\ninitrd %s/boot/bcd bcd\ninitrd %s/boot/boot.sdi boot.sdi\ninitrd %s/sources/boot.wim boot.wim\ninitrd %s install.bat\ninitrd %s/winpeshl.ini winpeshl.ini\nboot\n",
+			// winpeshl.ini + install.bat approach：
+			// 模板内容作为 install.bat；winpeshl.ini 通过 ?file= 参数单独返回
+			// 一个引用 install.bat 的包装，避免两个文件同源。
+			return fmt.Sprintf("kernel %s\ninitrd %s/bootmgr bootmgr\ninitrd %s/bootmgr.efi bootmgr.efi\ninitrd %s/boot/bcd bcd\ninitrd %s/boot/boot.sdi boot.sdi\ninitrd %s/sources/boot.wim boot.wim\ninitrd %s install.bat\ninitrd %s?file=winpeshl.ini winpeshl.ini\nboot\n",
 				kernelURL, initrdURL, initrdURL, initrdURL, initrdURL, initrdURL, task.AnswerURL, task.AnswerURL)
 		default:
 			// autounattend.xml injection
@@ -342,6 +344,16 @@ func proxyRemoteURL(serverAddr, bootPrefix, remoteURL string, proxyHTTPS bool) s
 		return fmt.Sprintf("http://%s%s/proxy/https/%s", serverAddr, bootPrefix, stripped)
 	}
 	return remoteURL
+}
+
+// resolveLocalURL resolves a local boot file reference. Relative paths are
+// prefixed with the boot prefix; absolute http(s) URLs (used for wimboot and
+// locally extracted Windows ISOs) pass through unchanged.
+func resolveLocalURL(serverAddr, bootPrefix, ref string) string {
+	if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
+		return ref
+	}
+	return fmt.Sprintf("http://%s%s/%s", serverAddr, bootPrefix, ref)
 }
 
 func distroLabel(d *Distro) string {

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -459,5 +461,66 @@ func (h *ProfileHandler) CreateFromNetboot(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.Name, remoteIP(r), "从网络引导目录新建: "+req.DistroName+"/"+req.VersionCodename)
+	Created(w, profile)
+}
+
+// CreateFromOSImage 把已提取的本地 Windows ISO 一键生成为 wds 类型 Profile：
+// URL = 本机 wimboot 二进制（/netboot/menu/wimboot），WIM = 本机提取目录
+// （/boot/isos/<dir>/）。由此 Windows 部署可以不依赖外网 boot.netboot.xyz。
+func (h *ProfileHandler) CreateFromOSImage(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		OSImageID   uint   `json:"os_image_id"`
+		ProfileName string `json:"profile_name"`
+		Description string `json:"description,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "无效的请求体")
+		return
+	}
+	if req.ProfileName == "" {
+		Error(w, http.StatusBadRequest, "profile_name 为必填项")
+		return
+	}
+	if !isPrintableASCII(req.ProfileName) {
+		Error(w, http.StatusBadRequest, "菜单名称只能包含英文、数字和符号（中文无法在启动菜单中显示）")
+		return
+	}
+
+	img, err := h.store.GetOSImage(r.Context(), req.OSImageID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "镜像未找到")
+		return
+	}
+	if img.Status != "ready" || img.ExtractedTo == "" {
+		Error(w, http.StatusBadRequest, "该镜像尚未提取完成，无法生成本地引导 Profile")
+		return
+	}
+	if !strings.EqualFold(img.Distro, "windows") {
+		Error(w, http.StatusBadRequest, "仅 Windows 镜像支持生成 wds Profile")
+		return
+	}
+
+	base := "http://" + r.Host
+	wimBase := base + "/boot/isos/" + path.Base(filepath.ToSlash(img.ExtractedTo))
+	entry := models.MenuEntry{
+		Label: req.ProfileName,
+		Type:  "wds",
+		URL:   strPtr(base + "/netboot/menu/wimboot"),
+		WIM:   strPtr(wimBase),
+	}
+	profile := &models.Profile{
+		ID:          uuid.New().String(),
+		Name:        req.ProfileName,
+		Description: req.Description,
+	}
+	if err := profile.SetMenu(&models.BootMenu{Entries: []models.MenuEntry{entry}}); err != nil {
+		Error(w, http.StatusInternalServerError, fmt.Sprintf("创建引导菜单失败: %v", err))
+		return
+	}
+	if err := h.store.CreateProfile(r.Context(), profile); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profile.Name, remoteIP(r), "从本地 Windows ISO 新建: "+img.Filename)
 	Created(w, profile)
 }

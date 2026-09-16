@@ -8,6 +8,7 @@ versions:
       name: "3.24"
       arch: amd64
       enabled: true
+      cmdline: "alpine_repo=http://dl-cdn.alpinelinux.org/alpine/v3.24/main modules=loop,squashfs modloop=http://dl-cdn.alpinelinux.org/alpine/v3.24/amd64/modloop-lts quiet nomodeset"
       remote:
         kernel: http://dl-cdn.alpinelinux.org/alpine/v3.24/amd64/linux
         initrd: http://dl-cdn.alpinelinux.org/alpine/v3.24/amd64/initrd.gz
@@ -16,6 +17,7 @@ versions:
       name: Edge (development)
       arch: amd64
       enabled: true
+      cmdline: "alpine_repo=http://dl-cdn.alpinelinux.org/alpine/edge/main modules=loop,squashfs modloop=http://dl-cdn.alpinelinux.org/alpine/edge/amd64/modloop-lts quiet nomodeset"
       remote:
         kernel: http://dl-cdn.alpinelinux.org/alpine/edge/amd64/linux
         initrd: http://dl-cdn.alpinelinux.org/alpine/edge/amd64/initrd.gz

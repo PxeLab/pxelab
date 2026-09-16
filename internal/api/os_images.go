@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/pxelab/pxelab/internal/osimage"
 	"github.com/pxelab/pxelab/internal/store"
 )
@@ -23,13 +25,14 @@ import (
 var rCtx = context.Background
 
 type OSImageHandler struct {
-	store    store.Interface
-	config   *config.Config
-	eventBus *eventbus.Bus
+	store      store.Interface
+	config     *config.Config
+	eventBus   *eventbus.Bus
+	netbootMgr *netboot.Manager
 }
 
-func NewOSImageHandler(st store.Interface, cfg *config.Config, bus *eventbus.Bus) *OSImageHandler {
-	return &OSImageHandler{store: st, config: cfg, eventBus: bus}
+func NewOSImageHandler(st store.Interface, cfg *config.Config, bus *eventbus.Bus, netbootMgr *netboot.Manager) *OSImageHandler {
+	return &OSImageHandler{store: st, config: cfg, eventBus: bus, netbootMgr: netbootMgr}
 }
 
 func (h *OSImageHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -608,6 +611,53 @@ func (h *OSImageHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	img.FilePath = h.isoPathOf(img)
 	OK(w, img)
+}
+
+// SetCatalogLocal 把已提取的本地 Windows ISO 设为 Netboot Catalog 中 Windows PE
+// 条目的 local 源：catalog 菜单里的 wimboot 版本从此使用本机 wimboot 与本机
+// ISO 提取目录，离线环境即可引导，且安装任务的应答文件注入不受影响。
+func (h *OSImageHandler) SetCatalogLocal(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	raw, err := strconv.Atoi(id)
+	if err != nil {
+		Error(w, http.StatusNotFound, "镜像未找到")
+		return
+	}
+	img, err := h.store.GetOSImage(r.Context(), uint(raw))
+	if err != nil {
+		Error(w, http.StatusNotFound, "镜像未找到")
+		return
+	}
+	if img.Status != "ready" || img.ExtractedTo == "" {
+		Error(w, http.StatusBadRequest, "该镜像尚未提取完成，无法设为本地源")
+		return
+	}
+	if !strings.EqualFold(img.Distro, "windows") {
+		Error(w, http.StatusBadRequest, "仅 Windows 镜像支持设为本地源")
+		return
+	}
+
+	base := "http://" + r.Host
+	wimbootURL := base + "/netboot/menu/wimboot"
+	winBase := base + "/boot/isos/" + path.Base(filepath.ToSlash(img.ExtractedTo))
+	catalogDir := netboot.CatalogDir(h.config.Global.DataDir)
+
+	c, err := netboot.SetWindowsLocal(catalogDir, wimbootURL, winBase)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if h.netbootMgr != nil {
+		h.netbootMgr.Reload(c)
+	}
+
+	RecordAudit(r.Context(), h.store, models.AuditUpdate, "os_image", img.Name, remoteIP(r),
+		"设为 Netboot Catalog 本地源: "+img.Name+" ("+winBase+")")
+	OK(w, map[string]any{
+		"catalog_local": winBase,
+		"wimboot":       wimbootURL,
+		"distro":        "Windows PE",
+	})
 }
 
 func (h *OSImageHandler) imagePath(filename string) string {

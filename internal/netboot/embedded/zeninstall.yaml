@@ -8,3 +8,4 @@ versions:
       arch: amd64
       enabled: true
       install_type: legacy
+      cmdline: "archisobasedir=arch net.ifnames=0"

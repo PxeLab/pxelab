@@ -46,6 +46,11 @@ func generatePXELinux(entries []models.MenuEntry, serverAddr, mac string) string
 				fmt.Fprintf(&b, "LABEL %s\n", label)
 				fmt.Fprintf(&b, "  KERNEL %s\n\n", url)
 			}
+
+		default:
+			// wds/sanboot/custom 依赖于 iPXE 脚本（wimboot/sanboot/原生脚本），
+			// pxelinux 无法执行，输出注释提示而非静默丢弃
+			fmt.Fprintf(&b, "# [pxelinux] \"%s\" 的类型 %s 需要 iPXE NBP，已跳过\n\n", label, e.Type)
 		}
 	}
 

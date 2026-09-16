@@ -8,3 +8,4 @@ versions:
       arch: amd64
       enabled: true
       install_type: legacy
+      cmdline: "boot=live components hostname=vyos username=live nopersistence noautologin union=overlay console=tty0 net.ifnames=0 biosdevname=0"

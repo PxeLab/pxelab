@@ -8,6 +8,7 @@ versions:
       name: 10.0 Stream
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: https://mirror.stream.centos.org//10-stream/amd64/linux
         initrd: https://mirror.stream.centos.org//10-stream/amd64/initrd.gz
@@ -16,6 +17,7 @@ versions:
       name: 9.0 Stream
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: https://mirror.stream.centos.org//9-stream/amd64/linux
         initrd: https://mirror.stream.centos.org//9-stream/amd64/initrd.gz

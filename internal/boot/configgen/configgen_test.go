@@ -96,9 +96,21 @@ func TestSkippedEntries(t *testing.T) {
 		{Label: "wds", Type: "wds"},
 	}
 
-	result := generatePXELinux(entries, "", "")
-	if result != "" {
-		t.Error("expected empty string for custom/sanboot/wds")
+	pxe := generatePXELinux(entries, "", "")
+	if pxe == "" {
+		t.Error("expected comment hint for custom/sanboot/wds instead of empty string")
+	}
+	for _, label := range []string{"custom", "san", "wds"} {
+		if !strings.Contains(pxe, "已跳过") || !strings.Contains(pxe, label) {
+			t.Errorf("expected pxelinux comment for %s", label)
+		}
+	}
+
+	grub := generateGRUB2(entries, "", "")
+	for _, label := range []string{"custom", "san", "wds"} {
+		if !strings.Contains(grub, "已跳过") || !strings.Contains(grub, label) {
+			t.Errorf("expected grub2 comment for %s", label)
+		}
 	}
 }
 

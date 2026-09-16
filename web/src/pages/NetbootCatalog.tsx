@@ -449,9 +449,16 @@ export default function NetbootCatalog() {
       render: ({ distro, version }) => {
         const statusKey = `${distro.name}/${version.name}/${version.arch}`
         const hasLocal = fileStatuses[statusKey] || !!version.local
-        return hasLocal
-          ? <CheckCircle2 size={14} className="text-accent-green inline" />
-          : <XCircle size={14} className="text-accent-red/60 inline" />
+        if (hasLocal) {
+          return <CheckCircle2 size={14} className="text-accent-green inline" />
+        }
+        const remoteOnly = !version.local && !!version.remote
+        return (
+          <span title={remoteOnly ? t('netbootCatalog.remoteOnlyTitle') : t('netbootCatalog.colCacheTitle')} className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wide font-medium">
+            <XCircle size={13} className={remoteOnly ? 'text-amber-400 inline' : 'text-accent-red/60 inline'} />
+            {remoteOnly && <span className="text-amber-400 text-[10px]">{t('netbootCatalog.remoteOnly')}</span>}
+          </span>
+        )
       },
     },
     {

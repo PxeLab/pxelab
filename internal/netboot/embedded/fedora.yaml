@@ -8,6 +8,7 @@ versions:
       name: "44"
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://mirrors.kernel.org/fedora/44/amd64/linux
         initrd: http://mirrors.kernel.org/fedora/44/amd64/initrd.gz
@@ -16,6 +17,7 @@ versions:
       name: "43"
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://mirrors.kernel.org/fedora/43/amd64/linux
         initrd: http://mirrors.kernel.org/fedora/43/amd64/initrd.gz
@@ -24,6 +26,7 @@ versions:
       name: "42"
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://mirrors.kernel.org/fedora/42/amd64/linux
         initrd: http://mirrors.kernel.org/fedora/42/amd64/initrd.gz
