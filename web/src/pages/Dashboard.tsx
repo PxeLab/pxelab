@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, Server, Zap, ChevronRight, Wifi, BarChart3, Users, FileText, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Activity, Server, Zap, ChevronRight, Wifi, BarChart3, Users, FileText, ArrowUpRight, ArrowDownRight, Rocket } from 'lucide-react'
 import { StatusDot } from '../components/ui/StatusDot'
+import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { PageHeader } from '../components/ui/PageHeader'
 import { api, type Host, type Event, type MetricsSnapshot, type TimeBucket, getServices, type ServiceInfo } from '../api/client'
@@ -272,6 +273,12 @@ export default function Dashboard() {
         description={t('dashboard.description')}
         size="lg"
         className="mb-0"
+        actions={
+          <Button variant="primary" onClick={() => navigate('/quick-install')}>
+            <Rocket size={14} />
+            {t('quickInstall.entryButton')}
+          </Button>
+        }
       />
 
       {/* Service Status Bar */}

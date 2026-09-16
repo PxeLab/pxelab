@@ -39,6 +39,7 @@ const Store = lazy(() => import('./pages/Store'))
 const StoreDetail = lazy(() => import('./pages/StoreDetail'))
 const SettingsBaselineHooks = lazy(() => import('./pages/SettingsBaselineHooks'))
 const SettingsWebhooks = lazy(() => import('./pages/SettingsWebhooks'))
+const QuickInstall = lazy(() => import('./pages/QuickInstall'))
 
 function LoadingFallback() {
   const { t } = useTranslation()
@@ -91,6 +92,7 @@ function AppContent() {
         <div className="animate-fade-in">
           <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/quick-install" element={<QuickInstall />} />
           <Route path="/hosts" element={<Hosts />} />
           <Route path="/hosts/:id" element={<HostDetail />} />
           <Route path="/profiles" element={<Profiles />} />
