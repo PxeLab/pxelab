@@ -243,6 +243,14 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/netboot/tasks/{id}", h.InstallTask.Update)
 		r.Delete("/netboot/tasks/{id}", h.InstallTask.Delete)
 
+		// 装机任务批次操作 + 状态回报（R7）；report 两个端点为匿名（isPublicPath 白名单）
+		r.Post("/install-tasks/batch", h.InstallTask.BatchCreate)
+		r.Post("/install-tasks/batch/{batch_id}/cancel", h.InstallTask.BatchCancel)
+		r.Post("/install-tasks/batch/{batch_id}/retry-failed", h.InstallTask.BatchRetryFailed)
+		r.Post("/install-tasks/{id}/retry", h.InstallTask.Retry)
+		r.Post("/install-tasks/{id}/report", h.InstallTask.Report)
+		r.Post("/install-tasks/report-by-mac", h.InstallTask.ReportByMAC)
+
 		// Access control
 		r.Get("/access/blacklist", h.Access.ListBlacklist)
 		r.Post("/access/blacklist", h.Access.CreateBlacklist)

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { HardDrive, Plus, Trash2 } from 'lucide-react'
+import { HardDrive, Plus, RotateCcw, Trash2, XCircle } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -19,6 +19,9 @@ export default function InstallTasks() {
   const { success, error: showError } = useToast()
   const [searchParams] = useSearchParams()
   const highlightIds = new Set((searchParams.get('highlight') || '').split(',').filter(Boolean))
+  // R7：批次看板视图（?view=batch 直达）
+  const [view, setView] = useState<'all' | 'batch'>(searchParams.get('view') === 'batch' ? 'batch' : 'all')
+  const [confirmCancelBatch, setConfirmCancelBatch] = useState<string | null>(null)
 
   const [tasks, setTasks] = useState<InstallTask[]>([])
   const [hosts, setHosts] = useState<Host[]>([])
@@ -69,6 +72,65 @@ export default function InstallTasks() {
   async function handleDelete(task: InstallTask) {
     setConfirmDeleteTask(task)
   }
+
+  // R7 失败解锁重试：failed → pending
+  async function handleRetry(task: InstallTask) {
+    try {
+      const res = await api.retryInstallTask(task.id!)
+      setTasks(prev => prev.map(tk => (tk.id === task.id ? res.data : tk)))
+      success(t('installTasks.retried'))
+    } catch (err: any) {
+      showError(err.message || t('installTasks.retryFailed'))
+    }
+  }
+
+  async function doCancelBatch() {
+    if (!confirmCancelBatch) return
+    try {
+      await api.cancelInstallTaskBatch(confirmCancelBatch)
+      success(t('installTasks.batchCancelled'))
+      loadTasks(true)
+    } catch (err: any) {
+      showError(err.message || t('installTasks.batchCancelFailed'))
+    } finally {
+      setConfirmCancelBatch(null)
+    }
+  }
+
+  async function handleBatchRetryFailed(batchId: string) {
+    try {
+      const res = await api.retryFailedInstallTaskBatch(batchId)
+      success(t('installTasks.batchRetried', { count: res.data?.retried ?? 0 }))
+      loadTasks(true)
+    } catch (err: any) {
+      showError(err.message || t('installTasks.batchRetryFailedMsg'))
+    }
+  }
+
+  // R7 批次看板：按 batch_id 分组
+  const batches = useMemo(() => {
+    const map = new Map<string, InstallTask[]>()
+    for (const task of tasks) {
+      if (!task.batch_id) continue
+      const list = map.get(task.batch_id) || []
+      list.push(task)
+      map.set(task.batch_id, list)
+    }
+    return [...map.entries()]
+      .map(([id, list]) => ({
+        id,
+        tasks: list,
+        created: list.reduce((max, tk) => (tk.created_at && tk.created_at > max ? tk.created_at : max), ''),
+        counts: {
+          total: list.length,
+          pending: list.filter(tk => tk.status === 'pending').length,
+          installing: list.filter(tk => tk.status === 'installing').length,
+          done: list.filter(tk => tk.status === 'done').length,
+          failed: list.filter(tk => tk.status === 'failed').length,
+        },
+      }))
+      .sort((a, b) => b.created.localeCompare(a.created))
+  }, [tasks])
 
   async function doDeleteTask() {
     if (!confirmDeleteTask) return
@@ -200,6 +262,16 @@ export default function InstallTasks() {
       className: 'text-right',
       render: task => (
         <>
+          {task.status === 'failed' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleRetry(task)}
+            >
+              <RotateCcw size={12} />
+              {t('installTasks.retry')}
+            </Button>
+          )}
           {task.status !== 'installing' && (
             <Button
               variant="danger"
@@ -239,6 +311,26 @@ export default function InstallTasks() {
         }
       />
 
+      {/* R7 视图切换：全部任务 / 批次看板 */}
+      <div className="flex items-center gap-5 border-b border-[var(--bg-border)]">
+        {([
+          { key: 'all', label: t('installTasks.viewAll') },
+          { key: 'batch', label: t('installTasks.viewBatch') },
+        ] as { key: 'all' | 'batch'; label: string }[]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setView(tab.key)}
+            className={`-mb-px border-b-2 px-1 py-2 text-sm transition-colors ${
+              view === tab.key
+                ? 'border-blue-500 font-medium text-[var(--text-primary)]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Error state */}
       {loadError && (
         <Card>
@@ -258,7 +350,7 @@ export default function InstallTasks() {
       )}
 
       {/* Empty state */}
-      {!loading && !loadError && tasks.length === 0 && (
+      {!loading && !loadError && view === 'all' && tasks.length === 0 && (
         <Card>
           <div className="py-12 text-center">
             <HardDrive size={32} className="mx-auto mb-3 text-[var(--text-muted)] opacity-40" />
@@ -268,7 +360,7 @@ export default function InstallTasks() {
       )}
 
       {/* Table */}
-      {!loading && !loadError && tasks.length > 0 && (
+      {!loading && !loadError && view === 'all' && tasks.length > 0 && (
         <Card padding={false}>
           <DataTable
             columns={columns}
@@ -277,6 +369,78 @@ export default function InstallTasks() {
           />
         </Card>
       )}
+
+      {/* R7 批次看板 */}
+      {!loading && !loadError && view === 'batch' && batches.length === 0 && (
+        <Card>
+          <div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('installTasks.noBatches')}</div>
+        </Card>
+      )}
+      {!loading && !loadError && view === 'batch' && batches.map(b => (
+        <Card key={b.id} padding={false}>
+          <div className="flex items-center justify-between flex-wrap gap-2 px-5 py-4 border-b border-[var(--bg-border)]">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-bold font-mono text-[var(--text-primary)]">{b.id}</span>
+              <span className="text-xs text-[var(--text-muted)]">
+                {b.created ? new Date(b.created).toLocaleString() : ''}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={b.counts.failed === 0}
+                onClick={() => handleBatchRetryFailed(b.id)}
+              >
+                <RotateCcw size={12} />
+                {t('installTasks.batchRetryFailed')}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={b.counts.pending + b.counts.installing === 0}
+                onClick={() => setConfirmCancelBatch(b.id)}
+              >
+                <XCircle size={12} />
+                {t('installTasks.batchCancel')}
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 flex-wrap px-5 py-3 border-b border-[var(--bg-border)] text-xs text-[var(--text-muted)]">
+            <span>{t('installTasks.countTotal')} <b className="text-[var(--text-primary)]">{b.counts.total}</b></span>
+            <span className="text-blue-400">{t('installTasks.countPending')} <b>{b.counts.pending}</b></span>
+            <span className="text-orange-400">{t('installTasks.countInstalling')} <b>{b.counts.installing}</b></span>
+            <span className="text-accent-green">{t('installTasks.countDone')} <b>{b.counts.done}</b></span>
+            <span className="text-accent-red">{t('installTasks.countFailed')} <b>{b.counts.failed}</b></span>
+          </div>
+          <div>
+            {b.tasks.map(task => {
+              const host = task.host_id ? hostMap.get(task.host_id) : undefined
+              return (
+                <div key={task.id} className="flex items-center gap-3 px-5 py-2.5 border-b border-[var(--bg-border)] last:border-b-0">
+                  <span className="w-40 truncate text-sm text-[var(--text-primary)]">{host?.name || task.host_id}</span>
+                  <span className="text-xs font-mono text-[var(--text-muted)]">{host?.mac || '-'}</span>
+                  <span className="text-xs text-[var(--text-muted)]">{task.distro_name} {task.version_codename}</span>
+                  <span className="ml-auto flex items-center gap-2">
+                    {task.status === 'failed' && task.error_msg && (
+                      <span className="max-w-[200px] truncate text-[10px] text-accent-red/70" title={task.error_msg}>{task.error_msg}</span>
+                    )}
+                    <Tag color={task.status === 'done' ? 'green' : task.status === 'failed' ? 'red' : task.status === 'installing' ? 'orange' : 'blue'}>
+                      {task.status}
+                    </Tag>
+                    {task.status === 'failed' && (
+                      <Button variant="secondary" size="sm" onClick={() => handleRetry(task)}>
+                        <RotateCcw size={12} />
+                        {t('installTasks.retry')}
+                      </Button>
+                    )}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      ))}
 
       {/* Create Task Modal */}
       <Modal
@@ -402,6 +566,13 @@ export default function InstallTasks() {
         onConfirm={doDeleteTask}
         title={t('hosts.detail.deleteTaskConfirm')}
         message={t('hosts.detail.deleteTaskMessage')}
+      />
+      <ConfirmDialog
+        open={!!confirmCancelBatch}
+        onClose={() => setConfirmCancelBatch(null)}
+        onConfirm={doCancelBatch}
+        title={t('installTasks.batchCancelTitle')}
+        message={t('installTasks.batchCancelMessage')}
       />
     </div>
   )

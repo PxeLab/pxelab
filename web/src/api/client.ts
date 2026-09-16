@@ -92,7 +92,7 @@ import {
   validateAnswerTemplate,
   validateAnswerTemplateById,
 } from './answerTemplates'
-import { createInstallTask, deleteInstallTask, getInstallTask, getInstallTasks, updateInstallTask } from './installTasks'
+import { createInstallTask, createInstallTaskBatch, deleteInstallTask, getInstallTask, getInstallTasks, cancelInstallTaskBatch, retryFailedInstallTaskBatch, retryInstallTask, updateInstallTask } from './installTasks'
 import { createDNSRecord, deleteDNSRecord, getDNSRecord, getDNSRecords, updateDNSRecord } from './dns'
 import {
   addUnauthorizedToBlacklist,
@@ -227,6 +227,10 @@ export const api = {
   rollbackAnswerTemplate,
   getInstallTasks,
   createInstallTask,
+  createInstallTaskBatch,
+  cancelInstallTaskBatch,
+  retryFailedInstallTaskBatch,
+  retryInstallTask,
   getInstallTask,
   getDNSRecords,
   getDNSRecord,

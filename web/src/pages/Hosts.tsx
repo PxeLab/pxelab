@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Rocket } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { Pagination } from '../components/ui/Pagination'
@@ -10,11 +10,12 @@ import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { PageHeader } from '../components/ui/PageHeader'
 import { useToast } from '../components/ui/Toast'
-import { Input } from '../components/ui/FormControls'
+import { Input, Select } from '../components/ui/FormControls'
 import { ChecklistPicker } from '../components/ui/ChecklistPicker'
 import { Toggle } from '../components/ui/Toggle'
-import { api, type Host, type Profile, type Baseline, type scriptDTO, type PxeBootRecord } from '../api/client'
+import { api, type Host, type Profile, type Baseline, type scriptDTO, type PxeBootRecord, type AnswerTemplate, type BatchSkipped } from '../api/client'
 import { getPxeBootRecords, claimPxeBootRecord, deletePxeBootRecord, clearPxeBootRecords } from '../api/pxeboot'
+import { buildReadySystems, defaultHostname, type MatchedSystem } from '../utils/readySystems'
 import { useUIConfig } from '../contexts/UIConfigContext'
 
 export default function Hosts() {
@@ -43,6 +44,19 @@ export default function Hosts() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [sortField, setSortField] = useState('')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  // R7 批量装机：多选 + 批量弹窗
+  const [selHosts, setSelHosts] = useState<Set<string>>(new Set())
+  const [selRecords, setSelRecords] = useState<Set<string>>(new Set())
+  const [showBatch, setShowBatch] = useState(false)
+  const [batchSource, setBatchSource] = useState<'hosts' | 'records'>('hosts')
+  const [batchSystems, setBatchSystems] = useState<MatchedSystem[]>([])
+  const [batchTemplates, setBatchTemplates] = useState<AnswerTemplate[]>([])
+  const [batchSysKey, setBatchSysKey] = useState('')
+  const [batchTplOverride, setBatchTplOverride] = useState<number | null>(null)
+  const [batchBusy, setBatchBusy] = useState(false)
+  const [batchError, setBatchError] = useState('')
+  const [batchSkipped, setBatchSkipped] = useState<BatchSkipped[]>([])
 
   const { pageSize } = useUIConfig()
 
@@ -173,11 +187,104 @@ export default function Hosts() {
     else { setSortField(field); setSortDir('asc') }
   }
 
+  // ── R7 批量装机 ──
+
+  function toggleSet(prev: Set<string>, v: string): Set<string> {
+    const next = new Set(prev)
+    if (next.has(v)) next.delete(v)
+    else next.add(v)
+    return next
+  }
+
+  const unclaimedRecords = records.filter(r => !r.claimed_host_id)
+
+  const batchMachines: { mac: string; name?: string; ip?: string }[] =
+    batchSource === 'hosts'
+      ? hosts.filter(h => selHosts.has(h.id)).map(h => ({ mac: h.mac, name: h.name, ip: h.ip || undefined }))
+      : unclaimedRecords.filter(r => selRecords.has(r.mac)).map(r => ({ mac: r.mac, ip: r.ip || undefined }))
+
+  async function openBatch(source: 'hosts' | 'records') {
+    setBatchSource(source)
+    setBatchSysKey('')
+    setBatchTplOverride(null)
+    setBatchError('')
+    setBatchSkipped([])
+    setShowBatch(true)
+    const [profRes, catRes, fsRes, tmplRes] = await Promise.all([
+      api.getProfiles().catch(() => null),
+      api.getNetbootCatalog().catch(() => null),
+      api.getNetbootFileStatus().catch(() => null),
+      api.getAnswerTemplates().catch(() => null),
+    ])
+    const tmpls = tmplRes?.data?.templates || []
+    setBatchTemplates(tmpls)
+    setBatchSystems(buildReadySystems(profRes?.data || [], catRes?.data?.distros || [], fsRes?.data || [], tmpls))
+  }
+
+  const batchSys = batchSystems.find(s => s.key === batchSysKey)
+  const batchTemplate = batchSys
+    ? (batchTplOverride != null ? batchTemplates.find(tp => tp.id === batchTplOverride) : batchSys.defaultTemplate)
+    : undefined
+
+  async function submitBatch() {
+    if (!batchSys || !batchTemplate || batchMachines.length === 0) return
+    setBatchBusy(true)
+    setBatchError('')
+    setBatchSkipped([])
+    try {
+      const res = await api.createInstallTaskBatch({
+        hosts: batchMachines.map(m => ({ mac: m.mac, name: m.name || defaultHostname(m.mac), ip: m.ip })),
+        distro_name: batchSys.distroName,
+        version_codename: batchSys.versionCodename,
+        arch: batchSys.arch,
+        answer_template_id: batchTemplate.id ?? null,
+        profile_id: batchSys.profile.id,
+      })
+      const skipped = res.data?.skipped || []
+      if (skipped.length > 0) {
+        setBatchSkipped(skipped)
+        setBatchBusy(false)
+        return
+      }
+      success(t('batchInstall.created', { count: res.data?.tasks?.length ?? batchMachines.length }))
+      setShowBatch(false)
+      setSelHosts(new Set())
+      setSelRecords(new Set())
+      navigate('/install-tasks?view=batch')
+    } catch (err: any) {
+      setBatchError(err.message || t('batchInstall.failed'))
+    } finally {
+      setBatchBusy(false)
+    }
+  }
+
   // 初始化脚本（P1：继承自 Profile 的基线 + 主机追加的基线/脚本）
   const selectedProfile = profiles.find(p => p.id === newHost.profile_id)
   const inheritedBaselineIds: string[] = selectedProfile?.baselines ?? []
 
   const recColumns: Column<PxeBootRecord>[] = [
+    { key: 'sel', width: '32px', label: (
+      <input
+        type="checkbox"
+        className="accent-blue-500 align-middle"
+        checked={unclaimedRecords.length > 0 && unclaimedRecords.every(r => selRecords.has(r.mac))}
+        onChange={() => {
+          const all = unclaimedRecords.every(r => selRecords.has(r.mac))
+          setSelRecords(prev => {
+            const next = new Set(prev)
+            unclaimedRecords.forEach(r => { if (all) next.delete(r.mac); else next.add(r.mac) })
+            return next
+          })
+        }}
+      />
+    ), render: (r) => r.claimed_host_id ? null : (
+      <input
+        type="checkbox"
+        className="accent-blue-500 align-middle"
+        checked={selRecords.has(r.mac)}
+        onChange={() => setSelRecords(prev => toggleSet(prev, r.mac))}
+      />
+    ) },
     { key: 'mac', label: 'MAC', render: (r) => <span className="font-mono text-xs text-[var(--text-primary)]">{r.mac}</span> },
     { key: 'last_seen', label: t('hosts.recordsLastSeen'), render: (r) => <span className="font-mono text-xs text-[var(--text-muted)]">{new Date(r.last_seen).toLocaleString()}</span> },
     { key: 'count', label: t('hosts.recordsCount'), render: (r) => <span className="font-mono text-xs">{r.count}</span> },
@@ -206,6 +313,30 @@ export default function Hosts() {
     : hosts
 
   const columns: Column<Host>[] = [
+    { key: 'sel', width: '32px', label: (
+      <input
+        type="checkbox"
+        className="accent-blue-500 align-middle"
+        checked={hosts.length > 0 && hosts.every(h => selHosts.has(h.id))}
+        onChange={() => {
+          const all = hosts.every(h => selHosts.has(h.id))
+          setSelHosts(prev => {
+            const next = new Set(prev)
+            hosts.forEach(h => { if (all) next.delete(h.id); else next.add(h.id) })
+            return next
+          })
+        }}
+        onClick={e => e.stopPropagation()}
+      />
+    ), render: (h) => (
+      <input
+        type="checkbox"
+        className="accent-blue-500 align-middle"
+        checked={selHosts.has(h.id)}
+        onChange={() => setSelHosts(prev => toggleSet(prev, h.id))}
+        onClick={e => e.stopPropagation()}
+      />
+    ) },
     { key: 'mac', label: t('hosts.columns.mac'), render: (h) => <span className="font-mono text-xs text-[var(--text-primary)]">{h.mac}</span>, sortable: true },
     { key: 'name', label: t('hosts.columns.hostname'), render: (h) => <span className="font-medium text-[var(--text-primary)]">{h.name || '—'}</span> },
     { key: 'ip', label: t('hosts.columns.ip'), render: (h) => <span className="font-mono text-xs">{h.ip}</span> },
@@ -272,6 +403,11 @@ export default function Hosts() {
           </div>
           <span className="text-sm text-[var(--text-muted)]">{t('common.total', '共')} {total} {t('common.items', '条')}</span>
         </div>
+        {selHosts.size > 0 && (
+          <Button variant="primary" size="sm" onClick={() => openBatch('hosts')}>
+            <Rocket size={14} /> {t('batchInstall.button')} ({selHosts.size})
+          </Button>
+        )}
       </div>
 
       <Card padding={false}>
@@ -298,6 +434,11 @@ export default function Hosts() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-[var(--text-muted)]">{t('hosts.recordsHint')}</p>
             <div className="flex gap-2">
+              {selRecords.size > 0 && (
+                <Button variant="primary" size="sm" onClick={() => openBatch('records')}>
+                  <Rocket size={14} /> {t('batchInstall.button')} ({selRecords.size})
+                </Button>
+              )}
               <Button variant="secondary" size="sm" onClick={() => setClearMode('unknown')} disabled={records.filter(r => !r.claimed_host_id).length === 0}>
                 {t('hosts.recordsClearUnknown')}
               </Button>
@@ -440,6 +581,94 @@ export default function Hosts() {
           </div>
         </div>
       </Modal>
+
+      {/* R7 批量装机弹窗 */}
+      <Modal
+        open={showBatch}
+        onClose={() => setShowBatch(false)}
+        title={t('batchInstall.title')}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowBatch(false)}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={submitBatch} disabled={batchBusy || !batchSys || !batchTemplate || batchMachines.length === 0}>
+              {batchBusy ? t('common.processing') : t('batchInstall.submit')}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {batchError && (
+            <div className="px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/30 text-accent-red text-xs">{batchError}</div>
+          )}
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+              {t('batchInstall.machines')} ({batchMachines.length})
+            </label>
+            <div className="max-h-32 overflow-y-auto rounded-lg border border-[var(--bg-border)] px-3 py-2 space-y-1">
+              {batchMachines.map(m => (
+                <div key={m.mac} className="flex items-center gap-2 text-xs font-mono text-[var(--text-primary)]">
+                  <span>{m.mac}</span>
+                  {m.name && <span className="text-[var(--text-muted)]">{m.name}</span>}
+                  {m.ip && <span className="text-[var(--text-muted)]">{m.ip}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+          {batchSystems.length === 0 ? (
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-accent-yellow/10 border border-accent-yellow/30">
+              <span className="text-xs text-accent-yellow flex-1">{t('batchInstall.noReadySystems')}</span>
+              <Button size="sm" onClick={() => navigate('/store')}>{t('quickInstall.goStore')}</Button>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('batchInstall.system')}</label>
+                <Select value={batchSysKey} onChange={e => { setBatchSysKey(e.target.value); setBatchTplOverride(null) }}>
+                  <option value="">{t('batchInstall.selectSystem')}</option>
+                  {batchSystems.map(s => (
+                    <option key={s.key} value={s.key}>{s.profile.name} — {s.distroName} {s.versionName} ({s.arch})</option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('quickInstall.sumTemplate')}</label>
+                <Select
+                  value={batchTplOverride ?? ''}
+                  onChange={e => setBatchTplOverride(e.target.value ? Number(e.target.value) : null)}
+                  disabled={!batchSys}
+                >
+                  <option value="">
+                    {batchSys?.defaultTemplate
+                      ? t('batchInstall.useDefault', { name: `${batchSys.defaultTemplate.name} (${batchSys.defaultTemplate.type})` })
+                      : t('quickInstall.useDefault')}
+                  </option>
+                  {batchTemplates.map(tp => (
+                    <option key={tp.id} value={tp.id}>{tp.name} ({tp.type})</option>
+                  ))}
+                </Select>
+                {batchSys && !batchTemplate && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-accent-red flex-1">{t('quickInstall.missingTemplateWarn')}</span>
+                    <Button size="sm" onClick={() => navigate('/answer-templates')}>{t('quickInstall.goAnswerTemplates')}</Button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          {batchSkipped.length > 0 && (
+            <div className="rounded-lg border border-accent-yellow/30 bg-accent-yellow/5 px-3 py-2 space-y-1">
+              <p className="text-xs font-semibold text-accent-yellow">{t('batchInstall.skippedTitle')}</p>
+              {batchSkipped.map(s => (
+                <div key={s.mac} className="text-xs font-mono text-[var(--text-muted)]">{s.mac} — {s.reason}</div>
+              ))}
+              <div className="pt-1">
+                <Button size="sm" onClick={() => navigate('/install-tasks?view=batch')}>{t('quickInstall.viewTasks')}</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
       <ConfirmDialog
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}

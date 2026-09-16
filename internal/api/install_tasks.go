@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -106,32 +107,43 @@ func (h *InstallTaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	RecordAudit(r.Context(), h.store, models.AuditUpdate, "install_task", id, remoteIP(r), detail)
 
 	// 状态流转到 done/failed → 发布 webhook 通知事件（R3，异步不阻塞）
-	if h.eventBus != nil && oldTask != nil && oldTask.Status != task.Status {
-		var evtType string
-		switch task.Status {
-		case "done":
-			evtType = notify.EventInstallFinished
-		case "failed":
-			evtType = notify.EventInstallFailed
-		}
-		if evtType != "" {
-			info := notify.HostInfo{}
-			if host, err := h.store.GetHost(r.Context(), task.HostID); err == nil && host != nil {
-				info = notify.HostInfo{MAC: host.MAC, Name: host.Name, IP: host.IP}
-			}
-			evtDetail := fmt.Sprintf("%s (%s/%s)", task.DistroName, task.VersionCodename, task.Arch)
-			if task.Status == "failed" && task.ErrorMsg != "" {
-				evtDetail += ": " + task.ErrorMsg
-			}
-			h.eventBus.PublishAsync(notify.TopicNotify, notify.Event{
-				Event:  evtType,
-				Time:   time.Now(),
-				Host:   info,
-				Detail: evtDetail,
-			})
-		}
+	if oldTask != nil {
+		h.publishStatusEvent(r.Context(), oldTask.Status, &task)
 	}
 	OK(w, task)
+}
+
+// publishStatusEvent 是状态变更事件的统一路径（R3/R7）：
+// 任务状态流转到 done/failed 时发布 webhook 通知事件（异步不阻塞）。
+// Update / Report / ReportByMAC 都走它；oldStatus 与当前状态相同则不重复发布。
+func (h *InstallTaskHandler) publishStatusEvent(ctx context.Context, oldStatus string, task *models.InstallTask) {
+	if h.eventBus == nil || oldStatus == task.Status {
+		return
+	}
+	var evtType string
+	switch task.Status {
+	case "done":
+		evtType = notify.EventInstallFinished
+	case "failed":
+		evtType = notify.EventInstallFailed
+	}
+	if evtType == "" {
+		return
+	}
+	info := notify.HostInfo{}
+	if host, err := h.store.GetHost(ctx, task.HostID); err == nil && host != nil {
+		info = notify.HostInfo{MAC: host.MAC, Name: host.Name, IP: host.IP}
+	}
+	evtDetail := fmt.Sprintf("%s (%s/%s)", task.DistroName, task.VersionCodename, task.Arch)
+	if task.Status == "failed" && task.ErrorMsg != "" {
+		evtDetail += ": " + task.ErrorMsg
+	}
+	h.eventBus.PublishAsync(notify.TopicNotify, notify.Event{
+		Event:  evtType,
+		Time:   time.Now(),
+		Host:   info,
+		Detail: evtDetail,
+	})
 }
 
 func (h *InstallTaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -152,10 +164,21 @@ func (h *InstallTaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // GetTaskByMAC is a PXE runtime endpoint (no auth required).
 // It looks up an active install task for the host identified by MAC address.
+// R7 失败锁定：以该主机"最新"任务为准——最新任务 failed 时不再下发安装引导
+// （返回 404，引导层回落本地磁盘/菜单），须在任务详情页人工重试解锁。
 func (h *InstallTaskHandler) GetTaskByMAC(w http.ResponseWriter, r *http.Request) {
 	mac := chi.URLParam(r, "mac")
-	task, err := h.store.GetInstallTaskByHostMAC(r.Context(), mac)
+	task, err := h.store.GetLatestInstallTaskByHostMAC(r.Context(), mac)
 	if err != nil {
+		Error(w, http.StatusNotFound, "未找到安装任务")
+		return
+	}
+	serve, locked := netboot.TaskBootDecision(task.Status)
+	if locked {
+		Error(w, http.StatusNotFound, "安装任务已失败锁定，请人工重试解锁")
+		return
+	}
+	if !serve {
 		Error(w, http.StatusNotFound, "未找到安装任务")
 		return
 	}
@@ -189,6 +212,15 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		Error(w, http.StatusNotFound, "应答模板未找到")
 		return
+	}
+
+	// R7 状态通道：安装器首次拉取应答文件即视为进入安装。
+	// 幂等：仅 pending→installing，重复拉取/其他状态不回写。
+	if task.Status == "pending" {
+		task.Status = "installing"
+		if err := h.store.UpdateInstallTask(r.Context(), task); err != nil {
+			slog.Warn("装机任务状态置为 installing 失败", "task_id", task.ID, "error", err)
+		}
 	}
 
 	// Try to get host info for template rendering
