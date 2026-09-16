@@ -182,7 +182,12 @@
       "bootConfig": "Boot Config",
       "bootConfigRefresh": "Refresh",
       "bootConfigFailed": "Failed to load boot config",
-      "bootConfigHint": "Select format and click Refresh to preview"
+      "bootConfigHint": "Select format and click Refresh to preview",
+      "baselineReports": "Baseline Execution Records",
+      "baselineReportsSummary": "{{ok}}/{{total}} succeeded",
+      "noBaselineReports": "No baseline execution records",
+      "reportSuccess": "Success",
+      "reportFailed": "Failed"
     },
     "deleteConfirm": "Are you sure you want to delete this host?",
     "created": "Host created",

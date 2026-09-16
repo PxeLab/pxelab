@@ -183,7 +183,12 @@
       "bootConfig": "引导配置",
       "bootConfigRefresh": "刷新",
       "bootConfigFailed": "加载引导配置失败",
-      "bootConfigHint": "选择格式后点击刷新预览"
+      "bootConfigHint": "选择格式后点击刷新预览",
+      "baselineReports": "基线执行记录",
+      "baselineReportsSummary": "成功 {{ok}}/{{total}}",
+      "noBaselineReports": "暂无基线执行记录",
+      "reportSuccess": "成功",
+      "reportFailed": "失败"
     },
     "deleteConfirm": "确定要删除该主机吗？",
     "created": "主机已创建",

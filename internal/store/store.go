@@ -33,6 +33,7 @@ type Interface interface {
 	OSImageStore
 	AuditLogStore
 	BaselineStore
+	BaselineReportStore
 	ScriptStore
 	PxeBootRecordStore
 	Close() error
@@ -219,6 +220,14 @@ type BaselineStore interface {
 	// Baseline ↔ Script associations (many-to-many via BaselineScriptAssignment)
 	ListBaselineScripts(ctx context.Context, baselineID string) ([]models.BaselineScriptAssignment, error)
 	SetBaselineScripts(ctx context.Context, baselineID string, assignments []models.BaselineScriptAssignment) error
+}
+
+// BaselineReportStore 基线执行回执的存取。
+type BaselineReportStore interface {
+	CreateBaselineReport(ctx context.Context, r *models.BaselineReport) error
+	ListBaselineReports(ctx context.Context, hostID string) ([]models.BaselineReport, error)
+	// PruneBaselineReports 滚动清理：每个主机只保留最近 keep 条
+	PruneBaselineReports(ctx context.Context, hostID string, keep int) error
 }
 
 type AuditLogFilter struct {

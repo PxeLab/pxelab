@@ -73,6 +73,7 @@ func (s *sqliteStore) Migrate() error {
 		&models.Baseline{},
 		&models.Script{},
 		&models.BaselineScriptAssignment{},
+		&models.BaselineReport{},
 		&models.PxeBootRecord{},
 	); err != nil {
 		return err
@@ -877,6 +878,28 @@ func (s *sqliteStore) DeleteBaseline(ctx context.Context, id string) error {
 		}
 		return tx.Delete(&models.Baseline{}, "id = ?", id).Error
 	})
+}
+
+// ── Baseline Report ──
+
+func (s *sqliteStore) CreateBaselineReport(ctx context.Context, r *models.BaselineReport) error {
+	return s.db.WithContext(ctx).Create(r).Error
+}
+
+func (s *sqliteStore) ListBaselineReports(ctx context.Context, hostID string) ([]models.BaselineReport, error) {
+	var reports []models.BaselineReport
+	if err := s.db.WithContext(ctx).Where("host_id = ?", hostID).Order("created_at DESC, id DESC").Find(&reports).Error; err != nil {
+		return nil, err
+	}
+	return reports, nil
+}
+
+func (s *sqliteStore) PruneBaselineReports(ctx context.Context, hostID string, keep int) error {
+	return s.db.WithContext(ctx).
+		Where("host_id = ? AND id NOT IN (?)", hostID,
+			s.db.Model(&models.BaselineReport{}).Select("id").
+				Where("host_id = ?", hostID).Order("created_at DESC, id DESC").Limit(keep)).
+		Delete(&models.BaselineReport{}).Error
 }
 
 // ── Baseline ↔ Script Associations (many-to-many) ──

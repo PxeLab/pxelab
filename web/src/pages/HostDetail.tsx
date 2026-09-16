@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Power, PowerOff, RefreshCw, Activity, HardDrive, Wifi, FileText } from 'lucide-react'
+import { ArrowLeft, Power, PowerOff, RefreshCw, Activity, HardDrive, Wifi, FileText, ChevronRight, ChevronDown, ClipboardList } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -13,7 +13,7 @@ import { Input, Select } from '../components/ui/FormControls'
 import { Toggle } from '../components/ui/Toggle'
 import { ChecklistPicker } from '../components/ui/ChecklistPicker'
 import { DataTable } from '../components/ui/DataTable'
-import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord, type Profile, type Baseline, type scriptDTO } from '../api/client'
+import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord, type Profile, type Baseline, type scriptDTO, type BaselineReport } from '../api/client'
 
 // 电源操作 action → i18n key 显式映射（key 不是 action 的简单拼接）
 const powerLabelKeys: Record<string, string> = {
@@ -21,6 +21,11 @@ const powerLabelKeys: Record<string, string> = {
   off: 'powerOff',
   cycle: 'powerRestart',
   status: 'powerStatus',
+}
+
+// 基线执行耗时展示：不足 1s 显示毫秒，否则秒
+function formatDuration(ms: number): string {
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`
 }
 
 export default function HostDetail() {
@@ -77,6 +82,10 @@ export default function HostDetail() {
   const [wakingWOL, setWakingWOL] = useState(false)
   const [wolHistoryLoaded, setWolHistoryLoaded] = useState(false)
 
+  // 基线执行回执 state
+  const [baselineReports, setBaselineReports] = useState<BaselineReport[]>([])
+  const [expandedReports, setExpandedReports] = useState<Set<number>>(new Set())
+
   useEffect(() => {
     if (!id) return
     async function load() {
@@ -95,6 +104,8 @@ export default function HostDetail() {
         // 启动历史按主机 MAC 过滤，避免全局最近 10 条中没有该主机时显示为空
         const e = await api.getEvents({ page: '1', size: '10', mac: h.data.mac })
         setEvents(e.data.events)
+        // 基线执行回执（失败不影响主信息展示）
+        api.getBaselineReports(id!).then(res => setBaselineReports(res.data ?? [])).catch(() => {})
       } catch (err: any) {
         showError(err.message)
       } finally {
@@ -210,6 +221,17 @@ export default function HostDetail() {
   // 初始化脚本选择（P1）：Profile 继承的基线只读展示，主机可再追加
   const editProfile = profiles.find(p => p.id === editForm.profile_id)
   const editInherited: string[] = editProfile?.baselines ?? []
+
+  // 基线执行回执：成功数汇总 + 输出尾部展开
+  const reportOkCount = baselineReports.filter(r => r.exit_code === 0).length
+  function toggleReportExpand(id: number) {
+    setExpandedReports(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   if (loading) {
     return <div className="space-y-6">
@@ -482,6 +504,55 @@ export default function HostDetail() {
               rowKey={(task: InstallTask) => String(task.id)}
             />
           </div>
+        </Card>
+      </div>
+
+      {/* Baseline Reports */}
+      <div className="mt-5">
+        <Card title={
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <ClipboardList size={16} />
+              <span>{t('hosts.detail.baselineReports')}</span>
+            </div>
+            {baselineReports.length > 0 && (
+              <Tag color={reportOkCount === baselineReports.length ? 'green' : 'yellow'}>
+                {t('hosts.detail.baselineReportsSummary', { ok: reportOkCount, total: baselineReports.length })}
+              </Tag>
+            )}
+          </div>
+        }>
+          {baselineReports.length === 0 ? (
+            <div className="py-8 text-center text-sm text-[var(--text-muted)]">
+              {t('hosts.detail.noBaselineReports')}
+            </div>
+          ) : (
+            <div className="-mx-5 divide-y divide-[var(--bg-border)]">
+              {baselineReports.map(r => (
+                <div key={r.id}>
+                  <button
+                    className="w-full flex items-center gap-3 px-5 py-2.5 text-left hover:bg-[var(--bg-hover)] cursor-pointer transition-colors"
+                    onClick={() => toggleReportExpand(r.id)}
+                  >
+                    {expandedReports.has(r.id)
+                      ? <ChevronDown size={14} className="shrink-0 text-[var(--text-muted)]" />
+                      : <ChevronRight size={14} className="shrink-0 text-[var(--text-muted)]" />}
+                    <span className="flex-1 truncate text-sm font-medium text-[var(--text-primary)]">{r.script_name}</span>
+                    <Tag color={r.exit_code === 0 ? 'green' : 'red'}>
+                      {r.exit_code === 0 ? t('hosts.detail.reportSuccess') : `${t('hosts.detail.reportFailed')} (${r.exit_code})`}
+                    </Tag>
+                    <span className="w-16 text-right text-xs font-mono text-[var(--text-muted)]">{formatDuration(r.duration_ms)}</span>
+                    <span className="text-xs font-mono text-[var(--text-muted)]">{new Date(r.created_at).toLocaleString()}</span>
+                  </button>
+                  {expandedReports.has(r.id) && (
+                    <pre className="mx-5 mb-3 p-3 rounded-lg bg-[var(--bg-card)] border border-[var(--bg-border)] text-xs font-mono text-[var(--text-secondary)] whitespace-pre-wrap overflow-x-auto max-h-60 overflow-y-auto">
+                      {r.output_tail || '—'}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
 
