@@ -7,10 +7,14 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/notify"
 )
 
 const (
@@ -81,7 +85,33 @@ func (h *BaselineHandler) Report(w http.ResponseWriter, r *http.Request) {
 	}
 	// 按主机滚动清理，只留最近 N 条（清理失败不影响回执写入）
 	_ = h.store.PruneBaselineReports(r.Context(), host.ID, baselineReportKeep)
+	// 脚本执行失败 → 发布 webhook 通知事件（R3，异步不阻塞回执）
+	if rep.ExitCode != 0 && h.eventBus != nil {
+		h.eventBus.PublishAsync(notify.TopicNotify, notify.Event{
+			Event: notify.EventBaselineScriptFailed,
+			Time:  time.Now(),
+			Host:  notify.HostInfo{MAC: host.MAC, Name: host.Name, IP: host.IP},
+			Detail: fmt.Sprintf("脚本 %s（第 %d 条）退出码 %d%s",
+				rep.ScriptName, rep.Seq, rep.ExitCode, tailSnippet(rep.OutputTail)),
+		})
+	}
 	Created(w, baselineReportToDTO(rep))
+}
+
+// tailSnippet 截取输出尾部一行作为事件详情摘要。
+func tailSnippet(tail string) string {
+	line := tail
+	if idx := strings.LastIndex(strings.TrimRight(tail, "\n"), "\n"); idx >= 0 {
+		line = strings.TrimRight(tail, "\n")[idx+1:]
+	}
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return ""
+	}
+	if len([]rune(line)) > 80 {
+		line = string([]rune(line)[:80]) + "…"
+	}
+	return "，输出: " + line
 }
 
 // ListReports 返回主机的基线执行回执列表（倒序）。

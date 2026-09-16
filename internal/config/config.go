@@ -26,6 +26,7 @@ type Config struct {
 	Netboot          NetbootConfig          `yaml:"netboot" mapstructure:"netboot"`
 	Store            StoreConfig            `yaml:"store" mapstructure:"store"`
 	Log              LogConfig              `yaml:"log" mapstructure:"log"`
+	Notify           NotifyConfig           `yaml:"notify" mapstructure:"notify"`
 	ServiceAutoStart ServiceAutoStartConfig `yaml:"service_auto_start" mapstructure:"service_auto_start"`
 	IPXEScript       IPXEScriptConfig       `yaml:"ipxe_script" mapstructure:"ipxe_script"`
 	BlacklistSeeds   []MACEntry             `yaml:"blacklist,omitempty" mapstructure:"blacklist,omitempty"`
@@ -225,6 +226,24 @@ type CatalogGroup struct {
 
 type StoreConfig struct {
 	DSN string `yaml:"dsn" mapstructure:"dsn"`
+}
+
+// NotifyConfig 全局 webhook 通知配置（R3）。管理只走 UI，保存即写回 config.yaml。
+type NotifyConfig struct {
+	Webhooks []WebhookConfig `yaml:"webhooks" mapstructure:"webhooks" json:"webhooks"`
+}
+
+// WebhookConfig 单条 webhook 订阅。
+// Format：generic（原始事件 JSON）/ dingtalk（钉钉机器人 text）/ feishu（飞书机器人 text，可选 secret 加签）。
+// Events 为订阅的事件类型列表（install.finished / install.failed / baseline.script_failed / host.first_pxe_boot）。
+type WebhookConfig struct {
+	ID      string   `yaml:"id" mapstructure:"id" json:"id"`
+	Name    string   `yaml:"name" mapstructure:"name" json:"name"`
+	URL     string   `yaml:"url" mapstructure:"url" json:"url"`
+	Events  []string `yaml:"events" mapstructure:"events" json:"events"`
+	Format  string   `yaml:"format" mapstructure:"format" json:"format"`
+	Secret  string   `yaml:"secret,omitempty" mapstructure:"secret,omitempty" json:"secret,omitempty"`
+	Enabled bool     `yaml:"enabled" mapstructure:"enabled" json:"enabled"`
 }
 
 type LogConfig struct {

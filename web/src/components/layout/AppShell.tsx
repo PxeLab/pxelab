@@ -46,6 +46,7 @@ const navSections = [
           { path: '/services/nfs', label: 'nav.settings.nfs' },
           { path: '/services/tftp', label: 'nav.settings.tftp' },
           { path: '/services/baseline-hooks', label: 'nav.settings.baselineHooks' },
+          { path: '/services/webhooks', label: 'nav.settings.webhooks' },
           { path: '/boot-settings', label: 'nav.bootSettings' },
           { path: '/netboot-catalog', label: 'nav.netboot' },
         ] as NavItem[],

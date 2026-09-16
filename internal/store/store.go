@@ -68,7 +68,8 @@ type HostStore interface {
 
 // PxeBootRecordStore 记录 PXE 引导留痕（认领主机用）。
 type PxeBootRecordStore interface {
-	UpsertPxeBootRecord(ctx context.Context, mac, loader, context, ip string) error
+	// UpsertPxeBootRecord 记录一次引导；created=true 表示该 MAC 首次出现
+	UpsertPxeBootRecord(ctx context.Context, mac, loader, context, ip string) (created bool, err error)
 	ListPxeBootRecords(ctx context.Context) ([]models.PxeBootRecord, error)
 	DeletePxeBootRecord(ctx context.Context, mac string) error
 	ClearPxeBootRecords(ctx context.Context) error

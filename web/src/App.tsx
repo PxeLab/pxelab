@@ -38,6 +38,7 @@ const ScriptDetail = lazy(() => import('./pages/ScriptDetail'))
 const Store = lazy(() => import('./pages/Store'))
 const StoreDetail = lazy(() => import('./pages/StoreDetail'))
 const SettingsBaselineHooks = lazy(() => import('./pages/SettingsBaselineHooks'))
+const SettingsWebhooks = lazy(() => import('./pages/SettingsWebhooks'))
 
 function LoadingFallback() {
   const { t } = useTranslation()
@@ -120,6 +121,7 @@ function AppContent() {
             <Route path="dns" element={<SettingsDNS />} />
             <Route path="nfs" element={<SettingsNFS />} />
             <Route path="baseline-hooks" element={<SettingsBaselineHooks />} />
+            <Route path="webhooks" element={<SettingsWebhooks />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
