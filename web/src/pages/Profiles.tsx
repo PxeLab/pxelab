@@ -228,12 +228,15 @@ chain ${e.url || '<url>'}`
 exit`
         break
       case 'wds':
+        const wdsUrl = e.url || '<wimboot>'
+        const wdsBase = e.wim || '<win-base>'
         script = `#!ipxe
-set wds-server {{.URL}}
-kernel wdsmgfw.efi
-initrd bootmgr.exe
-initrd boot.sdi
-initrd ${e.wim || '<wim>'}
+kernel ${wdsUrl}
+initrd -n bootmgr ${wdsBase}/bootmgr bootmgr
+initrd -n bootmgr.efi ${wdsBase}/bootmgr.efi bootmgr.efi
+initrd -n bcd ${wdsBase}/boot/bcd bcd
+initrd -n boot.sdi ${wdsBase}/boot/boot.sdi boot.sdi
+initrd -n boot.wim ${wdsBase}/sources/boot.wim boot.wim
 boot`
         break
       case 'custom':
@@ -532,9 +535,18 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                 </div>
               )}
               {form.entry.type === 'wds' && (
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wim')}</label>
-                  <Input size="xs" className="px-2.5 py-1.5 font-mono" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} />
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wdsWimbootUrl')}</label>
+                    <Input size="xs" className="px-2.5 py-1.5 font-mono" value={form.entry.url || ''} onChange={e => updateEntry('url', e.target.value)} placeholder="http://server/wimboot" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wdsWinBase')}</label>
+                    <Input size="xs" className="px-2.5 py-1.5 font-mono" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} placeholder="http://server/extracted/winiso" />
+                  </div>
+                  <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 text-xs text-accent-yellow leading-relaxed">
+                    {t('profiles.wdsHint')}
+                  </div>
                 </div>
               )}
 
@@ -642,6 +654,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                         }`}>{ver.boot_type}</span>
                       )}
                       {ver.local && <span className="text-accent-green ml-2 text-xs">{t('profiles.local')}</span>}
+                      {!ver.local && ver.remote && <span className="ml-2 text-[10px] text-amber-400" title={t('netbootCatalog.remoteOnlyTitle')}>{t('netbootCatalog.remoteOnly')}</span>}
                     </button>
                   ))}
                 </div>

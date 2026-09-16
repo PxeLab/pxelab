@@ -8,6 +8,7 @@ versions:
       name: openEuler-24.09
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://repo.openeuler.org//openEuler-24.09/amd64/linux
         initrd: http://repo.openeuler.org//openEuler-24.09/amd64/initrd.gz
@@ -16,6 +17,7 @@ versions:
       name: openEuler-24.03-LTS-SP1
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://repo.openeuler.org//openEuler-24.03-LTS-SP1/amd64/linux
         initrd: http://repo.openeuler.org//openEuler-24.03-LTS-SP1/amd64/initrd.gz
@@ -24,6 +26,7 @@ versions:
       name: openEuler-20.03-LTS-SP3
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://repo.openeuler.org//openEuler-20.03-LTS-SP3/amd64/linux
         initrd: http://repo.openeuler.org//openEuler-20.03-LTS-SP3/amd64/initrd.gz
@@ -32,6 +35,7 @@ versions:
       name: openEuler-22.03-LTS
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://repo.openeuler.org//openEuler-22.03-LTS/amd64/linux
         initrd: http://repo.openeuler.org//openEuler-22.03-LTS/amd64/initrd.gz
@@ -40,6 +44,7 @@ versions:
       name: openEuler-22.03-LTS-SP1
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://repo.openeuler.org//openEuler-22.03-LTS-SP1/amd64/linux
         initrd: http://repo.openeuler.org//openEuler-22.03-LTS-SP1/amd64/initrd.gz
@@ -48,6 +53,7 @@ versions:
       name: openEuler-22.03-LTS-SP2
       arch: amd64
       enabled: true
+      cmdline: "inst.text"
       remote:
         kernel: http://repo.openeuler.org//openEuler-22.03-LTS-SP2/amd64/linux
         initrd: http://repo.openeuler.org//openEuler-22.03-LTS-SP2/amd64/initrd.gz

@@ -192,6 +192,53 @@ func TestEngineRenderSANBootNoURL(t *testing.T) {
 	}
 }
 
+func TestMenuTemplateWDS(t *testing.T) {
+	e := New()
+	wimboot := "http://192.168.1.10/netboot/menu/wimboot"
+	winBase := "http://192.168.1.10/boot/isos/win11-x64"
+	data := TemplateData{
+		URL: "http://192.168.1.10",
+		Menu: &MenuData{
+			Title:   "WDS Test",
+			Default: 0,
+			Entries: []MenuEntryData{
+				{
+					Label: "Windows 11",
+					Type:  BootWDS,
+					URL:   wimboot,
+					WIM:   winBase,
+				},
+			},
+		},
+	}
+	out, err := e.Render("menu", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "kernel "+wimboot) {
+		t.Errorf("expected kernel %s, got:\n%s", wimboot, out)
+	}
+	for _, f := range []string{"bootmgr", "bootmgr.efi", "bcd", "boot.sdi", "boot.wim"} {
+		if !strings.Contains(out, "-n "+f) {
+			t.Errorf("expected -n %s initrd line, got:\n%s", f, out)
+		}
+	}
+	for _, u := range []string{
+		winBase + "/bootmgr bootmgr",
+		winBase + "/bootmgr.efi bootmgr.efi",
+		winBase + "/boot/bcd bcd",
+		winBase + "/boot/boot.sdi boot.sdi",
+		winBase + "/sources/boot.wim boot.wim",
+	} {
+		if !strings.Contains(out, u) {
+			t.Errorf("expected initrd %s, got:\n%s", u, out)
+		}
+	}
+	if strings.Contains(out, "wdsmgfw.efi") {
+		t.Error("legacy wdsmgfw.efi line should not be present")
+	}
+}
+
 func TestMenuTemplateSANBoot(t *testing.T) {
 	e := New()
 	data := TemplateData{

@@ -8,6 +8,7 @@ versions:
       name: Current
       arch: amd64
       enabled: true
+      cmdline: "load_ramdisk=1 prompt_ramdisk=0 rw printk.time=0 tz=localtime"
       remote:
         kernel: http://mirrors.kernel.org/slackware/current/amd64/linux
         initrd: http://mirrors.kernel.org/slackware/current/amd64/initrd.gz
@@ -16,6 +17,7 @@ versions:
       name: "14.2"
       arch: amd64
       enabled: true
+      cmdline: "load_ramdisk=1 prompt_ramdisk=0 rw printk.time=0 tz=localtime"
       remote:
         kernel: http://mirrors.kernel.org/slackware/14.2/amd64/linux
         initrd: http://mirrors.kernel.org/slackware/14.2/amd64/initrd.gz
@@ -24,6 +26,7 @@ versions:
       name: "14.1"
       arch: amd64
       enabled: true
+      cmdline: "load_ramdisk=1 prompt_ramdisk=0 rw printk.time=0 tz=localtime"
       remote:
         kernel: http://mirrors.kernel.org/slackware/14.1/amd64/linux
         initrd: http://mirrors.kernel.org/slackware/14.1/amd64/initrd.gz
@@ -32,6 +35,7 @@ versions:
       name: "15.0"
       arch: amd64
       enabled: true
+      cmdline: "load_ramdisk=1 prompt_ramdisk=0 rw printk.time=0 tz=localtime"
       remote:
         kernel: http://mirrors.kernel.org/slackware/15.0/amd64/linux
         initrd: http://mirrors.kernel.org/slackware/15.0/amd64/initrd.gz

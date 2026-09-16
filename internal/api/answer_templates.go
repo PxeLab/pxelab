@@ -396,20 +396,20 @@ autoinstall:
   </settings>
   <settings pass="offlineServicing">
     <component name="Microsoft-Windows-Shell-Setup">
-      <ComputerName>{{.HostName}}</ComputerName>
+      <ComputerName>{{.ComputerName}}</ComputerName>
     </component>
   </settings>
   <settings pass="specialize">
     <component name="Microsoft-Windows-Shell-Setup">
-      <ComputerName>{{.HostName}}</ComputerName>
-      <ProductKey>{{.HostName | upper}}</ProductKey>
+      <ComputerName>{{.ComputerName}}</ComputerName>
+      <ProductKey>{{.ProductKey}}</ProductKey>
     </component>
   </settings>
   <settings pass="oobeSystem">
     <component name="Microsoft-Windows-Shell-Setup">
       <UserAccounts>
         <AdministratorPassword>
-          <Value>{{.HostName | upper}}</Value>
+          <Value>{{.AdminPassword}}</Value>
           <PlainText>true</PlainText>
         </AdministratorPassword>
       </UserAccounts>
@@ -417,7 +417,7 @@ autoinstall:
         <Enabled>true</Enabled>
         <Username>Administrator</Username>
         <Password>
-          <Value>{{.HostName | upper}}</Value>
+          <Value>{{.AdminPassword}}</Value>
           <PlainText>true</PlainText>
         </Password>
       </AutoLogon>

@@ -138,7 +138,7 @@ import {
   getWOLInterfaces,
   getWOLSchedules,
 } from './wol'
-import { deleteOSImage, extractOSImage, getOSImage, getOSImages, importOSImages, browseFs, mountOSImage, reprocessOSImage, unmountOSImage, updateOSImage, uploadOSImage, uploadOSImageWithProgress } from './osimages'
+import { deleteOSImage, extractOSImage, getOSImage, getOSImages, importOSImages, browseFs, mountOSImage, reprocessOSImage, unmountOSImage, updateOSImage, uploadOSImage, uploadOSImageWithProgress, createWdsProfileFromOSImage, setCatalogLocal } from './osimages'
 import { getNetworkInterfaces, networkPing, networkPingStream, networkTraceroute, networkTracerouteStream } from './network'
 import { checkBootloaderFile, getBootloaderCheck, getBootloaderFiles } from './bootloader'
 import { getBaselines, getBaseline, createBaseline, updateBaseline, deleteBaseline, getBaselineScripts, setBaselineScripts, getAssignedBaselineScripts } from './baselines'
@@ -174,6 +174,8 @@ export const api = {
   browseFs,
   mountOSImage,
   unmountOSImage,
+  createWdsProfileFromOSImage,
+  setCatalogLocal,
   createHost,
   updateHost,
   deleteHost,

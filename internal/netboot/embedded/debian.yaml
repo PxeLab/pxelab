@@ -9,6 +9,7 @@ versions:
       name: 13.0 (trixie)
       arch: amd64
       enabled: true
+      cmdline: "auto=true priority=critical"
       remote:
         kernel: http://deb.debian.org/debian/trixie/amd64/linux
         initrd: http://deb.debian.org/debian/trixie/amd64/initrd.gz
@@ -17,6 +18,7 @@ versions:
       name: 12.0 (bookworm)
       arch: amd64
       enabled: true
+      cmdline: "auto=true priority=critical"
       remote:
         kernel: http://deb.debian.org/debian/bookworm/amd64/linux
         initrd: http://deb.debian.org/debian/bookworm/amd64/initrd.gz
@@ -25,6 +27,7 @@ versions:
       name: forky (testing)
       arch: amd64
       enabled: true
+      cmdline: "auto=true priority=critical"
       remote:
         kernel: http://deb.debian.org/debian/forky/amd64/linux
         initrd: http://deb.debian.org/debian/forky/amd64/initrd.gz
@@ -33,6 +36,7 @@ versions:
       name: sid (unstable)
       arch: amd64
       enabled: true
+      cmdline: "auto=true priority=critical"
       remote:
         kernel: http://deb.debian.org/debian/sid/amd64/linux
         initrd: http://deb.debian.org/debian/sid/amd64/initrd.gz

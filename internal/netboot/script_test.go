@@ -5,6 +5,72 @@ import (
 	"testing"
 )
 
+func TestGenerateWimbootLineWinpeShell(t *testing.T) {
+	line := generateWimbootLine(
+		"http://10.0.0.1/netboot/menu/wimboot",
+		"http://10.0.0.1/boot/isos/win11-x64",
+		&BootTaskInfo{
+			AnswerURL:  "http://10.0.0.1/api/v1/netboot/answer/task_1",
+			AnswerType: "winpeshl",
+		},
+	)
+	if !strings.Contains(line, "http://10.0.0.1/api/v1/netboot/answer/task_1 install.bat") {
+		t.Fatalf("expected install.bat initrd from answer URL, got:\n%s", line)
+	}
+	if !strings.Contains(line, "http://10.0.0.1/api/v1/netboot/answer/task_1?file=winpeshl.ini winpeshl.ini") {
+		t.Fatalf("expected winpeshl.ini via ?file= param, got:\n%s", line)
+	}
+	if strings.Count(line, "winpeshl.ini") != 2 {
+		t.Fatalf("winpeshl.ini should appear in both the ?file= URL and the local name, got:\n%s", line)
+	}
+	if !strings.HasPrefix(line, "kernel http://10.0.0.1/netboot/menu/wimboot") {
+		t.Fatalf("expected wimboot kernel line, got:\n%s", line)
+	}
+}
+
+func TestGenerateWimbootLineAutounattend(t *testing.T) {
+	line := generateWimbootLine(
+		"http://10.0.0.1/netboot/menu/wimboot",
+		"http://10.0.0.1/boot/isos/win11-x64",
+		&BootTaskInfo{
+			AnswerURL:  "http://10.0.0.1/api/v1/netboot/answer/task_1",
+			AnswerType: "autounattend",
+		},
+	)
+	if !strings.Contains(line, "http://10.0.0.1/api/v1/netboot/answer/task_1 autounattend.xml") {
+		t.Fatalf("expected autounattend.xml initrd, got:\n%s", line)
+	}
+	if strings.Contains(line, "?file=") {
+		t.Fatalf("autounattend must not use ?file= suffix, got:\n%s", line)
+	}
+	if strings.Contains(line, "winpeshl") {
+		t.Fatalf("autounattend must not reference winpeshl.ini, got:\n%s", line)
+	}
+}
+
+func TestGenerateBootLineWimbootLocalAbsolute(t *testing.T) {
+	v := &Version{
+		Codename: "win11-x64",
+		Arch:     "amd64",
+		Enabled:  true,
+		BootType: BootWimboot,
+		Local: &FileRef{
+			Kernel: "http://10.0.0.10/netboot/menu/wimboot",
+			Initrd: "http://10.0.0.10/boot/isos/win11-iso",
+		},
+	}
+	line := GenerateBootLine(v, "10.0.0.10", "/boot/netboot", "", nil, false)
+	if !strings.Contains(line, "kernel http://10.0.0.10/netboot/menu/wimboot") {
+		t.Fatalf("expected local wimboot kernel URL, got:\n%s", line)
+	}
+	if !strings.Contains(line, "http://10.0.0.10/boot/isos/win11-iso/bootmgr bootmgr") {
+		t.Fatalf("expected local win base bootmgr, got:\n%s", line)
+	}
+	if strings.Contains(line, "/boot/netboot/http") {
+		t.Fatalf("absolute local URLs must not be re-prefixed, got:\n%s", line)
+	}
+}
+
 func TestGenerateNetbootScript(t *testing.T) {
 	cat := &Catalog{
 		Distros: []*Distro{
