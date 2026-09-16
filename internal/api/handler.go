@@ -9,6 +9,7 @@ import (
 	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/ipmi"
 	"github.com/pxelab/pxelab/internal/netboot"
+	"github.com/pxelab/pxelab/internal/notify"
 	"github.com/pxelab/pxelab/internal/servicemanager"
 	"github.com/pxelab/pxelab/internal/session"
 	"github.com/pxelab/pxelab/internal/store"
@@ -77,7 +78,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Netboot:         NewNetbootHandler(netbootMgr),
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
 		AnswerTemplate:  &AnswerTemplateHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg},
-		InstallTask:     &InstallTaskHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg},
+		InstallTask:     &InstallTaskHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg, eventBus: bus},
 		Service:         NewServiceHandler(svcController, cfg, st, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:            NewAuthHandler(cfg, sessions),
 		Access:          NewAccessHandler(st),
@@ -89,7 +90,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Bootloader:      NewBootloaderHandler(bootFS),
 		AuditLog:        NewAuditLogHandler(st),
 		Version:         NewVersionHandler(version, updateChecker),
-		Baseline:        NewBaselineHandler(st, cfg.Global.IdentityAttr),
+		Baseline:        NewBaselineHandler(st, cfg.Global.IdentityAttr, bus),
 		Script:          NewScriptHandler(st),
 		Store:           NewStoreHandler(st, netboot.CatalogDir(cfg.Global.DataDir), netbootMgr),
 		PxeBoot:         NewPxeBootHandler(st),
@@ -98,6 +99,11 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		version:         version,
 		updateChecker:   updateChecker,
 	}
+
+	// Webhook 通知投递器（R3）：订阅事件总线，按 notify.webhooks 配置异步投递
+	dispatcher := notify.NewDispatcher(func() []config.WebhookConfig { return cfg.Notify.Webhooks }, st)
+	dispatcher.Start(bus)
+
 	return h
 }
 
@@ -182,6 +188,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Put("/settings/netboot", h.Settings.UpdateNetboot)
 		r.Get("/settings/baseline-hooks", h.Settings.GetBaselineHooks)
 		r.Put("/settings/baseline-hooks", h.Settings.UpdateBaselineHooks)
+		// Webhook 通知（R3）
+		r.Get("/settings/webhooks", h.Settings.ListWebhooks)
+		r.Post("/settings/webhooks", h.Settings.CreateWebhook)
+		r.Put("/settings/webhooks/{id}", h.Settings.UpdateWebhook)
+		r.Delete("/settings/webhooks/{id}", h.Settings.DeleteWebhook)
+		r.Post("/settings/webhooks/{id}/test", h.Settings.TestWebhook)
 		r.Get("/settings/logging", h.Settings.GetLoggingSettings)
 		r.Put("/settings/logging", h.Settings.UpdateLoggingSettings)
 		r.Get("/netboot/cache-stats", h.Settings.GetCacheStats)

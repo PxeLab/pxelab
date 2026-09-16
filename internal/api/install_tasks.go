@@ -6,12 +6,15 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/netboot"
+	"github.com/pxelab/pxelab/internal/notify"
 	"github.com/pxelab/pxelab/internal/store"
 )
 
@@ -19,6 +22,7 @@ type InstallTaskHandler struct {
 	store      store.Interface
 	serverBase string // 可被局域网访问的 HTTP 基址（host:port），用于注入应答钩子
 	cfg        *config.Config
+	eventBus   *eventbus.Bus // 任务状态流转到 done/failed 时发布 webhook 通知事件（R3），可为 nil
 }
 
 func (h *InstallTaskHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +104,33 @@ func (h *InstallTaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		detail = strings.Join(changes, "; ")
 	}
 	RecordAudit(r.Context(), h.store, models.AuditUpdate, "install_task", id, remoteIP(r), detail)
+
+	// 状态流转到 done/failed → 发布 webhook 通知事件（R3，异步不阻塞）
+	if h.eventBus != nil && oldTask != nil && oldTask.Status != task.Status {
+		var evtType string
+		switch task.Status {
+		case "done":
+			evtType = notify.EventInstallFinished
+		case "failed":
+			evtType = notify.EventInstallFailed
+		}
+		if evtType != "" {
+			info := notify.HostInfo{}
+			if host, err := h.store.GetHost(r.Context(), task.HostID); err == nil && host != nil {
+				info = notify.HostInfo{MAC: host.MAC, Name: host.Name, IP: host.IP}
+			}
+			evtDetail := fmt.Sprintf("%s (%s/%s)", task.DistroName, task.VersionCodename, task.Arch)
+			if task.Status == "failed" && task.ErrorMsg != "" {
+				evtDetail += ": " + task.ErrorMsg
+			}
+			h.eventBus.PublishAsync(notify.TopicNotify, notify.Event{
+				Event:  evtType,
+				Time:   time.Now(),
+				Host:   info,
+				Detail: evtDetail,
+			})
+		}
+	}
 	OK(w, task)
 }
 
@@ -134,7 +165,7 @@ func (h *InstallTaskHandler) GetTaskByMAC(w http.ResponseWriter, r *http.Request
 	taskInfo := buildBootTaskInfo(task, overlay, r.Host)
 
 	// PXE 引导留痕归因：该 MAC 正在走某发行版的无人值守安装
-	_ = h.store.UpsertPxeBootRecord(r.Context(), mac, "", "install-task:"+task.DistroName, remoteIP(r))
+	_, _ = h.store.UpsertPxeBootRecord(r.Context(), mac, "", "install-task:"+task.DistroName, remoteIP(r))
 
 	OK(w, taskInfo)
 }

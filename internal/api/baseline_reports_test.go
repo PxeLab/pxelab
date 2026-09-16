@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/store"
 )
@@ -14,7 +15,7 @@ import (
 func newBaselineHandler(t *testing.T) (*BaselineHandler, store.Interface) {
 	t.Helper()
 	st := store.NewMemory()
-	return NewBaselineHandler(st, "mac"), st
+	return NewBaselineHandler(st, "mac", eventbus.New()), st
 }
 
 func seedReportHost(t *testing.T, st store.Interface) string {
@@ -136,7 +137,7 @@ func TestBaselineReportPruneKeepsLatest100(t *testing.T) {
 
 func TestBaselineReportSNIdentity(t *testing.T) {
 	st := store.NewMemory()
-	h := NewBaselineHandler(st, "sn")
+	h := NewBaselineHandler(st, "sn", eventbus.New())
 	host := &models.Host{Name: "node-sn", MAC: "00:11:22:33:44:66", SN: "SN-001"}
 	if err := st.CreateHost(t.Context(), host); err != nil {
 		t.Fatal(err)
@@ -178,7 +179,7 @@ func TestListBaselineReportsEndpoint(t *testing.T) {
 // 校验 pull.sh 聚合产物内嵌了 report 调用（地址用请求方 Host 构造，身份参数透传）。
 func TestPullShellScriptContainsReport(t *testing.T) {
 	st := store.NewMemory()
-	h := NewBaselineHandler(st, "mac")
+	h := NewBaselineHandler(st, "mac", eventbus.New())
 	host := &models.Host{Name: "node-1", MAC: "00:11:22:33:44:55"}
 	if err := st.CreateHost(t.Context(), host); err != nil {
 		t.Fatal(err)
@@ -232,7 +233,7 @@ func TestPullShellScriptContainsReport(t *testing.T) {
 // 校验 pull.ps1 聚合产物内嵌了 report 调用。
 func TestPullPowerShellScriptContainsReport(t *testing.T) {
 	st := store.NewMemory()
-	h := NewBaselineHandler(st, "mac")
+	h := NewBaselineHandler(st, "mac", eventbus.New())
 	host := &models.Host{Name: "node-1", MAC: "00:11:22:33:44:55"}
 	if err := st.CreateHost(t.Context(), host); err != nil {
 		t.Fatal(err)

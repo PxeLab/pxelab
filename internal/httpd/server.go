@@ -27,6 +27,7 @@ import (
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/pxelab/pxelab/internal/netboot/menus"
+	"github.com/pxelab/pxelab/internal/notify"
 	"github.com/pxelab/pxelab/internal/session"
 	"github.com/pxelab/pxelab/internal/store"
 	"github.com/pxelab/pxelab/internal/updatecheck"
@@ -88,7 +89,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		// failsafe 未启用——直接返回引导菜单
 		mac := r.URL.Query().Get("mac")
 		if mac != "" {
-			recordBootSeen(cfg, st, mac, remoteIPOf(r), "ipxe", "default-menu")
+			recordBootSeen(cfg, st, bus, mac, remoteIPOf(r), "ipxe", "default-menu")
 		}
 		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
 		if err != nil {
@@ -106,7 +107,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 	r.Get("/boot/ipxe/menu", func(w http.ResponseWriter, r *http.Request) {
 		mac := r.URL.Query().Get("mac")
 		if mac != "" {
-			recordBootSeen(cfg, st, mac, remoteIPOf(r), "ipxe", "default-menu")
+			recordBootSeen(cfg, st, bus, mac, remoteIPOf(r), "ipxe", "default-menu")
 		}
 		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
 		if err != nil {
@@ -172,7 +173,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 					if strings.Contains(filePath, grubConfigFile) {
 						perMacLoader = "grub"
 					}
-					recordBootSeen(cfgLocal, stLocal, configMac, clientIP, perMacLoader, "default-menu")
+					recordBootSeen(cfgLocal, stLocal, bus, configMac, clientIP, perMacLoader, "default-menu")
 					host, hErr := stLocal.GetHostByMAC(r.Context(), configMac)
 					if hErr == nil && host != nil && host.ProfileID != nil {
 						profile, err = stLocal.GetProfile(r.Context(), *host.ProfileID)
@@ -338,7 +339,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		r.Get("/boot/ipxe/failsafe", func(w http.ResponseWriter, r *http.Request) {
 			mac := r.URL.Query().Get("mac")
 			if mac != "" {
-				recordBootSeen(cfg, st, mac, remoteIPOf(r), "ipxe", "failsafe")
+				recordBootSeen(cfg, st, bus, mac, remoteIPOf(r), "ipxe", "failsafe")
 			}
 			script := generateFailsafeScript(r.Host, mac)
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -544,7 +545,8 @@ func remoteIPOf(r *http.Request) string {
 // recordBootSeen PXE 引导留痕：记录“该 MAC 来引导过 + 大致入口/菜单”。
 // hint 是调用点已知的上下文（default-menu/failsafe），若该 MAC 已登记并绑定
 // Profile 则升级为 host-profile:<名称>（说明它用了这台主机的配置）。
-func recordBootSeen(_ *config.Config, st store.Interface, mac, ip, loader, hint string) {
+// 未注册主机首次出现时发布 host.first_pxe_boot 通知事件（R3）。
+func recordBootSeen(_ *config.Config, st store.Interface, bus *eventbus.Bus, mac, ip, loader, hint string) {
 	if mac == "" || st == nil {
 		return
 	}
@@ -552,12 +554,24 @@ func recordBootSeen(_ *config.Config, st store.Interface, mac, ip, loader, hint 
 	if label == "" {
 		label = "default-menu"
 	}
-	if host, err := st.GetHostByMAC(context.Background(), mac); err == nil && host != nil && host.ProfileID != nil && *host.ProfileID != "" {
-		if p, err := st.GetProfile(context.Background(), *host.ProfileID); err == nil && p != nil {
-			label = "host-profile:" + p.Name
+	knownHost := false
+	if host, err := st.GetHostByMAC(context.Background(), mac); err == nil && host != nil {
+		knownHost = true
+		if host.ProfileID != nil && *host.ProfileID != "" {
+			if p, err := st.GetProfile(context.Background(), *host.ProfileID); err == nil && p != nil {
+				label = "host-profile:" + p.Name
+			}
 		}
 	}
-	_ = st.UpsertPxeBootRecord(context.Background(), mac, loader, label, ip)
+	created, _ := st.UpsertPxeBootRecord(context.Background(), mac, loader, label, ip)
+	if created && !knownHost && bus != nil {
+		bus.PublishAsync(notify.TopicNotify, notify.Event{
+			Event:  notify.EventHostFirstPXEBoot,
+			Time:   time.Now(),
+			Host:   notify.HostInfo{MAC: mac, IP: ip},
+			Detail: "引导入口: " + label,
+		})
+	}
 }
 
 //go:embed autoexec.ipxe

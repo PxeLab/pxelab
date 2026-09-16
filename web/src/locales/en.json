@@ -32,7 +32,8 @@
       "dns": "DNS",
       "nfs": "NFS",
       "netboot": "Netboot",
-      "baselineHooks": "Baseline Hooks"
+      "baselineHooks": "Baseline Hooks",
+      "webhooks": "Notifications"
     },
     "dashboard": "Dashboard",
     "hosts": "Hosts",
@@ -1520,6 +1521,51 @@
     "autounattend": "AutoUnattend (FirstLogonCommands command line)",
     "customized": "Customized",
     "resetDefaults": "Reset to defaults"
+  },
+  "webhooks": {
+    "title": "Notifications",
+    "listTitle": "Webhooks",
+    "description": "Subscribe platform events and push to multiple webhooks — compatible with DingTalk/Lark custom bots and generic webhooks. Failed deliveries are retried 3 times; final failures are recorded in the audit log.",
+    "add": "Add Webhook",
+    "createTitle": "Create Webhook",
+    "editTitle": "Edit Webhook",
+    "empty": "No webhooks yet — click Add in the top right",
+    "colName": "Name",
+    "colUrl": "URL",
+    "colFormat": "Format",
+    "colEvents": "Events",
+    "colEnabled": "Status",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "fieldName": "Name",
+    "fieldUrl": "Webhook URL",
+    "fieldEvents": "Subscribed Events",
+    "fieldFormat": "Message Format",
+    "fieldSecret": "Secret (optional)",
+    "secretPlaceholder": "Lark signing secret; leave empty otherwise",
+    "fieldEnabled": "Enable this webhook",
+    "nameUrlRequired": "Name and URL are required",
+    "eventsRequired": "Subscribe to at least one event",
+    "test": "Send Test Message",
+    "testing": "Sending...",
+    "testSuccess": "Test message delivered to {{name}}",
+    "testFailed": "Test delivery failed ({{name}}): {{error}}",
+    "deleted": "Webhook deleted",
+    "deleteFailed": "Delete failed",
+    "deleteTitle": "Delete Webhook",
+    "deleteMessage": "Delete webhook \"{{name}}\"?",
+    "eventNames": {
+      "install.finished": "Install Finished",
+      "install.failed": "Install Failed",
+      "baseline.script_failed": "Baseline Script Failed",
+      "host.first_pxe_boot": "First PXE Boot (New Machine)",
+      "*": "All Events"
+    },
+    "formatNames": {
+      "generic": "Generic (raw JSON)",
+      "dingtalk": "DingTalk Bot",
+      "feishu": "Lark Bot"
+    }
   },
   "baselines": {
     "title": "Baselines",

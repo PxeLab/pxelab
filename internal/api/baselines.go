@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/baseline"
+	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/store"
 )
@@ -17,14 +18,15 @@ import (
 // BaselineHandler 管理安全基线及其脚本。
 type BaselineHandler struct {
 	store        store.Interface
-	identityAttr string // "mac"（默认）或 "sn"：机器拉取初始化基线时用哪个主机身份键
+	identityAttr string        // "mac"（默认）或 "sn"：机器拉取初始化基线时用哪个主机身份键
+	eventBus     *eventbus.Bus // 基线脚本执行失败时发布 webhook 通知事件（R3），可为 nil
 }
 
-func NewBaselineHandler(st store.Interface, identityAttr string) *BaselineHandler {
+func NewBaselineHandler(st store.Interface, identityAttr string, bus *eventbus.Bus) *BaselineHandler {
 	if identityAttr == "" {
 		identityAttr = "mac"
 	}
-	return &BaselineHandler{store: st, identityAttr: identityAttr}
+	return &BaselineHandler{store: st, identityAttr: identityAttr, eventBus: bus}
 }
 
 // baselineDTO 是 API 层的基线响应结构。

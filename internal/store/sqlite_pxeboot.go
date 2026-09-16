@@ -10,22 +10,22 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *sqliteStore) UpsertPxeBootRecord(ctx context.Context, mac, loader, context, ip string) error {
+func (s *sqliteStore) UpsertPxeBootRecord(ctx context.Context, mac, loader, context, ip string) (bool, error) {
 	mac = strings.ToLower(strings.TrimSpace(mac))
 	if mac == "" {
-		return nil
+		return false, nil
 	}
 	now := time.Now()
 	var rec models.PxeBootRecord
 	err := s.db.WithContext(ctx).First(&rec, "mac = ?", mac).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return s.db.WithContext(ctx).Create(&models.PxeBootRecord{
+		return true, s.db.WithContext(ctx).Create(&models.PxeBootRecord{
 			MAC: mac, IP: ip, Loader: loader, LastContext: context,
 			FirstSeen: now, LastSeen: now, Count: 1,
 		}).Error
 	}
 	if err != nil {
-		return err
+		return false, err
 	}
 	rec.Count++
 	rec.LastSeen = now
@@ -38,7 +38,7 @@ func (s *sqliteStore) UpsertPxeBootRecord(ctx context.Context, mac, loader, cont
 	if context != "" {
 		rec.LastContext = context
 	}
-	return s.db.WithContext(ctx).Save(&rec).Error
+	return false, s.db.WithContext(ctx).Save(&rec).Error
 }
 
 func (s *sqliteStore) ListPxeBootRecords(ctx context.Context) ([]models.PxeBootRecord, error) {

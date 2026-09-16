@@ -316,3 +316,47 @@ export function getBaselineHooks(): Promise<ApiResponse<BaselineHooksSettings>> 
 export function updateBaselineHooks(hooks: BaselineHooksData): Promise<ApiResponse<unknown>> {
   return request<unknown>('PUT', '/settings/baseline-hooks', { hooks })
 }
+
+// ── Webhooks（通知，R3）──
+
+export type WebhookFormat = 'generic' | 'dingtalk' | 'feishu'
+
+export interface Webhook {
+  id: string
+  name: string
+  url: string
+  events: string[]
+  format: WebhookFormat
+  secret?: string
+  enabled: boolean
+}
+
+export interface WebhookPayload {
+  name: string
+  url: string
+  events: string[]
+  format: WebhookFormat
+  secret?: string
+  enabled: boolean
+}
+
+export async function getWebhooks(): Promise<ApiResponse<Webhook[]>> {
+  const res = await request<{ webhooks: Webhook[] }>('GET', '/settings/webhooks')
+  return { ...res, data: res.data?.webhooks ?? [] }
+}
+
+export function createWebhook(data: WebhookPayload): Promise<ApiResponse<Webhook>> {
+  return request<Webhook>('POST', '/settings/webhooks', data)
+}
+
+export function updateWebhook(id: string, data: WebhookPayload): Promise<ApiResponse<Webhook>> {
+  return request<Webhook>('PUT', `/settings/webhooks/${id}`, data)
+}
+
+export function deleteWebhook(id: string): Promise<ApiResponse<unknown>> {
+  return request<unknown>('DELETE', `/settings/webhooks/${id}`)
+}
+
+export function testWebhook(id: string): Promise<ApiResponse<{ delivered: boolean }>> {
+  return request<{ delivered: boolean }>('POST', `/settings/webhooks/${id}/test`)
+}

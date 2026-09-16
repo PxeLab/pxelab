@@ -32,7 +32,8 @@
       "dns": "DNS",
       "nfs": "NFS",
       "netboot": "Netboot",
-      "baselineHooks": "基线钩子"
+      "baselineHooks": "基线钩子",
+      "webhooks": "通知"
     },
     "dashboard": "仪表板",
     "hosts": "主机管理",
@@ -1521,6 +1522,51 @@
     "autounattend": "AutoUnattend（FirstLogonCommands 命令行）",
     "customized": "已自定义",
     "resetDefaults": "恢复默认"
+  },
+  "webhooks": {
+    "title": "通知",
+    "listTitle": "Webhook 列表",
+    "description": "订阅平台事件并推送到多个 Webhook，兼容钉钉/飞书自定义机器人与通用 Webhook。投递失败自动重试 3 次，最终失败记录审计日志。",
+    "add": "新建 Webhook",
+    "createTitle": "新建 Webhook",
+    "editTitle": "编辑 Webhook",
+    "empty": "暂无 Webhook，点击右上角新建",
+    "colName": "名称",
+    "colUrl": "URL",
+    "colFormat": "格式",
+    "colEvents": "订阅事件",
+    "colEnabled": "状态",
+    "enabled": "启用",
+    "disabled": "停用",
+    "fieldName": "名称",
+    "fieldUrl": "Webhook URL",
+    "fieldEvents": "订阅事件",
+    "fieldFormat": "消息格式",
+    "fieldSecret": "Secret（可选）",
+    "secretPlaceholder": "飞书加签密钥，其他格式留空",
+    "fieldEnabled": "启用该 Webhook",
+    "nameUrlRequired": "名称和 URL 不能为空",
+    "eventsRequired": "至少订阅一个事件",
+    "test": "发送测试消息",
+    "testing": "发送中...",
+    "testSuccess": "测试消息已投递至 {{name}}",
+    "testFailed": "测试消息投递失败（{{name}}）: {{error}}",
+    "deleted": "Webhook 已删除",
+    "deleteFailed": "删除失败",
+    "deleteTitle": "删除 Webhook",
+    "deleteMessage": "确定删除 Webhook「{{name}}」吗？",
+    "eventNames": {
+      "install.finished": "装机完成",
+      "install.failed": "装机失败",
+      "baseline.script_failed": "基线脚本失败",
+      "host.first_pxe_boot": "新机器首次 PXE 引导",
+      "*": "全部事件"
+    },
+    "formatNames": {
+      "generic": "通用（原始 JSON）",
+      "dingtalk": "钉钉机器人",
+      "feishu": "飞书机器人"
+    }
   },
   "baselines": {
     "title": "基线脚本",

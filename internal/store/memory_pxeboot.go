@@ -8,12 +8,12 @@ import (
 	"github.com/pxelab/pxelab/internal/models"
 )
 
-func (s *memoryStore) UpsertPxeBootRecord(_ context.Context, mac, loader, context, ip string) error {
+func (s *memoryStore) UpsertPxeBootRecord(_ context.Context, mac, loader, context, ip string) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	mac = strings.ToLower(strings.TrimSpace(mac))
 	if mac == "" {
-		return nil
+		return false, nil
 	}
 	now := time.Now()
 	if rec, ok := s.pxeBoot[mac]; ok {
@@ -29,13 +29,13 @@ func (s *memoryStore) UpsertPxeBootRecord(_ context.Context, mac, loader, contex
 			rec.LastContext = context
 		}
 		s.pxeBoot[mac] = rec
-		return nil
+		return false, nil
 	}
 	s.pxeBoot[mac] = models.PxeBootRecord{
 		MAC: mac, IP: ip, Loader: loader, LastContext: context,
 		FirstSeen: now, LastSeen: now, Count: 1,
 	}
-	return nil
+	return true, nil
 }
 
 func (s *memoryStore) ListPxeBootRecords(_ context.Context) ([]models.PxeBootRecord, error) {
