@@ -7,6 +7,7 @@ package api
 //   GET /api/v1/baselines/pull.sh  — POSIX sh，逐个执行 type=shell 的脚本
 //   GET /api/v1/baselines/pull.ps1 — PowerShell，逐个执行 type=powershell 的脚本
 // 身份按 global.identity_attr 取 mac 或 sn；无配置一律空产物（exit 0），不影响安装。
+// 两个产物末尾都会追加一条"装机完成"回报（POST /install-tasks/report-by-mac，R7）。
 
 import (
 	"fmt"
@@ -17,6 +18,9 @@ import (
 )
 
 const baselinePullMarker = "pxelab-baseline-pull"
+
+// installReportMarker 标记聚合产物末尾的"装机完成"回报段（R7）。
+const installReportMarker = "pxelab-install-report"
 
 // 内置默认钩子模板。{{URL}} 在注入时替换为聚合产物地址（pull.sh / pull.ps1）。
 // 与 global.baseline_hooks 配置一一对应；配置留空即用这里的默认值。
@@ -107,6 +111,25 @@ func buildReportURL(r *http.Request) string {
 	return fmt.Sprintf("http://%s/api/v1/baselines/report?%s", r.Host, r.URL.RawQuery)
 }
 
+// buildInstallReportURL 生成"装机完成"回报地址（R7）：按 mac/sn 反查活跃任务，身份参数原样透传。
+func buildInstallReportURL(r *http.Request) string {
+	return fmt.Sprintf("http://%s/api/v1/install-tasks/report-by-mac?%s", r.Host, r.URL.RawQuery)
+}
+
+// shInstallReportSnippet 是 pull.sh 末尾的装机完成回报：curl 优先、wget 兜底，失败静默。
+const shInstallReportSnippet = `if command -v curl >/dev/null 2>&1; then
+  curl -fsS -m 5 -H 'Content-Type: application/json' -d '{"status":"done"}' "$_pxelab_install_report_url" >/dev/null 2>&1 || true
+elif command -v wget >/dev/null 2>&1; then
+  wget -q -T 5 -O /dev/null --header='Content-Type: application/json' --post-data='{"status":"done"}' "$_pxelab_install_report_url" >/dev/null 2>&1 || true
+fi
+`
+
+// psInstallReportSnippet 是 pull.ps1 末尾的装机完成回报：失败静默。
+const psInstallReportSnippet = `try {
+  Invoke-RestMethod -Uri $PxeLabInstallReportUrl -Method Post -ContentType 'application/json' -Body '{"status":"done"}' -TimeoutSec 5 | Out-Null
+} catch {}
+`
+
 // PullShellScript 输出一段可直接 `| sh` 执行的脚本：按序运行该主机的 shell 基线。
 // 每条脚本执行时捕获退出码/耗时/输出尾部，随后向 /baselines/report 上报一次；
 // 上报不可达静默失败，单条脚本失败也不中断后续脚本。
@@ -136,6 +159,10 @@ func (h *BaselineHandler) PullShellScript(w http.ResponseWriter, r *http.Request
 		fmt.Fprintf(&b, "[ \"$_pxelab_ec\" -ne 0 ] && echo %s\n", shQuote("[pxelab] script failed (non-fatal): "+sc.Name))
 		fmt.Fprintf(&b, "_pxelab_report %s %d \"$_pxelab_ec\" \"$_pxelab_dur\" /tmp/pxelab-init-%d.log\n", shQuote(sc.Name), sc.Seq, i)
 	}
+	// R7：聚合脚本执行到末尾即装机流程走完，自动回报"装机完成"（无基线脚本也回报）。
+	b.WriteString("\n# PxeLab install report (" + installReportMarker + ")\n")
+	b.WriteString("_pxelab_install_report_url=" + shQuote(buildInstallReportURL(r)) + "\n")
+	b.WriteString(shInstallReportSnippet)
 	w.Header().Set("Content-Type", "text/x-shellscript; charset=utf-8")
 	w.Write([]byte(b.String()))
 }
@@ -167,6 +194,10 @@ func (h *BaselineHandler) PullPowerShellScript(w http.ResponseWriter, r *http.Re
 		b.WriteString("$_pxelabDur = [int]((Get-Date) - $_pxelabStart).TotalMilliseconds\nif ($_pxelabOut.Length -gt 4000) { $_pxelabOut = $_pxelabOut.Substring($_pxelabOut.Length - 4000) }\n")
 		fmt.Fprintf(&b, "Send-PxeLabReport %s %d $_pxelabEc $_pxelabDur $_pxelabOut\n", psQuote(sc.Name), sc.Seq)
 	}
+	// R7：聚合脚本执行到末尾即装机流程走完，自动回报"装机完成"（无基线脚本也回报）。
+	b.WriteString("\n# PxeLab install report (" + installReportMarker + ")\n")
+	b.WriteString("$PxeLabInstallReportUrl = " + psQuote(buildInstallReportURL(r)) + "\n")
+	b.WriteString(psInstallReportSnippet)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(b.String()))
 }

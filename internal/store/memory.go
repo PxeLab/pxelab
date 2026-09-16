@@ -729,6 +729,26 @@ func (s *memoryStore) GetInstallTaskByHostMAC(_ context.Context, mac string) (*m
 	return nil, ErrNotFound
 }
 
+func (s *memoryStore) GetLatestInstallTaskByHostMAC(_ context.Context, mac string) (*models.InstallTask, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, h := range s.hosts {
+		if strings.EqualFold(h.MAC, mac) {
+			var latest *models.InstallTask
+			for _, t := range s.installTasks {
+				if t.HostID == h.ID && (latest == nil || t.CreatedAt.After(latest.CreatedAt)) {
+					latest = t
+				}
+			}
+			if latest == nil {
+				return nil, ErrNotFound
+			}
+			return latest, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
 // ── DNS Records ──
 
 func (s *memoryStore) ListDNSRecords(_ context.Context) ([]models.DNSRecord, error) {

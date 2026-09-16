@@ -12,6 +12,7 @@ type InstallTask struct {
 	ExtraCmdline     string    `json:"extra_cmdline"`
 	Status           string    `json:"status" gorm:"default:pending"` // pending / installing / done / failed
 	ErrorMsg         string    `json:"error_msg"`
+	BatchID          string    `json:"batch_id" gorm:"index"` // R7 批次标签：批量创建的任务共享同一 id，空为单机任务
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }

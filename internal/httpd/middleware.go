@@ -130,6 +130,13 @@ func isLocalRequest(r *http.Request) bool {
 
 // isPublicPath 判断路径是否无需认证
 func isPublicPath(path string) bool {
+	// R7 装机状态回报（匿名）：/api/v1/install-tasks/{id}/report 与 report-by-mac。
+	// 不能用 "/api/v1/install-tasks/" 前缀白名单（会把 batch/retry 等鉴权端点暴露），
+	// 因此精确匹配 report-by-mac，并以 "…/report" 后缀匹配按 id 回报。
+	if path == "/api/v1/install-tasks/report-by-mac" ||
+		(strings.HasPrefix(path, "/api/v1/install-tasks/") && strings.HasSuffix(path, "/report")) {
+		return true
+	}
 	for _, p := range publicAPIPaths {
 		if strings.HasPrefix(path, p) {
 			return true

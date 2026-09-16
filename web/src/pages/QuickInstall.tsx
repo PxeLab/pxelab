@@ -13,6 +13,7 @@ import {
   claimPxeBootRecord,
   createHost,
   createInstallTask,
+  createInstallTaskBatch,
   getAnswerTemplates,
   getHosts,
   getNetbootCatalog,
@@ -23,59 +24,17 @@ import {
   type AnswerTemplate,
   type FileStatus,
   type Host,
-  type MenuEntry,
   type NetbootDistro,
-  type NetbootVersion,
   type Profile,
   type PxeBootRecord,
 } from '../api/client'
-
-// ── Matching helpers ──
-
-// Mirrors backend menuEntryFromVersion: Remote URLs preferred over Local paths.
-function entryMatchesVersion(entry: MenuEntry, v: NetbootVersion): boolean {
-  const kernel = v.remote?.kernel ?? v.local?.kernel ?? ''
-  const initrd = v.remote?.initrd ?? v.local?.initrd ?? ''
-  if (entry.type === 'direct') {
-    return !!entry.kernel && entry.kernel === kernel && (entry.initrd ?? '') === initrd
-  }
-  if (entry.type === 'wds') {
-    return !!entry.wim && entry.wim === initrd && (entry.url ?? '') === kernel
-  }
-  return false
-}
-
-// OS family → answer template type. Returns undefined when the family is unknown.
-function inferAnswerType(distroName: string, bootType: string): string | undefined {
-  const d = distroName.toLowerCase()
-  if (bootType === 'wimboot' || d.includes('windows')) return 'autounattend'
-  if (d.includes('ubuntu')) return 'subiquity'
-  if (d.includes('debian') || d.includes('devuan') || d.includes('kali')) return 'preseed'
-  if (/(rhel|rocky|centos|alma|fedora|openeuler|kylin)/.test(d)) return 'kickstart'
-  if (d.includes('suse')) return 'autoyast'
-  return undefined
-}
-
-const MAC_RE = /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/
-
-function normalizeMac(mac: string): string {
-  return mac.trim().toLowerCase().replace(/-/g, ':')
-}
-
-function defaultHostname(mac: string): string {
-  return `node-${mac.replace(/:/g, '').slice(-6)}`
-}
-
-interface MatchedSystem {
-  key: string
-  profile: Profile
-  distroName: string
-  versionCodename: string
-  versionName: string
-  arch: string
-  answerType?: string
-  defaultTemplate?: AnswerTemplate
-}
+import {
+  MAC_RE,
+  buildReadySystems,
+  defaultHostname,
+  normalizeMac,
+  type MatchedSystem,
+} from '../utils/readySystems'
 
 interface SubmitResult {
   mac: string
@@ -142,38 +101,10 @@ export default function QuickInstall() {
 
   // Reverse-match every profile menu entry back to its catalog version, then
   // require the matching check-files entry to report has_local (= ready).
-  const readySystems = useMemo<MatchedSystem[]>(() => {
-    const statusMap = new Map(fileStatus.map(f => [`${f.distro}|${f.version}|${f.arch}`, f.has_local]))
-    const out: MatchedSystem[] = []
-    for (const p of profiles) {
-      const seen = new Set<string>()
-      for (const entry of p.menu?.entries ?? []) {
-        if (entry.type !== 'direct' && entry.type !== 'wds') continue
-        for (const distro of distros) {
-          for (const v of distro.versions) {
-            if (!entryMatchesVersion(entry, v)) continue
-            const dedup = `${p.id}|${distro.name}|${v.codename}|${v.arch}`
-            if (seen.has(dedup)) continue
-            seen.add(dedup)
-            if (statusMap.get(`${distro.name}|${v.name}|${v.arch}`) !== true) continue
-            const bootType = v.boot_type || (entry.type === 'wds' ? 'wimboot' : '')
-            const answerType = inferAnswerType(distro.name, bootType)
-            out.push({
-              key: dedup,
-              profile: p,
-              distroName: distro.name,
-              versionCodename: v.codename,
-              versionName: v.name,
-              arch: v.arch,
-              answerType,
-              defaultTemplate: answerType ? templates.find(tp => tp.type === answerType) : undefined,
-            })
-          }
-        }
-      }
-    }
-    return out
-  }, [profiles, distros, fileStatus, templates])
+  const readySystems = useMemo<MatchedSystem[]>(
+    () => buildReadySystems(profiles, distros, fileStatus, templates),
+    [profiles, distros, fileStatus, templates],
+  )
 
   const selected = readySystems.find(s => s.key === selectedKey)
   const effectiveTemplate = selected
@@ -209,9 +140,48 @@ export default function QuickInstall() {
     if (!selected || !effectiveTemplate) return
     setSubmitting(true)
     setResults(null)
+    const single = selectedMacs.length === 1
+
+    // R7：多选走批量接口（共享 batch_id，服务端逐台校验/建档/认领/绑 profile）
+    if (!single) {
+      try {
+        const res = await createInstallTaskBatch({
+          hosts: selectedMacs.map(mac => ({
+            mac,
+            name: defaultHostname(mac),
+            ip: unclaimedRecords.find(r => normalizeMac(r.mac) === mac)?.ip || undefined,
+          })),
+          distro_name: selected.distroName,
+          version_codename: selected.versionCodename,
+          arch: selected.arch,
+          answer_template_id: effectiveTemplate.id ?? null,
+          extra_cmdline: extraCmdline.trim(),
+          profile_id: selected.profile.id,
+        })
+        const taskIds = (res.data?.tasks || []).map(task => task.id!).filter(Boolean)
+        const skipped = res.data?.skipped || []
+        setSubmitting(false)
+        if (skipped.length === 0) {
+          success(t('quickInstall.submitSuccess'))
+          navigate(`/install-tasks?highlight=${taskIds.join(',')}`)
+        } else {
+          const skippedMacs = new Set(skipped.map(s => normalizeMac(s.mac)))
+          setResults([
+            ...selectedMacs.filter(mac => !skippedMacs.has(mac)).map(mac => ({ mac, ok: true })),
+            ...skipped.map(s => ({ mac: normalizeMac(s.mac), ok: false, error: s.reason })),
+          ])
+          showError(t('quickInstall.submitPartial'))
+        }
+      } catch (err: any) {
+        setSubmitting(false)
+        showError(err.message || t('quickInstall.submitPartial'))
+      }
+      return
+    }
+
+    // 单机：保持 R1 逐台编排行为
     const taskIds: string[] = []
     const rs: SubmitResult[] = []
-    const single = selectedMacs.length === 1
     for (const mac of selectedMacs) {
       try {
         const hostname = single && hostnameInput.trim() ? hostnameInput.trim() : defaultHostname(mac)

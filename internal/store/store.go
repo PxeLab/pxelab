@@ -146,6 +146,9 @@ type InstallTaskStore interface {
 	UpdateInstallTask(ctx context.Context, t *models.InstallTask) error
 	DeleteInstallTask(ctx context.Context, id string) error
 	GetInstallTaskByHostMAC(ctx context.Context, mac string) (*models.InstallTask, error)
+	// GetLatestInstallTaskByHostMAC 返回该 MAC 主机的最新任务（不限状态），
+	// 供 PXE 引导失败锁定判断（最新任务 failed → 不再下发安装引导）。
+	GetLatestInstallTaskByHostMAC(ctx context.Context, mac string) (*models.InstallTask, error)
 }
 
 type DNSRecordStore interface {

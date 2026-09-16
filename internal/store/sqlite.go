@@ -590,6 +590,20 @@ func (s *sqliteStore) GetInstallTaskByHostMAC(ctx context.Context, mac string) (
 	return &task, nil
 }
 
+func (s *sqliteStore) GetLatestInstallTaskByHostMAC(ctx context.Context, mac string) (*models.InstallTask, error) {
+	// Join install_tasks → hosts，取最新一条（不限状态），供失败锁定判断
+	var task models.InstallTask
+	err := s.db.WithContext(ctx).
+		Joins("JOIN hosts ON hosts.id = install_tasks.host_id").
+		Where("lower(hosts.mac) = lower(?)", mac).
+		Order("install_tasks.created_at DESC").
+		First(&task).Error
+	if err != nil {
+		return nil, err
+	}
+	return &task, nil
+}
+
 // ── DNS Records ──
 
 func (s *sqliteStore) ListDNSRecords(ctx context.Context) ([]models.DNSRecord, error) {
