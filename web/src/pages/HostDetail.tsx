@@ -13,7 +13,7 @@ import { Input, Select } from '../components/ui/FormControls'
 import { Toggle } from '../components/ui/Toggle'
 import { ChecklistPicker } from '../components/ui/ChecklistPicker'
 import { DataTable } from '../components/ui/DataTable'
-import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord, type Profile, type Baseline, type scriptDTO, type BaselineReport } from '../api/client'
+import { api, type Host, type Event, type InstallTask, type AnswerTemplate, type NetbootDistro, type WOLHistoryRecord, type Profile, type Baseline, type scriptDTO, type BaselineReport, type DriverPackage } from '../api/client'
 
 // 电源操作 action → i18n key 显式映射（key 不是 action 的简单拼接）
 const powerLabelKeys: Record<string, string> = {
@@ -64,14 +64,16 @@ export default function HostDetail() {
   const [editForm, setEditForm] = useState<{
     name: string; mac: string; ip: string; sn: string; profile_id: string
     bmc_addr: string; bmc_user: string
-    baseline_ids: string[]; script_ids: number[]
-  }>({ name: '', mac: '', ip: '', sn: '', profile_id: '', bmc_addr: '', bmc_user: '', baseline_ids: [], script_ids: [] })
+    baseline_ids: string[]; script_ids: number[]; driver_packs: string[]
+  }>({ name: '', mac: '', ip: '', sn: '', profile_id: '', bmc_addr: '', bmc_user: '', baseline_ids: [], script_ids: [], driver_packs: [] })
   const [editSaving, setEditSaving] = useState(false)
   const [editShowBaselines, setEditShowBaselines] = useState(false)
   const [editShowScripts, setEditShowScripts] = useState(false)
+  const [editShowDrivers, setEditShowDrivers] = useState(false)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [allBaselines, setAllBaselines] = useState<Baseline[]>([])
   const [allScripts, setAllScripts] = useState<scriptDTO[]>([])
+  const [allDriverPacks, setAllDriverPacks] = useState<DriverPackage[]>([])
 
   function toggleArr<T>(arr: T[], v: T): T[] {
     return arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
@@ -120,6 +122,7 @@ export default function HostDetail() {
     api.getProfiles().then(res => setProfiles(res.data)).catch(() => {})
     api.getBaselines().then(res => setAllBaselines(res.data ?? [])).catch(() => {})
     api.getScripts().then(res => setAllScripts(res.data ?? [])).catch(() => {})
+    api.getDriverPackages().then(res => setAllDriverPacks(res.data ?? [])).catch(() => {})
   }, [])
 
   async function handlePower(action: string) {
@@ -207,6 +210,7 @@ export default function HostDetail() {
         bmc_user: editForm.bmc_user,
         baseline_ids: editForm.baseline_ids,
         script_ids: editForm.script_ids,
+        driver_packs: editForm.driver_packs,
       })
       setHost(res.data)
       setShowEdit(false)
@@ -273,9 +277,11 @@ export default function HostDetail() {
               bmc_user: host.bmc_user || '',
               baseline_ids: host.baseline_ids ?? [],
               script_ids: host.script_ids ?? [],
+              driver_packs: host.driver_packs ?? [],
             })
             setEditShowBaselines((host.baseline_ids ?? []).length > 0)
             setEditShowScripts((host.script_ids ?? []).length > 0)
+            setEditShowDrivers((host.driver_packs ?? []).length > 0)
             setShowEdit(true)
           }}>
             {t('common.edit')}
@@ -828,6 +834,28 @@ export default function HostDetail() {
                     selected={editForm.script_ids}
                     onToggle={id => setEditForm({ ...editForm, script_ids: toggleArr(editForm.script_ids, id) })}
                     emptyText={t('scripts.noScripts')}
+                  />
+                </div>
+              )}
+            </div>
+            {/* R6 驱动包：Windows 首登时拉取并 pnputil 安装 */}
+            <div>
+              <Toggle
+                checked={editShowDrivers}
+                onChange={v => {
+                  setEditShowDrivers(v)
+                  if (!v) setEditForm({ ...editForm, driver_packs: [] })
+                }}
+                label={t('hosts.addDriverPacks')}
+              />
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{t('hosts.driverPacksHint')}</p>
+              {editShowDrivers && (
+                <div className="mt-1.5">
+                  <ChecklistPicker
+                    items={allDriverPacks.map(p => ({ id: p.name, name: p.name, badge: `${p.inf_files} INF` }))}
+                    selected={editForm.driver_packs}
+                    onToggle={id => setEditForm({ ...editForm, driver_packs: toggleArr(editForm.driver_packs, id) })}
+                    emptyText={t('hosts.noDriverPacks')}
                   />
                 </div>
               )}

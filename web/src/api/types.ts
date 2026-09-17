@@ -10,6 +10,7 @@ export interface Host {
   bmc_pass?: string
   baseline_ids?: string[]
   script_ids?: number[]
+  driver_packs?: string[]
   last_online?: string
   boot_count: number
   created_at: string

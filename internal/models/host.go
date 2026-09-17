@@ -18,8 +18,11 @@ type Host struct {
 	MenuOverride *string `json:"menu_override"`
 	// BaselineIDs / ScriptIDs：主机在所属 Profile 继承之外“额外追加”的
 	// 初始化脚本集与单脚本（JSON 数组，见 Unmarshal/MarshalJSON）。
-	BaselineIDs string     `json:"-" gorm:"type:text"` // JSON: ["bl-sec","bl-mon"]
-	ScriptIDs   string     `json:"-" gorm:"type:text"` // JSON: [1,3,7]
+	BaselineIDs string `json:"-" gorm:"type:text"` // JSON: ["bl-sec","bl-mon"]
+	ScriptIDs   string `json:"-" gorm:"type:text"` // JSON: [1,3,7]
+	// DriverPacks：主机绑定的 Windows 驱动包名列表（boot 根目录 drivers/<名称>/），
+	// autounattend 首登时从平台 HTTP 拉取并 pnputil 安装（R6）。
+	DriverPacks string     `json:"-" gorm:"type:text"` // JSON: ["nic-intel","raid-lsi"]
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 	LastOnline  *time.Time `json:"last_online"`
@@ -74,12 +77,37 @@ func (h *Host) SetScriptIDs(ids []uint) error {
 	return nil
 }
 
-// UnmarshalJSON 支持请求体里的 baseline_ids / script_ids 数组。
+func (h *Host) GetDriverPacks() ([]string, error) {
+	if h.DriverPacks == "" {
+		return nil, nil
+	}
+	var packs []string
+	if err := json.Unmarshal([]byte(h.DriverPacks), &packs); err != nil {
+		return nil, err
+	}
+	return packs, nil
+}
+
+func (h *Host) SetDriverPacks(packs []string) error {
+	if packs == nil {
+		h.DriverPacks = ""
+		return nil
+	}
+	data, err := json.Marshal(packs)
+	if err != nil {
+		return err
+	}
+	h.DriverPacks = string(data)
+	return nil
+}
+
+// UnmarshalJSON 支持请求体里的 baseline_ids / script_ids / driver_packs 数组。
 func (h *Host) UnmarshalJSON(data []byte) error {
 	type Alias Host
 	aux := &struct {
 		BaselineIDs []string `json:"baseline_ids"`
 		ScriptIDs   []uint   `json:"script_ids"`
+		DriverPacks []string `json:"driver_packs"`
 		*Alias
 	}{Alias: (*Alias)(h)}
 	if err := json.Unmarshal(data, aux); err != nil {
@@ -91,6 +119,9 @@ func (h *Host) UnmarshalJSON(data []byte) error {
 	if err := h.SetScriptIDs(aux.ScriptIDs); err != nil {
 		return err
 	}
+	if err := h.SetDriverPacks(aux.DriverPacks); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -99,19 +130,25 @@ func (h *Host) MarshalJSON() ([]byte, error) {
 	type Alias Host
 	bls, _ := h.GetBaselineIDs()
 	scs, _ := h.GetScriptIDs()
+	dps, _ := h.GetDriverPacks()
 	if bls == nil {
 		bls = []string{}
 	}
 	if scs == nil {
 		scs = []uint{}
 	}
+	if dps == nil {
+		dps = []string{}
+	}
 	return json.Marshal(&struct {
 		*Alias
 		BaselineIDs []string `json:"baseline_ids"`
 		ScriptIDs   []uint   `json:"script_ids"`
+		DriverPacks []string `json:"driver_packs"`
 	}{
 		Alias:       (*Alias)(h),
 		BaselineIDs: bls,
 		ScriptIDs:   scs,
+		DriverPacks: dps,
 	})
 }

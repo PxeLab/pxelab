@@ -13,7 +13,7 @@ import { useToast } from '../components/ui/Toast'
 import { Input, Select } from '../components/ui/FormControls'
 import { ChecklistPicker } from '../components/ui/ChecklistPicker'
 import { Toggle } from '../components/ui/Toggle'
-import { api, type Host, type Profile, type Baseline, type scriptDTO, type PxeBootRecord, type AnswerTemplate, type BatchSkipped } from '../api/client'
+import { api, type Host, type Profile, type Baseline, type scriptDTO, type DriverPackage, type PxeBootRecord, type AnswerTemplate, type BatchSkipped } from '../api/client'
 import { getPxeBootRecords, claimPxeBootRecord, deletePxeBootRecord, clearPxeBootRecords } from '../api/pxeboot'
 import { buildReadySystems, defaultHostname, type MatchedSystem } from '../utils/readySystems'
 import { useUIConfig } from '../contexts/UIConfigContext'
@@ -33,14 +33,16 @@ export default function Hosts() {
   const [pendingClaimMac, setPendingClaimMac] = useState<string | null>(null)
   const [createShowBaselines, setCreateShowBaselines] = useState(false)
   const [createShowScripts, setCreateShowScripts] = useState(false)
+  const [createShowDrivers, setCreateShowDrivers] = useState(false)
   const [clearMode, setClearMode] = useState<'' | 'unknown' | 'all'>('')
   const [newHost, setNewHost] = useState<{
     name: string; mac: string; ip: string; sn: string; profile_id: string
-    baseline_ids: string[]; script_ids: number[]
-  }>({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
+    baseline_ids: string[]; script_ids: number[]; driver_packs: string[]
+  }>({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [], driver_packs: [] })
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [allBaselines, setAllBaselines] = useState<Baseline[]>([])
   const [allScripts, setAllScripts] = useState<scriptDTO[]>([])
+  const [allDriverPacks, setAllDriverPacks] = useState<DriverPackage[]>([])
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [sortField, setSortField] = useState('')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -65,9 +67,10 @@ export default function Hosts() {
   }
 
   function openCreate(prefillMac?: string) {
-    setNewHost({ name: '', mac: prefillMac ?? '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
+    setNewHost({ name: '', mac: prefillMac ?? '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [], driver_packs: [] })
     setCreateShowBaselines(false)
     setCreateShowScripts(false)
+    setCreateShowDrivers(false)
     setPendingClaimMac(prefillMac ?? null)
     setCreateError('')
     setShowModal(true)
@@ -85,6 +88,7 @@ export default function Hosts() {
     api.getProfiles().then(res => setProfiles(res.data)).catch(() => {})
     api.getBaselines().then(res => setAllBaselines(res.data ?? [])).catch(() => {})
     api.getScripts().then(res => setAllScripts(res.data ?? [])).catch(() => {})
+    api.getDriverPackages().then(res => setAllDriverPacks(res.data ?? [])).catch(() => {})
   }, [])
 
   async function loadHosts() {
@@ -124,6 +128,7 @@ export default function Hosts() {
         profile_id: newHost.profile_id || undefined,
         baseline_ids: newHost.baseline_ids,
         script_ids: newHost.script_ids,
+        driver_packs: newHost.driver_packs,
       })
       if (pendingClaimMac) {
         try {
@@ -133,7 +138,7 @@ export default function Hosts() {
       }
       success(t('hosts.created'))
       setShowModal(false)
-      setNewHost({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] })
+      setNewHost({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [], driver_packs: [] })
       setPendingClaimMac(null)
       loadHosts()
     } catch (err: any) {
@@ -475,7 +480,7 @@ export default function Hosts() {
 
       <Modal
         open={showModal}
-        onClose={() => { setShowModal(false); setNewHost({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [] }) }}
+        onClose={() => { setShowModal(false); setNewHost({ name: '', mac: '', ip: '', sn: '', profile_id: '', baseline_ids: [], script_ids: [], driver_packs: [] }) }}
         title={t('hosts.addHost')}
         footer={
           <>
@@ -574,6 +579,28 @@ export default function Hosts() {
                     selected={newHost.script_ids}
                     onToggle={id => setNewHost({ ...newHost, script_ids: toggleArr(newHost.script_ids, id) })}
                     emptyText={t('scripts.noScripts')}
+                  />
+                </div>
+              )}
+            </div>
+            {/* R6 驱动包：Windows 首登时拉取并 pnputil 安装 */}
+            <div>
+              <Toggle
+                checked={createShowDrivers}
+                onChange={v => {
+                  setCreateShowDrivers(v)
+                  if (!v) setNewHost({ ...newHost, driver_packs: [] })
+                }}
+                label={t('hosts.addDriverPacks')}
+              />
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{t('hosts.driverPacksHint')}</p>
+              {createShowDrivers && (
+                <div className="mt-1.5">
+                  <ChecklistPicker
+                    items={allDriverPacks.map(p => ({ id: p.name, name: p.name, badge: `${p.inf_files} INF` }))}
+                    selected={newHost.driver_packs}
+                    onToggle={id => setNewHost({ ...newHost, driver_packs: toggleArr(newHost.driver_packs, id) })}
+                    emptyText={t('hosts.noDriverPacks')}
                   />
                 </div>
               )}

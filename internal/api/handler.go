@@ -56,6 +56,7 @@ type Handler struct {
 	Version         *VersionHandler
 	Baseline        *BaselineHandler
 	Script          *ScriptHandler
+	DriverPackage   *DriverPackageHandler
 	Store           *StoreHandler
 	PxeBoot         *PxeBootHandler
 	svcController   ServiceController
@@ -78,7 +79,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Netboot:         NewNetbootHandler(netbootMgr),
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
 		AnswerTemplate:  &AnswerTemplateHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg},
-		InstallTask:     &InstallTaskHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg, eventBus: bus},
+		InstallTask:     &InstallTaskHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg, eventBus: bus, bootFS: bootFS},
 		Service:         NewServiceHandler(svcController, cfg, st, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:            NewAuthHandler(cfg, sessions),
 		Access:          NewAccessHandler(st),
@@ -92,6 +93,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Version:         NewVersionHandler(version, updateChecker),
 		Baseline:        NewBaselineHandler(st, cfg.Global.IdentityAttr, bus),
 		Script:          NewScriptHandler(st),
+		DriverPackage:   &DriverPackageHandler{bootFS: bootFS},
 		Store:           NewStoreHandler(st, netboot.CatalogDir(cfg.Global.DataDir), netbootMgr),
 		PxeBoot:         NewPxeBootHandler(st),
 		svcController:   svcController,
@@ -215,6 +217,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/netboot/catalog/{distro}", h.Netboot.GetDistro)
 		r.Get("/netboot/groups", h.Netboot.GetGroups)
 		r.Get("/netboot/check-files", h.Netboot.CheckFiles)
+
+		// Driver packages (R6)
+		r.Get("/driver-packages", h.DriverPackage.List)
 
 		// Netboot overlays
 		r.Get("/netboot/overlays", h.NetbootOverlay.List)
