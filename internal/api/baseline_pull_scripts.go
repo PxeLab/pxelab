@@ -12,6 +12,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/pxelab/pxelab/internal/config"
@@ -290,6 +291,57 @@ func augmentAutoUnattend(content, psURL string, hooks config.BaselineHooksConfig
 		"</CommandLine>\n<Description>PxeLab baseline pull</Description>\n<Order>1</Order>\n</SynchronousCommand>\n</FirstLogonCommands>"
 
 	// 定位组件开标签结束处，紧跟其后插入
+	idx := strings.Index(content, `<component name="Microsoft-Windows-Shell-Setup"`)
+	if idx < 0 {
+		return content, false
+	}
+	gt := strings.Index(content[idx:], ">")
+	if gt < 0 {
+		return content, false
+	}
+	pos := idx + gt + 1
+	return content[:pos] + snippet + content[pos:], true
+}
+
+// augmentAutoUnattendFirstLogon 是 augmentAutoUnattend 的编排版（R6）：在同一个
+// FirstLogonCommands 里先排驱动安装命令（Order 1..N），再排基线拉取（Order N+1），
+// 保证 Windows 首登时先装驱动、再执行基线脚本。
+// 仅 GetAnswerFile 的 autounattend 分支使用；driverCmds 为空且 wantBaseline=true 时
+// 产出与 augmentAutoUnattend 完全一致。wantBaseline=false 时 psURL 忽略。
+// 幂等：内容已含基线/驱动标记则原样返回 applied=true。
+func augmentAutoUnattendFirstLogon(content, psURL string, driverCmds []driverCommand, wantBaseline bool, hooks config.BaselineHooksConfig) (string, bool) {
+	if strings.Contains(content, baselinePullMarker) || strings.Contains(content, driverPullMarker) {
+		return content, true
+	}
+	if !strings.Contains(content, "oobeSystem") || !strings.Contains(content, "Microsoft-Windows-Shell-Setup") {
+		return content, false
+	}
+	if strings.Contains(content, "<FirstLogonCommands") {
+		return content, false // 已有 FirstLogonCommands：请人工合并
+	}
+	if len(driverCmds) == 0 && !wantBaseline {
+		return content, false // 无事可排
+	}
+
+	var b strings.Builder
+	b.WriteString("\n<FirstLogonCommands>")
+	order := 1
+	for _, dc := range driverCmds {
+		b.WriteString("\n<SynchronousCommand wcm:action=\"add\">\n<CommandLine>" + xmlEscape(dc.cmd) +
+			"</CommandLine>\n<Description>PxeLab driver install (" + driverPullMarker + "): " + xmlEscape(dc.name) +
+			"</Description>\n<Order>" + strconv.Itoa(order) + "</Order>\n</SynchronousCommand>")
+		order++
+	}
+	if wantBaseline {
+		// 模板渲染后再做 XML 转义（与 augmentAutoUnattend 同）
+		cmd := xmlEscape(renderHook(hooks.AutoUnattend, defaultAutoUnattendHook, psURL))
+		b.WriteString("\n<SynchronousCommand wcm:action=\"add\">\n<CommandLine>" + cmd +
+			"</CommandLine>\n<Description>PxeLab baseline pull</Description>\n<Order>" + strconv.Itoa(order) + "</Order>\n</SynchronousCommand>")
+	}
+	b.WriteString("\n</FirstLogonCommands>")
+	snippet := b.String()
+
+	// 定位组件开标签结束处，紧跟其后插入（与 augmentAutoUnattend 同）
 	idx := strings.Index(content, `<component name="Microsoft-Windows-Shell-Setup"`)
 	if idx < 0 {
 		return content, false

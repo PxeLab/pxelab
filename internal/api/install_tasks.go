@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/pxelab/pxelab/internal/boot"
 	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/models"
@@ -23,7 +24,8 @@ type InstallTaskHandler struct {
 	store      store.Interface
 	serverBase string // 可被局域网访问的 HTTP 基址（host:port），用于注入应答钩子
 	cfg        *config.Config
-	eventBus   *eventbus.Bus // 任务状态流转到 done/failed 时发布 webhook 通知事件（R3），可为 nil
+	eventBus   *eventbus.Bus          // 任务状态流转到 done/failed 时发布 webhook 通知事件（R3），可为 nil
+	bootFS     *boot.BootFileServer   // 驱动包目录快照来源（R6），可为 nil（不注入驱动）
 }
 
 func (h *InstallTaskHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -245,8 +247,11 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 			"AppPath = X:\\install.bat\n"
 	}
 
-	// 勾选了“自动下发初始化基线”时，注入拉取并执行的钩子（身份按配置取 mac/sn）
-	if tmpl.EnableBaselinePull {
+	// 勾选了“自动下发初始化基线”时，注入拉取并执行的钩子（身份按配置取 mac/sn）。
+	// R6：主机绑定了驱动包且模板为 autounattend 时，首登编排先装驱动、再拉基线。
+	driverPacks, _ := host.GetDriverPacks()
+	wantDrivers := tmpl.Type == "autounattend" && len(driverPacks) > 0
+	if tmpl.EnableBaselinePull || wantDrivers {
 		mac, sn := "", ""
 		if host != nil && host.ID != "" && host.MAC != "" {
 			mac = host.MAC
@@ -256,11 +261,42 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 			sn = real.SN
 		}
 		base := chooseServerBase(h.serverBase, r.Host)
-		if augmented, ok := augmentBaselinePull(rendered, tmpl.Type, base, mac, sn, h.cfg.Global.BaselineHooks); ok {
-			rendered = augmented
-		} else {
-			slog.Warn("应答模板启用了基线自动下发，但无法安全注入（请人工添加钩子）",
-				"template_type", tmpl.Type, "template_id", tmpl.ID)
+		if tmpl.Type == "autounattend" {
+			var driverCmds []driverCommand
+			if wantDrivers {
+				driverCmds = h.buildDriverCommands(base, driverPacks)
+				if len(driverCmds) == 0 {
+					slog.Warn("主机绑定的驱动包均不可用，跳过驱动注入",
+						"template_id", tmpl.ID, "host_id", task.HostID)
+				}
+			}
+			// 无 mac/sn 身份时基线无法安全注入（沿用旧行为），驱动注入不依赖身份
+			psURL := ""
+			if mac != "" || sn != "" {
+				parts := []string{}
+				if mac != "" {
+					parts = append(parts, "mac="+mac)
+				}
+				if sn != "" {
+					parts = append(parts, "sn="+sn)
+				}
+				psURL = buildPullURL(base, "ps1", strings.Join(parts, "&"))
+			}
+			wantBaseline := tmpl.EnableBaselinePull && psURL != ""
+			if augmented, ok := augmentAutoUnattendFirstLogon(rendered, psURL, driverCmds, wantBaseline, h.cfg.Global.BaselineHooks); ok {
+				rendered = augmented
+			} else {
+				slog.Warn("autounattend 首登编排无法安全注入（请人工添加钩子）",
+					"template_type", tmpl.Type, "template_id", tmpl.ID,
+					"baseline_pull", tmpl.EnableBaselinePull, "driver_cmds", len(driverCmds))
+			}
+		} else if tmpl.EnableBaselinePull {
+			if augmented, ok := augmentBaselinePull(rendered, tmpl.Type, base, mac, sn, h.cfg.Global.BaselineHooks); ok {
+				rendered = augmented
+			} else {
+				slog.Warn("应答模板启用了基线自动下发，但无法安全注入（请人工添加钩子）",
+					"template_type", tmpl.Type, "template_id", tmpl.ID)
+			}
 		}
 	}
 

@@ -26,6 +26,7 @@ export * from './baselines'
 export * from './scripts'
 export * from './pxeboot'
 export * from './store'
+export * from './driverPackages'
 
 import { getMetrics, getStatus } from './services'
 import { createHost, deleteHost, getHost, getHostBootConfig, getHosts, powerHost, updateHost, wakeHost } from './hosts'
@@ -149,6 +150,7 @@ import { checkBootloaderFile, getBootloaderCheck, getBootloaderFiles } from './b
 import { getBaselines, getBaseline, createBaseline, updateBaseline, deleteBaseline, getBaselineScripts, setBaselineScripts, getAssignedBaselineScripts, getBaselineReports } from './baselines'
 import { getScripts, getScript, createScript, updateScript, deleteScript } from './scripts'
 import { getStoreCatalog, getStoreItem, importStoreItem } from './store'
+import { getDriverPackages } from './driverPackages'
 import { batchService, getServices, restartService, startService, stopService, updateAutoStart } from './services'
 
 // ── Convenience namespace (backward-compat) ──
@@ -339,4 +341,5 @@ export const api = {
   getStoreCatalog,
   getStoreItem,
   importStoreItem,
+  getDriverPackages,
 }
