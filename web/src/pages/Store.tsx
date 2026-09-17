@@ -17,7 +17,7 @@ type TabKey = 'all' | 'baseline' | 'boot_template' | 'netboot_distro'
 export default function Store() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { success, error: showError } = useToast()
+  const { success, error: showError, warning, info } = useToast()
 
   const [catalog, setCatalog] = useState<StoreCatalog | null>(null)
   const [loading, setLoading] = useState(true)
@@ -70,7 +70,20 @@ export default function Store() {
     try {
       const res = await importStoreItem(item.id, item.type)
       if (res.data.type === 'netboot_distro') {
+        if (res.data.requires_local_image) {
+          // 两段式信创条目：需自备安装镜像 — 明确警告并引导到系统目录补齐
+          warning(t('store.importedNeedsImage', { name: res.data.name, hint: res.data.image_hint || '' }))
+          if (res.data.answer_template_name) {
+            info(t('store.importedAnswerTemplate', { name: res.data.answer_template_name }))
+          }
+          setImportTarget(null)
+          navigate('/netboot-catalog')
+          return
+        }
         success(t('store.importedToCatalog', { name: res.data.name }))
+        if (res.data.answer_template_name) {
+          info(t('store.importedAnswerTemplate', { name: res.data.answer_template_name }))
+        }
         setImportTarget(null)
         navigate('/netboot-catalog')
         return

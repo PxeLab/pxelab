@@ -26,6 +26,7 @@ type InstallTaskHandler struct {
 	cfg        *config.Config
 	eventBus   *eventbus.Bus          // 任务状态流转到 done/failed 时发布 webhook 通知事件（R3），可为 nil
 	bootFS     *boot.BootFileServer   // 驱动包目录快照来源（R6），可为 nil（不注入驱动）
+	netbootMgr *netboot.Manager       // catalog answer_param 回落来源，可为 nil
 }
 
 func (h *InstallTaskHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -189,6 +190,20 @@ func (h *InstallTaskHandler) GetTaskByMAC(w http.ResponseWriter, r *http.Request
 	overlay, _ := h.store.GetNetbootOverlay(r.Context(), task.DistroName)
 	taskInfo := buildBootTaskInfo(task, overlay, r.Host)
 
+	// answer_param 回落：overlay 未配置时采用 catalog 版本自带的 answer_param
+	// （如商店导入的 anaconda 系条目 inst.ks={{.AnswerURL}}），让无人值守
+	// 应答注入开箱即用，无需手工配 overlay。
+	if taskInfo.AnswerParam == "" && h.netbootMgr != nil {
+		if d := h.netbootMgr.GetDistro(task.DistroName); d != nil {
+			for _, v := range d.Versions {
+				if v.Codename == task.VersionCodename && v.AnswerParam != "" {
+					taskInfo.AnswerParam = v.AnswerParam
+					break
+				}
+			}
+		}
+	}
+
 	// PXE 引导留痕归因：该 MAC 正在走某发行版的无人值守安装
 	_, _ = h.store.UpsertPxeBootRecord(r.Context(), mac, "", "install-task:"+task.DistroName, remoteIP(r))
 
@@ -306,10 +321,15 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 }
 
 // buildBootTaskInfo constructs the task info needed for boot line injection.
+// AnswerURL is always computed so catalog-level answer_param (fallback when
+// the overlay has none) can inject the answer file URL as well.
 func buildBootTaskInfo(task *models.InstallTask, overlay *models.NetbootOverlay, serverAddr string) *netboot.BootTaskInfo {
+	answerURL := fmt.Sprintf("http://%s/api/v1/netboot/answer/%s", serverAddr, task.ID)
+
 	if overlay == nil {
 		return &netboot.BootTaskInfo{
 			ID:           task.ID,
+			AnswerURL:    answerURL,
 			ExtraCmdline: task.ExtraCmdline,
 		}
 	}
@@ -324,8 +344,6 @@ func buildBootTaskInfo(task *models.InstallTask, overlay *models.NetbootOverlay,
 			answerType = ov.AnswerType
 		}
 	}
-
-	answerURL := fmt.Sprintf("http://%s/api/v1/netboot/answer/%s", serverAddr, task.ID)
 
 	return &netboot.BootTaskInfo{
 		ID:           task.ID,

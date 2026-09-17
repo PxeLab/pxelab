@@ -53,7 +53,17 @@ type Distro struct {
 	ArchiveMirror string     `yaml:"archive_mirror,omitempty" json:"archive_mirror,omitempty"`
 	LocalBase     string     `yaml:"local_base,omitempty" json:"local_base,omitempty"`
 	KernelParams  string     `yaml:"kernel_params,omitempty" json:"kernel_params,omitempty"`
-	Versions      []*Version `yaml:"versions" json:"versions"`
+
+	// RequiresLocalImage marks distros whose install media is not publicly
+	// distributable (e.g. Kylin, UOS): kernel/initrd must be supplied by the
+	// user before the entry can actually boot. ImageHint tells the user how
+	// to obtain and place the files; Verification records the content's
+	// testing status (e.g. "社区贡献，未实测").
+	RequiresLocalImage bool   `yaml:"requires_local_image,omitempty" json:"requires_local_image,omitempty"`
+	ImageHint          string `yaml:"image_hint,omitempty" json:"image_hint,omitempty"`
+	Verification       string `yaml:"verification,omitempty" json:"verification,omitempty"`
+
+	Versions []*Version `yaml:"versions" json:"versions"`
 }
 
 // Version represents a specific release of a distro

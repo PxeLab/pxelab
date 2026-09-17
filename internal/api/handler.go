@@ -79,7 +79,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		Netboot:         NewNetbootHandler(netbootMgr),
 		NetbootOverlay:  &NetbootOverlayHandler{store: st},
 		AnswerTemplate:  &AnswerTemplateHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg},
-		InstallTask:     &InstallTaskHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg, eventBus: bus, bootFS: bootFS},
+		InstallTask:     &InstallTaskHandler{store: st, serverBase: buildHTTPBase(cfg.Global.HTTPBase, ifaceIPs(cfg), cfg.Global.ListenAddr), cfg: cfg, eventBus: bus, bootFS: bootFS, netbootMgr: netbootMgr},
 		Service:         NewServiceHandler(svcController, cfg, st, func() error { return saveConfig(configPath(cfg), cfg) }),
 		Auth:            NewAuthHandler(cfg, sessions),
 		Access:          NewAccessHandler(st),
