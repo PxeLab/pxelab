@@ -4,6 +4,29 @@ menu_group: linux
 mirror: http://repo.openeuler.org
 local_base: netboot/openEuler
 versions:
+    # 24.03 LTS SP3 — verified public netboot URLs (repo.openeuler.org redirects to CDN).
+    # inst.repo lets anaconda find packages without prompting; answer_param allows
+    # kickstart injection from an install task.
+    - codename: openEuler-24.03-LTS-SP3
+      name: openEuler-24.03-LTS-SP3
+      arch: amd64
+      enabled: true
+      cmdline: "inst.text inst.repo=https://repo.openeuler.org/openEuler-24.03-LTS-SP3/OS/x86_64/"
+      answer_param: "inst.ks={{.AnswerURL}}"
+      remote:
+        kernel: https://repo.openeuler.org/openEuler-24.03-LTS-SP3/OS/x86_64/images/pxeboot/vmlinuz
+        initrd: https://repo.openeuler.org/openEuler-24.03-LTS-SP3/OS/x86_64/images/pxeboot/initrd.img
+      install_type: legacy
+    - codename: openEuler-24.03-LTS-SP3-arm64
+      name: openEuler-24.03-LTS-SP3 (aarch64)
+      arch: arm64
+      enabled: true
+      cmdline: "inst.text inst.repo=https://repo.openeuler.org/openEuler-24.03-LTS-SP3/OS/aarch64/"
+      answer_param: "inst.ks={{.AnswerURL}}"
+      remote:
+        kernel: https://repo.openeuler.org/openEuler-24.03-LTS-SP3/OS/aarch64/images/pxeboot/vmlinuz
+        initrd: https://repo.openeuler.org/openEuler-24.03-LTS-SP3/OS/aarch64/images/pxeboot/initrd.img
+      install_type: legacy
     - codename: openEuler-24.09
       name: openEuler-24.09
       arch: amd64

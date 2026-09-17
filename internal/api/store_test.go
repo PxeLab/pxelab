@@ -281,3 +281,93 @@ func TestImportNetbootDistroRejectsEmpty(t *testing.T) {
 		t.Fatalf("expected 400, got %d", w.Result().StatusCode)
 	}
 }
+
+// twoStageDistroDetailJSON mimics a 信创 OS content pack (Kylin/UOS style):
+// requires_local_image marker, image hint, verification note, local-only
+// versions, and an embedded kickstart answer template.
+const twoStageDistroDetailJSON = `{
+  "id": "netboot-kylin-v10",
+  "type": "netboot_distro",
+  "name": "Kylin V10 Server",
+  "description": "two-stage item",
+  "content": {
+    "name": "Kylin V10 Server",
+    "enabled": true,
+    "menu_group": "linux",
+    "requires_local_image": true,
+    "image_hint": "Upload vmlinuz/initrd.img extracted from the Kylin V10 SP3 ISO.",
+    "verification": "社区贡献，未实测",
+    "local_base": "netboot/kylin",
+    "versions": [
+      {
+        "codename": "v10sp3-x86_64",
+        "name": "V10 SP3 (x86_64)",
+        "arch": "amd64",
+        "enabled": true,
+        "local": {"kernel": "kylin/v10sp3-x86_64/vmlinuz", "initrd": "kylin/v10sp3-x86_64/initrd.img"},
+        "cmdline": "inst.text ip=dhcp",
+        "answer_param": "inst.ks={{.AnswerURL}}",
+        "install_type": "anaconda"
+      }
+    ],
+    "answer_template": {
+      "name": "Kylin V10 Kickstart",
+      "description": "适用镜像: Kylin V10 SP3",
+      "type": "kickstart",
+      "content": "#version=DEVEL\nlang zh_CN.UTF-8\n"
+    }
+  }
+}`
+
+func TestImportNetbootDistroTwoStage(t *testing.T) {
+	h, st, mgr, catalogDir := newNetbootStoreHandler(t)
+
+	doImport := func() map[string]any {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/store/import-local",
+			strings.NewReader(twoStageDistroDetailJSON))
+		w := httptest.NewRecorder()
+		h.ImportLocalItem(w, req)
+		return decodeCreated(t, w)
+	}
+
+	data := doImport()
+	if data["requires_local_image"] != true {
+		t.Errorf("expected requires_local_image=true in response, got %v", data["requires_local_image"])
+	}
+	if data["image_hint"] == "" || data["verification"] != "社区贡献，未实测" {
+		t.Errorf("image_hint/verification not passed through: %+v", data)
+	}
+	if data["answer_template_name"] != "Kylin V10 Kickstart" {
+		t.Errorf("expected answer_template_name, got %+v", data)
+	}
+
+	// Markers persisted into the local catalog so the UI can badge the entry.
+	d, err := netboot.LoadDistro(filepath.Join(catalogDir, "kylin-v10-server.yaml"))
+	if err != nil {
+		t.Fatalf("catalog YAML not written: %v", err)
+	}
+	if !d.RequiresLocalImage || d.ImageHint == "" || d.Verification == "" {
+		t.Errorf("requires_local_image markers lost in catalog YAML: %+v", d)
+	}
+	if d.Versions[0].AnswerParam != "inst.ks={{.AnswerURL}}" {
+		t.Errorf("answer_param lost: %q", d.Versions[0].AnswerParam)
+	}
+
+	// Answer template created once; second import reuses it.
+	tpls, err := st.ListAnswerTemplates(t.Context())
+	if err != nil || len(tpls) != 1 {
+		t.Fatalf("expected 1 answer template, got %d (err=%v)", len(tpls), err)
+	}
+	if tpls[0].Type != "kickstart" || !strings.Contains(tpls[0].Content, "#version=DEVEL") {
+		t.Errorf("answer template content wrong: %+v", tpls[0])
+	}
+
+	data = doImport()
+	tpls, _ = st.ListAnswerTemplates(t.Context())
+	if len(tpls) != 1 {
+		t.Errorf("second import duplicated the answer template: %d", len(tpls))
+	}
+	if mgr.GetDistro("Kylin V10 Server") == nil {
+		t.Error("manager not reloaded after re-import")
+	}
+}

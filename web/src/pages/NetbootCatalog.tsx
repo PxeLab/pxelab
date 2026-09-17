@@ -384,6 +384,14 @@ export default function NetbootCatalog() {
         <div className="flex items-center gap-2">
           {GROUP_ICONS[distro.menu_group] || <Package size={16} />}
           <span className="text-xs font-medium text-[var(--text-primary)] whitespace-nowrap">{distro.name}</span>
+          {distro.requires_local_image && (
+            <span
+              title={distro.image_hint || t('netbootCatalog.requiresLocalImageTitle')}
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/15 text-amber-400 whitespace-nowrap"
+            >
+              {t('netbootCatalog.requiresLocalImage')}
+            </span>
+          )}
         </div>
       ),
     },

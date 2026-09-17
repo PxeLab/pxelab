@@ -383,6 +383,20 @@ func (h *StoreHandler) importBootTemplate(w http.ResponseWriter, r *http.Request
 type netbootDistroStoreContent struct {
 	netboot.Distro
 	DistroName string `json:"distro_name"` // legacy field from older hub items
+	// AnswerTemplate is the optional second half of a "two-stage" 信创 OS
+	// content pack (e.g. Kylin/UOS): a kickstart skeleton the importer saves
+	// as a local answer template so it can be attached to install tasks.
+	AnswerTemplate *answerTemplateStoreContent `json:"answer_template,omitempty"`
+}
+
+// answerTemplateStoreContent is the answer-template half of a netboot_distro
+// store item. Type follows models.AnswerTemplate conventions
+// (kickstart / preseed / subiquity / autoyast / autounattend).
+type answerTemplateStoreContent struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Type        string `json:"type"`
+	Content     string `json:"content"`
 }
 
 // importHubNetbootDistro imports a hub netboot_distro item. The distro
@@ -471,15 +485,74 @@ func (h *StoreHandler) importHubNetbootDistro(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Two-stage items (信创 OS 内容包) may carry a kickstart/answer template —
+	// import it so the user can attach it to install tasks. Reuse an existing
+	// template with identical name/type/content to keep imports idempotent.
+	answerTemplateID, answerTemplateName, err := h.importAnswerTemplate(r, detail, content.AnswerTemplate)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "导入应答模板失败: "+err.Error())
+		return
+	}
+
 	h.trackDownload(r.Context(), detail.Type, detail.ID)
 	RecordAudit(r.Context(), h.store, models.AuditCreate, "profile", profileID, remoteIP(r), "从商店导入网络启动发行版: "+distro.Name)
-	Created(w, map[string]any{
+	resp := map[string]any{
 		"id":          profileID,
 		"name":        profileName,
 		"type":        "netboot_distro",
 		"store_item":  detail.ID,
 		"distro_name": distro.Name,
-	})
+	}
+	// Pass the "需自备镜像" markers through so the UI can warn the user and
+	// guide them to supply kernel/initrd before PXE-booting this entry.
+	if distro.RequiresLocalImage {
+		resp["requires_local_image"] = true
+		resp["image_hint"] = distro.ImageHint
+	}
+	if distro.Verification != "" {
+		resp["verification"] = distro.Verification
+	}
+	if answerTemplateID > 0 {
+		resp["answer_template_id"] = answerTemplateID
+		resp["answer_template_name"] = answerTemplateName
+	}
+	Created(w, resp)
+}
+
+// importAnswerTemplate saves the answer template half of a netboot_distro
+// store item. Returns (0, "", nil) when the item carries no template; reuses
+// an existing template with identical name/type/content when present.
+func (h *StoreHandler) importAnswerTemplate(r *http.Request, detail *StoreItemDetail, spec *answerTemplateStoreContent) (uint, string, error) {
+	if spec == nil || strings.TrimSpace(spec.Content) == "" {
+		return 0, "", nil
+	}
+	tplType := spec.Type
+	if tplType == "" {
+		tplType = "kickstart"
+	}
+	name := spec.Name
+	if name == "" {
+		name = detail.Name + " 应答模板"
+	}
+	existing, err := h.store.ListAnswerTemplates(r.Context())
+	if err == nil {
+		for _, tpl := range existing {
+			if tpl.Name == name && tpl.Type == tplType && tpl.Content == spec.Content {
+				return tpl.ID, tpl.Name, nil
+			}
+		}
+	}
+	tpl := &models.AnswerTemplate{
+		Name:        name,
+		Description: spec.Description,
+		Type:        tplType,
+		Content:     spec.Content,
+	}
+	if err := h.store.CreateAnswerTemplate(r.Context(), tpl); err != nil {
+		return 0, "", err
+	}
+	RecordAudit(r.Context(), h.store, models.AuditCreate, "answer_template", fmt.Sprintf("%d", tpl.ID), remoteIP(r), "从商店导入应答模板: "+name)
+	return tpl.ID, tpl.Name, nil
 }
 
 // saveDistroToCatalog persists the distro as a YAML file in the local catalog

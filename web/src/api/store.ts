@@ -42,6 +42,12 @@ export interface ImportResult {
   name: string
   type: string
   store_item: string
+  distro_name?: string
+  requires_local_image?: boolean
+  image_hint?: string
+  verification?: string
+  answer_template_id?: number
+  answer_template_name?: string
 }
 
 /** Fetch the store catalog from hub.pxelab.com (via PxeLab proxy). */

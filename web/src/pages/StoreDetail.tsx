@@ -13,7 +13,7 @@ export default function StoreDetail() {
   const { type, id } = useParams<{ type: string; id: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const { success, error: showError } = useToast()
+  const { success, error: showError, warning, info } = useToast()
 
   const [item, setItem] = useState<StoreItemDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,6 +56,12 @@ export default function StoreDetail() {
     try {
       const res = await importStoreItem(item.id, item.type)
       success(t('store.importSuccess', { name: item.name }))
+      if (res.data.requires_local_image) {
+        warning(t('store.importedNeedsImage', { name: res.data.name, hint: res.data.image_hint || '' }))
+      }
+      if (res.data.answer_template_name) {
+        info(t('store.importedAnswerTemplate', { name: res.data.answer_template_name }))
+      }
       if (item.type === 'baseline') {
         navigate(`/baselines/${res.data.id}`)
       } else if (item.type === 'boot_template') {

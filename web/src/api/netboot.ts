@@ -10,6 +10,9 @@ export interface NetbootDistro {
   logo?: string
   mirror?: string
   kernel_params?: string
+  requires_local_image?: boolean
+  image_hint?: string
+  verification?: string
   versions: NetbootVersion[]
 }
 

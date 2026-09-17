@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/models"
+	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/pxelab/pxelab/internal/store"
 )
 
@@ -17,6 +19,50 @@ func newInstallTaskHandler(t *testing.T) (*InstallTaskHandler, store.Interface) 
 	t.Helper()
 	st := store.NewMemory()
 	return &InstallTaskHandler{store: st, serverBase: "10.0.0.10:8080"}, st
+}
+
+// TestGetTaskByMACAnswerParamFallback: when the overlay carries no
+// answer_param, the catalog version's own answer_param (e.g. a store-imported
+// anaconda entry with inst.ks={{.AnswerURL}}) is used so answer injection
+// works out of the box.
+func TestGetTaskByMACAnswerParamFallback(t *testing.T) {
+	st := store.NewMemory()
+	mgr := netboot.NewManager(&netboot.Catalog{Distros: []*netboot.Distro{
+		{
+			Name:      "Rocky",
+			Enabled:   true,
+			MenuGroup: "linux",
+			Versions: []*netboot.Version{
+				{Codename: "9", Name: "9", Arch: "amd64", Enabled: true, AnswerParam: "inst.ks={{.AnswerURL}}"},
+			},
+		},
+	}})
+	h := &InstallTaskHandler{store: st, serverBase: "10.0.0.10:8080", netbootMgr: mgr}
+	host := seedHost(t, st, "host-ks", "00:11:22:33:44:77")
+	seedTask(t, st, "task_ks", host.ID, "pending", "")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/netboot/task/by-mac/00:11:22:33:44:77", nil)
+	req = withChiParams(req, "mac", "00:11:22:33:44:77")
+	w := httptest.NewRecorder()
+	h.GetTaskByMAC(w, req)
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Result().StatusCode, w.Body.String())
+	}
+	var resp struct {
+		Data struct {
+			AnswerParam string `json:"AnswerParam"`
+			AnswerURL   string `json:"AnswerURL"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(w.Result().Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Data.AnswerParam != "inst.ks={{.AnswerURL}}" {
+		t.Errorf("expected catalog answer_param fallback, got %q", resp.Data.AnswerParam)
+	}
+	if resp.Data.AnswerURL == "" {
+		t.Error("answer URL not computed")
+	}
 }
 
 func seedAnswerTask(t *testing.T, st store.Interface, content string) uint {
