@@ -31,53 +31,59 @@ versions:
       name: openEuler-24.09
       arch: amd64
       enabled: true
-      cmdline: "inst.text"
+      cmdline: "inst.text inst.repo=https://repo.openeuler.org/openEuler-24.09/OS/x86_64/"
+      answer_param: "inst.ks={{.AnswerURL}}"
       remote:
-        kernel: http://repo.openeuler.org//openEuler-24.09/amd64/linux
-        initrd: http://repo.openeuler.org//openEuler-24.09/amd64/initrd.gz
+        kernel: https://repo.openeuler.org/openEuler-24.09/OS/x86_64/images/pxeboot/vmlinuz
+        initrd: https://repo.openeuler.org/openEuler-24.09/OS/x86_64/images/pxeboot/initrd.img
       install_type: legacy
     - codename: openEuler-24.03-LTS-SP1
       name: openEuler-24.03-LTS-SP1
       arch: amd64
       enabled: true
-      cmdline: "inst.text"
+      cmdline: "inst.text inst.repo=https://repo.openeuler.org/openEuler-24.03-LTS-SP1/OS/x86_64/"
+      answer_param: "inst.ks={{.AnswerURL}}"
       remote:
-        kernel: http://repo.openeuler.org//openEuler-24.03-LTS-SP1/amd64/linux
-        initrd: http://repo.openeuler.org//openEuler-24.03-LTS-SP1/amd64/initrd.gz
+        kernel: https://repo.openeuler.org/openEuler-24.03-LTS-SP1/OS/x86_64/images/pxeboot/vmlinuz
+        initrd: https://repo.openeuler.org/openEuler-24.03-LTS-SP1/OS/x86_64/images/pxeboot/initrd.img
       install_type: legacy
     - codename: openEuler-20.03-LTS-SP3
       name: openEuler-20.03-LTS-SP3
       arch: amd64
       enabled: true
-      cmdline: "inst.text"
+      cmdline: "inst.text inst.repo=https://repo.openeuler.org/openEuler-20.03-LTS-SP3/OS/x86_64/"
+      answer_param: "inst.ks={{.AnswerURL}}"
       remote:
-        kernel: http://repo.openeuler.org//openEuler-20.03-LTS-SP3/amd64/linux
-        initrd: http://repo.openeuler.org//openEuler-20.03-LTS-SP3/amd64/initrd.gz
+        kernel: https://repo.openeuler.org/openEuler-20.03-LTS-SP3/OS/x86_64/images/pxeboot/vmlinuz
+        initrd: https://repo.openeuler.org/openEuler-20.03-LTS-SP3/OS/x86_64/images/pxeboot/initrd.img
       install_type: legacy
     - codename: openEuler-22.03-LTS
       name: openEuler-22.03-LTS
       arch: amd64
       enabled: true
-      cmdline: "inst.text"
+      cmdline: "inst.text inst.repo=https://repo.openeuler.org/openEuler-22.03-LTS/OS/x86_64/"
+      answer_param: "inst.ks={{.AnswerURL}}"
       remote:
-        kernel: http://repo.openeuler.org//openEuler-22.03-LTS/amd64/linux
-        initrd: http://repo.openeuler.org//openEuler-22.03-LTS/amd64/initrd.gz
+        kernel: https://repo.openeuler.org/openEuler-22.03-LTS/OS/x86_64/images/pxeboot/vmlinuz
+        initrd: https://repo.openeuler.org/openEuler-22.03-LTS/OS/x86_64/images/pxeboot/initrd.img
       install_type: legacy
     - codename: openEuler-22.03-LTS-SP1
       name: openEuler-22.03-LTS-SP1
       arch: amd64
       enabled: true
-      cmdline: "inst.text"
+      cmdline: "inst.text inst.repo=https://repo.openeuler.org/openEuler-22.03-LTS-SP1/OS/x86_64/"
+      answer_param: "inst.ks={{.AnswerURL}}"
       remote:
-        kernel: http://repo.openeuler.org//openEuler-22.03-LTS-SP1/amd64/linux
-        initrd: http://repo.openeuler.org//openEuler-22.03-LTS-SP1/amd64/initrd.gz
+        kernel: https://repo.openeuler.org/openEuler-22.03-LTS-SP1/OS/x86_64/images/pxeboot/vmlinuz
+        initrd: https://repo.openeuler.org/openEuler-22.03-LTS-SP1/OS/x86_64/images/pxeboot/initrd.img
       install_type: legacy
     - codename: openEuler-22.03-LTS-SP2
       name: openEuler-22.03-LTS-SP2
       arch: amd64
       enabled: true
-      cmdline: "inst.text"
+      cmdline: "inst.text inst.repo=https://repo.openeuler.org/openEuler-22.03-LTS-SP2/OS/x86_64/"
+      answer_param: "inst.ks={{.AnswerURL}}"
       remote:
-        kernel: http://repo.openeuler.org//openEuler-22.03-LTS-SP2/amd64/linux
-        initrd: http://repo.openeuler.org//openEuler-22.03-LTS-SP2/amd64/initrd.gz
+        kernel: https://repo.openeuler.org/openEuler-22.03-LTS-SP2/OS/x86_64/images/pxeboot/vmlinuz
+        initrd: https://repo.openeuler.org/openEuler-22.03-LTS-SP2/OS/x86_64/images/pxeboot/initrd.img
       install_type: legacy
