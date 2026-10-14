@@ -14,14 +14,14 @@ func TestGenerateWimbootLineWinpeShell(t *testing.T) {
 			AnswerType: "winpeshl",
 		},
 	)
-	if !strings.Contains(line, "http://10.0.0.1/api/v1/netboot/answer/task_1 install.bat") {
+	if !strings.Contains(line, "initrd -n install.bat http://10.0.0.1/api/v1/netboot/answer/task_1") {
 		t.Fatalf("expected install.bat initrd from answer URL, got:\n%s", line)
 	}
-	if !strings.Contains(line, "http://10.0.0.1/api/v1/netboot/answer/task_1?file=winpeshl.ini winpeshl.ini") {
+	if !strings.Contains(line, "initrd -n winpeshl.ini http://10.0.0.1/api/v1/netboot/answer/task_1?file=winpeshl.ini") {
 		t.Fatalf("expected winpeshl.ini via ?file= param, got:\n%s", line)
 	}
 	if strings.Count(line, "winpeshl.ini") != 2 {
-		t.Fatalf("winpeshl.ini should appear in both the ?file= URL and the local name, got:\n%s", line)
+		t.Fatalf("winpeshl.ini should appear in both the ?file= URL and the -n name, got:\n%s", line)
 	}
 	if !strings.HasPrefix(line, "kernel http://10.0.0.1/netboot/menu/wimboot") {
 		t.Fatalf("expected wimboot kernel line, got:\n%s", line)
@@ -37,7 +37,7 @@ func TestGenerateWimbootLineAutounattend(t *testing.T) {
 			AnswerType: "autounattend",
 		},
 	)
-	if !strings.Contains(line, "http://10.0.0.1/api/v1/netboot/answer/task_1 autounattend.xml") {
+	if !strings.Contains(line, "initrd -n autounattend.xml http://10.0.0.1/api/v1/netboot/answer/task_1") {
 		t.Fatalf("expected autounattend.xml initrd, got:\n%s", line)
 	}
 	if strings.Contains(line, "?file=") {
@@ -45,6 +45,42 @@ func TestGenerateWimbootLineAutounattend(t *testing.T) {
 	}
 	if strings.Contains(line, "winpeshl") {
 		t.Fatalf("autounattend must not reference winpeshl.ini, got:\n%s", line)
+	}
+}
+
+func TestWimbootAnswerInitrds(t *testing.T) {
+	winpe := WimbootAnswerInitrds("http://h/api/v1/netboot/answer/t1", "winpeshl")
+	if len(winpe) != 2 {
+		t.Fatalf("winpeshl should yield 2 initrd lines, got %d: %v", len(winpe), winpe)
+	}
+	if winpe[0] != "initrd -n install.bat http://h/api/v1/netboot/answer/t1" {
+		t.Errorf("install.bat line = %q", winpe[0])
+	}
+	if winpe[1] != "initrd -n winpeshl.ini http://h/api/v1/netboot/answer/t1?file=winpeshl.ini" {
+		t.Errorf("winpeshl.ini line = %q", winpe[1])
+	}
+
+	auto := WimbootAnswerInitrds("http://h/api/v1/netboot/answer/t1", "autounattend")
+	if len(auto) != 1 || auto[0] != "initrd -n autounattend.xml http://h/api/v1/netboot/answer/t1" {
+		t.Errorf("autounattend lines = %v", auto)
+	}
+
+	if got := WimbootAnswerInitrds("", "winpeshl"); got != nil {
+		t.Errorf("empty answer URL should yield nil, got %v", got)
+	}
+}
+
+func TestGenerateWimbootLineWIMIndex(t *testing.T) {
+	line := generateWimbootLine(
+		"http://10.0.0.1/netboot/menu/wimboot",
+		"http://10.0.0.1/boot/isos/win11-x64",
+		&BootTaskInfo{WIMIndex: 3},
+	)
+	if !strings.Contains(line, "kernel http://10.0.0.1/netboot/menu/wimboot index=3") {
+		t.Fatalf("expected wimboot index=3, got:\n%s", line)
+	}
+	if strings.Contains(line, "install.bat") || strings.Contains(line, "autounattend.xml") {
+		t.Fatalf("no answer URL => no answer initrd, got:\n%s", line)
 	}
 }
 

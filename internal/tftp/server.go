@@ -1,7 +1,6 @@
 ﻿package tftp
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -103,16 +102,24 @@ func (s *Server) readHandler(filename string, rf io.ReaderFrom) error {
 		Message: fmt.Sprintf("TFTP 请求: %s from %s", filename, clientAddr),
 	})
 
-	data, err := s.bootFS.Read(filename)
+	// 流式发送：打开文件句柄直接喂给 TFTP 发送器，避免 Read() 把整个文件
+	// 读入内存——与 HTTP /boot/* 相同的 OOM 风险（例如误经 TFTP 拉取大 .wim）。
+	f, err := s.bootFS.Open(filename)
 	if err != nil {
 		tftpMetrics.RecordError()
 		slog.Warn("TFTP 文件未找到", "service", "TFTP", "file", filename, "client", clientAddr)
 		return fmt.Errorf("file not found: %s", filename)
 	}
+	defer f.Close()
 
-	slog.Info("TFTP 开始发送", "service", "TFTP", "file", filename, "client", clientAddr, "size", len(data))
+	size := int64(-1)
+	if fi, statErr := f.Stat(); statErr == nil {
+		size = fi.Size()
+	}
 
-	n, err := rf.ReadFrom(bytes.NewReader(data))
+	slog.Info("TFTP 开始发送", "service", "TFTP", "file", filename, "client", clientAddr, "size", size)
+
+	n, err := rf.ReadFrom(f)
 	if err != nil {
 		tftpMetrics.RecordError()
 		slog.Warn("TFTP 传输失败", "service", "TFTP", "file", filename, "client", clientAddr, "error", err)
@@ -120,6 +127,6 @@ func (s *Server) readHandler(filename string, rf io.ReaderFrom) error {
 	}
 
 	tftpMetrics.RecordBytes(n, true)
-	slog.Info("TFTP 传输完成", "service", "TFTP", "file", filename, "client", clientAddr, "size", len(data))
+	slog.Info("TFTP 传输完成", "service", "TFTP", "file", filename, "client", clientAddr, "bytes", n)
 	return nil
 }

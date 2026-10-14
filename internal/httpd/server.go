@@ -199,13 +199,9 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 				}
 			}
 
-			data, err := bootFS.Read(filePath)
-			if err != nil {
-				http.NotFound(w, r)
-				return
-			}
-			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Write(data)
+			// 直接流式发送（http.ServeContent：支持 Range/HEAD），避免把
+			// 数 GB 的 .wim 整个读进内存导致 OOM。
+			bootFS.Serve(w, r, filePath)
 		})
 	}
 
@@ -380,6 +376,30 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 	engine := ipxe.New()
 	var script string
 
+	// 解析该 MAC 当前可下发的安装任务，用于把应答注入 Windows(wimboot) 引导项。
+	// 与 /netboot/task/by-mac 同源：最新任务 failed 时锁定（不再注入应答）。
+	var bootTask *netboot.BootTaskInfo
+	if mac != "" {
+		if t, err := st.GetLatestInstallTaskByHostMAC(ctx, mac); err == nil && t != nil {
+			if serve, locked := netboot.TaskBootDecision(t.Status); serve && !locked {
+				overlay, _ := st.GetNetbootOverlay(ctx, t.DistroName)
+				bootTask = netboot.BuildBootTaskInfo(t, overlay, serverAddr)
+			}
+		}
+	}
+
+	// answerFromTask 把当前安装任务的应答注入到 wds(wimboot) 引导项：
+	// 生成 install.bat/winpeshl.ini 或 autounattend.xml 的 initrd 行与 WIM 索引。
+	// 仅对 wds 类型生效；其它类型条目原样返回。
+	answerFromTask := func(e ipxe.MenuEntryData) ipxe.MenuEntryData {
+		if bootTask == nil || bootTask.AnswerURL == "" || e.Type != ipxe.BootWDS {
+			return e
+		}
+		e.AnswerInitrds = strings.Join(netboot.WimbootAnswerInitrds(bootTask.AnswerURL, bootTask.AnswerType), "\n")
+		e.WIMIndex = bootTask.WIMIndex
+		return e
+	}
+
 	// 2. 主机 Profile 菜单
 	if mac != "" {
 		host, err := st.GetHostByMAC(ctx, mac)
@@ -392,7 +412,7 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 					pm := &ipxe.MenuData{Title: profile.Name, Timeout: to, Default: 0, TimeoutDS: to * 1000}
 					var entries []ipxe.MenuEntryData
 					for _, e := range bootMenu.Entries {
-						entry := ipxe.MenuEntryData{
+						entry := answerFromTask(ipxe.MenuEntryData{
 							Script:        ptrStr(e.Script),
 							Label:         e.Label,
 							Type:          ipxe.BootType(e.Type),
@@ -405,7 +425,7 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 							SANNoDescribe: e.SANNoDescribe,
 							SANDrive:      e.SANDrive,
 							SANKeepSAN:    e.SANKeepSAN,
-						}
+						})
 						entries = append(entries, entry)
 					}
 
@@ -462,7 +482,7 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 		if bootMenu, err := defProfile.GetMenu(); err == nil && len(bootMenu.Entries) > 0 {
 			entry := bootMenu.Entries[0]
 			makeEntry := func(label string, e models.MenuEntry) ipxe.MenuEntryData {
-				return ipxe.MenuEntryData{
+				return answerFromTask(ipxe.MenuEntryData{
 					Script:        ptrStr(e.Script),
 					Label:         label,
 					Type:          ipxe.BootType(e.Type),
@@ -475,7 +495,7 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 					SANNoDescribe: e.SANNoDescribe,
 					SANDrive:      e.SANDrive,
 					SANKeepSAN:    e.SANKeepSAN,
-				}
+				})
 			}
 
 			if cfg.Netboot.Boot.DefaultMenu.ListAllProfiles {

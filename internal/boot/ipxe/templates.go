@@ -35,12 +35,13 @@ var builtinTemplates = map[string]string{
 	{{else}}sanboot{{if $entry.SANNoDescribe}} --no-describe{{end}}{{if $entry.SANDrive}} --drive {{$entry.SANDrive}}{{end}}{{if $entry.URL}} {{$entry.URL}}{{end}}
 	{{end}}
 	{{else if eq $entry.Type "wds"}}
-	kernel {{$entry.URL}}
+	kernel {{$entry.URL}}{{if $entry.WIMIndex}} index={{$entry.WIMIndex}}{{end}}
 	initrd -n bootmgr {{$entry.WIM}}/bootmgr bootmgr
 	initrd -n bootmgr.efi {{$entry.WIM}}/bootmgr.efi bootmgr.efi
 	initrd -n bcd {{$entry.WIM}}/boot/bcd bcd
 	initrd -n boot.sdi {{$entry.WIM}}/boot/boot.sdi boot.sdi
 	initrd -n boot.wim {{$entry.WIM}}/sources/boot.wim boot.wim
+	{{$entry.AnswerInitrds}}
 	boot
 	{{else if eq $entry.Type "netboot"}}
 	chain {{$.URL}}/netboot/menu.ipxe

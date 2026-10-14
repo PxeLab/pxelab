@@ -275,26 +275,57 @@ func GenerateBootLine(v *Version, serverAddr, bootPrefix, kernelParams string, t
 	}
 }
 
+// WimbootAnswerInitrds 返回把应答文件注入 wimboot 启动的 WinPE 所需的 initrd 行。
+//
+// wimboot 会把每个具名 initrd 文件放进 WinPE 内存盘的 X:\Windows\System32\<name>
+// （见 https://ipxe.org/wimboot "Injected files"），因此：
+//   - winpeshl 路线：模板内容作为 install.bat，winpeshl.ini 通过 ?file= 单独返回；
+//     winpeshl.exe 从 %SYSTEMROOT%\System32 读取 winpeshl.ini，install.bat 同样落在
+//     该目录，故 winpeshl.ini 里的 AppPath 必须指向 %SYSTEMROOT%\System32\install.bat。
+//   - 其它路线：autounattend.xml。
+//
+// 必须用 -n <name> 指定注入文件名：initrd 的行尾位置参数是 image arguments，不改变
+// 文件名；若省略 -n，wimboot 会用 URL 的 basename（此处为 task id），导致文件名错误
+// 甚至多个文件同名互相覆盖。
+func WimbootAnswerInitrds(answerURL, answerType string) []string {
+	if answerURL == "" {
+		return nil
+	}
+	if answerType == "winpeshl" {
+		return []string{
+			fmt.Sprintf("initrd -n install.bat %s", answerURL),
+			fmt.Sprintf("initrd -n winpeshl.ini %s?file=winpeshl.ini", answerURL),
+		}
+	}
+	return []string{fmt.Sprintf("initrd -n autounattend.xml %s", answerURL)}
+}
+
 // generateWimbootLine generates a wimboot-based Windows boot line.
 // If task is present with answer info, it injects the answer file as an initrd entry.
 func generateWimbootLine(kernelURL, initrdURL string, task *BootTaskInfo) string {
+	index := ""
+	if task != nil && task.WIMIndex > 0 {
+		index = fmt.Sprintf(" index=%d", task.WIMIndex)
+	}
+
+	answer := ""
 	if task != nil && task.AnswerURL != "" {
-		switch task.AnswerType {
-		case "winpeshl":
-			// winpeshl.ini + install.bat approach：
-			// 模板内容作为 install.bat；winpeshl.ini 通过 ?file= 参数单独返回
-			// 一个引用 install.bat 的包装，避免两个文件同源。
-			return fmt.Sprintf("kernel %s\ninitrd %s/bootmgr bootmgr\ninitrd %s/bootmgr.efi bootmgr.efi\ninitrd %s/boot/bcd bcd\ninitrd %s/boot/boot.sdi boot.sdi\ninitrd %s/sources/boot.wim boot.wim\ninitrd %s install.bat\ninitrd %s?file=winpeshl.ini winpeshl.ini\nboot\n",
-				kernelURL, initrdURL, initrdURL, initrdURL, initrdURL, initrdURL, task.AnswerURL, task.AnswerURL)
-		default:
-			// autounattend.xml injection
-			return fmt.Sprintf("kernel %s\ninitrd -n bootmgr %s/bootmgr bootmgr\ninitrd -n bootmgr.efi %s/bootmgr.efi bootmgr.efi\ninitrd -n bcd %s/boot/bcd bcd\ninitrd -n boot.sdi %s/boot/boot.sdi boot.sdi\ninitrd -n boot.wim %s/sources/boot.wim boot.wim\ninitrd %s autounattend.xml\nboot\n",
-				kernelURL, initrdURL, initrdURL, initrdURL, initrdURL, initrdURL, task.AnswerURL)
+		if lines := WimbootAnswerInitrds(task.AnswerURL, task.AnswerType); len(lines) > 0 {
+			answer = strings.Join(lines, "\n") + "\n"
 		}
 	}
-	// Standard wimboot — no answer file
-	return fmt.Sprintf("kernel %s\ninitrd -n bootmgr %s/bootmgr bootmgr\ninitrd -n bootmgr.efi %s/bootmgr.efi bootmgr.efi\ninitrd -n bcd %s/boot/bcd bcd\ninitrd -n boot.sdi %s/boot/boot.sdi boot.sdi\ninitrd -n boot.wim %s/sources/boot.wim boot.wim\nboot\n",
-		kernelURL, initrdURL, initrdURL, initrdURL, initrdURL, initrdURL)
+
+	return fmt.Sprintf("kernel %s%s\n"+
+		"initrd -n bootmgr %s/bootmgr bootmgr\n"+
+		"initrd -n bootmgr.efi %s/bootmgr.efi bootmgr.efi\n"+
+		"initrd -n bcd %s/boot/bcd bcd\n"+
+		"initrd -n boot.sdi %s/boot/boot.sdi boot.sdi\n"+
+		"initrd -n boot.wim %s/sources/boot.wim boot.wim\n"+
+		"%s"+
+		"boot\n",
+		kernelURL, index,
+		initrdURL, initrdURL, initrdURL, initrdURL, initrdURL,
+		answer)
 }
 
 // buildCmdline assembles the final kernel command line, including answer parameter injection.

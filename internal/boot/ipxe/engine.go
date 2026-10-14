@@ -58,6 +58,12 @@ type MenuEntryData struct {
 	WIM     string
 	Script  string
 
+	// WDS/Windows wimboot 应答注入：预渲染的 initrd 行（可选，含行尾换行），
+	// 由 netboot.WimbootAnswerInitrds 生成；为非空时插入 wds 引导块。
+	AnswerInitrds string
+	// WIMIndex > 0 时在 wimboot kernel 行追加 index=<n>（选择 boot.wim 镜像索引）。
+	WIMIndex int
+
 	// SAN boot options
 	SANAction     string // "boot" | "hook" | "zap" | "unhook"
 	SANNoDescribe bool   // --no-describe flag

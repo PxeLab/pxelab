@@ -239,6 +239,43 @@ func TestMenuTemplateWDS(t *testing.T) {
 	}
 }
 
+func TestMenuTemplateWDSAnswerInjection(t *testing.T) {
+	e := New()
+	wimboot := "http://192.168.1.10/netboot/menu/wimboot"
+	winBase := "http://192.168.1.10/boot/isos/win11-x64"
+	data := TemplateData{
+		URL: "http://192.168.1.10",
+		Menu: &MenuData{
+			Title:   "WDS Answer",
+			Default: 0,
+			Entries: []MenuEntryData{
+				{
+					Label:    "Windows 11",
+					Type:     BootWDS,
+					URL:      wimboot,
+					WIM:      winBase,
+					WIMIndex: 2,
+					AnswerInitrds: "initrd -n install.bat http://h/api/v1/netboot/answer/t1\n" +
+						"initrd -n winpeshl.ini http://h/api/v1/netboot/answer/t1?file=winpeshl.ini",
+				},
+			},
+		},
+	}
+	out, err := e.Render("menu", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "kernel "+wimboot+" index=2") {
+		t.Errorf("expected kernel with index=2, got:\n%s", out)
+	}
+	if !strings.Contains(out, "initrd -n install.bat http://h/api/v1/netboot/answer/t1") {
+		t.Errorf("expected install.bat initrd, got:\n%s", out)
+	}
+	if !strings.Contains(out, "initrd -n winpeshl.ini http://h/api/v1/netboot/answer/t1?file=winpeshl.ini") {
+		t.Errorf("expected winpeshl.ini initrd, got:\n%s", out)
+	}
+}
+
 func TestMenuTemplateSANBoot(t *testing.T) {
 	e := New()
 	data := TemplateData{

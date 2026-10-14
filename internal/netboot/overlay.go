@@ -1,6 +1,7 @@
 ﻿package netboot
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/pxelab/pxelab/internal/models"
@@ -84,11 +85,41 @@ func DistroMergeOverlay(distro *Distro, overlay *models.NetbootOverlay) *Distro 
 
 // BootTaskInfo carries install task information for boot line generation.
 type BootTaskInfo struct {
-	ID          string
-	AnswerURL   string // pre-computed: http://server/api/v1/netboot/answer/<task_id>
-	AnswerParam string // from version overlay (e.g. "autoinstall ds=nocloud-net;s={{.AnswerURL}}")
-	AnswerType  string // "subiquity", "kickstart", "preseed", "autoyast", "autounattend", "wimboot"
+	ID           string
+	AnswerURL    string // pre-computed: http://server/api/v1/netboot/answer/<task_id>
+	AnswerParam  string // from version overlay (e.g. "autoinstall ds=nocloud-net;s={{.AnswerURL}}")
+	AnswerType   string // "subiquity", "kickstart", "preseed", "autoyast", "autounattend", "winpeshl"
 	ExtraCmdline string // additional kernel parameters from the task
+	WIMIndex     int    // >0 选择 boot.wim 镜像索引（多映像介质），追加到 wimboot kernel 行
+}
+
+// BuildBootTaskInfo 由安装任务 + 其发行版 overlay 组装引导注入信息。AnswerURL 始终
+// 计算，以便 catalog 级 answer_param 回落（overlay 未配置时）也能注入应答文件 URL。
+// answer_type 独立于 answer_param 解析：winpeshl 类 overlay 往往只配 answer_type 而
+// 无 answer_param，也需要把 AnswerType 传给 wimboot 引导行。
+func BuildBootTaskInfo(task *models.InstallTask, overlay *models.NetbootOverlay, serverAddr string) *BootTaskInfo {
+	info := &BootTaskInfo{
+		ID:           task.ID,
+		AnswerURL:    fmt.Sprintf("http://%s/api/v1/netboot/answer/%s", serverAddr, task.ID),
+		ExtraCmdline: task.ExtraCmdline,
+		WIMIndex:     task.WIMIndex,
+	}
+	if overlay == nil {
+		return info
+	}
+	ovs, _ := overlay.GetVersionOverrides()
+	for _, ov := range ovs {
+		if ov.Codename != task.VersionCodename {
+			continue
+		}
+		if ov.AnswerParam != "" {
+			info.AnswerParam = ov.AnswerParam
+		}
+		if ov.AnswerType != "" {
+			info.AnswerType = ov.AnswerType
+		}
+	}
+	return info
 }
 
 // InjectAnswerParam replaces {{.AnswerURL}} placeholder with the actual URL and returns the final parameter string.

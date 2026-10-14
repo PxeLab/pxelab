@@ -10,6 +10,7 @@ type InstallTask struct {
 	Arch             string    `json:"arch"`
 	AnswerTemplateID *uint     `json:"answer_template_id"`
 	ExtraCmdline     string    `json:"extra_cmdline"`
+	WIMIndex         int       `json:"wim_index,omitempty"` // >0 选择 install.wim/boot.wim 镜像索引（多映像介质）；0 = 默认第 1 个
 	Status           string    `json:"status" gorm:"default:pending"` // pending / installing / done / failed
 	ErrorMsg         string    `json:"error_msg"`
 	BatchID          string    `json:"batch_id" gorm:"index"` // R7 批次标签：批量创建的任务共享同一 id，空为单机任务
