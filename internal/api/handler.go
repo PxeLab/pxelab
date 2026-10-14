@@ -87,7 +87,7 @@ func NewHandler(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootF
 		BMC:             NewBMCHandler(st),
 		DHCPReservation: &DHCPReservationHandler{store: st},
 		Network:         &NetworkHandler{},
-		OSImage:         NewOSImageHandler(st, cfg, bus, netbootMgr),
+		OSImage:         NewOSImageHandler(st, cfg, bus, netbootMgr, bootFS),
 		Bootloader:      NewBootloaderHandler(bootFS),
 		AuditLog:        NewAuditLogHandler(st),
 		Version:         NewVersionHandler(version, updateChecker),
@@ -341,6 +341,9 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/os-images/{id}/mount", h.OSImage.Mount)
 		r.Post("/os-images/{id}/unmount", h.OSImage.Unmount)
 		r.Post("/os-images/{id}/set-catalog-local", h.OSImage.SetCatalogLocal)
+		// WIM 离线驱动注入（借鉴项 1/4/5）
+		r.Post("/os-images/{id}/inject-drivers", h.OSImage.InjectDrivers)
+		r.Get("/os-images/{id}/wim-info", h.OSImage.WIMInfo)
 
 		// Bootloader management
 		r.Get("/bootloader/check", h.Bootloader.Check)

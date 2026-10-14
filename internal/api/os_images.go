@@ -14,6 +14,7 @@ import (
 
 	"encoding/json"
 	"github.com/go-chi/chi/v5"
+	"github.com/pxelab/pxelab/internal/boot"
 	"github.com/pxelab/pxelab/internal/config"
 	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/models"
@@ -29,10 +30,11 @@ type OSImageHandler struct {
 	config     *config.Config
 	eventBus   *eventbus.Bus
 	netbootMgr *netboot.Manager
+	bootFS     *boot.BootFileServer // 驱动包目录来源（WIM 离线注入），可为 nil（不支持注入）
 }
 
-func NewOSImageHandler(st store.Interface, cfg *config.Config, bus *eventbus.Bus, netbootMgr *netboot.Manager) *OSImageHandler {
-	return &OSImageHandler{store: st, config: cfg, eventBus: bus, netbootMgr: netbootMgr}
+func NewOSImageHandler(st store.Interface, cfg *config.Config, bus *eventbus.Bus, netbootMgr *netboot.Manager, bootFS *boot.BootFileServer) *OSImageHandler {
+	return &OSImageHandler{store: st, config: cfg, eventBus: bus, netbootMgr: netbootMgr, bootFS: bootFS}
 }
 
 func (h *OSImageHandler) List(w http.ResponseWriter, r *http.Request) {

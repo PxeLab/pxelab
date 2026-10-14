@@ -32,7 +32,7 @@ func newOSImageHandlerWithCatalog(t *testing.T) (*OSImageHandler, store.Interfac
 	cfg := &config.Config{Global: g}
 	mgr := netboot.NewManager(netboot.DefaultCatalog())
 	st := store.NewMemory()
-	return NewOSImageHandler(st, cfg, nil, mgr), st, g
+	return NewOSImageHandler(st, cfg, nil, mgr, nil), st, g
 }
 
 func seedWindowsImage(t *testing.T, st store.Interface) {
