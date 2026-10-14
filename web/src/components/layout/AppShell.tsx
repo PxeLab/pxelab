@@ -44,6 +44,7 @@ const navSections = [
           { path: '/services/dhcp', label: 'nav.settings.dhcp' },
           { path: '/services/dns', label: 'nav.settings.dns' },
           { path: '/services/nfs', label: 'nav.settings.nfs' },
+          { path: '/services/smb', label: 'nav.settings.smb' },
           { path: '/services/tftp', label: 'nav.settings.tftp' },
           { path: '/services/baseline-hooks', label: 'nav.settings.baselineHooks' },
           { path: '/services/webhooks', label: 'nav.settings.webhooks' },

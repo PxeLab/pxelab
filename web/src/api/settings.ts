@@ -287,6 +287,52 @@ export function browseNFSPath(path: string): Promise<ApiResponse<{ current: stri
   return request<{ current: string; entries: BrowseNFSPathEntry[] }>('GET', `/services/nfs/browse-path?path=${encodeURIComponent(path)}`)
 }
 
+// ── SMB ──
+export interface SMBShare {
+  name: string
+  path: string
+  read_only: boolean
+  allow_users: string[]
+  write_users: string[]
+}
+
+export interface SMBUser {
+  name: string
+  password: string
+}
+
+export interface SMBSettingsData {
+  enabled: boolean
+  running: boolean
+  port: number
+  server_name: string
+  allow_ips: string[]
+  shares: SMBShare[]
+  users: SMBUser[]
+}
+
+export interface BrowseSMBPathEntry {
+  name: string
+  path: string
+  is_dir: boolean
+}
+
+export function getSMB(): Promise<ApiResponse<SMBSettingsData>> {
+  return request<SMBSettingsData>('GET', '/services/smb')
+}
+
+export function updateSMB(data: SMBSettingsData): Promise<ApiResponse<unknown>> {
+  return request<unknown>('PUT', '/services/smb', data)
+}
+
+export function validateSMBPath(path: string): Promise<ApiResponse<{ exists: boolean; writable: boolean; is_dir?: boolean; error?: string }>> {
+  return request<{ exists: boolean; writable: boolean; is_dir?: boolean; error?: string }>('POST', '/services/smb/validate-path', { path })
+}
+
+export function browseSMBPath(path: string): Promise<ApiResponse<{ current: string; entries: BrowseSMBPathEntry[] }>> {
+  return request<{ current: string; entries: BrowseSMBPathEntry[] }>('GET', `/services/smb/browse-path?path=${encodeURIComponent(path)}`)
+}
+
 export function getNetbootSettings(): Promise<ApiResponse<NetbootSettingsData>> {
   return request<NetbootSettingsData>('GET', '/settings/netboot')
 }

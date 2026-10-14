@@ -37,6 +37,7 @@ import { deleteFile, getBootRootDir, getFiles, uploadFile } from './files'
 import { batchDeleteLeases, deleteLease, getLeases, getLeaseStats, pruneLeases } from './leases'
 import {
   browseNFSPath,
+  browseSMBPath,
   createWebhook,
   deleteWebhook,
   getArchMap,
@@ -50,6 +51,7 @@ import {
   getInterfaces,
   getNFSSettings,
   getNetbootSettings,
+  getSMB,
   getSettings,
   getTFTPSettings,
   getWebhooks,
@@ -63,10 +65,12 @@ import {
   updateInterfaceSettings,
   updateNFSSettings,
   updateNetbootSettings,
+  updateSMB,
   updateSettings,
   updateTFTPSettings,
   updateWebhook,
   validateNFSPath,
+  validateSMBPath,
 } from './settings'
 import { cleanupLogs, getLogDiskUsage, getLogFiles, getLoggingSettings, updateLoggingSettings } from './logs'
 import {
@@ -276,6 +280,10 @@ export const api = {
   updateNFSSettings,
   validateNFSPath,
   browseNFSPath,
+  getSMB,
+  updateSMB,
+  validateSMBPath,
+  browseSMBPath,
   getNetbootSettings,
   updateNetbootSettings,
   getBaselineHooks,
