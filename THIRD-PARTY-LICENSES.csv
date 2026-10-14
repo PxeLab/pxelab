@@ -13,6 +13,10 @@ github.com/getlantern/systray,https://github.com/getlantern/systray/blob/v1.2.2/
 github.com/glebarez/go-sqlite,https://github.com/glebarez/go-sqlite/blob/v1.21.2/LICENSE,BSD-3-Clause
 github.com/glebarez/sqlite,https://github.com/glebarez/sqlite/blob/v1.11.0/License,MIT
 github.com/go-chi/chi/v5,https://github.com/go-chi/chi/blob/v5.3.0/LICENSE,MIT
+github.com/go-filesystems/hostcopy,https://github.com/go-filesystems/hostcopy/blob/v0.1.0/LICENSE,BSD-3-Clause
+github.com/go-filesystems/interface,https://github.com/go-filesystems/interface/blob/v0.5.0/LICENSE,BSD-3-Clause
+github.com/go-filesystems/osfs,https://github.com/go-filesystems/osfs/blob/v0.3.0/LICENSE,BSD-3-Clause
+github.com/go-filesystems/smb,https://github.com/go-filesystems/smb/blob/v0.7.0/LICENSE,BSD-3-Clause
 github.com/go-git/go-billy/v5,https://github.com/go-git/go-billy/blob/v5.6.0/LICENSE,Apache-2.0
 github.com/go-stack/stack,https://github.com/go-stack/stack/blob/v1.8.0/LICENSE.md,MIT
 github.com/go-viper/mapstructure/v2,https://github.com/go-viper/mapstructure/blob/v2.4.0/LICENSE,MIT
@@ -56,7 +60,7 @@ github.com/willscott/go-nfs-client/nfs,https://github.com/willscott/go-nfs-clien
 go.yaml.in/yaml/v3,https://github.com/yaml/go-yaml/blob/v3.0.4/LICENSE,MIT
 golang.org/x/net,https://cs.opensource.google/go/x/net/+/refs/tags/v0.54.0:LICENSE,BSD-3-Clause
 golang.org/x/sync/errgroup,https://cs.opensource.google/go/x/sync/+/refs/tags/v0.21.0:LICENSE,BSD-3-Clause
-golang.org/x/sys/windows,https://cs.opensource.google/go/x/sys/+/refs/tags/v0.46.0:LICENSE,BSD-3-Clause
+golang.org/x/sys/windows,https://cs.opensource.google/go/x/sys/+/refs/tags/v0.48.0:LICENSE,BSD-3-Clause
 golang.org/x/term,https://cs.opensource.google/go/x/term/+/refs/tags/v0.43.0:LICENSE,BSD-3-Clause
 golang.org/x/text,https://cs.opensource.google/go/x/text/+/refs/tags/v0.38.0:LICENSE,BSD-3-Clause
 gopkg.in/yaml.v3,https://github.com/go-yaml/yaml/blob/v3.0.1/LICENSE,MIT

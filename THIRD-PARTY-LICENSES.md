@@ -23,6 +23,10 @@ PxeLab itself is licensed under the [GNU Affero General Public License v3.0](LIC
 | `github.com/glebarez/go-sqlite` | BSD-3-Clause | [https://github.com/glebarez/go-sqlite/blob/v1.21.2/LICENSE](https://github.com/glebarez/go-sqlite/blob/v1.21.2/LICENSE) |
 | `github.com/glebarez/sqlite` | MIT | [https://github.com/glebarez/sqlite/blob/v1.11.0/License](https://github.com/glebarez/sqlite/blob/v1.11.0/License) |
 | `github.com/go-chi/chi/v5` | MIT | [https://github.com/go-chi/chi/blob/v5.3.0/LICENSE](https://github.com/go-chi/chi/blob/v5.3.0/LICENSE) |
+| `github.com/go-filesystems/hostcopy` | BSD-3-Clause | [https://github.com/go-filesystems/hostcopy/blob/v0.1.0/LICENSE](https://github.com/go-filesystems/hostcopy/blob/v0.1.0/LICENSE) |
+| `github.com/go-filesystems/interface` | BSD-3-Clause | [https://github.com/go-filesystems/interface/blob/v0.5.0/LICENSE](https://github.com/go-filesystems/interface/blob/v0.5.0/LICENSE) |
+| `github.com/go-filesystems/osfs` | BSD-3-Clause | [https://github.com/go-filesystems/osfs/blob/v0.3.0/LICENSE](https://github.com/go-filesystems/osfs/blob/v0.3.0/LICENSE) |
+| `github.com/go-filesystems/smb` | BSD-3-Clause | [https://github.com/go-filesystems/smb/blob/v0.7.0/LICENSE](https://github.com/go-filesystems/smb/blob/v0.7.0/LICENSE) |
 | `github.com/go-git/go-billy/v5` | Apache-2.0 | [https://github.com/go-git/go-billy/blob/v5.6.0/LICENSE](https://github.com/go-git/go-billy/blob/v5.6.0/LICENSE) |
 | `github.com/go-stack/stack` | MIT | [https://github.com/go-stack/stack/blob/v1.8.0/LICENSE.md](https://github.com/go-stack/stack/blob/v1.8.0/LICENSE.md) |
 | `github.com/go-viper/mapstructure/v2` | MIT | [https://github.com/go-viper/mapstructure/blob/v2.4.0/LICENSE](https://github.com/go-viper/mapstructure/blob/v2.4.0/LICENSE) |
@@ -65,7 +69,7 @@ PxeLab itself is licensed under the [GNU Affero General Public License v3.0](LIC
 | `go.yaml.in/yaml/v3` | MIT | [https://github.com/yaml/go-yaml/blob/v3.0.4/LICENSE](https://github.com/yaml/go-yaml/blob/v3.0.4/LICENSE) |
 | `golang.org/x/net` | BSD-3-Clause | [https://cs.opensource.google/go/x/net/+/refs/tags/v0.54.0:LICENSE](https://cs.opensource.google/go/x/net/+/refs/tags/v0.54.0:LICENSE) |
 | `golang.org/x/sync/errgroup` | BSD-3-Clause | [https://cs.opensource.google/go/x/sync/+/refs/tags/v0.21.0:LICENSE](https://cs.opensource.google/go/x/sync/+/refs/tags/v0.21.0:LICENSE) |
-| `golang.org/x/sys/windows` | BSD-3-Clause | [https://cs.opensource.google/go/x/sys/+/refs/tags/v0.46.0:LICENSE](https://cs.opensource.google/go/x/sys/+/refs/tags/v0.46.0:LICENSE) |
+| `golang.org/x/sys/windows` | BSD-3-Clause | [https://cs.opensource.google/go/x/sys/+/refs/tags/v0.48.0:LICENSE](https://cs.opensource.google/go/x/sys/+/refs/tags/v0.48.0:LICENSE) |
 | `golang.org/x/term` | BSD-3-Clause | [https://cs.opensource.google/go/x/term/+/refs/tags/v0.43.0:LICENSE](https://cs.opensource.google/go/x/term/+/refs/tags/v0.43.0:LICENSE) |
 | `golang.org/x/text` | BSD-3-Clause | [https://cs.opensource.google/go/x/text/+/refs/tags/v0.38.0:LICENSE](https://cs.opensource.google/go/x/text/+/refs/tags/v0.38.0:LICENSE) |
 | `gopkg.in/yaml.v3` | MIT | [https://github.com/go-yaml/yaml/blob/v3.0.1/LICENSE](https://github.com/go-yaml/yaml/blob/v3.0.1/LICENSE) |
