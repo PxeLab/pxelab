@@ -53,6 +53,8 @@ pxelab.db*
 # Agent/tool artifacts
 .omo/
 .playwright-mcp/
+.claude/worktrees/
+*.dshpreset
 
 # Cloudflare wrangler
 .wrangler/
