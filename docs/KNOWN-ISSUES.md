@@ -66,7 +66,7 @@
 - **问题**：`generateWimbootLine()` 的 `winpeshl` 分支（`script.go:285-286`）中，`install.bat` 与 `winpeshl.ini` 均取 `task.AnswerURL`（同一个 URL），而 answer 端点只返回单个渲染文件 → 两者拉起相同内容，必然错误。
 - **影响**：通过 winpeshl 方式自动执行 Windows PE 脚本的链路不可用。
 - **建议**：answer 端点按文件名/路径区分返回内容，或为 `install.bat`/`winpeshl.ini` 分别生成 URL。
-- **状态：已修复**：`script.go` winpeshl 分支中 `winpeshl.ini` 改为 `?file=winpeshl.ini`；`GetAnswerFile` 对该参数返回引用 `X:\install.bat` 的独立 INI 包装。
+- **状态：已修复**：`script.go` winpeshl 分支中 `winpeshl.ini` 改为 `?file=winpeshl.ini`；`GetAnswerFile` 对该参数返回 `[LaunchApps]` + `%SYSTEMROOT%\System32\install.bat` 的独立 INI 包装。
 
 ### W-07 【P2】autounattend 模板变量错乱
 

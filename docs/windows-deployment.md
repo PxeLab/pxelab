@@ -19,6 +19,7 @@ PXE 引导链：DHCP（PxeLab 内建，option 66/67 + iPXE 175/177）→ 按架�
 2. 目标机：**UEFI + 网络启动**。wimboot 是 x64 UEFI 方案，Legacy BIOS 请另用 BIOS 版 NBP。
 3. DHCP：PxeLab 内建 DHCP 或 Settings → DHCP 将子网 `next-server` 指向 PxeLab 服务器 IP。
 4. Windows ISO：必须包含 `boot\bootmgr`、`boot\bootmgr.efi`、`boot\boot.sdi`、`boot\bcd`、`sources\boot.wim`（标准安装 ISO 均满足）。
+5. **（路线 B 无人值守）先在 Settings → SMB 启用内置只读 SMB 服务**：填共享名（Recipe B 预设用 `isos`）、共享目录（提取后的 Windows ISO 目录，需含 `sources\install.wim`）、NTLMv2 账号与密码。**Windows 主机部署时须先停用占用 445 端口的「Server」(LanmanServer) 服务**，否则 PxeLab 无法监听 SMB。
 
 ## 2. 路线 A：本地 ISO 离线引导进 PE
 
@@ -35,9 +36,9 @@ PXE 引导链：DHCP（PxeLab 内建，option 66/67 + iPXE 175/177）→ 按架�
 
 1. **建应答模板**：Answer Templates → 新建。
    - `autounattend`：占位符 `{{.ProductKey}}`、`{{.ComputerName}}`、`{{.AdminPassword}}`（由 `AnswerDataFromHost` 提供；ComputerName 默认主机名，ProductKey/AdminPassword 无运行时来源时留空，安装器会提示）。按需配置分区 / install.wim 索引 / 语言。
-   - `winpeshl`：模板内容作为 `X:\install.bat`，`winpeshl.ini` 由后端独立返回（引用 `AppPath = X:\install.bat`），在 PE 启动时执行安装脚本。
+   - `winpeshl`：模板内容作为 PE 内 `%SYSTEMROOT%\System32\install.bat`；`winpeshl.ini` 由后端生成（内容为 `[LaunchApps]` + `%SYSTEMROOT%\System32\install.bat`，与 install.bat 同目录，winpeshl.exe 在此读取并执行），`?file=winpeshl.ini` 单独返回该包装。内置预设为 **Recipe B**：`net use Z: \\<server>\<共享名>`（PxeLab 只读 SMB 共享）→ `dism /Apply-Image /ImageFile:%SRC%\install.wim /Index:%WIMINDEX%` → `bcdboot` 写引导 → 重启，不经交互式 `setup.exe`（需先在 Settings → SMB 配置只读共享，见 §1；`install.wim` 索引由安装任务的 `wim_index` 控制）。若主机绑定了驱动包（Hosts → 驱动包），后端会在 `install.bat` 顶部、`dism` **之前**自动注入一段 **PE 阶段驱动加载**（从 `/boot/drivers/<包>/` 下载 → `pnputil /add-driver ... /install`，缺失 `pnputil` 时回退 `drvload`），确保存储/网卡等 boot-critical 驱动在 `dism` 扫描磁盘前就绪；驱动包内按 `x64/`、`x86/`、`arm64/` 子目录约定时按目标架构过滤。
 2. **建安装任务**：Install Tasks → 新建 → 选主机、发行版 `Windows PE`、版本 `win11-x64`/`win10-x64`、应答模板与应答类型（autounattend / winpeshl）。任务会把应答 URL 注入该主机的引导行。
-3. **引导目标机** → Catalog 菜单（`/netboot/menu.ipxe`）→ 选 Windows PE 条目 → 引导行注入应答 → PE 读取 `autounattend.xml` 自动安装。
+3. **引导目标机** → Catalog 菜单（`/netboot/menu.ipxe`）→ 选 Windows PE 条目 → 引导行注入应答 → PE 读取 `autounattend.xml`（或走 winpeshl 路线执行 `%SYSTEMROOT%\System32\install.bat`）自动安装。
 4. **验证**：任务状态、安装日志、重启后进入系统。
 
 > 默认（remote-only）Windows PE 的 wimboot/文件来自 `boot.netboot.xyz`，离线网络不可用。见 §4 本地化。

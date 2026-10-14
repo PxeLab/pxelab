@@ -170,7 +170,7 @@ store 上线信创 OS 的引导模板 + 应答模板内容包。
 Windows 装机的 A 档（打通）已由 `a2c6533`（feat(netboot): local Windows PE catalog source & answer-injection fixes）完成，形成两条互补路线（详见 `docs/windows-deployment.md`）：
 
 - **路线 A（本地 ISO 离线进 PE）**：OS Images 上传/提取 Windows ISO → 一键"创建 wds Profile"（wimboot + 本机文件，离线可用）→ 绑定主机。
-- **路线 B（安装任务无人值守）**：安装任务向引导行注入 `autounattend` / `winpeshl`（PE 内执行 `X:\install.bat`）应答；"设为本地源"把 Catalog 的 Windows PE 条目从 boot.netboot.xyz 改写为本机源（离线 + 应答注入同时成立）。
+- **路线 B（安装任务无人值守）**：安装任务向引导行注入 `autounattend` / `winpeshl`（PE 内执行 `%SYSTEMROOT%\System32\install.bat`）应答；"设为本地源"把 Catalog 的 Windows PE 条目从 boot.netboot.xyz 改写为本机源（离线 + 应答注入同时成立）。
 
 因此 R6 不再包含"ISO → 可装机条目"向导化与应答注入，**剩余范围仅为下面两项 + 文档**。
 
