@@ -8,6 +8,7 @@ const (
 	DefaultPortTFTP     = 69
 	DefaultPortDNS      = 53
 	DefaultPortNFS      = 2049
+	DefaultPortSMB      = 445
 	DefaultPortHTTP     = 8080
 	DefaultLeaseTime    = 3600
 	DefaultLogLevel     = "info"
@@ -62,6 +63,14 @@ func DefaultConfig() *Config {
 				ExportPath: "/",
 				LocalDir:   filepath.Join(dataDir, "boot", "isos"),
 				ReadOnly:   true,
+			}},
+		},
+		SMB: SMBConfig{
+			Port: DefaultPortSMB,
+			Shares: []SMBShareConfig{{
+				Name:     "isos",
+				Path:     filepath.Join(dataDir, "boot", "isos"),
+				ReadOnly: true,
 			}},
 		},
 		DNS: DNSConfig{

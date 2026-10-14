@@ -40,12 +40,18 @@ func LoadConfig(cfgPath string) (*Config, error) {
 	v.SetDefault("service_auto_start.tftp", false)
 	v.SetDefault("service_auto_start.dns", false)
 	v.SetDefault("service_auto_start.nfs", false)
+	v.SetDefault("service_auto_start.smb", false)
 
 	// nfs defaults
 	v.SetDefault("nfs.port", DefaultPortNFS)
 	v.SetDefault("nfs.mount_points", []NFSMountPoint{})
 	v.SetDefault("nfs.root_dir", "")
 	v.SetDefault("nfs.read_only", true)
+
+	// smb defaults
+	v.SetDefault("smb.port", DefaultPortSMB)
+	v.SetDefault("smb.shares", []SMBShareConfig{})
+	v.SetDefault("smb.users", []SMBUserConfig{})
 
 	// dns defaults
 	v.SetDefault("dns.port", DefaultPortDNS)
@@ -104,6 +110,16 @@ func LoadConfig(cfgPath string) (*Config, error) {
 			LocalDir:   cfg.NFS.RootDir,
 			ReadOnly:   cfg.NFS.ReadOnly,
 			AllowIPs:   cfg.NFS.AllowIPs,
+		}}
+	}
+
+	// SMB 默认共享：未配置任何共享时，暴露提取后的 ISO 目录（只读），
+	// 以便 WinPE 能通过 \\<host>\isos 读取 install.wim。
+	if len(cfg.SMB.Shares) == 0 && dd != "" {
+		cfg.SMB.Shares = []SMBShareConfig{{
+			Name:     "isos",
+			Path:     filepath.Join(dd, "boot", "isos"),
+			ReadOnly: true,
 		}}
 	}
 

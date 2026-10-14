@@ -22,6 +22,7 @@ import (
 	"github.com/pxelab/pxelab/internal/httpd"
 	"github.com/pxelab/pxelab/internal/models"
 	pxelabnfs "github.com/pxelab/pxelab/internal/nfs"
+	pxelabsmb "github.com/pxelab/pxelab/internal/smb"
 	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/pxelab/pxelab/internal/netboot/menus"
 	"github.com/pxelab/pxelab/internal/logbus"
@@ -356,6 +357,9 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 
 	nfsServer := pxelabnfs.NewServer(cfg.NFS.Port, cfg.NFS.MountPoints)
 	svcMgr.Register("nfs", "NFS", nfsServer, cfg.ServiceAutoStart.NFS, false, cfg.NFS.Port, "TCP")
+
+	smbServer := pxelabsmb.NewServer(cfg.SMB)
+	svcMgr.Register("smb", "SMB", smbServer, cfg.ServiceAutoStart.SMB, false, cfg.SMB.Port, "TCP")
 
 	nfsConnInfo := func() map[string]api.NFSConnectionInfo {
 		stats := nfsServer.GetConnectionStats()

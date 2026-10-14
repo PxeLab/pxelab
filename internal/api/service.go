@@ -268,6 +268,8 @@ func (h *ServiceHandler) persistAutoStart(name string, enabled bool) {
 		h.cfg.ServiceAutoStart.DNS = enabled
 	} else if name == "nfs" {
 		h.cfg.ServiceAutoStart.NFS = enabled
+	} else if name == "smb" {
+		h.cfg.ServiceAutoStart.SMB = enabled
 	} else {
 		// Interface-level services: dhcp/{name}, proxy/{name}
 		for i := range h.cfg.Interfaces {

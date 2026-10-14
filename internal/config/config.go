@@ -21,6 +21,7 @@ type Config struct {
 	Auth             AuthConfig             `yaml:"auth" mapstructure:"auth"`
 	DNS              DNSConfig              `yaml:"dns" mapstructure:"dns"`
 	NFS              NFSConfig              `yaml:"nfs" mapstructure:"nfs"`
+	SMB              SMBConfig              `yaml:"smb" mapstructure:"smb"`
 	Boot             BootConfig             `yaml:"boot" mapstructure:"boot"`
 	TFTP             TFTPConfig             `yaml:"tftp" mapstructure:"tftp"`
 	Netboot          NetbootConfig          `yaml:"netboot" mapstructure:"netboot"`
@@ -38,6 +39,7 @@ type ServiceAutoStartConfig struct {
 	HTTP bool `yaml:"http" mapstructure:"http"` // default true
 	DNS  bool `yaml:"dns" mapstructure:"dns"`
 	NFS  bool `yaml:"nfs" mapstructure:"nfs"`
+	SMB  bool `yaml:"smb" mapstructure:"smb"`
 }
 
 type GlobalConfig struct {
@@ -124,6 +126,34 @@ type NFSConfig struct {
 	RootDir  string   `yaml:"root_dir,omitempty"  mapstructure:"root_dir"`
 	ReadOnly bool     `yaml:"read_only,omitempty" mapstructure:"read_only"`
 	AllowIPs []string `yaml:"allow_ips,omitempty" mapstructure:"allow_ips"`
+}
+
+// SMBUserConfig 是 SMB 服务的一个账号。NTLMv2 是挑战-应答：服务端需要密码本身
+// （或它的 NT hash）来校验，密码不会在网络上传明文。
+type SMBUserConfig struct {
+	Name     string `yaml:"name"     mapstructure:"name"`
+	Password string `yaml:"password" mapstructure:"password"`
+}
+
+// SMBShareConfig 是一个 SMB 共享。Name 是 \\host\<name> 里的名字。
+// AllowUsers/WriteUsers 为空表示“所有通过认证的用户”。
+type SMBShareConfig struct {
+	Name       string   `yaml:"name"        mapstructure:"name"`
+	Path       string   `yaml:"path"        mapstructure:"path"` // 宿主目录
+	ReadOnly   bool     `yaml:"read_only"   mapstructure:"read_only"`
+	AllowUsers []string `yaml:"allow_users" mapstructure:"allow_users"`
+	WriteUsers []string `yaml:"write_users" mapstructure:"write_users"`
+}
+
+// SMBConfig 配置内置的只读/读写 SMB2 服务。它主要为 WinPE 安装 Windows 时
+// 读取 install.wim 而存在，因此默认只读、默认禁用。
+type SMBConfig struct {
+	Enabled    bool             `yaml:"enabled"     mapstructure:"enabled"`
+	Port       int              `yaml:"port"        mapstructure:"port"` // 默认 445
+	ServerName string           `yaml:"server_name" mapstructure:"server_name"`
+	AllowIPs   []string         `yaml:"allow_ips"   mapstructure:"allow_ips"` // 服务级 IP 允许列表，空 = 不限制
+	Shares     []SMBShareConfig `yaml:"shares"      mapstructure:"shares"`
+	Users      []SMBUserConfig  `yaml:"users"       mapstructure:"users"`
 }
 
 type NetbootConfig struct {
