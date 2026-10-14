@@ -1672,6 +1672,163 @@ func listWindowsDrives() []string {
 	return drives
 }
 
+// ── SMB ──
+
+// SMBShareResponse 是 SMB 共享的 API 表示。
+type SMBShareResponse struct {
+	Name       string   `json:"name"`
+	Path       string   `json:"path"`
+	ReadOnly   bool     `json:"read_only"`
+	AllowUsers []string `json:"allow_users"`
+	WriteUsers []string `json:"write_users"`
+}
+
+// SMBUserResponse 是 SMB 账号的 API 表示。密码在配置中以明文保存（NTLMv2 需要），
+// 该接口受管理员认证保护。
+type SMBUserResponse struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+type SMBSettingsResponse struct {
+	Enabled    bool               `json:"enabled"`
+	Running    bool               `json:"running"`
+	Port       int                `json:"port"`
+	ServerName string             `json:"server_name"`
+	AllowIPs   []string           `json:"allow_ips"`
+	Shares     []SMBShareResponse `json:"shares"`
+	Users      []SMBUserResponse  `json:"users"`
+}
+
+func (h *SettingsHandler) GetSMB(w http.ResponseWriter, r *http.Request) {
+	cfg := h.cfg
+
+	running := false
+	if h.isServiceRunning != nil {
+		running = h.isServiceRunning("smb")
+	}
+
+	shares := make([]SMBShareResponse, len(cfg.SMB.Shares))
+	for i, sh := range cfg.SMB.Shares {
+		shares[i] = SMBShareResponse{
+			Name:       sh.Name,
+			Path:       sh.Path,
+			ReadOnly:   sh.ReadOnly,
+			AllowUsers: sh.AllowUsers,
+			WriteUsers: sh.WriteUsers,
+		}
+	}
+	users := make([]SMBUserResponse, len(cfg.SMB.Users))
+	for i, u := range cfg.SMB.Users {
+		users[i] = SMBUserResponse{Name: u.Name, Password: u.Password}
+	}
+
+	OK(w, SMBSettingsResponse{
+		Enabled:    cfg.SMB.Enabled,
+		Running:    running,
+		Port:       cfg.SMB.Port,
+		ServerName: cfg.SMB.ServerName,
+		AllowIPs:   cfg.SMB.AllowIPs,
+		Shares:     shares,
+		Users:      users,
+	})
+}
+
+func (h *SettingsHandler) UpdateSMB(w http.ResponseWriter, r *http.Request) {
+	var req SMBSettingsResponse
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+
+	h.mu.Lock()
+	oldEnabled := h.cfg.SMB.Enabled
+	oldPort := h.cfg.SMB.Port
+	oldServerName := h.cfg.SMB.ServerName
+	oldShareNames := smbShareNames(h.cfg.SMB.Shares)
+	oldUserNames := smbUserNames(h.cfg.SMB.Users)
+
+	h.cfg.SMB.Enabled = req.Enabled
+	if req.Port > 0 {
+		h.cfg.SMB.Port = req.Port
+	}
+	h.cfg.SMB.ServerName = req.ServerName
+	h.cfg.SMB.AllowIPs = req.AllowIPs
+
+	shares := make([]config.SMBShareConfig, len(req.Shares))
+	for i, sh := range req.Shares {
+		shares[i] = config.SMBShareConfig{
+			Name:       sh.Name,
+			Path:       sh.Path,
+			ReadOnly:   sh.ReadOnly,
+			AllowUsers: sh.AllowUsers,
+			WriteUsers: sh.WriteUsers,
+		}
+	}
+	h.cfg.SMB.Shares = shares
+
+	users := make([]config.SMBUserConfig, len(req.Users))
+	for i, u := range req.Users {
+		users[i] = config.SMBUserConfig{Name: u.Name, Password: u.Password}
+	}
+	h.cfg.SMB.Users = users
+	h.mu.Unlock()
+
+	if err := saveConfig(configPath(h.cfg), h.cfg); err != nil {
+		Error(w, http.StatusInternalServerError, "保存配置失败: "+err.Error())
+		return
+	}
+
+	var changes []string
+	if oldEnabled != req.Enabled {
+		changes = append(changes, fmt.Sprintf("启用: %t→%t", oldEnabled, req.Enabled))
+	}
+	if req.Port > 0 && oldPort != req.Port {
+		changes = append(changes, fmt.Sprintf("端口: %d→%d", oldPort, req.Port))
+	}
+	if oldServerName != req.ServerName {
+		changes = append(changes, fmt.Sprintf("服务名: %q→%q", oldServerName, req.ServerName))
+	}
+	newShareNames := smbShareNames(shares)
+	if fmt.Sprint(oldShareNames) != fmt.Sprint(newShareNames) {
+		changes = append(changes, fmt.Sprintf("共享: %v→%v", oldShareNames, newShareNames))
+	}
+	newUserNames := smbUserNames(users)
+	if fmt.Sprint(oldUserNames) != fmt.Sprint(newUserNames) {
+		changes = append(changes, fmt.Sprintf("账号: %v→%v", oldUserNames, newUserNames))
+	}
+	if len(changes) > 0 {
+		RecordAudit(r.Context(), h.store, models.AuditUpdate, "smb_settings", "", remoteIP(r), strings.Join(changes, "; "))
+	}
+	OK(w, map[string]string{"status": "saved"})
+}
+
+// ValidateSMBPath 复用本地路径校验逻辑（见 ValidateNFSPath）。
+func (h *SettingsHandler) ValidateSMBPath(w http.ResponseWriter, r *http.Request) {
+	h.ValidateNFSPath(w, r)
+}
+
+// BrowseSMBPath 复用本地目录浏览逻辑（见 BrowseNFSPath）。
+func (h *SettingsHandler) BrowseSMBPath(w http.ResponseWriter, r *http.Request) {
+	h.BrowseNFSPath(w, r)
+}
+
+func smbShareNames(shares []config.SMBShareConfig) []string {
+	names := make([]string, len(shares))
+	for i, s := range shares {
+		names[i] = s.Name
+	}
+	return names
+}
+
+func smbUserNames(users []config.SMBUserConfig) []string {
+	names := make([]string, len(users))
+	for i, u := range users {
+		names[i] = u.Name
+	}
+	return names
+}
+
 // ── Netboot (stripped down — no script_template or default_menu) ──
 
 func (h *SettingsHandler) GetNetboot(w http.ResponseWriter, r *http.Request) {
