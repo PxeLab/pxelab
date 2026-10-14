@@ -301,3 +301,158 @@ func TestGetAnswerFileInjectsDriverCommands(t *testing.T) {
 		t.Fatal("驱动应先于基线执行")
 	}
 }
+
+// ── 借用项 2：PE 阶段运行时驱动加载 ──
+
+func TestFilterDriverFilesByArch(t *testing.T) {
+	files := []string{"readme.txt", "x64/a.inf", "x64/a.sys", "x86/a.inf", "arm64/a.inf", "common/b.inf"}
+	got := filterDriverFilesByArch(files, "amd64")
+	want := []string{"readme.txt", "x64/a.inf", "x64/a.sys", "common/b.inf"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("amd64 filter = %v, want %v", got, want)
+	}
+	// 无架构子目录（扁平布局）→ 原样返回，避免误伤老包
+	flat := []string{"a.inf", "sub/b.sys"}
+	if got := filterDriverFilesByArch(flat, "amd64"); strings.Join(got, ",") != strings.Join(flat, ",") {
+		t.Fatalf("flat pack should pass through, got %v", got)
+	}
+	// 无法识别架构 → 原样返回
+	if got := filterDriverFilesByArch(files, "mips"); strings.Join(got, ",") != strings.Join(files, ",") {
+		t.Fatalf("unknown arch should pass through, got %v", got)
+	}
+}
+
+func TestBuildPeDriverInstallBlock(t *testing.T) {
+	block := buildPeDriverInstallBlock("192.168.1.10:8080", "nic-intel", []string{"e1d.inf", "x64/e1d64.sys"})
+	mustContain := []string{
+		"pxelab-driver-pull",
+		`set "_pxelab_drv=X:\pxelab-drivers\nic-intel"`,
+		`md "%_pxelab_drv%\x64"`,
+		`where curl.exe >nul 2>nul && set "_pxelab_dl=curl"`,
+		`curl.exe -fsSL -o "%_pxelab_drv%\e1d.inf" "http://192.168.1.10:8080/boot/drivers/nic-intel/e1d.inf"`,
+		`certutil -urlcache -split -f "http://192.168.1.10:8080/boot/drivers/nic-intel/x64/e1d64.sys" "%_pxelab_drv%\x64\e1d64.sys"`,
+		`pnputil /add-driver "%_pxelab_drv%\*.inf" /subdirs /install`,
+		`drvload "%%i"`,
+	}
+	for _, s := range mustContain {
+		if !strings.Contains(block, s) {
+			t.Fatalf("PE 驱动块缺少 %q:\n%s", s, block)
+		}
+	}
+}
+
+// TestGetAnswerFileWinpeShellInjectsDrivers 端到端：模板 type=winpeshl + 主机绑定驱动包，
+// install.bat 顶部应注入 PE 驱动块（位于 setup.exe 之前）；winpeshl.ini 请求不注入。
+func TestGetAnswerFileWinpeShellInjectsDrivers(t *testing.T) {
+	root := setupDriverBootRoot(t)
+	st := store.NewMemory()
+	h := &InstallTaskHandler{
+		store:      st,
+		serverBase: "10.0.0.10:8080",
+		cfg:        &config.Config{},
+		bootFS:     boot.NewBootFileServer(root),
+	}
+	host := &models.Host{ID: "host-1", Name: "host-1", MAC: "aa:bb:cc:dd:ee:ff"}
+	if err := host.SetDriverPacks([]string{"nic-intel"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.CreateHost(t.Context(), host); err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &models.AnswerTemplate{
+		Name:    "winpe",
+		Type:    "winpeshl",
+		Content: "@echo off\r\nsetup.exe /unattend:X:\\autounattend.xml\r\n",
+	}
+	if err := st.CreateAnswerTemplate(t.Context(), tmpl); err != nil {
+		t.Fatal(err)
+	}
+	task := &models.InstallTask{
+		ID: "task-pe", HostID: host.ID, DistroName: "Windows PE",
+		VersionCodename: "w11", Arch: "amd64", AnswerTemplateID: &tmpl.ID,
+	}
+	if err := st.CreateInstallTask(t.Context(), task); err != nil {
+		t.Fatal(err)
+	}
+
+	// install.bat（无 file 参数）→ 顶部注入驱动块，且位于 setup.exe 之前
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/netboot/answer/task-pe", nil)
+	req = withChiParams(req, "task_id", "task-pe")
+	w := httptest.NewRecorder()
+	h.GetAnswerFile(w, req)
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Result().StatusCode)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "pxelab-driver-pull") {
+		t.Fatalf("install.bat 缺少驱动块:\n%s", body)
+	}
+	if !strings.Contains(body, "boot/drivers/nic-intel/e1d.inf") {
+		t.Fatalf("install.bat 缺少驱动下载 URL:\n%s", body)
+	}
+	if strings.Index(body, "pxelab-driver-pull") > strings.Index(body, "setup.exe") {
+		t.Fatalf("驱动块应在 setup.exe 之前:\n%s", body)
+	}
+	if !strings.HasPrefix(body, "@echo off\r\n") {
+		t.Fatalf("应保留首行 @echo off:\n%q", body)
+	}
+
+	// winpeshl.ini 请求 → 只回 INI 包装，不注入驱动
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/netboot/answer/task-pe?file=winpeshl.ini", nil)
+	req2 = withChiParams(req2, "task_id", "task-pe")
+	w2 := httptest.NewRecorder()
+	h.GetAnswerFile(w2, req2)
+	ini := w2.Body.String()
+	if strings.Contains(ini, "pxelab-driver-pull") {
+		t.Fatalf("winpeshl.ini 不应包含驱动块:\n%s", ini)
+	}
+	if !strings.Contains(ini, "%SYSTEMROOT%\\System32\\install.bat") {
+		t.Fatalf("winpeshl.ini 包装错误:\n%s", ini)
+	}
+}
+
+// TestGetAnswerFileWinpeShellViaOverlayAnswerType：模板 type=autounattend 但 overlay
+// 版本 answer_type=winpeshl（真实配置路径）时，也应触发 PE 驱动注入。
+func TestGetAnswerFileWinpeShellViaOverlayAnswerType(t *testing.T) {
+	root := setupDriverBootRoot(t)
+	st := store.NewMemory()
+	h := &InstallTaskHandler{
+		store:      st,
+		serverBase: "10.0.0.10:8080",
+		cfg:        &config.Config{},
+		bootFS:     boot.NewBootFileServer(root),
+	}
+	host := &models.Host{ID: "host-1", Name: "host-1", MAC: "aa:bb:cc:dd:ee:01"}
+	if err := host.SetDriverPacks([]string{"nic-intel"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.CreateHost(t.Context(), host); err != nil {
+		t.Fatal(err)
+	}
+	ov := &models.NetbootOverlay{DistroName: "Windows PE", Enabled: true}
+	if err := ov.SetVersionOverrides([]models.VersionOverride{{Codename: "w11", AnswerType: "winpeshl"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpsertNetbootOverlay(t.Context(), ov); err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &models.AnswerTemplate{Name: "pe", Type: "autounattend", Content: "@echo off\nsetup.exe\n"}
+	if err := st.CreateAnswerTemplate(t.Context(), tmpl); err != nil {
+		t.Fatal(err)
+	}
+	task := &models.InstallTask{
+		ID: "task-ov", HostID: host.ID, DistroName: "Windows PE",
+		VersionCodename: "w11", Arch: "amd64", AnswerTemplateID: &tmpl.ID,
+	}
+	if err := st.CreateInstallTask(t.Context(), task); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/netboot/answer/task-ov", nil)
+	req = withChiParams(req, "task_id", "task-ov")
+	w := httptest.NewRecorder()
+	h.GetAnswerFile(w, req)
+	if !strings.Contains(w.Body.String(), "pxelab-driver-pull") {
+		t.Fatalf("overlay answer_type=winpeshl 应触发 PE 驱动注入:\n%s", w.Body.String())
+	}
+}

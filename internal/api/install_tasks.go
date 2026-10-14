@@ -188,7 +188,7 @@ func (h *InstallTaskHandler) GetTaskByMAC(w http.ResponseWriter, r *http.Request
 
 	// Enrich with overlay answer_param info
 	overlay, _ := h.store.GetNetbootOverlay(r.Context(), task.DistroName)
-	taskInfo := buildBootTaskInfo(task, overlay, r.Host)
+	taskInfo := netboot.BuildBootTaskInfo(task, overlay, r.Host)
 
 	// answer_param 回落：overlay 未配置时采用 catalog 版本自带的 answer_param
 	// （如商店导入的 anaconda 系条目 inst.ks={{.AnswerURL}}），让无人值守
@@ -255,16 +255,40 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 	}
 
 	// winpeshl 模式下，模板内容作为 install.bat 返回；winpeshl.ini 由后端
-	// 生成一个引用 X:\install.bat 的包装，通过 ?file=winpeshl.ini 访问，
+	// 生成一个引用 install.bat 的包装，通过 ?file=winpeshl.ini 访问，
 	// 避免与 install.bat 返回同一内容。
-	if r.URL.Query().Get("file") == "winpeshl.ini" {
-		rendered = "[LaunchApp]\n" +
-			"AppPath = X:\\install.bat\n"
+	//
+	// 关键路径：wimboot 把每个具名 initrd 注入到 WinPE 内存盘的
+	// %SYSTEMROOT%\System32（= X:\Windows\System32），install.bat 与
+	// winpeshl.ini 都落在该目录；winpeshl.exe 也从该目录读取 winpeshl.ini。
+	// 因此 AppPath 必须指向 %SYSTEMROOT%\System32\install.bat —— 旧值
+	// X:\install.bat 指向的是内存盘根目录，那里并没有这个文件。
+	// 用 [LaunchApps]（官方 iPXE wimboot/WinPE 例程同样用法）：它按顺序运行
+	// 列出的项，适合由一个 .bat 脚本接管 WinPE 启动流程。
+	isWinpeShellIni := r.URL.Query().Get("file") == "winpeshl.ini"
+	if isWinpeShellIni {
+		rendered = "[LaunchApps]\r\n" +
+			"%SYSTEMROOT%\\System32\\install.bat\r\n"
 	}
 
 	// 勾选了“自动下发初始化基线”时，注入拉取并执行的钩子（身份按配置取 mac/sn）。
 	// R6：主机绑定了驱动包且模板为 autounattend 时，首登编排先装驱动、再拉基线。
 	driverPacks, _ := host.GetDriverPacks()
+
+	// 借用项 2：winpeshl 路线在 PE 阶段（setup.exe 之前）运行时加载驱动，覆盖
+	// boot-critical 场景（存储/网卡）。命中条件：winpeshl 模式（模板 type=winpeshl，
+	// 或 overlay 版本 answer_type=winpeshl，或本次即 winpeshl.ini 请求）且主机绑定
+	// 了驱动包。驱动块必须写进 install.bat（无 file 参数的那次请求）；winpeshl.ini
+	// 请求只返回 INI 包装，不注入。
+	winpeShellMode := tmpl.Type == "winpeshl" || isWinpeShellIni ||
+		h.resolveTaskAnswerType(r.Context(), task) == "winpeshl"
+	if winpeShellMode && !isWinpeShellIni && len(driverPacks) > 0 {
+		base := chooseServerBase(h.serverBase, r.Host)
+		if injected, ok := h.injectWinpeShellDrivers(rendered, driverPacks, task.Arch, base); ok {
+			rendered = injected
+		}
+	}
+
 	wantDrivers := tmpl.Type == "autounattend" && len(driverPacks) > 0
 	if tmpl.EnableBaselinePull || wantDrivers {
 		mac, sn := "", ""
@@ -279,7 +303,7 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 		if tmpl.Type == "autounattend" {
 			var driverCmds []driverCommand
 			if wantDrivers {
-				driverCmds = h.buildDriverCommands(base, driverPacks)
+				driverCmds = h.buildDriverCommands(base, driverPacks, task.Arch)
 				if len(driverCmds) == 0 {
 					slog.Warn("主机绑定的驱动包均不可用，跳过驱动注入",
 						"template_id", tmpl.ID, "host_id", task.HostID)
@@ -320,36 +344,20 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 	w.Write([]byte(rendered))
 }
 
-// buildBootTaskInfo constructs the task info needed for boot line injection.
-// AnswerURL is always computed so catalog-level answer_param (fallback when
-// the overlay has none) can inject the answer file URL as well.
-func buildBootTaskInfo(task *models.InstallTask, overlay *models.NetbootOverlay, serverAddr string) *netboot.BootTaskInfo {
-	answerURL := fmt.Sprintf("http://%s/api/v1/netboot/answer/%s", serverAddr, task.ID)
-
-	if overlay == nil {
-		return &netboot.BootTaskInfo{
-			ID:           task.ID,
-			AnswerURL:    answerURL,
-			ExtraCmdline: task.ExtraCmdline,
-		}
+// resolveTaskAnswerType 解析该安装任务在引导行实际使用的应答类型，与
+// netboot.BuildBootTaskInfo / GetTaskByMAC 同源：任务发行版 overlay 中匹配该版本的
+// 版本覆盖里的 answer_type（如 "winpeshl" / "autounattend"）。无 overlay 或
+// 未配置时返回 ""。供 GetAnswerFile 判定是否走 winpeshl 的 PE 阶段驱动注入。
+func (h *InstallTaskHandler) resolveTaskAnswerType(ctx context.Context, task *models.InstallTask) string {
+	overlay, err := h.store.GetNetbootOverlay(ctx, task.DistroName)
+	if err != nil || overlay == nil {
+		return ""
 	}
-
-	// Find matching version override for answer_param
 	ovs, _ := overlay.GetVersionOverrides()
-	answerParam := ""
-	answerType := ""
 	for _, ov := range ovs {
-		if ov.Codename == task.VersionCodename && ov.AnswerParam != "" {
-			answerParam = ov.AnswerParam
-			answerType = ov.AnswerType
+		if ov.Codename == task.VersionCodename && ov.AnswerType != "" {
+			return ov.AnswerType
 		}
 	}
-
-	return &netboot.BootTaskInfo{
-		ID:           task.ID,
-		AnswerURL:    answerURL,
-		AnswerParam:  answerParam,
-		AnswerType:   answerType,
-		ExtraCmdline: task.ExtraCmdline,
-	}
+	return ""
 }

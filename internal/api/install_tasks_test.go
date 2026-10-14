@@ -119,7 +119,7 @@ func TestGetAnswerFileWinpeShellIni(t *testing.T) {
 	}
 	ini, _ := io.ReadAll(w2.Body)
 	s := string(ini)
-	if !strings.Contains(s, "[LaunchApp]") || !strings.Contains(s, "AppPath = X:\\install.bat") {
+	if !strings.Contains(s, "[LaunchApps]") || !strings.Contains(s, "%SYSTEMROOT%\\System32\\install.bat") {
 		t.Fatalf("expected winpeshl.ini wrapper, got: %q", s)
 	}
 	if strings.Contains(s, body) {

@@ -10,7 +10,7 @@ import { Input, Select, Textarea } from '../components/ui/FormControls'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { api, type AnswerTemplate, type AnswerTemplateVersion } from '../api/client'
 
-const TEMPLATE_TYPES = ['kickstart', 'preseed', 'subiquity', 'autoyast', 'autounattend']
+const TEMPLATE_TYPES = ['kickstart', 'preseed', 'subiquity', 'autoyast', 'autounattend', 'winpeshl']
 
 const TYPE_LABELS: Record<string, string> = {
   kickstart: 'Kickstart (RHEL/CentOS/Rocky/Alma)',
@@ -18,6 +18,7 @@ const TYPE_LABELS: Record<string, string> = {
   subiquity: 'Subiquity (Ubuntu 20.04+)',
   autoyast: 'AutoYaST (SUSE)',
   autounattend: 'Autounattend (Windows)',
+  winpeshl: 'Winpeshl (Windows PE install.bat)',
 }
 
 const TYPE_EXTENSIONS: Record<string, string> = {
@@ -26,6 +27,7 @@ const TYPE_EXTENSIONS: Record<string, string> = {
   subiquity: 'yaml',
   autoyast: 'xml',
   autounattend: 'xml',
+  winpeshl: 'bat',
 }
 
 const HOST_VARS = [

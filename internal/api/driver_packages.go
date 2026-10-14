@@ -9,6 +9,7 @@ package api
 import (
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -149,19 +150,187 @@ func sortedKeys(m map[string]bool) []string {
 	return out
 }
 
+// driverPackFiles 返回某个驱动包按目标架构过滤后的文件清单。
+// bootFS 不可用、包名非法/不存在/为空、或无匹配架构的文件时返回错误。
+func (h *InstallTaskHandler) driverPackFiles(name, arch string) ([]string, error) {
+	if h.bootFS == nil {
+		return nil, fmt.Errorf("boot 文件服务不可用")
+	}
+	files, err := listDriverPackFiles(h.bootFS.Root(), name)
+	if err != nil {
+		return nil, err
+	}
+	if arch != "" {
+		files = filterDriverFilesByArch(files, arch)
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("驱动包无匹配架构 %q 的文件: %s", arch, name)
+	}
+	return files, nil
+}
+
 // buildDriverCommands 为主机绑定的每个驱动包生成首登安装命令；bootFS 不可用、
-// 包名非法或包为空的跳过并告警（不阻断其余包与基线编排）。
-func (h *InstallTaskHandler) buildDriverCommands(baseURL string, packs []string) []driverCommand {
+// 包名非法、包为空或无匹配架构文件的跳过并告警（不阻断其余包与基线编排）。
+// arch 为目标架构（如 amd64）——按 借用项 3 的轻量约定过滤 boot/drivers/<名称>/<arch>/。
+func (h *InstallTaskHandler) buildDriverCommands(baseURL string, packs []string, arch string) []driverCommand {
 	if h.bootFS == nil || len(packs) == 0 {
 		return nil
 	}
 	var out []driverCommand
 	for _, name := range packs {
-		files, err := listDriverPackFiles(h.bootFS.Root(), name)
+		files, err := h.driverPackFiles(name, arch)
 		if err != nil {
+			slog.Warn("跳过不可用驱动包", "pack", name, "arch", arch, "error", err)
 			continue
 		}
 		out = append(out, driverCommand{name: name, cmd: buildDriverInstallCommand(baseURL, name, files)})
 	}
 	return out
+}
+
+// ── PE 阶段运行时驱动加载（借用项 2）────────────────────────────────────────
+// winpeshl install.bat 在 setup.exe 之前下载驱动包并 pnputil/drvload 安装，
+// 覆盖 boot-critical 场景（存储/网卡），与首登注入互补。跨平台、无需 WIM 操作。
+
+// driverArchDirs 驱动包内可能出现的架构子目录名（大小写不敏感）。
+var driverArchDirs = map[string]bool{
+	"x64": true, "amd64": true, "x86_64": true,
+	"x86": true, "i386": true, "i486": true, "i586": true, "i686": true, "386": true,
+	"arm64": true, "aarch64": true,
+	"ia64": true,
+}
+
+// normalizeDriverArch 把平台/目录架构名归一为 x64/x86/arm64；无法识别返回 ""。
+func normalizeDriverArch(arch string) string {
+	switch strings.ToLower(strings.TrimSpace(arch)) {
+	case "x64", "amd64", "x86_64":
+		return "x64"
+	case "x86", "i386", "i486", "i586", "i686", "386":
+		return "x86"
+	case "arm64", "aarch64":
+		return "arm64"
+	}
+	return ""
+}
+
+// filterDriverFilesByArch 按架构过滤驱动包文件（借用项 3 的轻量版）：
+//   - 仅当包内存在架构子目录（如 x64/）时才启用过滤，避免误伤扁平布局的老包；
+//   - 顶层文件与非架构子目录视为通用，始终保留；
+//   - 架构子目录仅保留与目标架构匹配者。
+// arch 无法识别或包内无架构子目录时原样返回。
+func filterDriverFilesByArch(files []string, arch string) []string {
+	target := normalizeDriverArch(arch)
+	if target == "" {
+		return files
+	}
+	hasArchSubdir := false
+	for _, f := range files {
+		if i := strings.Index(f, "/"); i > 0 && driverArchDirs[strings.ToLower(f[:i])] {
+			hasArchSubdir = true
+			break
+		}
+	}
+	if !hasArchSubdir {
+		return files
+	}
+	out := make([]string, 0, len(files))
+	for _, f := range files {
+		i := strings.Index(f, "/")
+		if i <= 0 {
+			out = append(out, f) // 顶层：通用
+			continue
+		}
+		seg := strings.ToLower(f[:i])
+		if !driverArchDirs[seg] {
+			out = append(out, f) // 非架构目录：通用
+			continue
+		}
+		if normalizeDriverArch(seg) == target {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// buildPeDriverInstallBlock 生成 winpeshl install.bat 的 PE 阶段驱动加载块（批处理）：
+// 把该驱动包全部文件下载到 PE 可写临时目录，并在 setup.exe 之前用 pnputil
+// （缺失时回退 drvload）安装，使 boot-critical 驱动在 Windows Setup 扫描磁盘前就绪。
+// 下载器优先 curl.exe（Win10+ WinPE 自带），回退 certutil -urlcache（WinPE 长期自带）。
+// 全程 >nul 2>nul 静默、不设 setlocal：任何失败都不阻断后续 install.bat（驱动为可选增强）。
+func buildPeDriverInstallBlock(baseURL, name string, files []string) string {
+	dest := `X:\pxelab-drivers\` + name
+	var b strings.Builder
+	b.WriteString("rem PxeLab PE driver load (" + driverPullMarker + "): " + name + "\n")
+	b.WriteString(`set "_pxelab_drv=` + dest + `"` + "\n")
+	b.WriteString(`if not exist "%_pxelab_drv%" md "%_pxelab_drv%" >nul 2>nul` + "\n")
+	// 先建子目录（保留包内相对结构，pnputil /subdirs 需要）
+	subdirs := map[string]bool{}
+	for _, f := range files {
+		if idx := strings.LastIndex(f, "/"); idx > 0 {
+			subdirs[f[:idx]] = true
+		}
+	}
+	for _, sub := range sortedKeys(subdirs) {
+		local := strings.ReplaceAll(sub, "/", `\`)
+		b.WriteString(`if not exist "%_pxelab_drv%\` + local + `" md "%_pxelab_drv%\` + local + `" >nul 2>nul` + "\n")
+	}
+	// 下载器探测一次：默认 certutil，存在 curl 时改用 curl
+	b.WriteString(`set "_pxelab_dl=certutil"` + "\n")
+	b.WriteString(`where curl.exe >nul 2>nul && set "_pxelab_dl=curl"` + "\n")
+	for _, f := range files {
+		segments := strings.Split(f, "/")
+		for i, seg := range segments {
+			segments[i] = url.PathEscape(seg)
+		}
+		fileURL := fmt.Sprintf("http://%s/boot/drivers/%s/%s", baseURL, url.PathEscape(name), strings.Join(segments, "/"))
+		destPath := `%_pxelab_drv%\` + strings.ReplaceAll(f, "/", `\`)
+		b.WriteString(`if "%_pxelab_dl%"=="curl" (curl.exe -fsSL -o "` + destPath + `" "` + fileURL + `") else (certutil -urlcache -split -f "` + fileURL + `" "` + destPath + `" >nul 2>nul)` + "\n")
+	}
+	// 安装：WinPE 3.0+ 的 pnputil；缺失时用 WinPE 专用的轻量 drvload 逐个 .inf 兜底
+	b.WriteString(`where pnputil.exe >nul 2>nul` + "\n")
+	b.WriteString(`if %errorlevel%==0 (pnputil /add-driver "%_pxelab_drv%\*.inf" /subdirs /install >nul 2>nul) else (for /r "%_pxelab_drv%" %%i in (*.inf) do drvload "%%i" >nul 2>nul)` + "\n")
+	return b.String()
+}
+
+// insertAfterEchoOff 把 block 插入批处理内容顶部：若首行是 @echo off / echo off，
+// 则插到其后（避免回显）；否则直接前置。block 需自带行尾换行。
+func insertAfterEchoOff(content, block string) string {
+	if content == "" {
+		return block
+	}
+	nl := strings.IndexByte(content, '\n')
+	first, rest := content, ""
+	if nl >= 0 {
+		first, rest = content[:nl], content[nl+1:]
+	}
+	trimmed := strings.TrimSpace(strings.TrimSuffix(first, "\r"))
+	if strings.EqualFold(trimmed, "@echo off") || strings.EqualFold(trimmed, "echo off") {
+		return first + "\n" + block + rest
+	}
+	return block + content
+}
+
+// injectWinpeShellDrivers 在 winpeshl install.bat 内容顶部注入 PE 阶段驱动加载块：
+// 逐个驱动包生成“下载 + pnputil/drvload 安装”的批处理段，确保在 setup.exe 之前执行。
+// 返回注入后的内容；无可用驱动包（bootFS 不可用/包非法/无匹配架构）或已注入过时 ok=false/原样。
+func (h *InstallTaskHandler) injectWinpeShellDrivers(content string, packs []string, arch, baseURL string) (string, bool) {
+	if h.bootFS == nil || len(packs) == 0 {
+		return content, false
+	}
+	if strings.Contains(content, driverPullMarker) {
+		return content, true // 幂等：已注入
+	}
+	var blocks []string
+	for _, name := range packs {
+		files, err := h.driverPackFiles(name, arch)
+		if err != nil {
+			slog.Warn("winpeshl PE 驱动注入跳过驱动包", "pack", name, "arch", arch, "error", err)
+			continue
+		}
+		blocks = append(blocks, buildPeDriverInstallBlock(baseURL, name, files))
+	}
+	if len(blocks) == 0 {
+		return content, false
+	}
+	return insertAfterEchoOff(content, strings.Join(blocks, "")), true
 }

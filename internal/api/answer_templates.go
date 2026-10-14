@@ -430,6 +430,60 @@ autoinstall:
   </settings>
 </unattend>`,
 	}},
+	"winpeshl": {{
+		Name:        "Windows PE install.bat (SMB media + dism apply)",
+		Description: "WinPE install.bat executed via winpeshl.ini. PxeLab auto-prepends the host's bound driver packs (HTTP download + pnputil/drvload) before this runs, so boot-critical drivers load before the disk is touched. Applies install.wim from PxeLab's read-only SMB share, writes the boot loader, then reboots. Adapt the host/share/index/disk letters below.",
+		Variables:   []string{},
+		Content: `@echo off
+rem ============================================================
+rem  WinPE install.bat
+rem  wimboot injects this file and winpeshl.ini into the WinPE RAM
+rem  disk at %SYSTEMROOT%\System32 (X:\Windows\System32), so both
+rem  live in the same directory; winpeshl.ini launches this script
+rem  via [LaunchApps].
+rem
+rem  PxeLab automatically prepends the driver packs bound to the host
+rem  (HTTP download + pnputil/drvload), so boot-critical storage/NIC
+rem  drivers are loaded BEFORE the disk is touched. Do NOT re-add that
+rem  block here.
+rem ------------------------------------------------------------
+rem  Recipe B: apply install.wim over the network, then bcdboot.
+rem  Adjust PXELAB_HOST / WIMINDEX / WINDRV / ESPART to your lab.
+rem  WINDRV (Windows) and ESPART (EFI system partition) must already
+rem  be partitioned and formatted (e.g. a prior diskpart script).
+rem ============================================================
+setlocal
+
+rem --- Windows media: PxeLab's built-in read-only SMB share (config smb.shares) ---
+set "PXELAB_HOST=pxelab"
+set "WIMINDEX=1"
+set "WINDRV=W:"
+set "ESPART=S:"
+
+rem If the share requires credentials, append:  /user:<name> <password>
+net use Z: \\%PXELAB_HOST%\isos /persistent:no || goto :fail
+set "SRC=Z:\sources"
+
+if not exist "%SRC%\install.wim" (
+  echo [pxelab] install.wim not found on \\%PXELAB_HOST%\isos\sources
+  goto :fail
+)
+
+rem --- 1) apply the OS image to the target volume ---
+dism /Apply-Image /ImageFile:"%SRC%\install.wim" /Index:%WIMINDEX% /ApplyDir:%WINDRV%\ || goto :fail
+
+rem --- 2) write BCD/boot files to the EFI system partition ---
+bcdboot %WINDRV%\Windows /s %ESPART% /f UEFI || goto :fail
+
+net use Z: /delete >nul 2>&1
+wpeutil reboot
+exit /b 0
+
+:fail
+echo [pxelab] WinPE install.bat failed
+exit /b 1
+`,
+	}},
 }
 
 func (h *AnswerTemplateHandler) List(w http.ResponseWriter, r *http.Request) {
