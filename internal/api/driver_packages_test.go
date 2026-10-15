@@ -17,7 +17,8 @@ import (
 
 // setupDriverBootRoot 构造 boot 根目录：
 //
-//	drivers/nic-intel/{e1d.inf, x64/e1d64.sys}  合法包
+//	drivers/nic-intel/{e1d.inf, x64/e1d64.sys}  合法包（含架构子目录）
+//	drivers/flat-pack/chipset.inf                合法包（扁平布局，无架构子目录）
 //	drivers/empty-pack/                          空包（应被跳过）
 func setupDriverBootRoot(t *testing.T) string {
 	t.Helper()
@@ -30,6 +31,13 @@ func setupDriverBootRoot(t *testing.T) string {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(nic, "x64", "e1d64.sys"), []byte("sys"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	flat := filepath.Join(root, "drivers", "flat-pack")
+	if err := os.MkdirAll(flat, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(flat, "chipset.inf"), []byte("inf"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(root, "drivers", "empty-pack"), 0755); err != nil {
@@ -79,12 +87,46 @@ func TestDriverPackageListEndpoint(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(resp.Data.Packages) != 1 {
-		t.Fatalf("packages = %v, want 1 个（空包跳过）", resp.Data.Packages)
+	if len(resp.Data.Packages) != 2 {
+		t.Fatalf("packages = %v, want 2 个（空包跳过）", resp.Data.Packages)
 	}
-	p := resp.Data.Packages[0]
+	// Glob 字典序：flat-pack 在前，nic-intel 在后
+	f := resp.Data.Packages[0]
+	if f.Name != "flat-pack" || f.Files != 1 || f.InfFiles != 1 {
+		t.Fatalf("package = %+v", f)
+	}
+	// 扁平布局 → archs = []（全架构通用）
+	if len(f.Archs) != 0 {
+		t.Fatalf("flat-pack archs = %v, want []", f.Archs)
+	}
+	p := resp.Data.Packages[1]
 	if p.Name != "nic-intel" || p.Files != 2 || p.InfFiles != 1 {
 		t.Fatalf("package = %+v", p)
+	}
+	// nic-intel 含 x64/ 子目录 → archs = ["x64"]（顶层 e1d.inf 是通用文件）
+	if strings.Join(p.Archs, ",") != "x64" {
+		t.Fatalf("nic-intel archs = %v, want [x64]", p.Archs)
+	}
+}
+
+func TestDriverPackArchs(t *testing.T) {
+	cases := []struct {
+		name  string
+		files []string
+		want  string
+	}{
+		{"arch subdirs dedup+sort", []string{
+			"a.inf", "x64/a.sys", "x86_64/b.sys", "amd64/c.sys", "x86/d.sys", "arm64/e.sys", "common/f.dat",
+		}, "x64,x86,arm64"},
+		{"x64 only", []string{"x64/a.inf"}, "x64"},
+		{"flat layout", []string{"a.inf", "sub/b.sys"}, ""},
+		{"non-arch dirs ignored", []string{"win7/a.inf", "w11/b.inf"}, ""},
+		{"mixed normalize", []string{"AMD64/a.inf", "aarch64/b.inf"}, "x64,arm64"},
+	}
+	for _, c := range cases {
+		if got := strings.Join(driverPackArchs(c.files), ","); got != c.want {
+			t.Errorf("%s: driverPackArchs = %q, want %q", c.name, got, c.want)
+		}
 	}
 }
 

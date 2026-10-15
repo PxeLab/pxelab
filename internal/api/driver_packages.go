@@ -34,6 +34,36 @@ type driverPackageDTO struct {
 	Name     string `json:"name"`
 	Files    int    `json:"files"`
 	InfFiles int    `json:"inf_files"`
+	// Archs 包内出现的架构（归一化 x64/x86/arm64，去重稳定排序）。
+	// 空数组 = 扁平布局（无架构子目录），全架构通用。
+	Archs []string `json:"archs"`
+}
+
+// driverPackArchs 从包内文件清单推导出现的架构（借鉴项 3）：首段命中架构
+// 子目录（x64/、amd64/、x86_64/、arm64/…）即归一化计入，去重并按
+// x64/x86/arm64 稳定排序。扁平布局（无架构子目录）返回空切片。
+func driverPackArchs(files []string) []string {
+	seen := make(map[string]bool, 3)
+	for _, f := range files {
+		i := strings.Index(f, "/")
+		if i <= 0 {
+			continue // 顶层文件：通用
+		}
+		seg := f[:i]
+		if !driverArchDirs[strings.ToLower(seg)] {
+			continue // 非架构目录：通用
+		}
+		if a := normalizeDriverArch(seg); a != "" {
+			seen[a] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for _, a := range []string{"x64", "x86", "arm64"} {
+		if seen[a] {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // listDriverPackFiles 递归列出驱动包内全部文件的相对路径（正斜杠分隔，排序后返回）。
@@ -89,7 +119,12 @@ func (h *DriverPackageHandler) List(w http.ResponseWriter, r *http.Request) {
 				inf++
 			}
 		}
-		packs = append(packs, driverPackageDTO{Name: name, Files: len(files), InfFiles: inf})
+		packs = append(packs, driverPackageDTO{
+			Name:     name,
+			Files:    len(files),
+			InfFiles: inf,
+			Archs:    driverPackArchs(files),
+		})
 	}
 	OK(w, map[string]any{"packages": packs})
 }
@@ -100,7 +135,7 @@ type driverCommand struct {
 	cmd  string
 }
 
-// psSingleQuoted 把字符串嵌入 PowerShell 单引号字面量（' → ''）。
+// psSingleQuoted 把字符串嵌入 PowerShell 单引号字面量（' → ”）。
 // 驱动包名/文件路径已经过 driverNameRe 与 WalkDir 相对路径约束，这里只做兜底转义。
 func psSingleQuoted(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
@@ -110,6 +145,7 @@ func psSingleQuoted(s string) string {
 //  1. 在 %TEMP%\pxelab-drivers\<name> 重建目录结构；
 //  2. WebClient 逐个拉取包内文件（平台 /boot/ 公开文件服务，匿名可达）；
 //  3. pnputil /add-driver <dir>\*.inf /subdirs /install 安装。
+//
 // 任何一步失败都被外层 try/catch 静默，不阻断后续首登命令。
 func buildDriverInstallCommand(baseURL, name string, files []string) string {
 	var b strings.Builder
@@ -217,6 +253,7 @@ func normalizeDriverArch(arch string) string {
 //   - 仅当包内存在架构子目录（如 x64/）时才启用过滤，避免误伤扁平布局的老包；
 //   - 顶层文件与非架构子目录视为通用，始终保留；
 //   - 架构子目录仅保留与目标架构匹配者。
+//
 // arch 无法识别或包内无架构子目录时原样返回。
 func filterDriverFilesByArch(files []string, arch string) []string {
 	target := normalizeDriverArch(arch)
