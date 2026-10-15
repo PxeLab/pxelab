@@ -27,6 +27,16 @@ type AnswerData struct {
 	DomainOU      string
 	AdminPassword string
 	TimeZone      string
+
+	// Windows PE install (Recipe B) — 内置 winpeshl install.bat 预设的参数
+	// （借鉴项 6）。由渲染侧按服务器配置与安装任务填充，使预设而非硬编码：
+	// SmbServer 为 SMB 服务器地址（不含端口），SmbShare 为媒体共享名，
+	// WimIndex 为 install.wim 索引，WindowsDrive/EfiDrive 为 PE 内盘符。
+	SmbServer    string
+	SmbShare     string
+	WimIndex     string
+	WindowsDrive string
+	EfiDrive     string
 }
 
 // AnswerDataFromHost builds AnswerData from a Host model with sensible defaults.

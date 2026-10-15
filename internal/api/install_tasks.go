@@ -24,9 +24,9 @@ type InstallTaskHandler struct {
 	store      store.Interface
 	serverBase string // 可被局域网访问的 HTTP 基址（host:port），用于注入应答钩子
 	cfg        *config.Config
-	eventBus   *eventbus.Bus          // 任务状态流转到 done/failed 时发布 webhook 通知事件（R3），可为 nil
-	bootFS     *boot.BootFileServer   // 驱动包目录快照来源（R6），可为 nil（不注入驱动）
-	netbootMgr *netboot.Manager       // catalog answer_param 回落来源，可为 nil
+	eventBus   *eventbus.Bus        // 任务状态流转到 done/failed 时发布 webhook 通知事件（R3），可为 nil
+	bootFS     *boot.BootFileServer // 驱动包目录快照来源（R6），可为 nil（不注入驱动）
+	netbootMgr *netboot.Manager     // catalog answer_param 回落来源，可为 nil
 }
 
 func (h *InstallTaskHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -247,6 +247,10 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 	}
 
 	data := netboot.AnswerDataFromHost(host, task.Arch)
+
+	// 借鉴项 6：winpeshl Recipe B 预设参数化 —— SMB 服务器取渲染基址（与引导
+	// 下载同源），共享名取 smb.shares 首个（默认 isos），索引取任务的 WIMIndex。
+	fillWinpeInstallParams(&data, chooseServerBase(h.serverBase, r.Host), h.cfg, task.WIMIndex)
 
 	rendered, err := netboot.RenderAnswerTemplate(tmpl.Content, data)
 	if err != nil {

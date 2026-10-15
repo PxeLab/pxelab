@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -78,6 +79,10 @@ func (h *AnswerTemplateHandler) Preview(w http.ResponseWriter, r *http.Request) 
 		DomainOU           string `json:"domain_ou"`
 		AdminPassword      string `json:"admin_password"`
 		TimeZone           string `json:"time_zone"`
+		// winpeshl Recipe B 预设参数（借鉴项 6）可选覆盖
+		WimIndex  int    `json:"wim_index"`
+		SmbServer string `json:"smb_server"`
+		SmbShare  string `json:"smb_share"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -115,6 +120,16 @@ func (h *AnswerTemplateHandler) Preview(w http.ResponseWriter, r *http.Request) 
 		DomainOU:       req.DomainOU,
 		AdminPassword:  req.AdminPassword,
 		TimeZone:       req.TimeZone,
+	}
+
+	// 借鉴项 6：winpeshl Recipe B 预设参数化 —— 服务器/共享/索引由配置与
+	// 预览入参填充（未提供则用默认值），避免硬编码。
+	fillWinpeInstallParams(&data, chooseServerBase(h.serverBase, r.Host), h.cfg, req.WimIndex)
+	if req.SmbServer != "" {
+		data.SmbServer = req.SmbServer
+	}
+	if req.SmbShare != "" {
+		data.SmbShare = req.SmbShare
 	}
 
 	rendered, err := netboot.RenderAnswerTemplate(srcContent, data)
@@ -432,8 +447,8 @@ autoinstall:
 	}},
 	"winpeshl": {{
 		Name:        "Windows PE install.bat (SMB media + dism apply)",
-		Description: "WinPE install.bat executed via winpeshl.ini. PxeLab auto-prepends the host's bound driver packs (HTTP download + pnputil/drvload) before this runs, so boot-critical drivers load before the disk is touched. Applies install.wim from PxeLab's read-only SMB share, writes the boot loader, then reboots. Adapt the host/share/index/disk letters below.",
-		Variables:   []string{},
+		Description: "WinPE install.bat executed via winpeshl.ini. PxeLab auto-prepends the host's bound driver packs (HTTP download + pnputil/drvload) before this runs, so boot-critical drivers load before the disk is touched. Applies install.wim from PxeLab's read-only SMB share, writes the boot loader, then reboots. The SMB host/share and WIM index are filled from the server config and install task; adapt the drive letters if your lab differs.",
+		Variables:   []string{"smb_server", "smb_share", "wim_index", "windows_drive", "efi_drive"},
 		Content: `@echo off
 rem ============================================================
 rem  WinPE install.bat
@@ -448,24 +463,27 @@ rem  drivers are loaded BEFORE the disk is touched. Do NOT re-add that
 rem  block here.
 rem ------------------------------------------------------------
 rem  Recipe B: apply install.wim over the network, then bcdboot.
-rem  Adjust PXELAB_HOST / WIMINDEX / WINDRV / ESPART to your lab.
-rem  WINDRV (Windows) and ESPART (EFI system partition) must already
-rem  be partitioned and formatted (e.g. a prior diskpart script).
+rem  PxeLab fills PXELAB_HOST / WIMINDEX / WINDRV / ESPART / share
+rem  from the server config (smb.shares) and the install task
+rem  (wim_index). WINDRV (Windows) and ESPART (EFI system partition)
+rem  must already be partitioned and formatted (e.g. a prior diskpart
+rem  script); override the drive letters below if your lab differs.
 rem ============================================================
 setlocal
 
 rem --- Windows media: PxeLab's built-in read-only SMB share (config smb.shares) ---
-set "PXELAB_HOST=pxelab"
-set "WIMINDEX=1"
-set "WINDRV=W:"
-set "ESPART=S:"
+set "PXELAB_HOST={{.SmbServer}}"
+set "PXELAB_SHARE={{.SmbShare}}"
+set "WIMINDEX={{.WimIndex}}"
+set "WINDRV={{.WindowsDrive}}"
+set "ESPART={{.EfiDrive}}"
 
 rem If the share requires credentials, append:  /user:<name> <password>
-net use Z: \\%PXELAB_HOST%\isos /persistent:no || goto :fail
+net use Z: \\%PXELAB_HOST%\%PXELAB_SHARE% /persistent:no || goto :fail
 set "SRC=Z:\sources"
 
 if not exist "%SRC%\install.wim" (
-  echo [pxelab] install.wim not found on \\%PXELAB_HOST%\isos\sources
+  echo [pxelab] install.wim not found on \\%PXELAB_HOST%\%PXELAB_SHARE%\sources
   goto :fail
 )
 
@@ -484,6 +502,52 @@ echo [pxelab] WinPE install.bat failed
 exit /b 1
 `,
 	}},
+}
+
+// ── winpeshl Recipe B 预设参数填充（借鉴项 6）────────────────────────────────
+// 内置 winpeshl 预设使用 {{.SmbServer}} / {{.SmbShare}} / {{.WimIndex}} /
+// {{.WindowsDrive}} / {{.EfiDrive}}，渲染前由 Preview 与 GetAnswerFile 填充，
+// 使共享名、SMB 服务器、WIM 索引随配置与任务变化，而非硬编码在模板里。
+
+// smbServerHost 从 host:port 形式的基础地址提取 SMB 服务器主机部分
+// （WinPE 的 net use 不能带端口）。
+func smbServerHost(base string) string {
+	if host, _, err := net.SplitHostPort(strings.TrimSpace(base)); err == nil {
+		return strings.Trim(host, "[]")
+	}
+	return strings.Trim(strings.TrimSpace(base), "[]")
+}
+
+// smbShareName 返回内置 SMB 服务配置的第一个共享名（Recipe B 媒体共享）；
+// 未配置时默认 isos（与文档及预设说明一致）。
+func smbShareName(cfg *config.Config) string {
+	if cfg != nil {
+		for _, s := range cfg.SMB.Shares {
+			if strings.TrimSpace(s.Name) != "" {
+				return s.Name
+			}
+		}
+	}
+	return "isos"
+}
+
+// wimIndexString 归一化 WIM 索引为字符串：<=0 视为 1（boot.wim 与多数
+// install.wim 的默认索引）。
+func wimIndexString(index int) string {
+	if index <= 0 {
+		return "1"
+	}
+	return strconv.Itoa(index)
+}
+
+// fillWinpeInstallParams 填充 winpeshl Recipe B 预设参数：服务器取渲染基址
+// （与引导下载同源），共享名取配置首个，索引取安装任务（0 → 1）。
+func fillWinpeInstallParams(data *netboot.AnswerData, base string, cfg *config.Config, wimIndex int) {
+	data.SmbServer = smbServerHost(base)
+	data.SmbShare = smbShareName(cfg)
+	data.WimIndex = wimIndexString(wimIndex)
+	data.WindowsDrive = "W:"
+	data.EfiDrive = "S:"
 }
 
 func (h *AnswerTemplateHandler) List(w http.ResponseWriter, r *http.Request) {
