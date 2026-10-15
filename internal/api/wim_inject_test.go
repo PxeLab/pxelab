@@ -240,6 +240,126 @@ func TestCapabilitiesRouteNotShadowedByID(t *testing.T) {
 	}
 }
 
+// TestWIMInjectLock 并发互斥：同镜像同时只允许一个注入/还原；不同镜像互不阻塞。
+// 注意：锁表是进程级全局，测试必须释放自己拿到的锁，否则会污染后续用例。
+func TestWIMInjectLock(t *testing.T) {
+	const a, b = 9001, 9002 // 测试专用 ID，避开内存库的连续自增 ID
+	mu := lockWIMInject(a)
+	if mu == nil {
+		t.Fatal("首个获取应成功")
+	}
+	if lockWIMInject(a) != nil {
+		t.Fatal("同镜像二次获取应失败（→ 409）")
+	}
+	mu2 := lockWIMInject(b)
+	if mu2 == nil {
+		t.Fatal("不同镜像应可获取")
+	}
+	mu2.Unlock()
+	mu.Unlock()
+	m := lockWIMInject(a)
+	if m == nil {
+		t.Fatal("释放后应可再次获取")
+	}
+	m.Unlock()
+}
+
+// TestRestoreWIMValidation：未提取 / 无备份 / 非法 target 应 400。
+func TestRestoreWIMValidation(t *testing.T) {
+	st := store.NewMemory()
+	h := &OSImageHandler{store: st}
+
+	img1 := &models.OSImage{Name: "nx", Filename: "nx.iso", Status: "ready"}
+	if err := st.CreateOSImage(t.Context(), img1); err != nil {
+		t.Fatal(err)
+	}
+	id1 := strconv.FormatUint(uint64(img1.ID), 10)
+	w := httptest.NewRecorder()
+	h.RestoreWIM(w, withChiParams(httptest.NewRequest(http.MethodPost, "/api/v1/os-images/"+id1+"/restore-wim", nil), "id", id1))
+	if w.Result().StatusCode != http.StatusBadRequest {
+		t.Fatalf("未提取应 400, got %d", w.Result().StatusCode)
+	}
+
+	// 已提取但无 .orig 备份
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "sources"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "sources", "boot.wim"), []byte("w"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	img2 := &models.OSImage{Name: "nw", Filename: "nw.iso", Status: "ready", ExtractedTo: dir}
+	if err := st.CreateOSImage(t.Context(), img2); err != nil {
+		t.Fatal(err)
+	}
+	id2 := strconv.FormatUint(uint64(img2.ID), 10)
+	w = httptest.NewRecorder()
+	h.RestoreWIM(w, withChiParams(httptest.NewRequest(http.MethodPost, "/api/v1/os-images/"+id2+"/restore-wim", nil), "id", id2))
+	if w.Result().StatusCode != http.StatusBadRequest {
+		t.Fatalf("无备份应 400, got %d", w.Result().StatusCode)
+	}
+
+	// 非法 target
+	if err := os.WriteFile(filepath.Join(dir, "sources", "boot.wim.orig"), []byte("o"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	w = httptest.NewRecorder()
+	h.RestoreWIM(w, withChiParams(httptest.NewRequest(http.MethodPost, "/api/v1/os-images/"+id2+"/restore-wim",
+		strings.NewReader(`{"target":"recovery"}`)), "id", id2))
+	if w.Result().StatusCode != http.StatusBadRequest {
+		t.Fatalf("非法 target 应 400, got %d", w.Result().StatusCode)
+	}
+}
+
+// TestRestoreWIMRestoresAndClears：还原把 .orig 覆盖回 WIM，并清空注入记录。
+func TestRestoreWIMRestoresAndClears(t *testing.T) {
+	dir := t.TempDir()
+	sources := filepath.Join(dir, "sources")
+	if err := os.MkdirAll(sources, 0755); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte("pristine-wim")
+	wimPath := filepath.Join(sources, "boot.wim")
+	if err := os.WriteFile(wimPath, []byte("injected-wim"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(wimPath+".orig", original, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	st := store.NewMemory()
+	img := &models.OSImage{
+		Name: "w", Filename: "w.iso", Status: "ready", ExtractedTo: dir,
+		InjectedDrivers: `["nic-intel"]`, DriverInjectCount: 3,
+	}
+	if err := st.CreateOSImage(t.Context(), img); err != nil {
+		t.Fatal(err)
+	}
+	h := &OSImageHandler{store: st}
+	id := strconv.FormatUint(uint64(img.ID), 10)
+	w := httptest.NewRecorder()
+	h.RestoreWIM(w, withChiParams(httptest.NewRequest(http.MethodPost, "/api/v1/os-images/"+id+"/restore-wim", nil), "id", id))
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("还原应成功, got %d (%s)", w.Result().StatusCode, w.Body.String())
+	}
+	got, _ := os.ReadFile(wimPath)
+	if string(got) != string(original) {
+		t.Fatalf("WIM 应被还原为原始内容, got %q", got)
+	}
+	// .orig 保留（可重复还原）
+	if _, err := os.Stat(wimPath + ".orig"); err != nil {
+		t.Fatalf("备份应保留: %v", err)
+	}
+	// 注入记录清空
+	reloaded, err := st.GetOSImage(t.Context(), img.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.DriverInjectCount != 0 || reloaded.InjectedDrivers != "" || reloaded.DriverInjectedAt != nil {
+		t.Fatalf("注入记录应清空: %+v", reloaded)
+	}
+}
+
 func TestNormalizeWimTarget(t *testing.T) {
 	cases := map[string]string{
 		"":          "boot",

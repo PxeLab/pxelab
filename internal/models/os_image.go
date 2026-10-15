@@ -25,9 +25,11 @@ type OSImage struct {
 	// InjectedDrivers 是已注入驱动包名的 JSON 数组（见 Get/Set 与 Marshal/Unmarshal）。
 	InjectedDrivers  string     `json:"-" gorm:"type:text"` // JSON: ["nic-intel","raid-lsi"]
 	DriverInjectedAt *time.Time `json:"driver_injected_at,omitempty"`
-	FilePath         string     `json:"file_path" gorm:"-"` // ISO 在服务器上的完整路径（响应时计算，不落库）
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	// DriverInjectCount 累计离线注入次数（叠加注入会累积；可经 restore-wim 还原并清零）。
+	DriverInjectCount int       `json:"driver_inject_count"`
+	FilePath          string    `json:"file_path" gorm:"-"` // ISO 在服务器上的完整路径（响应时计算，不落库）
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 func (o *OSImage) GetInjectedDrivers() ([]string, error) {

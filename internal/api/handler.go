@@ -344,6 +344,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/os-images/{id}/set-catalog-local", h.OSImage.SetCatalogLocal)
 		// WIM 离线驱动注入（借鉴项 1/4/5）
 		r.Post("/os-images/{id}/inject-drivers", h.OSImage.InjectDrivers)
+		r.Post("/os-images/{id}/restore-wim", h.OSImage.RestoreWIM)
 		r.Get("/os-images/{id}/wim-info", h.OSImage.WIMInfo)
 
 		// Bootloader management

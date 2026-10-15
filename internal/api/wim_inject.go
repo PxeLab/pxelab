@@ -21,12 +21,28 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/osimage"
 )
+
+// wimInjectLocks 保证同一镜像同一时刻只有一次离线注入/还原在运行：并发注入会
+// 同时 mount/commit 同一 WIM，可能损坏镜像或留下幽灵挂载点（dism /Cleanup-Wim
+// 未必能救）。按镜像 ID 分锁，不同镜像互不阻塞。
+var wimInjectLocks sync.Map // uint -> *sync.Mutex
+
+// lockWIMInject 尝试获取镜像的注入锁；已被占用时返回 nil（调用方应回 409）。
+func lockWIMInject(id uint) *sync.Mutex {
+	mu, _ := wimInjectLocks.LoadOrStore(id, &sync.Mutex{})
+	m := mu.(*sync.Mutex)
+	if !m.TryLock() {
+		return nil
+	}
+	return m
+}
 
 type wimInjectRequest struct {
 	DriverPacks []string `json:"driver_packs"` // 驱动包名列表（boot 根目录 drivers/<名称>/）
@@ -143,6 +159,14 @@ func (h *OSImageHandler) InjectDrivers(w http.ResponseWriter, r *http.Request) {
 		staged = append(staged, stagedWIMPack{name: name, files: files})
 	}
 
+	// 并发互斥：同一镜像的注入/还原串行化，避免同时 mount/commit 同一 WIM。
+	mu := lockWIMInject(img.ID)
+	if mu == nil {
+		Error(w, http.StatusConflict, "该镜像正有离线注入/还原在进行，请稍后重试")
+		return
+	}
+	defer mu.Unlock()
+
 	// 备份原 WIM（已存在则保留 —— 原始介质只备份一次）
 	backupPath := wimPath + ".orig"
 	if _, err := os.Stat(backupPath); os.IsNotExist(err) {
@@ -212,19 +236,89 @@ func (h *OSImageHandler) InjectDrivers(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	img.InjectedDrivers = mustJSONStringArray(namesOf(staged))
 	img.DriverInjectedAt = &now
+	img.DriverInjectCount++
 	if err := h.store.UpdateOSImage(ctx, img); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	RecordAudit(ctx, h.store, models.AuditUpdate, "os_image", strconv.FormatUint(uint64(img.ID), 10), remoteIP(r),
-		fmt.Sprintf("WIM 离线注入驱动: %s → %s (index %d)", strings.Join(namesOf(staged), ","), wimRelPath(target), index))
+		fmt.Sprintf("WIM 离线注入驱动: %s → %s (index %d, 第 %d 次)", strings.Join(namesOf(staged), ","), wimRelPath(target), index, img.DriverInjectCount))
 	OK(w, map[string]any{
-		"injected": namesOf(staged),
-		"target":   target,
-		"index":    index,
-		"wim":      wimPath,
-		"backup":   backupPath,
-		"drivers":  drivers,
+		"injected":     namesOf(staged),
+		"target":       target,
+		"index":        index,
+		"wim":          wimPath,
+		"backup":       backupPath,
+		"drivers":      drivers,
+		"inject_count": img.DriverInjectCount,
+	})
+}
+
+// restoreRequest 还原请求体（target 缺省 boot）。
+type restoreRequest struct {
+	Target string `json:"target"`
+}
+
+// RestoreWIM 用 `<name>.orig` 覆盖回原始 WIM，回滚离线注入并清空注入记录
+// （借用项 5 的“可回滚”）。需先前有过注入（即存在 .orig 备份）。
+func (h *OSImageHandler) RestoreWIM(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+	ctx := r.Context()
+	img, err := h.store.GetOSImage(ctx, uint(id))
+	if err != nil {
+		Error(w, http.StatusNotFound, "image not found")
+		return
+	}
+	var req restoreRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+		Error(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+	switch strings.ToLower(strings.TrimSpace(req.Target)) {
+	case "", "boot", "install":
+	default:
+		Error(w, http.StatusBadRequest, `target 必须是 "boot" 或 "install"`)
+		return
+	}
+	target := normalizeWimTarget(req.Target)
+	if img.ExtractedTo == "" {
+		Error(w, http.StatusBadRequest, "image is not extracted; extract it first")
+		return
+	}
+	wimPath := h.wimPathOf(img, target)
+	backupPath := wimPath + ".orig"
+	if _, err := os.Stat(backupPath); err != nil {
+		Error(w, http.StatusBadRequest, fmt.Sprintf("未找到备份 %s，无法还原（仅注入过才可还原）", wimRelPath(target)+".orig"))
+		return
+	}
+
+	mu := lockWIMInject(img.ID)
+	if mu == nil {
+		Error(w, http.StatusConflict, "该镜像正有离线注入/还原在进行，请稍后重试")
+		return
+	}
+	defer mu.Unlock()
+
+	if err := copyFileTo(backupPath, wimPath); err != nil {
+		Error(w, http.StatusInternalServerError, fmt.Sprintf("还原失败: %v", err))
+		return
+	}
+	img.InjectedDrivers = ""
+	img.DriverInjectedAt = nil
+	img.DriverInjectCount = 0
+	if err := h.store.UpdateOSImage(ctx, img); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	RecordAudit(ctx, h.store, models.AuditUpdate, "os_image", strconv.FormatUint(uint64(img.ID), 10), remoteIP(r),
+		fmt.Sprintf("WIM 还原为原始文件: %s ← %s", wimRelPath(target), wimRelPath(target)+".orig"))
+	OK(w, map[string]any{
+		"restored": wimPath,
+		"from":     backupPath,
 	})
 }
 
