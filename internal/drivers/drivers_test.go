@@ -98,6 +98,37 @@ func TestPackBytes(t *testing.T) {
 	}
 }
 
+// TestBatchLiteralEscaping：文件名/子目录名含 `%` 时必须转义为 `%%`
+// （cmd 在引号内也做百分号展开），否则落地/下载路径写坏且静默失败。
+func TestBatchLiteralEscaping(t *testing.T) {
+	// http 块：文件名与子目录名含 %
+	http := PeInstallBlockHTTP("10.0.0.10:8080", "nic-intel", []string{"net%20card.inf", "x%64/e1d.sys"})
+	if !strings.Contains(http, `%_pxelab_drv%\net%%20card.inf`) {
+		t.Fatalf("HTTP 块文件名未转义:\n%s", http)
+	}
+	if !strings.Contains(http, `md "%_pxelab_drv%\x%%64"`) {
+		t.Fatalf("HTTP 块子目录未转义:\n%s", http)
+	}
+	// 变量引用本身不能被转义
+	if !strings.Contains(http, `set "_pxelab_drv=X:\pxelab-drivers\nic-intel"`) {
+		t.Fatalf("变量引用被误转义:\n%s", http)
+	}
+	// URL 侧应走 URL 转义（% → %25），而不是 %%
+	if !strings.Contains(http, "http://10.0.0.10:8080/boot/drivers/nic-intel/net%2520card.inf") {
+		t.Fatalf("URL 转义应使用 %%25:\n%s", http)
+	}
+
+	// initrd 块：目标路径含真实文件名（issue #4 里“initrd 不受影响”的结论不准确）
+	inj := []Injection{{Pack: "nic-intel", Rel: "x64/ne%t.sys", Inject: "pxdrv_abcd1234.sys"}}
+	initrd := PeInstallBlockInitrd(inj)
+	if !strings.Contains(initrd, `"%_pxelab_drv%\x64\ne%%t.sys"`) {
+		t.Fatalf("initrd 块目标路径未转义:\n%s", initrd)
+	}
+	if !strings.Contains(initrd, `"%SYSTEMROOT%\System32\pxdrv_abcd1234.sys"`) {
+		t.Fatalf("initrd 注入名不应被改写:\n%s", initrd)
+	}
+}
+
 func TestNormalizeDelivery(t *testing.T) {
 	cases := map[string]string{
 		"":         DeliveryHTTP,

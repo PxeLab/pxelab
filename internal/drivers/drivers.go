@@ -289,6 +289,15 @@ func fileURL(baseURL, pack, rel string) string {
 	return fmt.Sprintf("http://%s/boot/drivers/%s/%s", baseURL, url.PathEscape(pack), strings.Join(segments, "/"))
 }
 
+// escapeBatchLiteral 转义批处理中的**字面量**路径：cmd 即使在双引号内也会做
+// 百分号展开，文件名含 `%`（如 `net%20card.sys`）会把落地/下载路径写坏（且全程
+// `>nul 2>nul` 静默，难排查）。只对文件/子目录等字面量使用，**不要**用于变量引用
+// （如 `%_pxelab_drv%`）。`!` 仅在启用延迟展开时特殊，本块插入在模板顶部、
+// 不启用延迟展开，故保持字面量。
+func escapeBatchLiteral(s string) string {
+	return strings.ReplaceAll(s, "%", "%%")
+}
+
 // subdirsOf 收集相对路径中的子目录（生成 md 命令用）。
 func subdirsOf(rels []string) []string {
 	m := map[string]bool{}
@@ -321,14 +330,14 @@ func PeInstallBlockHTTP(baseURL, name string, files []string) string {
 	b.WriteString(`if not exist "%_pxelab_drv%" md "%_pxelab_drv%" >nul 2>nul` + "\n")
 	// 先建子目录（保留包内相对结构，pnputil /subdirs 需要）
 	for _, sub := range subdirsOf(files) {
-		local := strings.ReplaceAll(sub, "/", `\`)
+		local := escapeBatchLiteral(strings.ReplaceAll(sub, "/", `\`))
 		b.WriteString(`if not exist "%_pxelab_drv%\` + local + `" md "%_pxelab_drv%\` + local + `" >nul 2>nul` + "\n")
 	}
 	// 下载器探测一次：默认 certutil，存在 curl 时改用 curl
 	b.WriteString(`set "_pxelab_dl=certutil"` + "\n")
 	b.WriteString(`where curl.exe >nul 2>nul && set "_pxelab_dl=curl"` + "\n")
 	for _, f := range files {
-		destPath := `%_pxelab_drv%\` + strings.ReplaceAll(f, "/", `\`)
+		destPath := `%_pxelab_drv%\` + escapeBatchLiteral(strings.ReplaceAll(f, "/", `\`))
 		u := fileURL(baseURL, name, f)
 		b.WriteString(`if "%_pxelab_dl%"=="curl" (curl.exe -fsSL -o "` + destPath + `" "` + u + `") else (certutil -urlcache -split -f "` + u + `" "` + destPath + `" >nul 2>nul)` + "\n")
 	}
@@ -416,11 +425,11 @@ func PeInstallBlockInitrd(injections []Injection) string {
 		b.WriteString(`set "_pxelab_drv=X:\pxelab-drivers\` + pack + `"` + "\n")
 		b.WriteString(`if not exist "%_pxelab_drv%" md "%_pxelab_drv%" >nul 2>nul` + "\n")
 		for _, sub := range subdirsOf(rels) {
-			local := strings.ReplaceAll(sub, "/", `\`)
+			local := escapeBatchLiteral(strings.ReplaceAll(sub, "/", `\`))
 			b.WriteString(`if not exist "%_pxelab_drv%\` + local + `" md "%_pxelab_drv%\` + local + `" >nul 2>nul` + "\n")
 		}
 		for _, in := range list {
-			dst := `%_pxelab_drv%\` + strings.ReplaceAll(in.Rel, "/", `\`)
+			dst := `%_pxelab_drv%\` + escapeBatchLiteral(strings.ReplaceAll(in.Rel, "/", `\`))
 			b.WriteString(`copy /y "%SYSTEMROOT%\System32\` + in.Inject + `" "` + dst + `" >nul 2>nul` + "\n")
 		}
 		b.WriteString(pnputilBlock())
