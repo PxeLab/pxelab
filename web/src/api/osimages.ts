@@ -19,6 +19,8 @@ export interface OSImage {
   file_path?: string
   checksum?: string
   error_message?: string
+  injected_drivers?: string[]
+  driver_injected_at?: string
   created_at?: string
   updated_at?: string
 }
@@ -131,4 +133,57 @@ export function createWdsProfileFromOSImage(
     profile_name: profileName,
     description,
   })
+}
+
+// ── 离线 WIM 驱动注入（借鉴项 1/4/5，仅 Windows 主机）──
+
+export interface WIMCapabilities {
+  offline_driver_injection: boolean
+  platform: string
+  reason?: string
+}
+
+export interface WIMIndex {
+  index: number
+  name?: string
+  description?: string
+  size?: number
+}
+
+export interface WIMDriver {
+  provider_name?: string
+  class_name?: string
+  driver?: string
+  version?: string
+  boot_critical?: boolean
+}
+
+export interface WIMInjectResult {
+  injected: string[]
+  target: string
+  index: number
+  wim: string
+  backup: string
+  drivers: WIMDriver[] | null
+}
+
+export interface WIMInfo {
+  target: string
+  wim: string
+  indexes: WIMIndex[] | null
+}
+
+export function getWIMCapabilities(): Promise<ApiResponse<WIMCapabilities>> {
+  return request<WIMCapabilities>('GET', '/os-images/capabilities')
+}
+
+export function getWIMInfo(id: number, target: 'boot' | 'install' = 'boot'): Promise<ApiResponse<WIMInfo>> {
+  return request<WIMInfo>('GET', `/os-images/${id}/wim-info?target=${target}`)
+}
+
+export function injectWIMDrivers(
+  id: number,
+  data: { driver_packs: string[]; target: 'boot' | 'install'; index?: number; recurse?: boolean },
+): Promise<ApiResponse<WIMInjectResult>> {
+  return request<WIMInjectResult>('POST', `/os-images/${id}/inject-drivers`, data)
 }

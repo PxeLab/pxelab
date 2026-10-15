@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Upload, Trash2, RefreshCw, Disc, FileArchive, HardDrive, Search, AlertCircle, CheckCircle, Clock, FolderInput, Pencil, FolderOpen, Folder, ArrowUp, CloudDownload } from 'lucide-react'
+import { Upload, Trash2, RefreshCw, Disc, FileArchive, HardDrive, Search, AlertCircle, CheckCircle, Clock, FolderInput, Pencil, FolderOpen, Folder, ArrowUp, CloudDownload, Cpu } from 'lucide-react'
 import { PieChart, Pie, Cell } from 'recharts'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
@@ -12,7 +12,8 @@ import { DataTable, type Column } from '../components/ui/DataTable'
 import { Input, Select } from '../components/ui/FormControls'
 import { Pagination } from '../components/ui/Pagination'
 import { useToast } from '../components/ui/Toast'
-import { api, type OSImage } from '../api/client'
+import { ChecklistPicker } from '../components/ui/ChecklistPicker'
+import { api, type OSImage, type DriverPackage, type WIMIndex, type WIMInjectResult, type WIMCapabilities } from '../api/client'
 
 function formatTime(s: string) {
   try { return new Date(s).toLocaleString() } catch { return s }
@@ -107,6 +108,15 @@ export default function OSImages() {
   const [wdsTarget, setWdsTarget] = useState<OSImage | null>(null)
   const [wdsName, setWdsName] = useState('')
 
+  // 离线 WIM 驱动注入（借鉴项 1/4/5）：能力探测 + 注入表单
+  const [capabilities, setCapabilities] = useState<WIMCapabilities | null>(null)
+  const [allDriverPacks, setAllDriverPacks] = useState<DriverPackage[]>([])
+  const [injectTarget, setInjectTarget] = useState<OSImage | null>(null)
+  const [injectForm, setInjectForm] = useState<{ packs: string[]; target: 'boot' | 'install'; index: number; recurse: boolean }>({ packs: [], target: 'boot', index: 1, recurse: true })
+  const [injectIndexes, setInjectIndexes] = useState<WIMIndex[]>([])
+  const [injectResult, setInjectResult] = useState<WIMInjectResult | null>(null)
+  const [injecting, setInjecting] = useState(false)
+
   const fileRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
 
@@ -120,6 +130,12 @@ export default function OSImages() {
   }
 
   useEffect(() => { loadImages() }, [])
+
+  // 平台能力 + 驱动包清单：非 Windows 上「注入驱动」入口置灰
+  useEffect(() => {
+    api.getWIMCapabilities().then(res => setCapabilities(res.data ?? null)).catch(() => {})
+    api.getDriverPackages().then(res => setAllDriverPacks(res.data ?? [])).catch(() => {})
+  }, [])
 
   // 有镜像处于处理中（上传后异步校验/识别）时，每 3 秒静默刷新直到全部就绪
   const hasPending = images.some(img => img.status === 'uploading' || img.status === 'validating')
@@ -214,6 +230,39 @@ export default function OSImages() {
       success(t('osImages.reprocessing'))
       await loadImages()
     } catch (err: any) { showError(err.message) }
+  }
+
+  const openInject = (img: OSImage) => {
+    setInjectForm({ packs: [], target: 'boot', index: 1, recurse: true })
+    setInjectIndexes([])
+    setInjectResult(null)
+    setInjectTarget(img)
+  }
+
+  const loadInjectIndexes = async () => {
+    if (!injectTarget?.id) return
+    try {
+      const res = await api.getWIMInfo(injectTarget.id, injectForm.target)
+      setInjectIndexes(res.data?.indexes ?? [])
+    } catch (err: any) { showError(err.message) }
+  }
+
+  const handleInject = async () => {
+    if (!injectTarget?.id) return
+    if (injectForm.packs.length === 0) { showError(t('osImages.injectNoPacks')); return }
+    setInjecting(true)
+    try {
+      const res = await api.injectWIMDrivers(injectTarget.id, {
+        driver_packs: injectForm.packs,
+        target: injectForm.target,
+        index: injectForm.index,
+        recurse: injectForm.recurse,
+      })
+      setInjectResult(res.data)
+      success(t('osImages.injectDone', { count: res.data.injected.length }))
+      await loadImages()
+    } catch (err: any) { showError(err.message) }
+    finally { setInjecting(false) }
   }
 
   const handleImport = async () => {
@@ -325,9 +374,12 @@ export default function OSImages() {
     {
       key: 'state', label: t('osImages.colState'),
       render: (img) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {img.extracted_to ? <Tag color="green">{t('osImages.extractedTag')}</Tag> : <Tag>{t('osImages.notExtractedTag')}</Tag>}
           {img.mount_point ? <Tag color="blue">{t('osImages.mountedTag')}</Tag> : <Tag>{t('osImages.notMountedTag')}</Tag>}
+          {(img.injected_drivers ?? []).length > 0 && (
+            <Tag color="cyan">{t('osImages.injectedDrivers', { packs: (img.injected_drivers ?? []).join(', ') })}</Tag>
+          )}
         </div>
       ),
     },
@@ -373,6 +425,16 @@ export default function OSImages() {
           {distroKind(img.distro) === 'windows' && img.extracted_to && (
             <button onClick={() => handleSetCatalogLocal(img.id!)} className={`${actionBtn} hover:bg-accent-green/15 hover:text-accent-green`} title={t('osImages.setCatalogLocalHint')}>
               <CloudDownload size={11} /> {t('osImages.setCatalogLocal')}
+            </button>
+          )}
+          {distroKind(img.distro) === 'windows' && img.extracted_to && (
+            <button
+              onClick={() => openInject(img)}
+              disabled={!capabilities?.offline_driver_injection}
+              title={capabilities?.offline_driver_injection ? t('osImages.injectDrivers') : t('osImages.injectDriversUnsupported')}
+              className={`${actionBtn} ${capabilities?.offline_driver_injection ? 'hover:bg-cyan-500/15 hover:text-cyan-400' : 'opacity-40 cursor-not-allowed'}`}
+            >
+              <Cpu size={11} /> {t('osImages.injectDrivers')}
             </button>
           )}
           <button onClick={() => openEdit(img)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-blue-400`}>
@@ -587,6 +649,96 @@ export default function OSImages() {
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="secondary" size="sm" onClick={() => setWdsTarget(null)}>{t('common.cancel')}</Button>
             <Button size="sm" onClick={handleCreateWds}>{t('osImages.createWdsConfirm')}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 离线 WIM 驱动注入（借鉴项 1/4/5；仅 Windows 主机） */}
+      <Modal open={!!injectTarget} onClose={() => setInjectTarget(null)} title={t('osImages.injectTitle')}>
+        <div className="space-y-4">
+          <p className="text-xs text-[var(--text-muted)] leading-relaxed">{t('osImages.injectHint')}</p>
+
+          {injectTarget && !capabilities?.offline_driver_injection && (
+            <div className="flex items-start gap-2 text-xs text-accent-yellow bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 leading-relaxed">
+              <AlertCircle size={13} className="shrink-0 mt-0.5" />
+              <span>{t('osImages.injectDriversUnsupported')}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('osImages.injectTarget')}</label>
+              <Select
+                value={injectForm.target}
+                onChange={e => { setInjectForm({ ...injectForm, target: e.target.value as 'boot' | 'install' }); setInjectIndexes([]) }}
+              >
+                <option value="boot">{t('osImages.injectTargetBoot')}</option>
+                <option value="install">{t('osImages.injectTargetInstall')}</option>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">
+                {t('osImages.injectIndex')} <span className="font-normal text-[var(--text-muted)]">({t('osImages.injectIndexHint')})</span>
+              </label>
+              <div className="flex gap-1.5">
+                <input
+                  type="number"
+                  min={1}
+                  className="w-20 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500"
+                  value={injectForm.index}
+                  onChange={e => setInjectForm({ ...injectForm, index: parseInt(e.target.value, 10) || 1 })}
+                />
+                <button type="button" onClick={loadInjectIndexes} className={`${actionBtn} hover:bg-blue-500/15 hover:text-blue-400`}>
+                  <RefreshCw size={11} /> {t('osImages.injectLoadIndexes')}
+                </button>
+              </div>
+              {injectIndexes.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {injectIndexes.map(ix => (
+                    <button
+                      key={ix.index}
+                      type="button"
+                      onClick={() => setInjectForm({ ...injectForm, index: ix.index })}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${injectForm.index === ix.index ? 'border-blue-500 text-blue-400' : 'border-[var(--bg-border)] text-[var(--text-muted)]'}`}
+                      title={ix.description || ix.name || ''}
+                    >
+                      {ix.index}{ix.name ? ` · ${ix.name}` : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{t('osImages.injectPacks')}</label>
+            <ChecklistPicker
+              items={allDriverPacks.map(p => ({ id: p.name, name: p.name, badge: `${p.inf_files} INF` }))}
+              selected={injectForm.packs}
+              onToggle={id => setInjectForm({ ...injectForm, packs: injectForm.packs.includes(id) ? injectForm.packs.filter(x => x !== id) : [...injectForm.packs, id] })}
+              emptyText={t('hosts.noDriverPacks')}
+            />
+            <label className="flex items-center gap-1.5 cursor-pointer mt-2">
+              <input type="checkbox" className="accent-blue-500" checked={injectForm.recurse} onChange={e => setInjectForm({ ...injectForm, recurse: e.target.checked })} />
+              <span className="text-xs text-[var(--text-secondary)]">{t('osImages.injectRecurse')}</span>
+            </label>
+          </div>
+
+          {injectResult && (
+            <div className="text-xs bg-accent-green/10 border border-accent-green/30 rounded px-3 py-2 space-y-1">
+              <div className="text-accent-green font-medium">{t('osImages.injectDone', { count: injectResult.injected.length })}</div>
+              {injectResult.drivers && injectResult.drivers.length > 0 && (
+                <div className="text-[var(--text-secondary)]">{t('osImages.injectVerified', { count: injectResult.drivers.length })}</div>
+              )}
+              <div className="text-[var(--text-muted)] font-mono text-[10px] break-all">{t('osImages.injectBackup', { path: injectResult.backup })}</div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" size="sm" onClick={() => setInjectTarget(null)}>{t('common.close')}</Button>
+            <Button size="sm" onClick={handleInject} disabled={injecting || !capabilities?.offline_driver_injection}>
+              {injecting ? t('osImages.injectWorking') : t('osImages.injectDo')}
+            </Button>
           </div>
         </div>
       </Modal>
