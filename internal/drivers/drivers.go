@@ -73,14 +73,20 @@ func NormalizeArch(arch string) string {
 	return ""
 }
 
-// ListPackFiles 递归列出驱动包内全部文件的相对路径（正斜杠分隔，排序后返回）。
+// FileInfo 驱动包内的一个文件：相对路径（正斜杠）+ 字节大小。
+type FileInfo struct {
+	Rel  string
+	Size int64
+}
+
+// ListPackFilesInfo 递归列出驱动包内全部文件（含字节大小，按相对路径排序）。
 // 包名非法或目录不存在/为空返回错误。
-func ListPackFiles(bootRoot, name string) ([]string, error) {
+func ListPackFilesInfo(bootRoot, name string) ([]FileInfo, error) {
 	if !NameRe.MatchString(name) {
 		return nil, fmt.Errorf("无效的驱动包名: %q", name)
 	}
 	dir := filepath.Join(bootRoot, "drivers", name)
-	var files []string
+	var files []FileInfo
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -92,17 +98,98 @@ func ListPackFiles(bootRoot, name string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		files = append(files, filepath.ToSlash(rel))
+		var size int64
+		if info, err := d.Info(); err == nil {
+			size = info.Size()
+		}
+		files = append(files, FileInfo{Rel: filepath.ToSlash(rel), Size: size})
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(files)
+	sort.Slice(files, func(i, j int) bool { return files[i].Rel < files[j].Rel })
 	if len(files) == 0 {
 		return nil, fmt.Errorf("驱动包为空: %s", name)
 	}
 	return files, nil
+}
+
+// ListPackFiles 递归列出驱动包内全部文件的相对路径（正斜杠分隔，排序后返回）。
+// 包名非法或目录不存在/为空返回错误。
+func ListPackFiles(bootRoot, name string) ([]string, error) {
+	infos, err := ListPackFilesInfo(bootRoot, name)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(infos))
+	for _, fi := range infos {
+		out = append(out, fi.Rel)
+	}
+	return out, nil
+}
+
+// PackBytes 返回文件清单的总字节数。
+func PackBytes(files []FileInfo) int64 {
+	var n int64
+	for _, f := range files {
+		n += f.Size
+	}
+	return n
+}
+
+// Projection 一个驱动包在指定架构下的交付规模投影（用于 initrd 直投规模评估：
+// Files 即该包将生成的 iPXE initrd 行数）。
+type Projection struct {
+	Pack       string   `json:"pack"`
+	Archs      []string `json:"archs"`
+	TotalFiles int      `json:"total_files"`
+	TotalBytes int64    `json:"total_bytes"`
+	InfFiles   int      `json:"inf_files"`
+	Files      int      `json:"files"` // 架构过滤后（= initrd 行数）
+	Bytes      int64    `json:"bytes"` // 架构过滤后
+	FilesList  []string `json:"files_list"`
+}
+
+// Project 计算驱动包在 arch 下的规模投影。arch 为空表示不做架构过滤。
+// 包名非法/不存在/为空返回错误。
+func Project(bootRoot, name, arch string) (*Projection, error) {
+	infos, err := ListPackFilesInfo(bootRoot, name)
+	if err != nil {
+		return nil, err
+	}
+	rels := make([]string, 0, len(infos))
+	sizeOf := make(map[string]int64, len(infos))
+	for _, fi := range infos {
+		rels = append(rels, fi.Rel)
+		sizeOf[fi.Rel] = fi.Size
+	}
+	total := PackBytes(infos)
+	inf := 0
+	for _, fi := range infos {
+		if strings.HasSuffix(strings.ToLower(fi.Rel), ".inf") {
+			inf++
+		}
+	}
+
+	kept := rels
+	if arch != "" {
+		kept = FilterByArch(rels, arch)
+	}
+	var keptBytes int64
+	for _, r := range kept {
+		keptBytes += sizeOf[r]
+	}
+	return &Projection{
+		Pack:       name,
+		Archs:      PackArchs(rels),
+		TotalFiles: len(infos),
+		TotalBytes: total,
+		InfFiles:   inf,
+		Files:      len(kept),
+		Bytes:      keptBytes,
+		FilesList:  kept,
+	}, nil
 }
 
 // FilterByArch 按架构过滤驱动包文件（借鉴项 3 的轻量版）：

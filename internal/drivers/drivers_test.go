@@ -30,6 +30,74 @@ func setupRoot(t *testing.T) string {
 	return root
 }
 
+func TestListPackFilesInfoAndProject(t *testing.T) {
+	root := setupRoot(t)
+
+	infos, err := ListPackFilesInfo(root, "nic-intel")
+	if err != nil {
+		t.Fatalf("info: %v", err)
+	}
+	if len(infos) != 3 {
+		t.Fatalf("infos = %d, want 3", len(infos))
+	}
+	// 排序稳定（按相对路径）
+	if infos[0].Rel != "e1d.inf" || infos[1].Rel != "x64/e1d64.cat" || infos[2].Rel != "x64/e1d64.sys" {
+		t.Fatalf("顺序错误: %+v", infos)
+	}
+	for _, fi := range infos {
+		if fi.Size != 3 { // 测试写入的都是 3 字节
+			t.Fatalf("size = %d, want 3 (%s)", fi.Size, fi.Rel)
+		}
+	}
+
+	// arch 为空：不过滤，Files = TotalFiles
+	all, err := Project(root, "nic-intel", "")
+	if err != nil {
+		t.Fatalf("project: %v", err)
+	}
+	if all.TotalFiles != 3 || all.Files != 3 || all.TotalBytes != 9 || all.Bytes != 9 {
+		t.Fatalf("all projection = %+v", all)
+	}
+	if all.InfFiles != 1 || strings.Join(all.Archs, ",") != "x64" {
+		t.Fatalf("all projection archs/inf = %+v", all)
+	}
+
+	// amd64：x64/ 保留 + 顶层通用 → 3 个（本包 x64 全部保留）
+	amd, err := Project(root, "nic-intel", "amd64")
+	if err != nil {
+		t.Fatalf("project amd64: %v", err)
+	}
+	if amd.Files != 3 {
+		t.Fatalf("amd64 files = %d (%v)", amd.Files, amd.FilesList)
+	}
+
+	// arm64：x64/ 被过滤 → 仅顶层通用文件
+	arm, err := Project(root, "nic-intel", "arm64")
+	if err != nil {
+		t.Fatalf("project arm64: %v", err)
+	}
+	if arm.Files != 1 || len(arm.FilesList) != 1 || arm.FilesList[0] != "e1d.inf" {
+		t.Fatalf("arm64 files = %d (%v)", arm.Files, arm.FilesList)
+	}
+	if arm.Bytes != 3 {
+		t.Fatalf("arm64 bytes = %d, want 3", arm.Bytes)
+	}
+
+	// 坏包报错
+	if _, err := Project(root, "no-such", "amd64"); err == nil {
+		t.Fatal("不存在的包应报错")
+	}
+}
+
+func TestPackBytes(t *testing.T) {
+	if got := PackBytes([]FileInfo{{Size: 1}, {Size: 2}, {Size: 3}}); got != 6 {
+		t.Fatalf("PackBytes = %d, want 6", got)
+	}
+	if got := PackBytes(nil); got != 0 {
+		t.Fatalf("PackBytes(nil) = %d", got)
+	}
+}
+
 func TestNormalizeDelivery(t *testing.T) {
 	cases := map[string]string{
 		"":         DeliveryHTTP,

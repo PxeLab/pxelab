@@ -104,6 +104,9 @@ func TestDriverPackageListEndpoint(t *testing.T) {
 	if p.Name != "nic-intel" || p.Files != 2 || p.InfFiles != 1 {
 		t.Fatalf("package = %+v", p)
 	}
+	if p.SizeBytes <= 0 {
+		t.Fatalf("size_bytes 应 > 0: %+v", p)
+	}
 	// nic-intel 含 x64/ 子目录 → archs = ["x64"]（顶层 e1d.inf 是通用文件）
 	if strings.Join(p.Archs, ",") != "x64" {
 		t.Fatalf("nic-intel archs = %v, want [x64]", p.Archs)
