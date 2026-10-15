@@ -43,7 +43,10 @@ PXE 引导链：DHCP（PxeLab 内建，option 66/67 + iPXE 175/177）→ 按架�
 
 > **驱动覆盖补充（Phase 1/2）**：
 > - **Profile 默认驱动包**：驱动包可在 **Boot Menu（Profile）** 上配置为默认值；未显式绑定驱动包的主机会自动继承（Hosts 上的主机级绑定优先）。驱动包内 `x64/`、`x86/`、`arm64/` 子目录会按目标架构过滤。
-> - **离线注入**（可选，仅 Windows 主机）：对已提取的 Windows ISO 调 `POST /api/v1/os-images/{id}/inject-drivers`（body `{"driver_packs":["<包名>"],"target":"boot","index":1}`）把驱动打进 `sources/boot.wim`，覆盖须在 PE 启动前注册 driver store 的驱动。原 `boot.wim` 先备份为 `boot.wim.orig`（不覆盖已有备份），注入结果随响应返回；`GET /api/v1/os-images/{id}/wim-info` 列出可选索引（`target` 可选 `boot`/`install`）。**非 Windows 主机返回 501**，请改用上面的 PE 阶段运行时加载。
+> - **驱动交付方式**（Settings → Netboot → 驱动交付方式，`netboot.driver_delivery`）：
+>   - `http`（默认）：PE 内用 `curl`/`certutil` 从 `/boot/drivers/` 下载后 `pnputil` 安装；预启动占用内存更少。
+>   - `initrd`：iPXE 在启动前把每个驱动文件作为具名 initrd 注入 PE 内存盘，`install.bat` 落地后 `pnputil` 安装；**完全离线**，但预启动即传输全部驱动文件、占用更多 PE 内存，且仅对 winpeshl 路线生效。
+> - **离线注入**（可选，仅 Windows 主机）：对已提取的 Windows ISO 调 `POST /api/v1/os-images/{id}/inject-drivers`（body `{"driver_packs":["<包名>"],"target":"boot","index":1}`）把驱动打进 `sources/boot.wim`，覆盖须在 PE 启动前注册 driver store 的驱动。原 `boot.wim` 先备份为 `boot.wim.orig`（不覆盖已有备份），注入结果随响应返回；`GET /api/v1/os-images/{id}/wim-info` 列出可选索引（`target` 可选 `boot`/`install`）。**非 Windows 主机返回 501**（`GET /api/v1/os-images/capabilities` 可预判），请改用上面的 PE 阶段运行时加载。
 
 > 默认（remote-only）Windows PE 的 wimboot/文件来自 `boot.netboot.xyz`，离线网络不可用。见 §4 本地化。
 

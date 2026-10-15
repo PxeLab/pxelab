@@ -42,7 +42,7 @@
 
 - **WinPE 24H2 `System error 1727`**（认证式 SMB 连接失败）：根因 KB5051987，已修于 KB5058411（26100.4061），仍建议真机实测。
 - **Windows 主机 445 端口被 LanmanServer（「Server」服务）占用**：须先停该服务，否则 PxeLab SMB 无法监听。
-- **真机验证缺失**：iPXE `initrd -n <name>` 具名语义、wimboot `index=`、`winpeshl.ini [LaunchApps]`、Recipe B 的 `dism /Apply-Image`、离线 `dism /Add-Driver` 注入（借鉴项 1）均只有 build / vet / 单测级证据，**未在真实 Windows 硬件上跑通**。
+- **真机验证缺失**：iPXE `initrd -n <name>` 具名语义（含 `driver_delivery=initrd` 时**多驱动文件注入**的实际表现与 PE 内存占用）、wimboot `index=`、`winpeshl.ini [LaunchApps]`、Recipe B 的 `dism /Apply-Image`、离线 `dism /Add-Driver` 注入（借鉴项 1）均只有 build / vet / 单测级证据，**未在真实 Windows 硬件上跑通**。
 
 ---
 
@@ -53,11 +53,15 @@
 ### 2.1 借鉴项 2 — PE 阶段运行时驱动加载 ✅ 已落地
 
 - **实现**：
-  - `internal/api/driver_packages.go` → `buildPeDriverInstallBlock` / `injectWinpeShellDrivers`（另 `buildDriverCommands` 供首登）。
+  - `internal/drivers/` → 驱动包领域逻辑（列举 / 架构过滤 / 架构推导 / `EffectivePacks` 继承规则），以及两种交付方式的文本生成：`PeInstallBlockHTTP`（HTTP 下载）与 `PeInstallBlockInitrd`（initrd 直投落地）+ `PlanInjections` / `InjectName` / `InitrdLines`。`internal/api/driver_packages.go` 保留薄别名。
   - `internal/api/install_tasks.go` → `GetAnswerFile`：在 winpeshl 模式（模板 `type=winpeshl`，或 overlay 版本 `answer_type=winpeshl`，见 `resolveTaskAnswerType`）且主机绑定驱动包时，把驱动块注入 `install.bat` **顶部**（位于 Recipe B 的 `dism` 之前）；`?file=winpeshl.ini` 那次请求不注入。
-  - 驱动块：从 `/boot/drivers/<包>/` HTTP 下载 → `pnputil /add-driver … /install`（缺失 `pnputil` 时回退 `drvload`）；包内按 `x64/`、`x86/`、`arm64/` 子目录按目标架构过滤。
-- **验收**：winpeshl 主机绑定驱动包后，PE 内 `pnputil /enum-drivers` 在 `dism` 前已列出该驱动。
-- **测试**：`internal/api/driver_packages_test.go` → `TestGetAnswerFileWinpeShellInjectsDrivers`、`TestGetAnswerFileWinpeShellViaOverlayAnswerType`。
+  - **交付方式由 `netboot.driver_delivery` 决定**（Settings → Netboot）：
+    - `http`（默认）：从 `/boot/drivers/<包>/` 用 `curl`/`certutil` 下载 → `pnputil /add-driver … /install`（缺失 `pnputil` 时回退 `drvload`）。
+    - `initrd`：iPXE 把**每个驱动文件**作为具名 initrd 注入 WinPE 内存盘的 `%SYSTEMROOT%\System32`（`internal/httpd` 菜单生成，见 `generateBootMenu`），`install.bat` 再 `copy` 落地到 `X:\pxelab-drivers\<包>\…` 后 `pnputil` 安装。**完全离线**、无需 PE 内 HTTP；代价是预启动即传输全部驱动文件、占用更多 PE 内存。
+  - 两者共享 `drivers.PlanInjections`：注入文件名由 `pack`+相对路径确定性派生（`drivers.InjectName`），因此**菜单（initrd 行）与 install.bat（落地 copy）引用的文件名必然一致**（有单测守护该不变量）。
+  - 包内按 `x64/`、`x86/`、`arm64/` 子目录按目标架构过滤。
+- **验收**：winpeshl 主机绑定驱动包后，PE 内 `pnputil /enum-drivers` 在 `dism` 前已列出该驱动（`http` 与 `initrd` 两种方式均适用；`initrd` 方式待真机验证多文件注入的实际表现）。
+- **测试**：`internal/drivers/drivers_test.go`；`internal/api/driver_packages_test.go` → `TestGetAnswerFileWinpeShellInjectsDrivers`、`TestGetAnswerFileWinpeShellViaOverlayAnswerType`、`TestGetAnswerFileWinpeShellInitrdDelivery`；`internal/httpd/bootmenu_test.go` → `TestGenerateBootMenuInitrdDriverDelivery`。
 
 ### 2.2 借鉴项 1（= 待办 B1）— 离线 `dism /add-driver` 注入 `boot.wim` ✅ 已实现（待真机验证）
 
