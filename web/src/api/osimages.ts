@@ -21,6 +21,7 @@ export interface OSImage {
   error_message?: string
   injected_drivers?: string[]
   driver_injected_at?: string
+  driver_inject_count?: number
   created_at?: string
   updated_at?: string
 }
@@ -165,6 +166,7 @@ export interface WIMInjectResult {
   wim: string
   backup: string
   drivers: WIMDriver[] | null
+  inject_count?: number
 }
 
 export interface WIMInfo {
@@ -186,4 +188,9 @@ export function injectWIMDrivers(
   data: { driver_packs: string[]; target: 'boot' | 'install'; index?: number; recurse?: boolean },
 ): Promise<ApiResponse<WIMInjectResult>> {
   return request<WIMInjectResult>('POST', `/os-images/${id}/inject-drivers`, data)
+}
+
+// 用 sources/<target>.wim.orig 还原回原始 WIM，回滚离线注入并清空注入记录
+export function restoreWIM(id: number, target: 'boot' | 'install' = 'boot'): Promise<ApiResponse<{ restored: string; from: string }>> {
+  return request<{ restored: string; from: string }>('POST', `/os-images/${id}/restore-wim`, { target })
 }

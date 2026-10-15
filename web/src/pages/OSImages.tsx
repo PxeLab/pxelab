@@ -116,6 +116,7 @@ export default function OSImages() {
   const [injectIndexes, setInjectIndexes] = useState<WIMIndex[]>([])
   const [injectResult, setInjectResult] = useState<WIMInjectResult | null>(null)
   const [injecting, setInjecting] = useState(false)
+  const [restoring, setRestoring] = useState(false)
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -265,6 +266,18 @@ export default function OSImages() {
     finally { setInjecting(false) }
   }
 
+  const handleRestore = async () => {
+    if (!injectTarget?.id) return
+    setRestoring(true)
+    try {
+      await api.restoreWIM(injectTarget.id, injectForm.target)
+      success(t('osImages.restoreDone'))
+      setInjectResult(null)
+      await loadImages()
+    } catch (err: any) { showError(err.message) }
+    finally { setRestoring(false) }
+  }
+
   const handleImport = async () => {
     if (!importDir.trim()) return
     setImporting(true)
@@ -379,6 +392,9 @@ export default function OSImages() {
           {img.mount_point ? <Tag color="blue">{t('osImages.mountedTag')}</Tag> : <Tag>{t('osImages.notMountedTag')}</Tag>}
           {(img.injected_drivers ?? []).length > 0 && (
             <Tag color="cyan">{t('osImages.injectedDrivers', { packs: (img.injected_drivers ?? []).join(', ') })}</Tag>
+          )}
+          {(img.driver_inject_count ?? 0) > 1 && (
+            <Tag color="yellow">{t('osImages.injectCountBadge', { count: img.driver_inject_count })}</Tag>
           )}
         </div>
       ),
@@ -731,6 +747,20 @@ export default function OSImages() {
                 <div className="text-[var(--text-secondary)]">{t('osImages.injectVerified', { count: injectResult.drivers.length })}</div>
               )}
               <div className="text-[var(--text-muted)] font-mono text-[10px] break-all">{t('osImages.injectBackup', { path: injectResult.backup })}</div>
+            </div>
+          )}
+
+          {(injectTarget?.driver_inject_count ?? 0) > 0 && (
+            <div className="flex items-center justify-between gap-2 text-xs bg-[var(--bg-base)] border border-[var(--bg-border)] rounded px-3 py-2">
+              <span className="text-[var(--text-muted)] leading-relaxed">
+                {t('osImages.injectCountInfo', {
+                  count: injectTarget?.driver_inject_count ?? 0,
+                  packs: (injectTarget?.injected_drivers ?? []).join(', '),
+                })}
+              </span>
+              <Button variant="secondary" size="sm" onClick={handleRestore} disabled={restoring || injecting}>
+                {restoring ? t('osImages.restoring') : t('osImages.restoreWim')}
+              </Button>
             </div>
           )}
 

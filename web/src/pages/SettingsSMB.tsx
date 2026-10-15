@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Save, RefreshCw, Plus, Trash2, Edit2, FolderOpen, Server, Users, CheckCircle, XCircle, Loader2, Eye, EyeOff, Info } from 'lucide-react'
+import { Save, RefreshCw, Plus, Trash2, Edit2, FolderOpen, Server, Users, CheckCircle, XCircle, Loader2, Eye, EyeOff, Info, AlertCircle } from 'lucide-react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -229,7 +229,8 @@ export default function SettingsSMB() {
 
   function handleEditUser(index: number) {
     setEditingUserIndex(index)
-    setUserModalData({ ...config.users[index] })
+    // 不回填口令（服务端不回传）；留空 = 保持原口令
+    setUserModalData({ name: config.users[index].name, password: '', password_set: config.users[index].password_set })
     setShowPassword(false)
     setUserModalOpen(true)
   }
@@ -239,7 +240,10 @@ export default function SettingsSMB() {
       showError(t('settings.smbUserNameRequired'))
       return
     }
-    if (!userModalData.password) {
+    // 新增账号必须给口令；编辑已有账号留空表示保持原口令
+    const isNew = editingUserIndex === null
+    const willKeep = !isNew && !userModalData.password && userModalData.password_set
+    if (!userModalData.password && !willKeep) {
       showError(t('settings.smbUserPasswordRequired'))
       return
     }
@@ -254,9 +258,9 @@ export default function SettingsSMB() {
 
     const users = [...config.users]
     if (editingUserIndex !== null) {
-      users[editingUserIndex] = userModalData
+      users[editingUserIndex] = { ...userModalData, password_set: userModalData.password ? true : userModalData.password_set }
     } else {
-      users.push(userModalData)
+      users.push({ ...userModalData, password_set: !!userModalData.password })
     }
     setConfig({ ...config, users })
     setUserModalOpen(false)
@@ -350,7 +354,7 @@ export default function SettingsSMB() {
       key: 'password',
       label: t('settings.smbUserPassword'),
       render: (u) => (
-        <span className="font-mono text-xs text-foreground-muted">{u.password ? '••••••' : '—'}</span>
+        <span className="font-mono text-xs text-foreground-muted">{u.password_set ? '••••••' : '—'}</span>
       ),
     },
     {
@@ -411,6 +415,14 @@ export default function SettingsSMB() {
         </Card>
       ) : (
         <>
+          {/* 端口冲突提示：未运行且端口不可绑定（Windows 445 常被 LanmanServer 占用） */}
+          {!config.running && config.port_available === false && (
+            <div className="mb-4 flex items-start gap-2 text-xs text-accent-yellow bg-accent-yellow/10 border border-accent-yellow/30 rounded-lg px-3 py-2 leading-relaxed">
+              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+              <span>{t('settings.smbPortConflictHint', { port: config.port })}</span>
+            </div>
+          )}
+
           {/* Status Bar */}
           <Card className="mb-4">
             <div className="flex items-center gap-6 flex-wrap">
@@ -645,7 +657,9 @@ export default function SettingsSMB() {
                 type={showPassword ? 'text' : 'password'}
                 value={userModalData.password}
                 onChange={e => setUserModalData({ ...userModalData, password: e.target.value })}
-                placeholder={t('settings.smbUserPasswordPlaceholder')}
+                placeholder={editingUserIndex !== null
+                  ? t('settings.smbUserPasswordKeepPlaceholder')
+                  : t('settings.smbUserPasswordPlaceholder')}
                 className="pr-10"
               />
               <button
@@ -657,6 +671,9 @@ export default function SettingsSMB() {
                 {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
+            {editingUserIndex !== null && (
+              <p className="mt-1 text-xs text-foreground-muted">{t('settings.smbUserPasswordKeepHint')}</p>
+            )}
           </SettingsField>
         </div>
       </Modal>

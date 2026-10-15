@@ -148,7 +148,7 @@ import {
   getWOLInterfaces,
   getWOLSchedules,
 } from './wol'
-import { deleteOSImage, extractOSImage, getOSImage, getOSImages, importOSImages, browseFs, mountOSImage, reprocessOSImage, unmountOSImage, updateOSImage, uploadOSImage, uploadOSImageWithProgress, createWdsProfileFromOSImage, setCatalogLocal, getWIMCapabilities, getWIMInfo, injectWIMDrivers } from './osimages'
+import { deleteOSImage, extractOSImage, getOSImage, getOSImages, importOSImages, browseFs, mountOSImage, reprocessOSImage, unmountOSImage, updateOSImage, uploadOSImage, uploadOSImageWithProgress, createWdsProfileFromOSImage, setCatalogLocal, getWIMCapabilities, getWIMInfo, injectWIMDrivers, restoreWIM } from './osimages'
 import { getNetworkInterfaces, networkPing, networkPingStream, networkTraceroute, networkTracerouteStream } from './network'
 import { checkBootloaderFile, getBootloaderCheck, getBootloaderFiles } from './bootloader'
 import { getBaselines, getBaseline, createBaseline, updateBaseline, deleteBaseline, getBaselineScripts, setBaselineScripts, getAssignedBaselineScripts, getBaselineReports } from './baselines'
@@ -190,6 +190,7 @@ export const api = {
   getWIMCapabilities,
   getWIMInfo,
   injectWIMDrivers,
+  restoreWIM,
   createHost,
   updateHost,
   deleteHost,

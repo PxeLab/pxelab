@@ -299,13 +299,18 @@ export interface SMBShare {
 
 export interface SMBUser {
   name: string
-  password: string
+  /** 仅作为“输入”字段提交：留空表示保持原口令（服务端不回传口令） */
+  password?: string
+  /** 服务端是否已为该账号设置口令（只读） */
+  password_set?: boolean
 }
 
 export interface SMBSettingsData {
   enabled: boolean
   running: boolean
   port: number
+  /** 未运行时探测端口是否可绑定（Windows 445 常被 LanmanServer 占用） */
+  port_available?: boolean
   server_name: string
   allow_ips: string[]
   shares: SMBShare[]
