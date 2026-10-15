@@ -277,7 +277,8 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 
 	// 勾选了“自动下发初始化基线”时，注入拉取并执行的钩子（身份按配置取 mac/sn）。
 	// R6：主机绑定了驱动包且模板为 autounattend 时，首登编排先装驱动、再拉基线。
-	driverPacks, _ := host.GetDriverPacks()
+	// B2：主机未显式绑定时继承所属 Profile 的默认驱动包。
+	driverPacks := h.resolveDriverPacks(r.Context(), host)
 
 	// 借用项 2：winpeshl 路线在 PE 阶段（setup.exe 之前）运行时加载驱动，覆盖
 	// boot-critical 场景（存储/网卡）。命中条件：winpeshl 模式（模板 type=winpeshl，
@@ -346,6 +347,31 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(rendered))
+}
+
+// resolveDriverPacks 返回主机在装机时应生效的驱动包列表（B2）：
+//   - 主机显式绑定了驱动包 → 用主机自己的（主机级绑定优先）；
+//   - 否则继承所属 Profile 的默认驱动包；
+//   - 两者皆无 / 解析或查询失败 → nil（不注入驱动）。
+func (h *InstallTaskHandler) resolveDriverPacks(ctx context.Context, host *models.Host) []string {
+	if host == nil {
+		return nil
+	}
+	if packs, err := host.GetDriverPacks(); err == nil && len(packs) > 0 {
+		return packs
+	}
+	if host.ProfileID == nil || *host.ProfileID == "" {
+		return nil
+	}
+	prof, err := h.store.GetProfile(ctx, *host.ProfileID)
+	if err != nil || prof == nil {
+		return nil
+	}
+	packs, err := prof.GetDriverPacks()
+	if err != nil || len(packs) == 0 {
+		return nil
+	}
+	return packs
 }
 
 // resolveTaskAnswerType 解析该安装任务在引导行实际使用的应答类型，与

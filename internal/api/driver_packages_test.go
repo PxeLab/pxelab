@@ -164,6 +164,88 @@ func TestHostDriverPacksJSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestProfileDriverPacksJSONRoundTrip(t *testing.T) {
+	// B2：Profile 默认驱动包与 Host 同构（JSON 数组）
+	var p models.Profile
+	if err := json.Unmarshal([]byte(`{"name":"lab","driver_packs":["nic-intel","raid-lsi"]}`), &p); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	packs, err := p.GetDriverPacks()
+	if err != nil || len(packs) != 2 || packs[1] != "raid-lsi" {
+		t.Fatalf("packs = %v, err = %v", packs, err)
+	}
+	out, err := json.Marshal(&p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(out), `"driver_packs":["nic-intel","raid-lsi"]`) {
+		t.Fatalf("marshal 后 driver_packs 错误: %s", out)
+	}
+	// 未设置时应序列化为空数组
+	var empty models.Profile
+	out2, _ := json.Marshal(&empty)
+	if !strings.Contains(string(out2), `"driver_packs":[]`) {
+		t.Fatalf("空 Profile driver_packs 应为 []: %s", out2)
+	}
+	// SetDriverPacks(nil) 清空
+	if err := p.SetDriverPacks(nil); err != nil || p.DriverPacks != "" {
+		t.Fatalf("清空失败: %q %v", p.DriverPacks, err)
+	}
+}
+
+// TestResolveDriverPacksInheritsProfile B2：主机未绑定驱动包时继承所属 Profile
+// 的默认驱动包；主机显式绑定优先；无 Profile 时为空。
+func TestResolveDriverPacksInheritsProfile(t *testing.T) {
+	st := store.NewMemory()
+	h := &InstallTaskHandler{store: st}
+
+	prof := &models.Profile{ID: "prof-1", Name: "lab"}
+	if err := prof.SetDriverPacks([]string{"nic-intel", "raid-lsi"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.CreateProfile(t.Context(), prof); err != nil {
+		t.Fatal(err)
+	}
+	profID := prof.ID
+
+	// 主机无驱动包 + 关联 Profile → 继承
+	hostInherit := &models.Host{ID: "h-inherit", Name: "h1", MAC: "aa:bb:cc:dd:ee:10", ProfileID: &profID}
+	if err := st.CreateHost(t.Context(), hostInherit); err != nil {
+		t.Fatal(err)
+	}
+	got := h.resolveDriverPacks(t.Context(), hostInherit)
+	if len(got) != 2 || got[0] != "nic-intel" || got[1] != "raid-lsi" {
+		t.Fatalf("继承结果 = %v, want [nic-intel raid-lsi]", got)
+	}
+
+	// 主机显式绑定 → 主机优先，不继承
+	hostOwn := &models.Host{ID: "h-own", Name: "h2", MAC: "aa:bb:cc:dd:ee:11", ProfileID: &profID}
+	if err := hostOwn.SetDriverPacks([]string{"chipset"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.CreateHost(t.Context(), hostOwn); err != nil {
+		t.Fatal(err)
+	}
+	got = h.resolveDriverPacks(t.Context(), hostOwn)
+	if len(got) != 1 || got[0] != "chipset" {
+		t.Fatalf("主机优先结果 = %v, want [chipset]", got)
+	}
+
+	// 主机无驱动包 + 无 Profile → nil
+	hostBare := &models.Host{ID: "h-bare", Name: "h3", MAC: "aa:bb:cc:dd:ee:12"}
+	if err := st.CreateHost(t.Context(), hostBare); err != nil {
+		t.Fatal(err)
+	}
+	if got := h.resolveDriverPacks(t.Context(), hostBare); len(got) != 0 {
+		t.Fatalf("无 Profile 应为空, got %v", got)
+	}
+
+	// nil host 安全
+	if got := h.resolveDriverPacks(t.Context(), nil); len(got) != 0 {
+		t.Fatalf("nil host 应为空, got %v", got)
+	}
+}
+
 func TestBuildDriverInstallCommand(t *testing.T) {
 	cmd := buildDriverInstallCommand("192.168.1.10:8080", "nic-intel", []string{"e1d.inf", "x64/e1d64.sys"})
 

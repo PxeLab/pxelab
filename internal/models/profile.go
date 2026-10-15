@@ -7,16 +7,19 @@ import (
 )
 
 type Profile struct {
-	ID             string    `json:"id" gorm:"primaryKey"`
-	Name           string    `json:"name" gorm:"uniqueIndex"`
-	Description    string    `json:"description"`
-	MenuJSON       string    `json:"-" gorm:"column:menu"`
-	IsDefault      bool      `json:"is_default" gorm:"index"`
-	Arch           string    `json:"arch,omitempty"`
-	BaselineIDs    string    `json:"-" gorm:"type:text"` // JSON: ["bl-sec","bl-mon"]
-	Variables      string    `json:"-" gorm:"type:text"` // JSON: {"NTP_SERVER":"ntp.internal"}
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID          string `json:"id" gorm:"primaryKey"`
+	Name        string `json:"name" gorm:"uniqueIndex"`
+	Description string `json:"description"`
+	MenuJSON    string `json:"-" gorm:"column:menu"`
+	IsDefault   bool   `json:"is_default" gorm:"index"`
+	Arch        string `json:"arch,omitempty"`
+	BaselineIDs string `json:"-" gorm:"type:text"` // JSON: ["bl-sec","bl-mon"]
+	Variables   string `json:"-" gorm:"type:text"` // JSON: {"NTP_SERVER":"ntp.internal"}
+	// DriverPacks 该 Profile 的默认 Windows 驱动包名列表（boot 根目录
+	// drivers/<名称>/）；主机未显式绑定驱动包时继承之（B2）。
+	DriverPacks string    `json:"-" gorm:"type:text"` // JSON: ["nic-intel","raid-lsi"]
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // GetBaselines 将 BaselineIDs JSON 解析为字符串切片
@@ -71,6 +74,32 @@ func (p *Profile) SetVariablesMap(vars map[string]string) error {
 	return nil
 }
 
+// GetDriverPacks 解析 DriverPacks JSON 为驱动包名列表（B2）。
+func (p *Profile) GetDriverPacks() ([]string, error) {
+	if p.DriverPacks == "" {
+		return nil, nil
+	}
+	var packs []string
+	if err := json.Unmarshal([]byte(p.DriverPacks), &packs); err != nil {
+		return nil, err
+	}
+	return packs, nil
+}
+
+// SetDriverPacks 将驱动包名列表转为 JSON 存入 DriverPacks。
+func (p *Profile) SetDriverPacks(packs []string) error {
+	if packs == nil {
+		p.DriverPacks = ""
+		return nil
+	}
+	data, err := json.Marshal(packs)
+	if err != nil {
+		return err
+	}
+	p.DriverPacks = string(data)
+	return nil
+}
+
 func (p *Profile) GetMenu() (*BootMenu, error) {
 	if p.MenuJSON == "" {
 		return &BootMenu{}, nil
@@ -103,16 +132,22 @@ func (p *Profile) MarshalJSON() ([]byte, error) {
 	if vars == nil {
 		vars = map[string]string{}
 	}
+	packs, _ := p.GetDriverPacks()
+	if packs == nil {
+		packs = []string{}
+	}
 	return json.Marshal(&struct {
-		Menu      BootMenu           `json:"menu"`
-		Baselines []string           `json:"baselines"`
-		Variables map[string]string  `json:"variables"`
+		Menu        BootMenu          `json:"menu"`
+		Baselines   []string          `json:"baselines"`
+		Variables   map[string]string `json:"variables"`
+		DriverPacks []string          `json:"driver_packs"`
 		Alias
 	}{
-		Menu:      *menu,
-		Baselines: baselines,
-		Variables: vars,
-		Alias:     Alias(*p),
+		Menu:        *menu,
+		Baselines:   baselines,
+		Variables:   vars,
+		DriverPacks: packs,
+		Alias:       Alias(*p),
 	})
 }
 
@@ -120,9 +155,10 @@ func (p *Profile) MarshalJSON() ([]byte, error) {
 func (p *Profile) UnmarshalJSON(data []byte) error {
 	type Alias Profile
 	aux := &struct {
-		Menu      *BootMenu          `json:"menu"`
-		Baselines []string           `json:"baselines"`
-		Variables map[string]string  `json:"variables"`
+		Menu        *BootMenu         `json:"menu"`
+		Baselines   []string          `json:"baselines"`
+		Variables   map[string]string `json:"variables"`
+		DriverPacks []string          `json:"driver_packs"`
 		*Alias
 	}{
 		Alias: (*Alias)(p),
@@ -138,7 +174,10 @@ func (p *Profile) UnmarshalJSON(data []byte) error {
 	if err := p.SetBaselines(aux.Baselines); err != nil {
 		return err
 	}
-	return p.SetVariablesMap(aux.Variables)
+	if err := p.SetVariablesMap(aux.Variables); err != nil {
+		return err
+	}
+	return p.SetDriverPacks(aux.DriverPacks)
 }
 
 type BootMenu struct {

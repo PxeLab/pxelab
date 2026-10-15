@@ -39,7 +39,7 @@ func isPrintableASCII(s string) bool {
 }
 
 type ProfileHandler struct {
-	store     store.Interface
+	store      store.Interface
 	netbootMgr *netboot.Manager
 }
 
@@ -127,7 +127,7 @@ func (h *ProfileHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	
+
 	// 保存旧值
 	oldProfile, _ := h.store.GetProfile(r.Context(), id)
 
@@ -171,6 +171,12 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 		if oldProfile.IsDefault != profile.IsDefault {
 			changes = append(changes, fmt.Sprintf("默认: %t→%t", oldProfile.IsDefault, profile.IsDefault))
 		}
+		// B2：Profile 默认驱动包变更
+		if oldProfile.DriverPacks != profile.DriverPacks {
+			oldPacks, _ := oldProfile.GetDriverPacks()
+			newPacks, _ := profile.GetDriverPacks()
+			changes = append(changes, fmt.Sprintf("驱动包: [%s]→[%s]", strings.Join(oldPacks, ", "), strings.Join(newPacks, ", ")))
+		}
 		if oldProfile.MenuJSON != profile.MenuJSON {
 			oldMenu, _ := oldProfile.GetMenu()
 			newMenu, _ := profile.GetMenu()
@@ -187,9 +193,13 @@ func (h *ProfileHandler) Update(w http.ResponseWriter, r *http.Request) {
 					changes = append(changes, fmt.Sprintf("菜单条目: %d→%d", len(oldMenu.Entries), len(newMenu.Entries)))
 				}
 				oldSet := make(map[string]bool, len(oldLabels))
-				for _, l := range oldLabels { oldSet[l] = true }
+				for _, l := range oldLabels {
+					oldSet[l] = true
+				}
 				newSet := make(map[string]bool, len(newLabels))
-				for _, l := range newLabels { newSet[l] = true }
+				for _, l := range newLabels {
+					newSet[l] = true
+				}
 				var added, removed []string
 				for _, l := range newLabels {
 					if !oldSet[l] {
@@ -400,6 +410,7 @@ func (h *ProfileHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	RecordAudit(r.Context(), h.store, models.AuditDelete, "profile", id, remoteIP(r), detail)
 	w.WriteHeader(http.StatusNoContent)
 }
+
 // CreateFromNetboot creates a profile from a netboot.xyz catalog entry.
 func (h *ProfileHandler) CreateFromNetboot(w http.ResponseWriter, r *http.Request) {
 	var req struct {
