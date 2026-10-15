@@ -15,8 +15,8 @@ import (
 	"strings"
 	"sync"
 
-	gofsmb "github.com/go-filesystems/smb"
 	"github.com/go-filesystems/osfs"
+	gofsmb "github.com/go-filesystems/smb"
 	"github.com/pxelab/pxelab/internal/config"
 )
 
@@ -129,6 +129,12 @@ func (s *Server) Start(ctx context.Context) error {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		closeAll()
+		// 445 冲突在 Windows 上极常见（系统自带 SMB 服务 LanmanServer 占用），
+		// 底层 bind 错误对用户不可操作，这里追加可操作提示。
+		if port == config.DefaultPortSMB {
+			return fmt.Errorf("smb: 监听端口 %d 失败: %w；该端口通常被系统自带的 SMB 服务占用（Windows 上为 LanmanServer /「Server」服务），"+
+				"可执行 `Stop-Service LanmanServer`（管理员）后再试，或改用其它端口（注意 WinPE 的 net use 只能走 445）", port, err)
+		}
 		return fmt.Errorf("smb: 监听端口 %d 失败: %w", port, err)
 	}
 	if len(allowNets) > 0 {

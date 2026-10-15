@@ -1683,21 +1683,42 @@ type SMBShareResponse struct {
 	WriteUsers []string `json:"write_users"`
 }
 
-// SMBUserResponse 是 SMB 账号的 API 表示。密码在配置中以明文保存（NTLMv2 需要），
-// 该接口受管理员认证保护。
+// SMBUserResponse 是 SMB 账号的 API 表示。**不回传口令**——只给出是否已设置
+// （`password_set`），避免口令经 API 响应 / 浏览器 / 抓包泄露（凭据暴露面收窄）。
+// NTLMv2 要求服务端可复原口令，故口令仍以明文存于 config.yaml，但只留在服务端。
 type SMBUserResponse struct {
+	Name        string `json:"name"`
+	PasswordSet bool   `json:"password_set"`
+}
+
+// smbUserRequest 是更新请求中的账号项：`password` 留空表示“保持原口令”，
+// 便于用户只改其它字段（或只改共享）时无需重新输入口令。
+type smbUserRequest struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
 }
 
-type SMBSettingsResponse struct {
+// SMBSettingsUpdateRequest 是 UpdateSMB 的请求体（与响应区分：账号含明文口令输入）。
+type SMBSettingsUpdateRequest struct {
 	Enabled    bool               `json:"enabled"`
-	Running    bool               `json:"running"`
 	Port       int                `json:"port"`
 	ServerName string             `json:"server_name"`
 	AllowIPs   []string           `json:"allow_ips"`
 	Shares     []SMBShareResponse `json:"shares"`
-	Users      []SMBUserResponse  `json:"users"`
+	Users      []smbUserRequest   `json:"users"`
+}
+
+type SMBSettingsResponse struct {
+	Enabled bool `json:"enabled"`
+	Running bool `json:"running"`
+	Port    int  `json:"port"`
+	// PortAvailable 仅用于诊断：SMB 未运行时探测端口当前是否可绑定
+	// （Windows 上 445 常被 LanmanServer 占用），前端据此给出可操作提示。
+	PortAvailable bool               `json:"port_available"`
+	ServerName    string             `json:"server_name"`
+	AllowIPs      []string           `json:"allow_ips"`
+	Shares        []SMBShareResponse `json:"shares"`
+	Users         []SMBUserResponse  `json:"users"`
 }
 
 func (h *SettingsHandler) GetSMB(w http.ResponseWriter, r *http.Request) {
@@ -1720,25 +1741,72 @@ func (h *SettingsHandler) GetSMB(w http.ResponseWriter, r *http.Request) {
 	}
 	users := make([]SMBUserResponse, len(cfg.SMB.Users))
 	for i, u := range cfg.SMB.Users {
-		users[i] = SMBUserResponse{Name: u.Name, Password: u.Password}
+		users[i] = SMBUserResponse{Name: u.Name, PasswordSet: u.Password != ""}
+	}
+
+	// 诊断：未运行时探测端口是否可绑定（Windows 445 常被 LanmanServer 占用）
+	portAvailable := true
+	if !running {
+		portAvailable = probePortAvailable(cfg.SMB.Port)
 	}
 
 	OK(w, SMBSettingsResponse{
-		Enabled:    cfg.SMB.Enabled,
-		Running:    running,
-		Port:       cfg.SMB.Port,
-		ServerName: cfg.SMB.ServerName,
-		AllowIPs:   cfg.SMB.AllowIPs,
-		Shares:     shares,
-		Users:      users,
+		Enabled:       cfg.SMB.Enabled,
+		Running:       running,
+		Port:          cfg.SMB.Port,
+		PortAvailable: portAvailable,
+		ServerName:    cfg.SMB.ServerName,
+		AllowIPs:      cfg.SMB.AllowIPs,
+		Shares:        shares,
+		Users:         users,
 	})
 }
 
+// probePortAvailable 尝试绑定端口后立即释放，仅用于“端口是否被占用”的诊断提示。
+func probePortAvailable(port int) bool {
+	if port <= 0 {
+		port = config.DefaultPortSMB
+	}
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	_ = l.Close()
+	return true
+}
+
 func (h *SettingsHandler) UpdateSMB(w http.ResponseWriter, r *http.Request) {
-	var req SMBSettingsResponse
+	var req SMBSettingsUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		Error(w, http.StatusBadRequest, "请求格式错误")
 		return
+	}
+
+	// 口令留空 = 保持原值（前端不再持有明文口令）。先取旧口令快照，再校验/构建，
+	// 校验失败时不改动配置。新增或重命名账号必须提供口令。
+	h.mu.Lock()
+	oldPass := make(map[string]string, len(h.cfg.SMB.Users))
+	for _, u := range h.cfg.SMB.Users {
+		oldPass[u.Name] = u.Password
+	}
+	h.mu.Unlock()
+
+	users := make([]config.SMBUserConfig, len(req.Users))
+	for i, u := range req.Users {
+		name := strings.TrimSpace(u.Name)
+		if name == "" {
+			Error(w, http.StatusBadRequest, "账号名不能为空")
+			return
+		}
+		pw := u.Password
+		if pw == "" {
+			pw = oldPass[name] // 留空：保持原口令
+		}
+		if pw == "" {
+			Error(w, http.StatusBadRequest, fmt.Sprintf("账号 %q 需要设置口令（新增或重命名账号不能用留空表示保持）", name))
+			return
+		}
+		users[i] = config.SMBUserConfig{Name: name, Password: pw}
 	}
 
 	h.mu.Lock()
@@ -1766,11 +1834,6 @@ func (h *SettingsHandler) UpdateSMB(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.cfg.SMB.Shares = shares
-
-	users := make([]config.SMBUserConfig, len(req.Users))
-	for i, u := range req.Users {
-		users[i] = config.SMBUserConfig{Name: u.Name, Password: u.Password}
-	}
 	h.cfg.SMB.Users = users
 	h.mu.Unlock()
 
