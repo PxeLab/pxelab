@@ -20,6 +20,7 @@ import (
 
 	"github.com/pxelab/pxelab/internal/boot"
 	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/drivers"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/store"
 	"gopkg.in/yaml.v3"
@@ -41,13 +42,13 @@ type SettingsHandler struct {
 }
 
 type NFSConnectionInfo struct {
-	Connections int          `json:"connections"`
+	Connections int             `json:"connections"`
 	Clients     []NFSClientInfo `json:"clients"`
 }
 
 type NFSClientInfo struct {
 	IP           string `json:"ip"`
-	ConnectedAt string `json:"connected_at"`
+	ConnectedAt  string `json:"connected_at"`
 	LastActivity string `json:"last_activity"`
 }
 
@@ -56,16 +57,16 @@ func NewSettingsHandler(cfg *config.Config, st store.Interface, reloader SubnetR
 }
 
 type SettingsResponse struct {
-	Server     ServerSettings      `json:"server"`
-	DHCP       DHCPSettings        `json:"dhcp"`
-	TFTP       TFTPSettings        `json:"tftp"`
-	DNS        DNSSettings         `json:"dns"`
-	IPMI       IPMISettings        `json:"ipmi"`
-	Netboot    NetbootSettings     `json:"netboot"`
-	WhitelistEnabled bool          `json:"whitelist_enabled"`
-	LogLevel   string              `json:"log_level"`
-	DataDir    string              `json:"data_dir"`
-	Interfaces []InterfaceResponse `json:"interfaces"`
+	Server           ServerSettings      `json:"server"`
+	DHCP             DHCPSettings        `json:"dhcp"`
+	TFTP             TFTPSettings        `json:"tftp"`
+	DNS              DNSSettings         `json:"dns"`
+	IPMI             IPMISettings        `json:"ipmi"`
+	Netboot          NetbootSettings     `json:"netboot"`
+	WhitelistEnabled bool                `json:"whitelist_enabled"`
+	LogLevel         string              `json:"log_level"`
+	DataDir          string              `json:"data_dir"`
+	Interfaces       []InterfaceResponse `json:"interfaces"`
 }
 
 type ServerSettings struct {
@@ -98,7 +99,6 @@ type DNSSettings struct {
 	LocalDomain   string `json:"local_domain"`
 	DefaultRecord bool   `json:"default_record"`
 }
-
 
 type IPMISettings struct {
 	Enabled bool `json:"enabled"`
@@ -135,7 +135,6 @@ type MenuEntrySettings struct {
 	WIM     *string `json:"wim,omitempty"`
 }
 
-
 type CatalogRedirectSettings struct {
 	Enabled    bool   `json:"enabled"`
 	TargetURL  string `json:"target_url"`
@@ -165,11 +164,11 @@ type InterfaceResponse struct {
 	DHCPMode    string           `json:"dhcp_mode"`
 	ChainToIPXE bool             `json:"chain_to_ipxe"`
 	Subnet      string           `json:"subnet"`      // 向后兼容：Subnets[0].CIDR
-	Pools       []string         `json:"pools"`        // 向后兼容：Subnets[0].Pools
-	Gateway     string           `json:"gateway"`      // 向后兼容：Subnets[0].Gateway
-	DNSServers  string           `json:"dns_servers"`  // 向后兼容：Subnets[0].DNSServers
-	LeaseTime   int              `json:"lease_time"`   // 向后兼容：Subnets[0].LeaseTime
-	NextServer  string           `json:"next_server"`  // 向后兼容：Subnets[0].NextServer
+	Pools       []string         `json:"pools"`       // 向后兼容：Subnets[0].Pools
+	Gateway     string           `json:"gateway"`     // 向后兼容：Subnets[0].Gateway
+	DNSServers  string           `json:"dns_servers"` // 向后兼容：Subnets[0].DNSServers
+	LeaseTime   int              `json:"lease_time"`  // 向后兼容：Subnets[0].LeaseTime
+	NextServer  string           `json:"next_server"` // 向后兼容：Subnets[0].NextServer
 	Subnets     []SubnetSettings `json:"subnets,omitempty"`
 	TFTP        bool             `json:"tftp"`
 	HTTP        bool             `json:"http"`
@@ -219,8 +218,8 @@ type TFTPSettingsResponse struct {
 type ArchEntryResponse struct {
 	ArchCode   int    `json:"arch_code"`
 	ArchName   string `json:"arch_name"`
-	NBP        string `json:"nbp"`         // "ipxe" | "pxelinux" | "grub2"
-	ChainLoad  bool   `json:"chain_load"`  // 是否链式加载到 iPXE
+	NBP        string `json:"nbp"`        // "ipxe" | "pxelinux" | "grub2"
+	ChainLoad  bool   `json:"chain_load"` // 是否链式加载到 iPXE
 	IPXE       string `json:"ipxe"`
 	PXELinux   string `json:"pxelinux"`
 	GRUB       string `json:"grub"`
@@ -229,9 +228,9 @@ type ArchEntryResponse struct {
 	// Secure Boot 支持
 	SecureBoot bool   `json:"secure_boot"`
 	IPXESB     string `json:"ipxe_sb"`
-	ShimIPXE   string `json:"shim_ipxe"`   // iPXE 的 UEFI Shim
-	GRUBSB     string `json:"grub_sb"`     // Secure Boot 签名的 GRUB2 二进制
-	ShimGRUB   string `json:"shim_grub"`   // GRUB2 的 UEFI Shim
+	ShimIPXE   string `json:"shim_ipxe"` // iPXE 的 UEFI Shim
+	GRUBSB     string `json:"grub_sb"`   // Secure Boot 签名的 GRUB2 二进制
+	ShimGRUB   string `json:"shim_grub"` // GRUB2 的 UEFI Shim
 }
 
 // ArchMapResponse 完整的架构映射表
@@ -258,21 +257,23 @@ type NFSMountPointResponse struct {
 }
 
 type NFSSettingsResponse struct {
-	Enabled       bool                    `json:"enabled"`
-	Running       bool                    `json:"running"`
-	Port          int                     `json:"port"`
-	RpcbindPort   int                     `json:"rpcbind_port"`
-	Version       string                  `json:"version"`
-	MountPoints   []NFSMountPointResponse `json:"mount_points"`
+	Enabled     bool                    `json:"enabled"`
+	Running     bool                    `json:"running"`
+	Port        int                     `json:"port"`
+	RpcbindPort int                     `json:"rpcbind_port"`
+	Version     string                  `json:"version"`
+	MountPoints []NFSMountPointResponse `json:"mount_points"`
 }
 
 type NetbootSettingsResponse struct {
-	Enabled             bool                    `json:"enabled"`
-	ProxyHTTPS          bool                    `json:"proxy_https"`
-	CacheEnabled        bool                    `json:"cache_enabled"`
-	AutoUpdateBootFiles bool                    `json:"auto_update_boot_files"`
-	CatalogRedirect     CatalogRedirectSettings `json:"catalog_redirect"`
-	CatalogDisplay      CatalogDisplaySettings  `json:"catalog_display"`
+	Enabled             bool `json:"enabled"`
+	ProxyHTTPS          bool `json:"proxy_https"`
+	CacheEnabled        bool `json:"cache_enabled"`
+	AutoUpdateBootFiles bool `json:"auto_update_boot_files"`
+	// DriverDelivery: "http"（默认）| "initrd"，见 config.NetbootConfig.DriverDelivery
+	DriverDelivery  string                  `json:"driver_delivery"`
+	CatalogRedirect CatalogRedirectSettings `json:"catalog_redirect"`
+	CatalogDisplay  CatalogDisplaySettings  `json:"catalog_display"`
 }
 
 // IPXEScriptSettingsResponse iPXE 脚本配置（DHCP Option 175）
@@ -364,11 +365,11 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 			ScriptTemplate: cfg.Netboot.ScriptTemplate,
 			Boot: BootSettings{
 				DefaultMenu: DefaultMenuSettings{
-					Title:   cfg.Netboot.Boot.DefaultMenu.Title,
-					Timeout: cfg.Netboot.Boot.DefaultMenu.Timeout,
-					Default: cfg.Netboot.Boot.DefaultMenu.Default,
+					Title:           cfg.Netboot.Boot.DefaultMenu.Title,
+					Timeout:         cfg.Netboot.Boot.DefaultMenu.Timeout,
+					Default:         cfg.Netboot.Boot.DefaultMenu.Default,
 					ListAllProfiles: cfg.Netboot.Boot.DefaultMenu.ListAllProfiles,
-					Entries: convertMenuEntriesToAPI(cfg.Netboot.Boot.DefaultMenu.Entries),
+					Entries:         convertMenuEntriesToAPI(cfg.Netboot.Boot.DefaultMenu.Entries),
 				},
 				CatalogRedirect: CatalogRedirectSettings{
 					Enabled:    cfg.Netboot.Boot.CatalogRedirect.Enabled,
@@ -377,8 +378,7 @@ func (h *SettingsHandler) Get(w http.ResponseWriter, r *http.Request) {
 					Preamble:   cfg.Netboot.Boot.CatalogRedirect.Preamble,
 				},
 				CatalogDisplay: CatalogDisplaySettings{
-					Title:  cfg.Netboot.Boot.CatalogDisplay.Title,
-	
+					Title: cfg.Netboot.Boot.CatalogDisplay.Title,
 				},
 			},
 		},
@@ -509,8 +509,8 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 				CIDR: ir.Subnet, DHCPMode: "server",
 				Pools: ir.Pools, Gateway: ir.Gateway,
 				DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
-				NextServer:      ir.NextServer,
-				ChainToIPXE:     false,
+				NextServer:       ir.NextServer,
+				ChainToIPXE:      false,
 				WhitelistEnabled: false,
 			}}
 		}
@@ -596,11 +596,11 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	h.cfg.Netboot.Boot = config.BootConfig{
 		RootDir: h.cfg.Boot.RootDir, // preserve existing root dir
 		DefaultMenu: config.DefaultMenuConfig{
-			Title:   req.Netboot.Boot.DefaultMenu.Title,
-			Timeout: req.Netboot.Boot.DefaultMenu.Timeout,
-			Default: req.Netboot.Boot.DefaultMenu.Default,
+			Title:           req.Netboot.Boot.DefaultMenu.Title,
+			Timeout:         req.Netboot.Boot.DefaultMenu.Timeout,
+			Default:         req.Netboot.Boot.DefaultMenu.Default,
 			ListAllProfiles: req.Netboot.Boot.DefaultMenu.ListAllProfiles,
-			Entries: convertMenuEntriesFromAPI(req.Netboot.Boot.DefaultMenu.Entries),
+			Entries:         convertMenuEntriesFromAPI(req.Netboot.Boot.DefaultMenu.Entries),
 		},
 		CatalogRedirect: config.CatalogRedirectConfig{
 			Enabled:    req.Netboot.Boot.CatalogRedirect.Enabled,
@@ -617,11 +617,11 @@ func (h *SettingsHandler) Update(w http.ResponseWriter, r *http.Request) {
 		h.cfg.Interfaces = make([]config.InterfaceConfig, 0, len(req.Interfaces))
 		for _, ir := range req.Interfaces {
 			iface := config.InterfaceConfig{
-				Name: ir.Name,
-				IP:   ir.IP,
-				TFTP: ir.TFTP,
-				HTTP: ir.HTTP,
-				AutoStart:  ir.AutoStart,
+				Name:      ir.Name,
+				IP:        ir.IP,
+				TFTP:      ir.TFTP,
+				HTTP:      ir.HTTP,
+				AutoStart: ir.AutoStart,
 			}
 
 			if len(ir.Subnets) > 0 {
@@ -864,13 +864,13 @@ func (h *SettingsHandler) GetInterfaces(w http.ResponseWriter, r *http.Request) 
 
 	for _, iface := range cfg.Interfaces {
 		ir := InterfaceResponse{
-			Name:        iface.Name,
-			IP:          iface.IP,
-			TFTP:        iface.TFTP,
-			HTTP:        iface.HTTP,
-			AutoStart:   iface.AutoStart,
-			LeaseTime:   config.DefaultLeaseTime,
-			DNSServers:  "",
+			Name:       iface.Name,
+			IP:         iface.IP,
+			TFTP:       iface.TFTP,
+			HTTP:       iface.HTTP,
+			AutoStart:  iface.AutoStart,
+			LeaseTime:  config.DefaultLeaseTime,
+			DNSServers: "",
 		}
 		if len(iface.Subnets) > 0 {
 			ir.DHCPMode = iface.Subnets[0].DHCP
@@ -902,13 +902,13 @@ func (h *SettingsHandler) GetInterfaces(w http.ResponseWriter, r *http.Request) 
 					pools = []string{sn.Pool}
 				}
 				ir.Subnets = append(ir.Subnets, SubnetSettings{
-					CIDR:       sn.CIDR,
-					DHCPMode:   dhcpMode,
-					Pools:      pools,
-					Gateway:    sn.Gateway,
-					DNSServers: sn.DNSServers,
-					LeaseTime:  sn.LeaseTime,
-					NextServer: sn.NextServer,
+					CIDR:             sn.CIDR,
+					DHCPMode:         dhcpMode,
+					Pools:            pools,
+					Gateway:          sn.Gateway,
+					DNSServers:       sn.DNSServers,
+					LeaseTime:        sn.LeaseTime,
+					NextServer:       sn.NextServer,
 					ChainToIPXE:      sn.ChainToIPXE,
 					WhitelistEnabled: sn.WhitelistEnabled,
 				})
@@ -935,7 +935,7 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 				CIDR: ir.Subnet, DHCPMode: "server",
 				Pools: ir.Pools, Gateway: ir.Gateway,
 				DNSServers: ir.DNSServers, LeaseTime: ir.LeaseTime,
-				NextServer: ir.NextServer,
+				NextServer:  ir.NextServer,
 				ChainToIPXE: false,
 			}}
 		}
@@ -987,11 +987,11 @@ func (h *SettingsHandler) UpdateInterfaces(w http.ResponseWriter, r *http.Reques
 	h.cfg.Interfaces = make([]config.InterfaceConfig, 0, len(req.Interfaces))
 	for _, ir := range req.Interfaces {
 		iface := config.InterfaceConfig{
-			Name:       ir.Name,
-			IP:         ir.IP,
-			TFTP:       ir.TFTP,
-			HTTP:       ir.HTTP,
-			AutoStart:  ir.AutoStart,
+			Name:      ir.Name,
+			IP:        ir.IP,
+			TFTP:      ir.TFTP,
+			HTTP:      ir.HTTP,
+			AutoStart: ir.AutoStart,
 		}
 		if len(ir.Subnets) > 0 {
 			for _, s := range ir.Subnets {
@@ -1562,7 +1562,7 @@ func (h *SettingsHandler) ValidateNFSPath(w http.ResponseWriter, r *http.Request
 	}
 
 	result := map[string]interface{}{
-		"exists":  false,
+		"exists":   false,
 		"writable": false,
 	}
 
@@ -1834,10 +1834,11 @@ func smbUserNames(users []config.SMBUserConfig) []string {
 func (h *SettingsHandler) GetNetboot(w http.ResponseWriter, r *http.Request) {
 	cfg := h.cfg
 	OK(w, NetbootSettingsResponse{
-		Enabled: cfg.Netboot.Enabled,
-		ProxyHTTPS: cfg.Netboot.ProxyHTTPS,
-		CacheEnabled: cfg.Netboot.CacheEnabled,
+		Enabled:             cfg.Netboot.Enabled,
+		ProxyHTTPS:          cfg.Netboot.ProxyHTTPS,
+		CacheEnabled:        cfg.Netboot.CacheEnabled,
 		AutoUpdateBootFiles: cfg.Boot.AutoUpdateBootFiles,
+		DriverDelivery:      drivers.NormalizeDelivery(cfg.Netboot.DriverDelivery),
 		CatalogRedirect: CatalogRedirectSettings{
 			Enabled:    cfg.Netboot.Boot.CatalogRedirect.Enabled,
 			TargetURL:  cfg.Netboot.Boot.CatalogRedirect.TargetURL,
@@ -1845,8 +1846,7 @@ func (h *SettingsHandler) GetNetboot(w http.ResponseWriter, r *http.Request) {
 			Preamble:   cfg.Netboot.Boot.CatalogRedirect.Preamble,
 		},
 		CatalogDisplay: CatalogDisplaySettings{
-			Title:  cfg.Netboot.Boot.CatalogDisplay.Title,
-	
+			Title: cfg.Netboot.Boot.CatalogDisplay.Title,
 		},
 	})
 }
@@ -1857,12 +1857,17 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
+	if !drivers.ValidDelivery(req.DriverDelivery) {
+		Error(w, http.StatusBadRequest, `driver_delivery 必须是 "http" 或 "initrd"`)
+		return
+	}
 
 	h.mu.Lock()
 	oldEnabled := h.cfg.Netboot.Enabled
 	oldProxyHTTPS := h.cfg.Netboot.ProxyHTTPS
 	oldCacheEnabled := h.cfg.Netboot.CacheEnabled
 	oldAutoUpdateBootFiles := h.cfg.Boot.AutoUpdateBootFiles
+	oldDriverDelivery := drivers.NormalizeDelivery(h.cfg.Netboot.DriverDelivery)
 	oldCatalogRedirectEnabled := h.cfg.Netboot.Boot.CatalogRedirect.Enabled
 	oldCatalogRedirectTargetURL := h.cfg.Netboot.Boot.CatalogRedirect.TargetURL
 
@@ -1870,6 +1875,7 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	h.cfg.Netboot.ProxyHTTPS = req.ProxyHTTPS
 	h.cfg.Netboot.CacheEnabled = req.CacheEnabled
 	h.cfg.Boot.AutoUpdateBootFiles = req.AutoUpdateBootFiles
+	h.cfg.Netboot.DriverDelivery = drivers.NormalizeDelivery(req.DriverDelivery)
 	h.cfg.Netboot.Boot.CatalogRedirect = config.CatalogRedirectConfig{
 		Enabled:    req.CatalogRedirect.Enabled,
 		TargetURL:  req.CatalogRedirect.TargetURL,
@@ -1877,7 +1883,7 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 		Preamble:   req.CatalogRedirect.Preamble,
 	}
 	h.cfg.Netboot.Boot.CatalogDisplay = config.CatalogDisplayConfig{
-		Title:  req.CatalogDisplay.Title,
+		Title: req.CatalogDisplay.Title,
 	}
 	h.mu.Unlock()
 
@@ -1898,6 +1904,9 @@ func (h *SettingsHandler) UpdateNetboot(w http.ResponseWriter, r *http.Request) 
 	}
 	if oldAutoUpdateBootFiles != req.AutoUpdateBootFiles {
 		changes = append(changes, fmt.Sprintf("内嵌启动文件自动更新: %t→%t", oldAutoUpdateBootFiles, req.AutoUpdateBootFiles))
+	}
+	if oldDriverDelivery != drivers.NormalizeDelivery(req.DriverDelivery) {
+		changes = append(changes, fmt.Sprintf("驱动交付方式: %s→%s", oldDriverDelivery, drivers.NormalizeDelivery(req.DriverDelivery)))
 	}
 	if oldCatalogRedirectEnabled != req.CatalogRedirect.Enabled {
 		changes = append(changes, fmt.Sprintf("目录重定向: %t→%t", oldCatalogRedirectEnabled, req.CatalogRedirect.Enabled))

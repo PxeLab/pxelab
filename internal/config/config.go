@@ -157,14 +157,19 @@ type SMBConfig struct {
 }
 
 type NetbootConfig struct {
-	Enabled        bool              `yaml:"enabled" mapstructure:"enabled"`
-	DefaultBoot    string            `yaml:"default_boot" mapstructure:"default_boot"`
-	FallbackOnline bool              `yaml:"fallback_online" mapstructure:"fallback_online"`
-	MenuTitle      string            `yaml:"menu_title" mapstructure:"menu_title"`
-	ScriptTemplate string            `yaml:"script_template" mapstructure:"script_template"`
-	FailsafePrompt bool              `yaml:"failsafe_prompt" mapstructure:"failsafe_prompt"`
-	ProxyHTTPS     bool              `yaml:"proxy_https" mapstructure:"proxy_https"`
-	CacheEnabled   bool              `yaml:"cache_enabled" mapstructure:"cache_enabled"`
+	Enabled        bool   `yaml:"enabled" mapstructure:"enabled"`
+	DefaultBoot    string `yaml:"default_boot" mapstructure:"default_boot"`
+	FallbackOnline bool   `yaml:"fallback_online" mapstructure:"fallback_online"`
+	MenuTitle      string `yaml:"menu_title" mapstructure:"menu_title"`
+	ScriptTemplate string `yaml:"script_template" mapstructure:"script_template"`
+	FailsafePrompt bool   `yaml:"failsafe_prompt" mapstructure:"failsafe_prompt"`
+	ProxyHTTPS     bool   `yaml:"proxy_https" mapstructure:"proxy_https"`
+	CacheEnabled   bool   `yaml:"cache_enabled" mapstructure:"cache_enabled"`
+	// DriverDelivery 是 winpeshl PE 阶段驱动包的交付方式：
+	//   "http"（默认）= PE 内 curl/certutil 从 /boot/drivers/ 下载后 pnputil 安装；
+	//   "initrd"      = 每个驱动文件作为具名 initrd 由 iPXE 直投进 WinPE 内存盘，
+	//                   install.bat 落地后 pnputil 安装（预启动即传输，占用更多 PE 内存）。
+	DriverDelivery string            `yaml:"driver_delivery" mapstructure:"driver_delivery"`
 	Boot           BootConfig        `yaml:"boot" mapstructure:"boot"`
 	Sync           NetbootSyncConfig `yaml:"sync" mapstructure:"sync"`
 	Paths          NetbootPathConfig `yaml:"paths" mapstructure:"paths"`

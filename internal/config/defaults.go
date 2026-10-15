@@ -1,4 +1,4 @@
-﻿package config
+package config
 
 import "path/filepath"
 
@@ -41,6 +41,7 @@ func DefaultConfig() *Config {
 			FailsafePrompt: true,
 			ProxyHTTPS:     true,
 			CacheEnabled:   true,
+			DriverDelivery: "http", // 默认 PE 内 HTTP 下载；可选 "initrd"（iPXE 直投）
 			MenuTitle:      "[OS] Netboot OS Install Catalog",
 			Sync: NetbootSyncConfig{
 				Auto: false,
