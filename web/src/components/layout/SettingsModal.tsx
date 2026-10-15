@@ -436,6 +436,16 @@ function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: 
           <p className="text-xs text-[var(--text-muted)]">{t('settings.modalAutoUpdateBootFilesHelp')}</p>
         </div>
       </SettingsField>
+      <SettingsField label={t('settings.modalDriverDelivery')}>
+        <div className="flex flex-col gap-1">
+          <select className={inputCls} value={data.driver_delivery ?? 'http'}
+            onChange={e => onChange({...data, driver_delivery: e.target.value as 'http' | 'initrd'})}>
+            <option value="http">{t('settings.driverDeliveryHttp')}</option>
+            <option value="initrd">{t('settings.driverDeliveryInitrd')}</option>
+          </select>
+          <p className="text-xs text-[var(--text-muted)]">{t('settings.modalDriverDeliveryHelp')}</p>
+        </div>
+      </SettingsField>
       <SettingsField label={t('settings.modalMenuTitle')}>
         <input className={inputCls} value={data.catalog_display.title}
           onChange={e => onChange({...data, catalog_display: {...data.catalog_display, title: e.target.value}})} />

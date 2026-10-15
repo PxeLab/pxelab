@@ -159,6 +159,7 @@ export interface NetbootSettingsData {
   proxy_https: boolean
   cache_enabled: boolean
   auto_update_boot_files: boolean
+  driver_delivery: 'http' | 'initrd'
   catalog_redirect: BootSettings['catalog_redirect']
   catalog_display: BootSettings['catalog_display']
 }
