@@ -48,7 +48,9 @@ PXE 引导链：DHCP（PxeLab 内建，option 66/67 + iPXE 175/177）→ 按架�
 > - **驱动交付方式**（Settings → Netboot → 驱动交付方式，`netboot.driver_delivery`）：
 >   - `http`（默认）：PE 内用 `curl`/`certutil` 从 `/boot/drivers/` 下载后 `pnputil` 安装；预启动占用内存更少。
 >   - `initrd`：iPXE 在启动前把每个驱动文件作为具名 initrd 注入 PE 内存盘，`install.bat` 落地后 `pnputil` 安装；**完全离线**，但预启动即传输全部驱动文件、占用更多 PE 内存，且仅对 winpeshl 路线生效。
+> - **SMB 端口必须是 445**：Recipe B 用 `net use \\<server>\<share>` 访问共享，Windows UNC 路径**不支持指定端口**——把 SMB 端口改成非 445 后 WinPE 无法连接共享（Settings → SMB 页面会在端口不可绑定时提示）。
 > - **离线注入**（可选，仅 Windows 主机）：对已提取的 Windows ISO 调 `POST /api/v1/os-images/{id}/inject-drivers`（body `{"driver_packs":["<包名>"],"target":"boot","index":1}`）把驱动打进 `sources/boot.wim`，覆盖须在 PE 启动前注册 driver store 的驱动。原 `boot.wim` 先备份为 `boot.wim.orig`（不覆盖已有备份），注入结果随响应返回；`GET /api/v1/os-images/{id}/wim-info` 列出可选索引（`target` 可选 `boot`/`install`）。**非 Windows 主机返回 501**（`GET /api/v1/os-images/capabilities` 可预判），请改用上面的 PE 阶段运行时加载。
+>   重复注入会**叠加**在已注入的 WIM 上（响应/列表会显示注入次数）；如需回滚，用 `POST /api/v1/os-images/{id}/restore-wim` 从 `boot.wim.orig` 还原原文件（OS Images 页注入弹窗内也有「还原原始 WIM」）。同一镜像的注入/还原是互斥的，重复请求返回 409。
 
 > 默认（remote-only）Windows PE 的 wimboot/文件来自 `boot.netboot.xyz`，离线网络不可用。见 §4 本地化。
 

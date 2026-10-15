@@ -72,6 +72,8 @@
   - `internal/api/wim_inject.go`：`POST /api/v1/os-images/{id}/inject-drivers`（body `{driver_packs:[], target:"boot"|"install", index:N, recurse?:bool}`）+ `GET /api/v1/os-images/{id}/wim-info`（列出镜像索引）；路由注册于 `internal/api/handler.go`。
   - `internal/models/os_image.go`：`injected_drivers`（JSON 数组）+ `driver_injected_at` 注入记录字段。
   - 流程：驱动包按镜像架构过滤（复用借鉴项 3）→ 暂存本地目录 → 原 WIM 备份为 `<name>.orig`（已存在则保留）→ 挂载 → 注入 → 卸载前 `Get-WindowsDriver` 验证 → 提交卸载 → `dism /Cleanup-Wim` 清理。
+  - **健壮性**：同一镜像的注入/还原按镜像 ID 加锁互斥（并发请求返回 **409**，避免同时 mount/commit 同一 WIM）；`OSImage.DriverInjectCount` 记录累计注入次数（重复注入会叠加）；`POST /os-images/{id}/restore-wim` 从 `<name>.orig` 还原原始 WIM 并清空注入记录。
+  - **未做（有意延后）**：*异步任务 + 进度反馈 + 取消*。当前仍是请求内同步执行；大 `install.wim` 的 dism 挂载/提交可能耗时较长，若需要可再改为异步 job（复用 install task 的轮询模式）。
 - **关键 caveat**：注入 **`boot.wim` index 1**（默认）；**非 Windows 主机返回 501**（Linux `wimlib` 无法注册 driver store）→ 改为提示使用借鉴项 2 的 PE 阶段运行时加载。
 - **验收（待真机）**：`dism /get-drivers /image:<mount>` 列出该驱动；需该驱动的机器 PE 内 `setup.exe` 可见磁盘并完成安装；原 `boot.wim` 未改（有 `.orig` 备份）。
 - **测试**：`internal/osimage/wim_test.go`（解析层）、`internal/api/wim_inject_test.go`（校验/DTO 路径，无 dism）。
