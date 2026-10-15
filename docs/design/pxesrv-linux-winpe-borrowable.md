@@ -2,6 +2,7 @@
 
 > 来源：2026-10 对 `D:\NewCB\pxesrv-linux`（freddan88/pxesrv-linux）WinPE 方案的逐文件分析，对照 PxeLab 现有 wimboot 实现。
 > 本文是**对比 + 可借鉴清单**，与 `docs/design/quick-install-optimization-req.md` 的「后续待办 B1/B2」互为补充（B1 即本文借鉴项 1）。
+> **实现状态**：借鉴项 1–6 与待办 B2 均已实现，状态与验收见 `docs/design/windows-install-roadmap.md`（真机验证仍待进行）。
 > 结论先行：pxesrv-linux 唯一真正值得借鉴的是**离线驱动注入（dism /add-driver 打进 boot.wim）**；其引导方式（memdisk+ISO）、文件传输（SMB）、安装执行（交互式 setup.exe）均**不应借鉴**。
 
 ---

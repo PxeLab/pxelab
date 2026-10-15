@@ -239,16 +239,22 @@ R6（驱动包+首登编排，已大为瘦身）        ← P2，可随时插入
 
 ---
 
-## 后续待办需求（2026-09-17 讨论记录，未排期）
+## 后续待办需求（2026-09-17 讨论记录，均已实现）
 
-### B1 boot-critical 驱动注入（dism 打进 wim）
+> 状态：B1、B2 均已实现（2026-10），实现与验收清单见 `docs/design/windows-install-roadmap.md`；真机验证仍待进行。
+
+### B1 boot-critical 驱动注入（dism 打进 wim）✅ 已实现
 
 **背景**：R6 的驱动包注入发生在 oobeSystem 的 FirstLogonCommands（首次登录），只能覆盖"系统装完后才需要"的驱动。安装阶段就缺的驱动（RAID/存储控制器、部分网卡）认不到盘就装不上系统，走不到首登。
 
 **方向**：在 wds 镜像管理侧提供"dism 注入"动作——把驱动包按 `/add-driver` 打进 boot.wim（WinPE 阶段认盘/认网）和 install.wim（装完系统自带）；注入产出新 wim 副本而非改原文件。涉及 wim 挂载写操作，Windows 主机上用 dism、Linux 主机上用 wimlib-imagex，需区分服务端平台。
 
-### B2 按 profile / OS 版本绑定默认驱动包
+**落地**：`internal/osimage/wim*.go` + `internal/api/wim_inject.go`（`POST /os-images/{id}/inject-drivers`、`GET /os-images/{id}/wim-info`）。原文件备份为 `<name>.orig` 后原地注入（catalog 仍指向 `boot.wim`）。非 Windows 主机返回 501（实测 Linux `wimlib` 无法注册 driver store，降级为 PE 阶段运行时加载）。
+
+### B2 按 profile / OS 版本绑定默认驱动包 ✅ 已实现
 
 **背景**：R6 驱动包按主机逐台绑定，同型号同系统的多台机器要重复手绑。
 
 **方向**：profile（或 OS 镜像条目）增加默认驱动包列表，主机未显式绑定时继承 profile 的；主机级绑定优先。R7 批量装机时同批机器自动获得正确驱动，不用逐台设置。
+
+**落地**：`models.Profile.driver_packs` + `InstallTaskHandler.resolveDriverPacks`（主机优先、否则继承 Profile）；前端 Profiles 表单增驱动包编辑器。
