@@ -8,23 +8,22 @@ package api
 
 import (
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/pxelab/pxelab/internal/boot"
+	"github.com/pxelab/pxelab/internal/drivers"
 )
 
 // driverPullMarker 标记首登编排中的驱动安装命令（幂等检测用）。
-const driverPullMarker = "pxelab-driver-pull"
+// 实现已移至 internal/drivers（供 internal/httpd 生成 initrd 直投菜单复用）。
+const driverPullMarker = drivers.PullMarker
 
 // driverNameRe 限定驱动包名：防目录遍历，也保证能安全嵌入 PowerShell 单引号字符串与 URL。
-var driverNameRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+var driverNameRe = drivers.NameRe
 
 type DriverPackageHandler struct {
 	bootFS *boot.BootFileServer
@@ -39,63 +38,12 @@ type driverPackageDTO struct {
 	Archs []string `json:"archs"`
 }
 
-// driverPackArchs 从包内文件清单推导出现的架构（借鉴项 3）：首段命中架构
-// 子目录（x64/、amd64/、x86_64/、arm64/…）即归一化计入，去重并按
-// x64/x86/arm64 稳定排序。扁平布局（无架构子目录）返回空切片。
-func driverPackArchs(files []string) []string {
-	seen := make(map[string]bool, 3)
-	for _, f := range files {
-		i := strings.Index(f, "/")
-		if i <= 0 {
-			continue // 顶层文件：通用
-		}
-		seg := f[:i]
-		if !driverArchDirs[strings.ToLower(seg)] {
-			continue // 非架构目录：通用
-		}
-		if a := normalizeDriverArch(seg); a != "" {
-			seen[a] = true
-		}
-	}
-	out := make([]string, 0, len(seen))
-	for _, a := range []string{"x64", "x86", "arm64"} {
-		if seen[a] {
-			out = append(out, a)
-		}
-	}
-	return out
-}
+// driverPackArchs 见 drivers.PackArchs（包内别名，保持既有测试可用）。
+func driverPackArchs(files []string) []string { return drivers.PackArchs(files) }
 
-// listDriverPackFiles 递归列出驱动包内全部文件的相对路径（正斜杠分隔，排序后返回）。
-// 包名非法或目录不存在/为空返回错误。
+// listDriverPackFiles 见 drivers.ListPackFiles。
 func listDriverPackFiles(bootRoot, name string) ([]string, error) {
-	if !driverNameRe.MatchString(name) {
-		return nil, fmt.Errorf("无效的驱动包名: %q", name)
-	}
-	dir := filepath.Join(bootRoot, "drivers", name)
-	var files []string
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		rel, err := filepath.Rel(dir, path)
-		if err != nil {
-			return err
-		}
-		files = append(files, filepath.ToSlash(rel))
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	sort.Strings(files)
-	if len(files) == 0 {
-		return nil, fmt.Errorf("驱动包为空: %s", name)
-	}
-	return files, nil
+	return drivers.ListPackFiles(bootRoot, name)
 }
 
 // List 扫描 boot 根目录 drivers/，每个含文件的合法子目录即一个驱动包。
@@ -177,14 +125,8 @@ func buildDriverInstallCommand(baseURL, name string, files []string) string {
 	return b.String()
 }
 
-func sortedKeys(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
-}
+// sortedKeys 见 drivers.SortedKeys。
+func sortedKeys(m map[string]bool) []string { return drivers.SortedKeys(m) }
 
 // driverPackFiles 返回某个驱动包按目标架构过滤后的文件清单。
 // bootFS 不可用、包名非法/不存在/为空、或无匹配架构的文件时返回错误。
@@ -197,7 +139,7 @@ func (h *InstallTaskHandler) driverPackFiles(name, arch string) ([]string, error
 		return nil, err
 	}
 	if arch != "" {
-		files = filterDriverFilesByArch(files, arch)
+		files = drivers.FilterByArch(files, arch)
 	}
 	if len(files) == 0 {
 		return nil, fmt.Errorf("驱动包无匹配架构 %q 的文件: %s", arch, name)
@@ -228,105 +170,20 @@ func (h *InstallTaskHandler) buildDriverCommands(baseURL string, packs []string,
 // winpeshl install.bat 在 setup.exe 之前下载驱动包并 pnputil/drvload 安装，
 // 覆盖 boot-critical 场景（存储/网卡），与首登注入互补。跨平台、无需 WIM 操作。
 
-// driverArchDirs 驱动包内可能出现的架构子目录名（大小写不敏感）。
-var driverArchDirs = map[string]bool{
-	"x64": true, "amd64": true, "x86_64": true,
-	"x86": true, "i386": true, "i486": true, "i586": true, "i686": true, "386": true,
-	"arm64": true, "aarch64": true,
-	"ia64": true,
-}
+// driverArchDirs 见 drivers.ArchDirs。
+var driverArchDirs = drivers.ArchDirs
 
-// normalizeDriverArch 把平台/目录架构名归一为 x64/x86/arm64；无法识别返回 ""。
-func normalizeDriverArch(arch string) string {
-	switch strings.ToLower(strings.TrimSpace(arch)) {
-	case "x64", "amd64", "x86_64":
-		return "x64"
-	case "x86", "i386", "i486", "i586", "i686", "386":
-		return "x86"
-	case "arm64", "aarch64":
-		return "arm64"
-	}
-	return ""
-}
+// normalizeDriverArch 见 drivers.NormalizeArch。
+func normalizeDriverArch(arch string) string { return drivers.NormalizeArch(arch) }
 
-// filterDriverFilesByArch 按架构过滤驱动包文件（借用项 3 的轻量版）：
-//   - 仅当包内存在架构子目录（如 x64/）时才启用过滤，避免误伤扁平布局的老包；
-//   - 顶层文件与非架构子目录视为通用，始终保留；
-//   - 架构子目录仅保留与目标架构匹配者。
-//
-// arch 无法识别或包内无架构子目录时原样返回。
+// filterDriverFilesByArch 见 drivers.FilterByArch。
 func filterDriverFilesByArch(files []string, arch string) []string {
-	target := normalizeDriverArch(arch)
-	if target == "" {
-		return files
-	}
-	hasArchSubdir := false
-	for _, f := range files {
-		if i := strings.Index(f, "/"); i > 0 && driverArchDirs[strings.ToLower(f[:i])] {
-			hasArchSubdir = true
-			break
-		}
-	}
-	if !hasArchSubdir {
-		return files
-	}
-	out := make([]string, 0, len(files))
-	for _, f := range files {
-		i := strings.Index(f, "/")
-		if i <= 0 {
-			out = append(out, f) // 顶层：通用
-			continue
-		}
-		seg := strings.ToLower(f[:i])
-		if !driverArchDirs[seg] {
-			out = append(out, f) // 非架构目录：通用
-			continue
-		}
-		if normalizeDriverArch(seg) == target {
-			out = append(out, f)
-		}
-	}
-	return out
+	return drivers.FilterByArch(files, arch)
 }
 
-// buildPeDriverInstallBlock 生成 winpeshl install.bat 的 PE 阶段驱动加载块（批处理）：
-// 把该驱动包全部文件下载到 PE 可写临时目录，并在 setup.exe 之前用 pnputil
-// （缺失时回退 drvload）安装，使 boot-critical 驱动在 Windows Setup 扫描磁盘前就绪。
-// 下载器优先 curl.exe（Win10+ WinPE 自带），回退 certutil -urlcache（WinPE 长期自带）。
-// 全程 >nul 2>nul 静默、不设 setlocal：任何失败都不阻断后续 install.bat（驱动为可选增强）。
+// buildPeDriverInstallBlock 见 drivers.PeInstallBlockHTTP。
 func buildPeDriverInstallBlock(baseURL, name string, files []string) string {
-	dest := `X:\pxelab-drivers\` + name
-	var b strings.Builder
-	b.WriteString("rem PxeLab PE driver load (" + driverPullMarker + "): " + name + "\n")
-	b.WriteString(`set "_pxelab_drv=` + dest + `"` + "\n")
-	b.WriteString(`if not exist "%_pxelab_drv%" md "%_pxelab_drv%" >nul 2>nul` + "\n")
-	// 先建子目录（保留包内相对结构，pnputil /subdirs 需要）
-	subdirs := map[string]bool{}
-	for _, f := range files {
-		if idx := strings.LastIndex(f, "/"); idx > 0 {
-			subdirs[f[:idx]] = true
-		}
-	}
-	for _, sub := range sortedKeys(subdirs) {
-		local := strings.ReplaceAll(sub, "/", `\`)
-		b.WriteString(`if not exist "%_pxelab_drv%\` + local + `" md "%_pxelab_drv%\` + local + `" >nul 2>nul` + "\n")
-	}
-	// 下载器探测一次：默认 certutil，存在 curl 时改用 curl
-	b.WriteString(`set "_pxelab_dl=certutil"` + "\n")
-	b.WriteString(`where curl.exe >nul 2>nul && set "_pxelab_dl=curl"` + "\n")
-	for _, f := range files {
-		segments := strings.Split(f, "/")
-		for i, seg := range segments {
-			segments[i] = url.PathEscape(seg)
-		}
-		fileURL := fmt.Sprintf("http://%s/boot/drivers/%s/%s", baseURL, url.PathEscape(name), strings.Join(segments, "/"))
-		destPath := `%_pxelab_drv%\` + strings.ReplaceAll(f, "/", `\`)
-		b.WriteString(`if "%_pxelab_dl%"=="curl" (curl.exe -fsSL -o "` + destPath + `" "` + fileURL + `") else (certutil -urlcache -split -f "` + fileURL + `" "` + destPath + `" >nul 2>nul)` + "\n")
-	}
-	// 安装：WinPE 3.0+ 的 pnputil；缺失时用 WinPE 专用的轻量 drvload 逐个 .inf 兜底
-	b.WriteString(`where pnputil.exe >nul 2>nul` + "\n")
-	b.WriteString(`if %errorlevel%==0 (pnputil /add-driver "%_pxelab_drv%\*.inf" /subdirs /install >nul 2>nul) else (for /r "%_pxelab_drv%" %%i in (*.inf) do drvload "%%i" >nul 2>nul)` + "\n")
-	return b.String()
+	return drivers.PeInstallBlockHTTP(baseURL, name, files)
 }
 
 // insertAfterEchoOff 把 block 插入批处理内容顶部：若首行是 @echo off / echo off，

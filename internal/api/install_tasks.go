@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pxelab/pxelab/internal/boot"
 	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/drivers"
 	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/netboot"
@@ -353,25 +354,26 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 //   - 主机显式绑定了驱动包 → 用主机自己的（主机级绑定优先）；
 //   - 否则继承所属 Profile 的默认驱动包；
 //   - 两者皆无 / 解析或查询失败 → nil（不注入驱动）。
-func (h *InstallTaskHandler) resolveDriverPacks(ctx context.Context, host *models.Host) []string {
+//
+// ResolveDriverPacks 返回主机在装机时应生效的驱动包（B2）：主机级绑定优先，
+// 否则继承所属 Profile 的默认驱动包；两者皆空 / 查询失败返回 nil。
+// 导出供 internal/httpd 生成 iPXE initrd 直投菜单复用，保证两侧同源。
+func ResolveDriverPacks(ctx context.Context, st store.Interface, host *models.Host) []string {
 	if host == nil {
 		return nil
 	}
-	if packs, err := host.GetDriverPacks(); err == nil && len(packs) > 0 {
-		return packs
+	hostPacks, _ := host.GetDriverPacks()
+	var profPacks []string
+	if host.ProfileID != nil && *host.ProfileID != "" {
+		if prof, err := st.GetProfile(ctx, *host.ProfileID); err == nil && prof != nil {
+			profPacks, _ = prof.GetDriverPacks()
+		}
 	}
-	if host.ProfileID == nil || *host.ProfileID == "" {
-		return nil
-	}
-	prof, err := h.store.GetProfile(ctx, *host.ProfileID)
-	if err != nil || prof == nil {
-		return nil
-	}
-	packs, err := prof.GetDriverPacks()
-	if err != nil || len(packs) == 0 {
-		return nil
-	}
-	return packs
+	return drivers.EffectivePacks(hostPacks, profPacks)
+}
+
+func (h *InstallTaskHandler) resolveDriverPacks(ctx context.Context, host *models.Host) []string {
+	return ResolveDriverPacks(ctx, h.store, host)
 }
 
 // resolveTaskAnswerType 解析该安装任务在引导行实际使用的应答类型，与
