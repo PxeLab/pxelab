@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/boot"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/osimage"
@@ -209,6 +210,33 @@ func TestWIMCapabilitiesEndpoint(t *testing.T) {
 	}
 	if want := runtime.GOOS == "windows"; resp.Data.OfflineDriverInjection != want {
 		t.Fatalf("offline_driver_injection = %v, want %v", resp.Data.OfflineDriverInjection, want)
+	}
+}
+
+// TestCapabilitiesRouteNotShadowedByID 路由级：/os-images/capabilities 必须命中
+// capabilities（静态段优先），不能被 /os-images/{id} 捕获（否则 ParseUint 失败 → 400）。
+func TestCapabilitiesRouteNotShadowedByID(t *testing.T) {
+	st := store.NewMemory()
+	h := &OSImageHandler{store: st}
+	r := chi.NewRouter()
+	// 与 handler.go 注册顺序/形态一致（{id} 在前，静态 capabilities 在后）
+	r.Get("/os-images/{id}", h.Get)
+	r.Get("/os-images/capabilities", h.Capabilities)
+
+	req := httptest.NewRequest(http.MethodGet, "/os-images/capabilities", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("capabilities 应命中并返回 200, got %d (%s)", w.Result().StatusCode, w.Body.String())
+	}
+	var resp struct {
+		Data osimage.Capabilities `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Data.Platform == "" {
+		t.Fatalf("应返回 platform, got %s", w.Body.String())
 	}
 }
 

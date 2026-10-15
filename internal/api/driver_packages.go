@@ -22,17 +22,15 @@ import (
 // 实现已移至 internal/drivers（供 internal/httpd 生成 initrd 直投菜单复用）。
 const driverPullMarker = drivers.PullMarker
 
-// driverNameRe 限定驱动包名：防目录遍历，也保证能安全嵌入 PowerShell 单引号字符串与 URL。
-var driverNameRe = drivers.NameRe
-
 type DriverPackageHandler struct {
 	bootFS *boot.BootFileServer
 }
 
 type driverPackageDTO struct {
-	Name     string `json:"name"`
-	Files    int    `json:"files"`
-	InfFiles int    `json:"inf_files"`
+	Name      string `json:"name"`
+	Files     int    `json:"files"`
+	InfFiles  int    `json:"inf_files"`
+	SizeBytes int64  `json:"size_bytes"`
 	// Archs 包内出现的架构（归一化 x64/x86/arm64，去重稳定排序）。
 	// 空数组 = 扁平布局（无架构子目录），全架构通用。
 	Archs []string `json:"archs"`
@@ -57,21 +55,16 @@ func (h *DriverPackageHandler) List(w http.ResponseWriter, r *http.Request) {
 	packs := make([]driverPackageDTO, 0, len(entries))
 	for _, dir := range entries {
 		name := filepath.Base(dir)
-		files, err := listDriverPackFiles(h.bootFS.Root(), name)
+		proj, err := drivers.Project(h.bootFS.Root(), name, "")
 		if err != nil {
 			continue // 非法名/非目录/空包不列入
 		}
-		inf := 0
-		for _, f := range files {
-			if strings.HasSuffix(strings.ToLower(f), ".inf") {
-				inf++
-			}
-		}
 		packs = append(packs, driverPackageDTO{
-			Name:     name,
-			Files:    len(files),
-			InfFiles: inf,
-			Archs:    driverPackArchs(files),
+			Name:      proj.Pack,
+			Files:     proj.TotalFiles,
+			InfFiles:  proj.InfFiles,
+			SizeBytes: proj.TotalBytes,
+			Archs:     proj.Archs,
 		})
 	}
 	OK(w, map[string]any{"packages": packs})
@@ -169,12 +162,6 @@ func (h *InstallTaskHandler) buildDriverCommands(baseURL string, packs []string,
 // ── PE 阶段运行时驱动加载（借用项 2）────────────────────────────────────────
 // winpeshl install.bat 在 setup.exe 之前下载驱动包并 pnputil/drvload 安装，
 // 覆盖 boot-critical 场景（存储/网卡），与首登注入互补。跨平台、无需 WIM 操作。
-
-// driverArchDirs 见 drivers.ArchDirs。
-var driverArchDirs = drivers.ArchDirs
-
-// normalizeDriverArch 见 drivers.NormalizeArch。
-func normalizeDriverArch(arch string) string { return drivers.NormalizeArch(arch) }
 
 // filterDriverFilesByArch 见 drivers.FilterByArch。
 func filterDriverFilesByArch(files []string, arch string) []string {

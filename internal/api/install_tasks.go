@@ -295,6 +295,10 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 			// initrd 直投：驱动文件已由 iPXE 注入 %SYSTEMROOT%\System32（见
 			// internal/httpd 菜单生成），这里只插入「落地 + pnputil」块。两侧共用
 			// drivers.PlanInjections，注入文件名必然一致。
+			// 幂等：模板内容若已含注入标记则跳过（与 http 分支一致）。
+			if strings.Contains(rendered, drivers.PullMarker) {
+				break
+			}
 			if h.bootFS != nil {
 				injections, errs := drivers.PlanInjections(h.bootFS.Root(), driverPacks, task.Arch)
 				for _, e := range errs {
