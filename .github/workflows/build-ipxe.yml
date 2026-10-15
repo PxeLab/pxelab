@@ -231,33 +231,29 @@ jobs:
     runs-on: ubuntu-latest
     needs: [bios, uefi, bios-embed, uefi-embed]
     steps:
-      - name: Download non-embedded artifacts
+      - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: bios-*|uefi-*
-          merge-multiple: false
-
-      - name: Download embedded artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts-embed
-          pattern: '*-embed-*'
-          merge-multiple: false
 
       - name: Organize output
         run: |
-          # Non-embedded (default)
-          mkdir -p pxelab-ipxe
-          find artifacts -name '*.pxe' ! -name '*embed*' -exec cp {} pxelab-ipxe/ \;
-          find artifacts -name '*.kpxe' ! -name '*embed*' -exec cp {} pxelab-ipxe/ \;
-          find artifacts -name '*.efi' ! -name '*embed*' -exec cp {} pxelab-ipxe/ \;
+          if [ ! -d artifacts ]; then
+            echo "::error::no artifacts were downloaded"
+            exit 1
+          fi
 
-          # Embedded (failsafe)
+          # 非嵌入（默认）：排除任何路径中含 embed 的产物目录
+          mkdir -p pxelab-ipxe
+          find artifacts -path '*embed*' -prune -o -type f \
+            \( -name '*.pxe' -o -name '*.kpxe' -o -name '*.efi' \) \
+            -exec cp {} pxelab-ipxe/ \;
+
+          # 嵌入（failsafe）：仅取 embed 产物目录
           mkdir -p pxelab-ipxe-embed
-          find artifacts-embed -name '*.pxe' -exec cp {} pxelab-ipxe-embed/ \;
-          find artifacts-embed -name '*.kpxe' -exec cp {} pxelab-ipxe-embed/ \;
-          find artifacts-embed -name '*.efi' -exec cp {} pxelab-ipxe-embed/ \;
+          find artifacts -path '*embed*' -type f \
+            \( -name '*.pxe' -o -name '*.kpxe' -o -name '*.efi' \) \
+            -exec cp {} pxelab-ipxe-embed/ \;
 
           echo "=== Non-embedded (default) ==="
           ls -la pxelab-ipxe/
