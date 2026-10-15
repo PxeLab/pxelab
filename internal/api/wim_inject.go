@@ -11,6 +11,7 @@ package api
 // 支持（非 Windows 返回 501，提示改用 PE 阶段运行时驱动加载）。
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -233,15 +234,20 @@ func (h *OSImageHandler) InjectDrivers(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("WIM 挂载点数据库清理失败（dism /Cleanup-Wim）", "error", err)
 	}
 
+	// 提交已经完成：后续记账（DB + 审计）必须与请求生命周期**解耦**。
+	// 客户端断开（关页/刷新/网关 504）会取消 r.Context()，若继续用它写库，就会出现
+	// 「WIM 已被 dism 提交，但界面/DB 显示未注入」的不一致（记账丢失）。
+	// context.WithoutCancel 保留请求内的值、不受取消影响。
+	bctx := context.WithoutCancel(r.Context())
 	now := time.Now().UTC()
 	img.InjectedDrivers = mustJSONStringArray(namesOf(staged))
 	img.DriverInjectedAt = &now
 	img.DriverInjectCount++
-	if err := h.store.UpdateOSImage(ctx, img); err != nil {
+	if err := h.store.UpdateOSImage(bctx, img); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(ctx, h.store, models.AuditUpdate, "os_image", strconv.FormatUint(uint64(img.ID), 10), remoteIP(r),
+	RecordAudit(bctx, h.store, models.AuditUpdate, "os_image", strconv.FormatUint(uint64(img.ID), 10), remoteIP(r),
 		fmt.Sprintf("WIM 离线注入驱动: %s → %s (index %d, 第 %d 次)", strings.Join(namesOf(staged), ","), wimRelPath(target), index, img.DriverInjectCount))
 	OK(w, map[string]any{
 		"injected":     namesOf(staged),
@@ -307,14 +313,16 @@ func (h *OSImageHandler) RestoreWIM(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, fmt.Sprintf("还原失败: %v", err))
 		return
 	}
+	// 同注入：还原已落地，记账与请求生命周期解耦（客户端断开也要记上）。
+	bctx := context.WithoutCancel(r.Context())
 	img.InjectedDrivers = ""
 	img.DriverInjectedAt = nil
 	img.DriverInjectCount = 0
-	if err := h.store.UpdateOSImage(ctx, img); err != nil {
+	if err := h.store.UpdateOSImage(bctx, img); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	RecordAudit(ctx, h.store, models.AuditUpdate, "os_image", strconv.FormatUint(uint64(img.ID), 10), remoteIP(r),
+	RecordAudit(bctx, h.store, models.AuditUpdate, "os_image", strconv.FormatUint(uint64(img.ID), 10), remoteIP(r),
 		fmt.Sprintf("WIM 还原为原始文件: %s ← %s", wimRelPath(target), wimRelPath(target)+".orig"))
 	OK(w, map[string]any{
 		"restored": wimPath,

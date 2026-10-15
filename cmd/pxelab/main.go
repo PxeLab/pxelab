@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,8 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"time"
 	"runtime/debug"
+	"time"
 
 	"github.com/pxelab/pxelab/internal/api"
 	"github.com/pxelab/pxelab/internal/boot"
@@ -20,14 +21,15 @@ import (
 	"github.com/pxelab/pxelab/internal/dns"
 	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/httpd"
+	"github.com/pxelab/pxelab/internal/logbus"
 	"github.com/pxelab/pxelab/internal/models"
-	pxelabnfs "github.com/pxelab/pxelab/internal/nfs"
-	pxelabsmb "github.com/pxelab/pxelab/internal/smb"
 	"github.com/pxelab/pxelab/internal/netboot"
 	"github.com/pxelab/pxelab/internal/netboot/menus"
-	"github.com/pxelab/pxelab/internal/logbus"
+	pxelabnfs "github.com/pxelab/pxelab/internal/nfs"
+	"github.com/pxelab/pxelab/internal/osimage"
 	"github.com/pxelab/pxelab/internal/servicemanager"
 	"github.com/pxelab/pxelab/internal/session"
+	pxelabsmb "github.com/pxelab/pxelab/internal/smb"
 	"github.com/pxelab/pxelab/internal/store"
 	"github.com/pxelab/pxelab/internal/tftp"
 	"github.com/pxelab/pxelab/internal/updatecheck"
@@ -154,6 +156,15 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 	if err := st.Seed(); err != nil {
 		return fmt.Errorf("初始化默认数据失败: %w", err)
 	}
+
+	// 启动时清理上一次运行遗留的 WIM 挂载点：dism 的挂载是持久化的，进程被强杀/断电会
+	// 留下脱离的挂载点，需要 dism /Cleanup-Wim 才能清掉（否则后续挂载可能失败）。
+	// 非 Windows 或无 dism 时静默跳过；异步执行，不阻塞启动。
+	go func() {
+		if err := osimage.CleanupWIM(); err != nil && !errors.Is(err, osimage.ErrWIMUnsupported) {
+			slog.Warn("启动清理 WIM 挂载点失败（dism /Cleanup-Wim）", "error", err)
+		}
+	}()
 	// 创建默认 DNS @ A 记录（指向第一个非 loopback 的网卡 IP）
 	if cfg.DNS.LocalDomain != "" {
 		serverIP := "127.0.0.1"
@@ -176,24 +187,24 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 			slog.Info("已创建默认 DNS 记录", "domain", cfg.DNS.LocalDomain, "value", serverIP)
 		}
 
-			// 创建服务器名称 A 记录（如 pxe-server.pxelab.local）
-			srvName := cfg.Global.ServerName
-			if srvName == "" {
-				srvName = "PxeLab"
+		// 创建服务器名称 A 记录（如 pxe-server.pxelab.local）
+		srvName := cfg.Global.ServerName
+		if srvName == "" {
+			srvName = "PxeLab"
+		}
+		if srvName != "@" {
+			existing, _ := st.FindDNSRecords(context.Background(), srvName, "A", "")
+			if len(existing) == 0 {
+				_ = st.CreateDNSRecord(context.Background(), &models.DNSRecord{
+					Name:    srvName,
+					Type:    "A",
+					Value:   serverIP,
+					TTL:     300,
+					Enabled: true,
+				})
+				slog.Info("已创建服务器名称 DNS 记录", "name", srvName, "domain", cfg.DNS.LocalDomain, "value", serverIP)
 			}
-			if srvName != "@" {
-				existing, _ := st.FindDNSRecords(context.Background(), srvName, "A", "")
-				if len(existing) == 0 {
-					_ = st.CreateDNSRecord(context.Background(), &models.DNSRecord{
-						Name:    srvName,
-						Type:    "A",
-						Value:   serverIP,
-						TTL:     300,
-						Enabled: true,
-					})
-					slog.Info("已创建服务器名称 DNS 记录", "name", srvName, "domain", cfg.DNS.LocalDomain, "value", serverIP)
-				}
-			}
+		}
 	}
 
 	// 导入黑白名单种子（幂等——MAC 已存在则跳过）
@@ -369,7 +380,7 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 			for i, c := range s.Clients {
 				clients[i] = api.NFSClientInfo{
 					IP:           c.IP,
-					ConnectedAt: c.ConnectedAt.Format(time.RFC3339),
+					ConnectedAt:  c.ConnectedAt.Format(time.RFC3339),
 					LastActivity: c.LastActivity.Format(time.RFC3339),
 				}
 			}
@@ -394,7 +405,6 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 		return ok && info.Status == servicemanager.StatusRunning
 	}, Version, updater)
 	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP, true, 8080, "TCP")
-
 
 	if appMode {
 		slog.Info("自动打开浏览器")
