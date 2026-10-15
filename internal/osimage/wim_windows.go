@@ -9,11 +9,11 @@ import (
 	"strings"
 )
 
-// wim*.go 用 DISM 的 PowerShell cmdlet（Mount-WindowsImage / Add-WindowsDriver /
-// Dismount-WindowsImage / Get-WindowsDriver / Get-WindowsImage /
-// Clear-WindowsCorruptMountPointDatabase）而非 dism.exe 文本输出：
-// ConvertTo-Json 给出结构化字段名，不受系统显示语言本地化影响（dism.exe 的
-// "Index :"/“索引 :” 随系统语言变化，文本解析不可靠）。
+// wim*.go 主体用 DISM 的 PowerShell cmdlet（Mount-WindowsImage / Add-WindowsDriver /
+// Dismount-WindowsImage / Get-WindowsDriver / Get-WindowsImage）而非 dism.exe 文本
+// 输出：ConvertTo-Json 给出结构化字段名，不受系统显示语言本地化影响（dism.exe
+// 的 "Index :"/“索引 :” 随系统语言变化，文本解析不可靠）。CleanupWIM 例外 ——
+// Dism 模块没有对应 cmdlet，直接用 dism.exe /Cleanup-Wim（无需输出解析）。
 
 // psQuote 把字符串嵌入 PowerShell 单引号字面量（' → ”）。
 func psQuote(s string) string {
@@ -89,11 +89,23 @@ func ListWIMDrivers(mountDir string) ([]WIMDriver, error) {
 	return parseWIMDrivers(out)
 }
 
-// CleanupWIM 清理损坏的 WIM 挂载点数据库（dism /Cleanup-Wim 的等价 cmdlet），
-// 防止失败操作后残留幽灵挂载点。无需参数，建议每次挂载操作后 defer 调用。
+// CleanupWIM 清理损坏的 WIM 挂载点数据库（dism /Cleanup-Wim），防止失败
+// 操作后残留幽灵挂载点。无需输出解析（只看退出码），直接用 dism.exe ——
+// PowerShell Dism 模块没有对应的 Clear-WindowsCorruptMountPointDatabase cmdlet
+// （Win10/11/Server 实测不存在）。建议每次挂载操作后 defer 调用。
 func CleanupWIM() error {
-	_, err := runPS(`$ErrorActionPreference='Stop'; Clear-WindowsCorruptMountPointDatabase`)
-	return err
+	cmd := exec.Command("dism", "/English", "/Cleanup-Wim")
+	hideWindow(cmd)
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(errBuf.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return fmt.Errorf("wim: dism /Cleanup-Wim failed: %s", msg)
+	}
+	return nil
 }
 
 // GetWIMInfo 列出 WIM 内全部镜像索引（dism /Get-WimInfo 的等价 cmdlet，
