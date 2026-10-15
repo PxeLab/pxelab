@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -184,6 +185,30 @@ func TestWimInfoValidation(t *testing.T) {
 	h.WIMInfo(w, req)
 	if w.Result().StatusCode != http.StatusBadRequest {
 		t.Fatalf("wim 缺失应 400, got %d", w.Result().StatusCode)
+	}
+}
+
+// TestWIMCapabilitiesEndpoint 能力探测：任何平台都返回 200，platform 反映 GOOS，
+// offline_driver_injection 与平台一致（非 Windows 需带原因）。
+func TestWIMCapabilitiesEndpoint(t *testing.T) {
+	h := &OSImageHandler{}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/os-images/capabilities", nil)
+	w := httptest.NewRecorder()
+	h.Capabilities(w, req)
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Result().StatusCode)
+	}
+	var resp struct {
+		Data osimage.Capabilities `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Data.Platform != runtime.GOOS {
+		t.Fatalf("platform = %q, want %q", resp.Data.Platform, runtime.GOOS)
+	}
+	if want := runtime.GOOS == "windows"; resp.Data.OfflineDriverInjection != want {
+		t.Fatalf("offline_driver_injection = %v, want %v", resp.Data.OfflineDriverInjection, want)
 	}
 }
 

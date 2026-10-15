@@ -1,6 +1,7 @@
 package osimage
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -89,5 +90,23 @@ func TestParseWIMDriversEmpty(t *testing.T) {
 func TestErrWIMUnsupportedMessage(t *testing.T) {
 	if !strings.Contains(ErrWIMUnsupported.Error(), "Windows host") {
 		t.Fatalf("错误信息应说明需要 Windows 主机: %v", ErrWIMUnsupported)
+	}
+}
+
+func TestWIMCapabilitiesMatchesPlatform(t *testing.T) {
+	cap := WIMCapabilities()
+	if cap.Platform != runtime.GOOS {
+		t.Fatalf("platform = %q, want %q", cap.Platform, runtime.GOOS)
+	}
+	wantSupported := runtime.GOOS == "windows"
+	if cap.OfflineDriverInjection != wantSupported {
+		t.Fatalf("offline_driver_injection = %v, want %v (GOOS=%s)", cap.OfflineDriverInjection, wantSupported, runtime.GOOS)
+	}
+	if !cap.OfflineDriverInjection && cap.Reason == "" {
+		t.Fatal("不支持时应给出原因")
+	}
+	// 非 Windows 需明确指向替代方案
+	if runtime.GOOS != "windows" && !strings.Contains(strings.ToLower(cap.Reason), "pe-stage") {
+		t.Fatalf("不支持的原因应指向 PE 阶段运行时加载: %q", cap.Reason)
 	}
 }

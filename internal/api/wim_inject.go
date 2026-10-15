@@ -41,6 +41,12 @@ type stagedWIMPack struct {
 	files []string
 }
 
+// Capabilities 报告本平台是否支持离线 WIM 驱动注入（前端据此置灰入口，
+// 避免非 Windows 上点击后才拿到 501）。无平台限制，任何镜像状态均可调用。
+func (h *OSImageHandler) Capabilities(w http.ResponseWriter, r *http.Request) {
+	OK(w, osimage.WIMCapabilities())
+}
+
 // WIMInfo 列出镜像 WIM 内全部可选镜像索引（注入 index 参数的选项来源，借鉴项 4）。
 // target 查询参数：boot（默认）| install。
 func (h *OSImageHandler) WIMInfo(w http.ResponseWriter, r *http.Request) {

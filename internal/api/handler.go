@@ -329,6 +329,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		// OS images
 		r.Get("/os-images", h.OSImage.List)
+		r.Get("/os-images/capabilities", h.OSImage.Capabilities)
 		r.Post("/os-images/upload", h.OSImage.Upload)
 		r.Get("/os-images/{id}", h.OSImage.Get)
 		r.Put("/os-images/{id}", h.OSImage.Update)

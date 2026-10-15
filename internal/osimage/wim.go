@@ -3,6 +3,7 @@ package osimage
 import (
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"strings"
 )
 
@@ -11,6 +12,24 @@ import (
 // dism。非 Windows 主机请改用 PE 阶段运行时驱动加载（winpeshl install.bat
 // 注入，见 internal/api/driver_packages.go 的 buildPeDriverInstallBlock）。
 var ErrWIMUnsupported = fmt.Errorf("wim: offline WIM operations require a Windows host (dism); use PE-stage runtime driver loading on other platforms")
+
+// Capabilities 描述本平台对离线 WIM 操作（驱动注入）的支持情况。前端据此
+// 决定是否置灰「注入驱动」入口，避免非 Windows 上点击后才拿到 501。
+type Capabilities struct {
+	OfflineDriverInjection bool   `json:"offline_driver_injection"`
+	Platform               string `json:"platform"`
+	Reason                 string `json:"reason,omitempty"` // 不支持时的英文原因（供 API 消费者）
+}
+
+// WIMCapabilities 报告本平台的离线注入能力。由编译期常量决定（见
+// wim_windows.go / wim_other.go 的 offlineInjectionSupported），不产生运行时开销。
+func WIMCapabilities() Capabilities {
+	return Capabilities{
+		OfflineDriverInjection: offlineInjectionSupported,
+		Platform:               runtime.GOOS,
+		Reason:                 offlineInjectionReason,
+	}
+}
 
 // WIMIndex 描述 WIM 内的一个镜像索引（GetWIMInfo 的返回项）。
 type WIMIndex struct {

@@ -16,6 +16,10 @@ import (
 // Dism 模块没有对应 cmdlet，直接用 dism.exe /Cleanup-Wim（无需输出解析）。
 
 // psQuote 把字符串嵌入 PowerShell 单引号字面量（' → ”）。
+// 平台能力：Windows 自带 dism（Win8/Server2012+ 的 Dism 模块），离线注入可用。
+const offlineInjectionSupported = true
+const offlineInjectionReason = ""
+
 func psQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }

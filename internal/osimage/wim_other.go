@@ -6,6 +6,10 @@ package osimage
 // 语义（dism），wimlib 只能做文件级挂载无法注册驱动，故一律返回
 // ErrWIMUnsupported；调用方应提示用户改用 PE 阶段运行时驱动加载（借鉴项 2）。
 
+// 平台能力：非 Windows 不可用（Linux/macOS 无 dism，wimlib 无法注册 driver store）。
+const offlineInjectionSupported = false
+const offlineInjectionReason = "offline WIM driver injection requires a Windows host (dism); wimlib cannot register into the Windows driver store. Use PE-stage runtime driver loading instead."
+
 func MountWIM(wimPath, mountDir string, index int) error {
 	return ErrWIMUnsupported
 }
