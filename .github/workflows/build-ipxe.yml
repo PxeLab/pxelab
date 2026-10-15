@@ -13,9 +13,21 @@ on:
       - 'boot/autoexec.ipxe'
     branches: [main]
   workflow_dispatch:
+    inputs:
+      # 手动触发默认只构建并上传 artifact，不把二进制提交进 boot/；
+      # 需要真正更新 boot/ 时显式勾选本项。
+      update_boot:
+        description: 'Build and commit the iPXE binaries into boot/ (updates the repo)'
+        type: boolean
+        default: false
 
 env:
   IPXE_VERSION: "v2.0.0"
+  # iPXE v2.0.0 在较新 GCC（如 builder 镜像里的 GCC 12+）下会产生
+  # "'regparm' attribute ignored [-Werror=attributes]" 之类的告警；
+  # iPXE 的 Makefile 默认追加 -Werror，会把该告警升级为错误而中断构建。
+  # iPXE 官方支持 NO_WERROR=1 来抑制 -Werror（见 src/Makefile.housekeeping）。
+  NO_WERROR: "1"
 
 jobs:
   # ── Non-embedded builds (default — relies on DHCP Option 175 + autoexec.ipxe) ──
@@ -271,7 +283,7 @@ jobs:
     name: Update boot/ directory
     runs-on: ubuntu-latest
     needs: [combine]
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_boot }}
     steps:
       - name: Checkout PxeLab
         uses: actions/checkout@v4
