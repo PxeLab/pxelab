@@ -35,7 +35,20 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Check whether the release already exists
+        id: relcheck
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Release ${GITHUB_REF_NAME} already exists — skipping GoReleaser. Delete the release first if you intend to re-release this tag."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run GoReleaser
+        if: steps.relcheck.outputs.exists != 'true'
         uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
