@@ -26,6 +26,15 @@ make frontend           # cd web && npm ci && npm run build
 make release            # goreleaser release --clean
 ```
 
+## 提交规范（Git）
+
+- **提交消息中不得出现任何 AI / 工具署名尾注**：不要添加 `Co-authored-by: <agent>`、`Generated-by`、`Ultraworked with ...` 之类的行。提交者就是当前开发者本人。
+- 标题用 `type(scope): 描述`（`scope` 可选，如 `fix(api):`、`feat(web):`）；正文用要点列出改动与验证结论。
+- 一个提交只做一件事；不要在同一提交里混入无关改动。
+- **默认不重写已推送的历史**（不 `force-push` / `rebase` / `amend` 已推送提交），修正一律用新提交。确需重写（例如清除误加的署名尾注）必须先获得仓库所有者明确同意，并先做完整备份。
+- 提交前至少跑通：`go build ./...`、`go vet ./...`、`go test ./...`；改动前端时另跑 `cd web && npm run build`。
+- 不要提交构建产物 / 临时文件（`bin/`、`dist/`、`*.dshpreset` 等，见 `.gitignore`）。
+
 ## 架构概览
 
 **PxeLab** 是一款一体化 PXE 服务器，集成了 DHCP、TFTP、HTTP、DNS 和 NFS 服务，通过 Web UI 和 REST API 管理。
