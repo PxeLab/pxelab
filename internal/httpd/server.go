@@ -23,6 +23,7 @@ import (
 	"github.com/pxelab/pxelab/internal/boot/configgen"
 	"github.com/pxelab/pxelab/internal/boot/ipxe"
 	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/drivers"
 	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/netboot"
@@ -91,7 +92,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		if mac != "" {
 			recordBootSeen(cfg, st, bus, mac, remoteIPOf(r), "ipxe", "default-menu")
 		}
-		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
+		script, err := generateBootMenu(cfg, st, bootFS, mac, r.Host, r.Context())
 		if err != nil {
 			slog.Error("生成 iPXE 菜单失败", "service", "HTTP", "error", err)
 			http.Error(w, "script error", http.StatusInternalServerError)
@@ -109,7 +110,7 @@ func NewServer(cfg *config.Config, st store.Interface, bus *eventbus.Bus, bootFS
 		if mac != "" {
 			recordBootSeen(cfg, st, bus, mac, remoteIPOf(r), "ipxe", "default-menu")
 		}
-		script, err := generateBootMenu(cfg, st, mac, r.Host, r.Context())
+		script, err := generateBootMenu(cfg, st, bootFS, mac, r.Host, r.Context())
 		if err != nil {
 			slog.Error("生成 iPXE 菜单失败", "service", "HTTP", "error", err)
 			http.Error(w, "script error", http.StatusInternalServerError)
@@ -367,7 +368,7 @@ func (s *Server) Name() string { return s.name }
 func (s *Server) API() *api.Handler { return s.api }
 
 // generateBootMenu 根据配置生成 iPXE 引导菜单（不含 failsafe 包装）
-func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr string, ctx context.Context) (string, error) {
+func generateBootMenu(cfg *config.Config, st store.Interface, bootFS *boot.BootFileServer, mac, serverAddr string, ctx context.Context) (string, error) {
 	// 1. 自定义脚本逃生口
 	if tmpl := cfg.Netboot.ScriptTemplate; tmpl != "" {
 		return renderTemplate(tmpl, serverAddr, mac)
@@ -379,8 +380,10 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 	// 解析该 MAC 当前可下发的安装任务，用于把应答注入 Windows(wimboot) 引导项。
 	// 与 /netboot/task/by-mac 同源：最新任务 failed 时锁定（不再注入应答）。
 	var bootTask *netboot.BootTaskInfo
+	var task *models.InstallTask
 	if mac != "" {
 		if t, err := st.GetLatestInstallTaskByHostMAC(ctx, mac); err == nil && t != nil {
+			task = t
 			if serve, locked := netboot.TaskBootDecision(t.Status); serve && !locked {
 				overlay, _ := st.GetNetbootOverlay(ctx, t.DistroName)
 				bootTask = netboot.BuildBootTaskInfo(t, overlay, serverAddr)
@@ -388,14 +391,44 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 		}
 	}
 
+	// 驱动交付方式 = initrd 时，预先算出该主机生效驱动包的 iPXE 注入行。
+	// 与 install.bat 侧共用 drivers.PlanInjections（注入文件名确定性派生），
+	// 保证菜单注入的文件名与 PE 内落地 copy 引用的文件名完全一致。
+	var driverInitrdLines string
+	if bootTask != nil && bootFS != nil && task != nil && drivers.NormalizeDelivery(cfg.Netboot.DriverDelivery) == drivers.DeliveryInitrd {
+		// initrd 直投只对 winpeshl（PE 内 install.bat）路线有意义
+		if taskIsWinpeAnswer(ctx, st, task, bootTask.AnswerType) {
+			if host, err := st.GetHostByMAC(ctx, mac); err == nil && host != nil {
+				packs := api.ResolveDriverPacks(ctx, st, host)
+				if len(packs) > 0 {
+					injections, errs := drivers.PlanInjections(bootFS.Root(), packs, task.Arch)
+					for _, e := range errs {
+						slog.Warn("iPXE 驱动 initrd 直投跳过驱动包", "error", e)
+					}
+					if lines := drivers.InitrdLines(serverAddr, injections); len(lines) > 0 {
+						driverInitrdLines = strings.Join(lines, "\n")
+					}
+				}
+			}
+		}
+	}
+
 	// answerFromTask 把当前安装任务的应答注入到 wds(wimboot) 引导项：
 	// 生成 install.bat/winpeshl.ini 或 autounattend.xml 的 initrd 行与 WIM 索引。
+	// driver_delivery=initrd 时追加驱动文件的 initrd 行。
 	// 仅对 wds 类型生效；其它类型条目原样返回。
 	answerFromTask := func(e ipxe.MenuEntryData) ipxe.MenuEntryData {
 		if bootTask == nil || bootTask.AnswerURL == "" || e.Type != ipxe.BootWDS {
 			return e
 		}
-		e.AnswerInitrds = strings.Join(netboot.WimbootAnswerInitrds(bootTask.AnswerURL, bootTask.AnswerType), "\n")
+		answer := strings.Join(netboot.WimbootAnswerInitrds(bootTask.AnswerURL, bootTask.AnswerType), "\n")
+		if driverInitrdLines != "" {
+			if answer != "" {
+				answer += "\n"
+			}
+			answer += driverInitrdLines
+		}
+		e.AnswerInitrds = answer
 		e.WIMIndex = bootTask.WIMIndex
 		return e
 	}
@@ -546,8 +579,23 @@ func generateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr st
 }
 
 // GenerateBootMenu is the exported wrapper for generateBootMenu, usable by API handlers.
-func GenerateBootMenu(cfg *config.Config, st store.Interface, mac, serverAddr string, ctx context.Context) (string, error) {
-	return generateBootMenu(cfg, st, mac, serverAddr, ctx)
+func GenerateBootMenu(cfg *config.Config, st store.Interface, bootFS *boot.BootFileServer, mac, serverAddr string, ctx context.Context) (string, error) {
+	return generateBootMenu(cfg, st, bootFS, mac, serverAddr, ctx)
+}
+
+// taskIsWinpeAnswer 判定该安装任务在引导行实际走 winpeshl（PE 内 install.bat）路线：
+// overlay 版本 answer_type 为 winpeshl，或模板类型为 winpeshl。与
+// install_tasks.go 的 winpeShellMode 判定同源（overlay 优先、模板兜底）。
+func taskIsWinpeAnswer(ctx context.Context, st store.Interface, task *models.InstallTask, overlayAnswerType string) bool {
+	if overlayAnswerType == "winpeshl" {
+		return true
+	}
+	if task.AnswerTemplateID != nil {
+		if tmpl, err := st.GetAnswerTemplate(ctx, *task.AnswerTemplateID); err == nil && tmpl != nil && tmpl.Type == "winpeshl" {
+			return true
+		}
+	}
+	return false
 }
 
 // remoteIPOf 从请求 RemoteAddr 提取纯 IP。

@@ -290,8 +290,26 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 		h.resolveTaskAnswerType(r.Context(), task) == "winpeshl"
 	if winpeShellMode && !isWinpeShellIni && len(driverPacks) > 0 {
 		base := chooseServerBase(h.serverBase, r.Host)
-		if injected, ok := h.injectWinpeShellDrivers(rendered, driverPacks, task.Arch, base); ok {
-			rendered = injected
+		switch drivers.NormalizeDelivery(h.cfg.Netboot.DriverDelivery) {
+		case drivers.DeliveryInitrd:
+			// initrd 直投：驱动文件已由 iPXE 注入 %SYSTEMROOT%\System32（见
+			// internal/httpd 菜单生成），这里只插入「落地 + pnputil」块。两侧共用
+			// drivers.PlanInjections，注入文件名必然一致。
+			if h.bootFS != nil {
+				injections, errs := drivers.PlanInjections(h.bootFS.Root(), driverPacks, task.Arch)
+				for _, e := range errs {
+					slog.Warn("winpeshl initrd 直投跳过驱动包", "error", e)
+				}
+				if block := drivers.PeInstallBlockInitrd(injections); block != "" {
+					rendered = insertAfterEchoOff(rendered, block)
+				}
+			} else {
+				slog.Warn("initrd 直投需要 boot 文件服务，已跳过驱动注入", "task_id", task.ID)
+			}
+		default:
+			if injected, ok := h.injectWinpeShellDrivers(rendered, driverPacks, task.Arch, base); ok {
+				rendered = injected
+			}
 		}
 	}
 

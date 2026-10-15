@@ -11,6 +11,7 @@ import (
 
 	"github.com/pxelab/pxelab/internal/boot"
 	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/drivers"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/store"
 )
@@ -423,6 +424,77 @@ func TestGetAnswerFileInjectsDriverCommands(t *testing.T) {
 	}
 	if strings.Index(body, "pxelab-driver-pull") > strings.Index(body, "PxeLab baseline pull") {
 		t.Fatal("驱动应先于基线执行")
+	}
+}
+
+// TestGetAnswerFileWinpeShellInitrdDelivery：driver_delivery=initrd 时，winpeshl
+// install.bat 顶部应插入「从 %SYSTEMROOT%\System32 落地 + pnputil」块，且不含 HTTP 下载。
+func TestGetAnswerFileWinpeShellInitrdDelivery(t *testing.T) {
+	root := setupDriverBootRoot(t)
+	st := store.NewMemory()
+	cfg := &config.Config{}
+	cfg.Netboot.DriverDelivery = "initrd"
+	h := &InstallTaskHandler{
+		store:      st,
+		serverBase: "10.0.0.10:8080",
+		cfg:        cfg,
+		bootFS:     boot.NewBootFileServer(root),
+	}
+	host := &models.Host{ID: "host-1", Name: "host-1", MAC: "aa:bb:cc:dd:ee:03"}
+	if err := host.SetDriverPacks([]string{"nic-intel"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.CreateHost(t.Context(), host); err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &models.AnswerTemplate{
+		Name:    "winpe",
+		Type:    "winpeshl",
+		Content: "@echo off\r\nsetup.exe /unattend:X:\\autounattend.xml\r\n",
+	}
+	if err := st.CreateAnswerTemplate(t.Context(), tmpl); err != nil {
+		t.Fatal(err)
+	}
+	task := &models.InstallTask{
+		ID: "task-pe-initrd", HostID: host.ID, DistroName: "Windows PE",
+		VersionCodename: "w11", Arch: "amd64", AnswerTemplateID: &tmpl.ID,
+	}
+	if err := st.CreateInstallTask(t.Context(), task); err != nil {
+		t.Fatal(err)
+	}
+
+	req := withChiParams(httptest.NewRequest(http.MethodGet, "/api/v1/netboot/answer/task-pe-initrd", nil), "task_id", "task-pe-initrd")
+	w := httptest.NewRecorder()
+	h.GetAnswerFile(w, req)
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d (%s)", w.Result().StatusCode, w.Body.String())
+	}
+	body := w.Body.String()
+
+	// initrd 落地块：源文件名与 drivers.InjectName 一致（与 iPXE 菜单同源）
+	infName := drivers.InjectName("nic-intel", "e1d.inf")
+	sysName := drivers.InjectName("nic-intel", "x64/e1d64.sys")
+	mustContain := []string{
+		drivers.PullMarker,
+		`copy /y "%SYSTEMROOT%\System32\` + infName + `" "%_pxelab_drv%\e1d.inf"`,
+		`copy /y "%SYSTEMROOT%\System32\` + sysName + `" "%_pxelab_drv%\x64\e1d64.sys"`,
+		`pnputil /add-driver "%_pxelab_drv%\*.inf" /subdirs /install`,
+	}
+	for _, s := range mustContain {
+		if !strings.Contains(body, s) {
+			t.Fatalf("install.bat 缺少 %q:\n%s", s, body)
+		}
+	}
+	// initrd 模式不应走 HTTP 下载
+	if strings.Contains(body, "curl.exe") || strings.Contains(body, "certutil") {
+		t.Fatalf("initrd 模式不应含 HTTP 下载命令:\n%s", body)
+	}
+	// 驱动块应位于 setup.exe 之前，且保留首行 @echo off
+	if strings.Index(body, drivers.PullMarker) > strings.Index(body, "setup.exe") {
+		t.Fatalf("驱动落地块应在 setup.exe 之前:\n%s", body)
+	}
+	if !strings.HasPrefix(body, "@echo off\r\n") {
+		t.Fatalf("应保留首行 @echo off:\n%q", body)
 	}
 }
 
