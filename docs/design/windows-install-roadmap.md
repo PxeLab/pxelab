@@ -42,7 +42,7 @@
 
 - **WinPE 24H2 `System error 1727`**（认证式 SMB 连接失败）：根因 KB5051987，已修于 KB5058411（26100.4061），仍建议真机实测。
 - **Windows 主机 445 端口被 LanmanServer（「Server」服务）占用**：须先停该服务，否则 PxeLab SMB 无法监听。
-- **真机验证缺失**：iPXE `initrd -n <name>` 具名语义（含 `driver_delivery=initrd` 时**多驱动文件注入**的实际表现与 PE 内存占用）、wimboot `index=`、`winpeshl.ini [LaunchApps]`、Recipe B 的 `dism /Apply-Image`、离线 `dism /Add-Driver` 注入（借鉴项 1）均只有 build / vet / 单测级证据，**未在真实 Windows 硬件上跑通**。
+- **真机验证缺失**：iPXE `initrd -n <name>` 具名语义（含 `driver_delivery=initrd` 时**多驱动文件注入**的实际表现与 PE 内存占用）、wimboot `index=`、`winpeshl.ini [LaunchApps]`、Recipe B 的 `dism /Apply-Image`、离线 `dism /Add-Driver` 注入（借鉴项 1）均只有 build / vet / 单测级证据，**未在真实 Windows 硬件上跑通**。→ 逐项验证步骤与结果记录见 `docs/design/windows-install-hw-test-plan.md`。
 
 ---
 
@@ -130,4 +130,5 @@ Phase 2: 借鉴项 3（✅ 架构分离）→ 借鉴项 4/5（✅ 索引 + 验�
 | `docs/windows-deployment.md` | **操作手册** — 用户怎么装（两条路线步骤、常见问题） |
 | `docs/design/pxesrv-linux-winpe-borrowable.md` | **借鉴清单** — 与 pxesrv-linux 的对照、借鉴项 1–6 的 gap / 改动 / 命令 |
 | `docs/design/quick-install-optimization-req.md` | **需求** — R6（Windows 链路深化）剩余范围 + 待办 B1/B2 |
+| `docs/design/windows-install-hw-test-plan.md` | **真机测试清单** — 事项/步骤/预期/结果记录（验证 1.3 的待验证项） |
 | 本文 | **阶段化路线图** — Phase 0/1/2 的状态、映射与排期 |

@@ -2,6 +2,8 @@
 
 本文档说明如何通过 PxeLab 给目标机器（x64 UEFI）网络安装 Windows：从 PXE 引导到自动应答部署，全程可离线。
 
+> 真机验证清单（事项 / 步骤 / 预期 / 结果记录）：`docs/design/windows-install-hw-test-plan.md`。
+
 ## 0. 总体机制
 
 两条互补路线:
