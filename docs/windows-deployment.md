@@ -51,6 +51,12 @@ PXE 引导链：DHCP（PxeLab 内建，option 66/67 + iPXE 175/177）→ 按架�
 > - **SMB 端口必须是 445**：Recipe B 用 `net use \\<server>\<share>` 访问共享，Windows UNC 路径**不支持指定端口**——把 SMB 端口改成非 445 后 WinPE 无法连接共享（Settings → SMB 页面会在端口不可绑定时提示）。
 > - **离线注入**（可选，仅 Windows 主机）：对已提取的 Windows ISO 调 `POST /api/v1/os-images/{id}/inject-drivers`（body `{"driver_packs":["<包名>"],"target":"boot","index":1}`）把驱动打进 `sources/boot.wim`，覆盖须在 PE 启动前注册 driver store 的驱动。原 `boot.wim` 先备份为 `boot.wim.orig`（不覆盖已有备份），注入结果随响应返回；`GET /api/v1/os-images/{id}/wim-info` 列出可选索引（`target` 可选 `boot`/`install`）。**非 Windows 主机返回 501**（`GET /api/v1/os-images/capabilities` 可预判），请改用上面的 PE 阶段运行时加载。
 >   重复注入会**叠加**在已注入的 WIM 上（响应/列表会显示注入次数）；如需回滚，用 `POST /api/v1/os-images/{id}/restore-wim` 从 `boot.wim.orig` 还原原文件（OS Images 页注入弹窗内也有「还原原始 WIM」）。同一镜像的注入/还原是互斥的，重复请求返回 409。
+>
+>   **耗时与超时**：注入/还原是**同步**执行的（请求内跑完 dism 挂载→注入→提交）。`boot.wim` 通常几十秒内完成，`install.wim`（数 GB）或**首次备份整份 WIM**可能达数分钟。
+>   - 前端请保持页面打开、不要重复提交（UI 已在执行中禁用关闭/提交）；
+>   - **若前面有反向代理（nginx 默认 60s）**：请为该端点放宽超时（例如 `proxy_read_timeout 600s;`），否则客户端会先收到 504，而服务端仍在执行；
+>   - 无论客户端是否断开，dism 提交完成后的**记账（注入清单/次数/审计）都不会丢**（记账已与请求生命周期解耦）；
+>   - 进程被强杀/断电可能留下 dism 挂载点，PxeLab **启动时会自动执行 `dism /Cleanup-Wim`** 清理（非 Windows 静默跳过）。
 
 > 默认（remote-only）Windows PE 的 wimboot/文件来自 `boot.netboot.xyz`，离线网络不可用。见 §4 本地化。
 
