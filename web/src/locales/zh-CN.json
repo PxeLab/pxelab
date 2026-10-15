@@ -1561,6 +1561,7 @@
     "injectedDrivers": "已注入: {{packs}}",
     "injectTitle": "离线驱动注入（boot.wim / install.wim）",
     "injectHint": "挂载 WIM → 用 dism 添加所选驱动包 → 提交写回。原文件会先备份为 <名称>.orig，绝不覆盖已有备份。需 Windows 主机且以管理员权限运行。",
+    "injectSlowHint": "该操作同步执行，可能耗时数十秒到数分钟（install.wim 越大越慢）。期间请保持本页面打开，不要重复提交。",
     "injectTarget": "目标镜像",
     "injectTargetBoot": "boot.wim（WinPE）",
     "injectTargetInstall": "install.wim（已安装系统）",

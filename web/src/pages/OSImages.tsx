@@ -670,9 +670,10 @@ export default function OSImages() {
       </Modal>
 
       {/* 离线 WIM 驱动注入（借鉴项 1/4/5；仅 Windows 主机） */}
-      <Modal open={!!injectTarget} onClose={() => setInjectTarget(null)} title={t('osImages.injectTitle')}>
+      <Modal open={!!injectTarget} onClose={() => { if (!injecting && !restoring) setInjectTarget(null) }} title={t('osImages.injectTitle')}>
         <div className="space-y-4">
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">{t('osImages.injectHint')}</p>
+          <p className="text-xs text-accent-yellow leading-relaxed">{t('osImages.injectSlowHint')}</p>
 
           {injectTarget && !capabilities?.offline_driver_injection && (
             <div className="flex items-start gap-2 text-xs text-accent-yellow bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 leading-relaxed">
@@ -765,8 +766,8 @@ export default function OSImages() {
           )}
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button variant="secondary" size="sm" onClick={() => setInjectTarget(null)}>{t('common.close')}</Button>
-            <Button size="sm" onClick={handleInject} disabled={injecting || !capabilities?.offline_driver_injection}>
+            <Button variant="secondary" size="sm" onClick={() => setInjectTarget(null)} disabled={injecting || restoring}>{t('common.close')}</Button>
+            <Button size="sm" onClick={handleInject} disabled={injecting || restoring || !capabilities?.offline_driver_injection}>
               {injecting ? t('osImages.injectWorking') : t('osImages.injectDo')}
             </Button>
           </div>
