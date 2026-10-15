@@ -391,13 +391,26 @@ func generateBootMenu(cfg *config.Config, st store.Interface, bootFS *boot.BootF
 		}
 	}
 
+	// 模板类型：应答类型兜底与注入文件名一致性的共同依据。
+	var tmplType string
+	if task != nil && task.AnswerTemplateID != nil {
+		if tmpl, err := st.GetAnswerTemplate(ctx, *task.AnswerTemplateID); err == nil && tmpl != nil {
+			tmplType = tmpl.Type
+		}
+	}
+	// overlay 未配置 answer_type 时用模板 type：使 iPXE 菜单注入的文件名
+	// （install.bat/winpeshl.ini vs autounattend.xml）与实际应答内容一致（issue #3）。
+	if bootTask != nil && bootTask.AnswerType == "" && tmplType != "" {
+		bootTask.AnswerType = tmplType
+	}
+
 	// 驱动交付方式 = initrd 时，预先算出该主机生效驱动包的 iPXE 注入行。
 	// 与 install.bat 侧共用 drivers.PlanInjections（注入文件名确定性派生），
 	// 保证菜单注入的文件名与 PE 内落地 copy 引用的文件名完全一致。
 	var driverInitrdLines string
 	if bootTask != nil && bootFS != nil && task != nil && drivers.NormalizeDelivery(cfg.Netboot.DriverDelivery) == drivers.DeliveryInitrd {
 		// initrd 直投只对 winpeshl（PE 内 install.bat）路线有意义
-		if taskIsWinpeAnswer(ctx, st, task, bootTask.AnswerType) {
+		if netboot.ResolveAnswerType(bootTask.AnswerType, tmplType) == "winpeshl" {
 			if host, err := st.GetHostByMAC(ctx, mac); err == nil && host != nil {
 				packs := api.ResolveDriverPacks(ctx, st, host)
 				if len(packs) > 0 {
@@ -581,21 +594,6 @@ func generateBootMenu(cfg *config.Config, st store.Interface, bootFS *boot.BootF
 // GenerateBootMenu is the exported wrapper for generateBootMenu, usable by API handlers.
 func GenerateBootMenu(cfg *config.Config, st store.Interface, bootFS *boot.BootFileServer, mac, serverAddr string, ctx context.Context) (string, error) {
 	return generateBootMenu(cfg, st, bootFS, mac, serverAddr, ctx)
-}
-
-// taskIsWinpeAnswer 判定该安装任务在引导行实际走 winpeshl（PE 内 install.bat）路线：
-// overlay 版本 answer_type 为 winpeshl，或模板类型为 winpeshl。与
-// install_tasks.go 的 winpeShellMode 判定同源（overlay 优先、模板兜底）。
-func taskIsWinpeAnswer(ctx context.Context, st store.Interface, task *models.InstallTask, overlayAnswerType string) bool {
-	if overlayAnswerType == "winpeshl" {
-		return true
-	}
-	if task.AnswerTemplateID != nil {
-		if tmpl, err := st.GetAnswerTemplate(ctx, *task.AnswerTemplateID); err == nil && tmpl != nil && tmpl.Type == "winpeshl" {
-			return true
-		}
-	}
-	return false
 }
 
 // remoteIPOf 从请求 RemoteAddr 提取纯 IP。

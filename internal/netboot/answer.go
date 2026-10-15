@@ -54,6 +54,20 @@ func AnswerDataFromHost(host *models.Host, arch string) AnswerData {
 	}
 }
 
+// ResolveAnswerType 解析安装任务“实际应答类型”：overlay 版本 `answer_type` 优先，
+// 模板自身 `type` 兜底。
+//
+// 关键：PE 阶段驱动注入、首登驱动注入、iPXE 菜单命名（install.bat/winpeshl.ini
+// vs autounattend.xml）必须以**同一个**判定为准。若两条路径各用不同来源
+// （如模板 type=autounattend + overlay answer_type=winpeshl），会同时生效并
+// 产出既非合法 XML 也非合法批处理的畸形应答文件。
+func ResolveAnswerType(overlayAnswerType, templateType string) string {
+	if t := strings.TrimSpace(overlayAnswerType); t != "" {
+		return t
+	}
+	return strings.TrimSpace(templateType)
+}
+
 // RenderAnswerTemplate renders an answer template with the given data.
 func RenderAnswerTemplate(content string, data AnswerData) (string, error) {
 	funcMap := template.FuncMap{

@@ -153,6 +153,43 @@ func TestGenerateBootMenuInitrdDriverDelivery(t *testing.T) {
 	}
 }
 
+// TestGenerateBootMenuWinpeTemplateWithoutOverlayAnswerType：模板 type=winpeshl、
+// overlay 未配置 answer_type 时，菜单应按模板兜底注入 install.bat + winpeshl.ini
+// （而非 autounattend.xml），避免"应答内容与注入文件名不一致"的陷阱（issue #3）。
+func TestGenerateBootMenuWinpeTemplateWithoutOverlayAnswerType(t *testing.T) {
+	st := store.NewMemory()
+	ctx := context.Background()
+	mac := seedWDSHostProfile(t, st, ctx)
+
+	host, _ := st.GetHostByMAC(ctx, mac)
+	// 模板 winpeshl，且不配置 overlay answer_type
+	tmpl := &models.AnswerTemplate{Name: "pe", Type: "winpeshl", Content: "@echo off\r\nsetup.exe\r\n"}
+	if err := st.CreateAnswerTemplate(ctx, tmpl); err != nil {
+		t.Fatal(err)
+	}
+	task := &models.InstallTask{
+		ID: "task-tmpl-only", HostID: host.ID, DistroName: "Windows",
+		VersionCodename: "w11", Arch: "amd64", Status: "pending", AnswerTemplateID: &tmpl.ID,
+	}
+	if err := st.CreateInstallTask(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := generateBootMenu(config.DefaultConfig(), st, nil, mac, "10.0.0.10:8080", ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "initrd -n install.bat http://10.0.0.10:8080/api/v1/netboot/answer/task-tmpl-only") {
+		t.Fatalf("应按模板兜底注入 install.bat:\n%s", out)
+	}
+	if !strings.Contains(out, "initrd -n winpeshl.ini ") {
+		t.Fatalf("应按模板兜底注入 winpeshl.ini:\n%s", out)
+	}
+	if strings.Contains(out, "initrd -n autounattend.xml ") {
+		t.Fatalf("不应注入 autounattend.xml（模板是 winpeshl）:\n%s", out)
+	}
+}
+
 // TestGenerateBootMenuNoTaskNoInjection：无安装任务时 wds 引导项不应注入应答。
 func TestGenerateBootMenuNoTaskNoInjection(t *testing.T) {
 	st := store.NewMemory()

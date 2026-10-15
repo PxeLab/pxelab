@@ -501,6 +501,113 @@ func TestGetAnswerFileWinpeShellInitrdDelivery(t *testing.T) {
 	}
 }
 
+// TestGetAnswerFileNoDoubleInjectionOnTypeConflict：模板 type=autounattend 与
+// overlay answer_type=winpeshl 冲突时，必须只按“实际应答类型”（overlay=winpeshl）
+// 注入 PE 批处理块，绝不能再叠加 autounattend 首登编排（否则产出畸形文件）。
+func TestGetAnswerFileNoDoubleInjectionOnTypeConflict(t *testing.T) {
+	root := setupDriverBootRoot(t)
+	st := store.NewMemory()
+	h := &InstallTaskHandler{
+		store:      st,
+		serverBase: "10.0.0.10:8080",
+		cfg:        &config.Config{},
+		bootFS:     boot.NewBootFileServer(root),
+	}
+	host := &models.Host{ID: "host-1", Name: "host-1", MAC: "aa:bb:cc:dd:ee:04"}
+	if err := host.SetDriverPacks([]string{"nic-intel"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.CreateHost(t.Context(), host); err != nil {
+		t.Fatal(err)
+	}
+	// 冲突配置：overlay=winpeshl，模板却是 autounattend（XML）
+	ov := &models.NetbootOverlay{DistroName: "Windows", Enabled: true}
+	if err := ov.SetVersionOverrides([]models.VersionOverride{{Codename: "w11", AnswerType: "winpeshl"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpsertNetbootOverlay(t.Context(), ov); err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &models.AnswerTemplate{
+		Name: "win", Type: "autounattend", Content: testUnattendXML, EnableBaselinePull: true,
+	}
+	if err := st.CreateAnswerTemplate(t.Context(), tmpl); err != nil {
+		t.Fatal(err)
+	}
+	task := &models.InstallTask{
+		ID: "task-conflict", HostID: host.ID, DistroName: "Windows",
+		VersionCodename: "w11", Arch: "amd64", AnswerTemplateID: &tmpl.ID,
+	}
+	if err := st.CreateInstallTask(t.Context(), task); err != nil {
+		t.Fatal(err)
+	}
+
+	req := withChiParams(httptest.NewRequest(http.MethodGet, "/api/v1/netboot/answer/task-conflict", nil), "task_id", "task-conflict")
+	w := httptest.NewRecorder()
+	h.GetAnswerFile(w, req)
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Result().StatusCode)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, drivers.PullMarker) {
+		t.Fatalf("应按 overlay=winpeshl 注入 PE 驱动块:\n%s", body)
+	}
+	if strings.Contains(body, "<FirstLogonCommands>") {
+		t.Fatalf("不应叠加 autounattend 首登编排（畸形文件根因）:\n%s", body)
+	}
+	if strings.Contains(body, "PxeLab baseline pull") {
+		t.Fatalf("不应注入 autounattend 基线钩子:\n%s", body)
+	}
+}
+
+// TestGetAnswerFileWinpeTemplateWithAutoUnattendOverlay：反向冲突
+// （模板 winpeshl + overlay autounattend）时按 overlay=autounattend，不应注入 PE 块。
+func TestGetAnswerFileWinpeTemplateWithAutoUnattendOverlay(t *testing.T) {
+	root := setupDriverBootRoot(t)
+	st := store.NewMemory()
+	h := &InstallTaskHandler{
+		store:      st,
+		serverBase: "10.0.0.10:8080",
+		cfg:        &config.Config{},
+		bootFS:     boot.NewBootFileServer(root),
+	}
+	host := &models.Host{ID: "host-1", Name: "host-1", MAC: "aa:bb:cc:dd:ee:05"}
+	if err := host.SetDriverPacks([]string{"nic-intel"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.CreateHost(t.Context(), host); err != nil {
+		t.Fatal(err)
+	}
+	ov := &models.NetbootOverlay{DistroName: "Windows", Enabled: true}
+	if err := ov.SetVersionOverrides([]models.VersionOverride{{Codename: "w11", AnswerType: "autounattend"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpsertNetbootOverlay(t.Context(), ov); err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &models.AnswerTemplate{Name: "pe", Type: "winpeshl", Content: "@echo off\r\nsetup.exe\r\n"}
+	if err := st.CreateAnswerTemplate(t.Context(), tmpl); err != nil {
+		t.Fatal(err)
+	}
+	task := &models.InstallTask{
+		ID: "task-rev", HostID: host.ID, DistroName: "Windows",
+		VersionCodename: "w11", Arch: "amd64", AnswerTemplateID: &tmpl.ID,
+	}
+	if err := st.CreateInstallTask(t.Context(), task); err != nil {
+		t.Fatal(err)
+	}
+
+	req := withChiParams(httptest.NewRequest(http.MethodGet, "/api/v1/netboot/answer/task-rev", nil), "task_id", "task-rev")
+	w := httptest.NewRecorder()
+	h.GetAnswerFile(w, req)
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Result().StatusCode)
+	}
+	if strings.Contains(w.Body.String(), drivers.PullMarker) {
+		t.Fatalf("按 overlay=autounattend 不应注入 PE 驱动块:\n%s", w.Body.String())
+	}
+}
+
 // ── 借用项 2：PE 阶段运行时驱动加载 ──
 
 func TestFilterDriverFilesByArch(t *testing.T) {

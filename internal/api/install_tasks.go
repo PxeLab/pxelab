@@ -191,6 +191,14 @@ func (h *InstallTaskHandler) GetTaskByMAC(w http.ResponseWriter, r *http.Request
 	overlay, _ := h.store.GetNetbootOverlay(r.Context(), task.DistroName)
 	taskInfo := netboot.BuildBootTaskInfo(task, overlay, r.Host)
 
+	// 应答类型兜底：overlay 未配置 answer_type 时用模板 type，使 iPXE 菜单注入的
+	// 文件名（install.bat/winpeshl.ini vs autounattend.xml）与应答内容一致。
+	if taskInfo.AnswerType == "" && task.AnswerTemplateID != nil {
+		if tmpl, err := h.store.GetAnswerTemplate(r.Context(), *task.AnswerTemplateID); err == nil && tmpl != nil {
+			taskInfo.AnswerType = tmpl.Type
+		}
+	}
+
 	// answer_param 回落：overlay 未配置时采用 catalog 版本自带的 answer_param
 	// （如商店导入的 anaconda 系条目 inst.ks={{.AnswerURL}}），让无人值守
 	// 应答注入开箱即用，无需手工配 overlay。
@@ -286,8 +294,20 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 	// 或 overlay 版本 answer_type=winpeshl，或本次即 winpeshl.ini 请求）且主机绑定
 	// 了驱动包。驱动块必须写进 install.bat（无 file 参数的那次请求）；winpeshl.ini
 	// 请求只返回 INI 包装，不注入。
-	winpeShellMode := tmpl.Type == "winpeshl" || isWinpeShellIni ||
-		h.resolveTaskAnswerType(r.Context(), task) == "winpeshl"
+	// 统一解析“实际应答类型”（overlay 版本 answer_type 优先、模板 type 兜底）：
+	// PE 阶段注入与首登注入都必须以它为准，否则两条路径判定不一致会产出畸形
+	// 应答文件（issue #3）。本次请求即 winpeshl.ini 包装时强制按 winpeshl 处理。
+	overlayType := h.resolveTaskAnswerType(r.Context(), task)
+	if overlayType != "" && tmpl.Type != "" && overlayType != tmpl.Type {
+		slog.Warn("应答类型配置冲突：overlay answer_type 与模板 type 不一致，以 overlay 为准",
+			"task_id", task.ID, "template_id", tmpl.ID,
+			"template_type", tmpl.Type, "overlay_answer_type", overlayType)
+	}
+	effectiveType := netboot.ResolveAnswerType(overlayType, tmpl.Type)
+	if isWinpeShellIni {
+		effectiveType = "winpeshl"
+	}
+	winpeShellMode := effectiveType == "winpeshl"
 	if winpeShellMode && !isWinpeShellIni && len(driverPacks) > 0 {
 		base := chooseServerBase(h.serverBase, r.Host)
 		switch drivers.NormalizeDelivery(h.cfg.Netboot.DriverDelivery) {
@@ -317,7 +337,7 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	wantDrivers := tmpl.Type == "autounattend" && len(driverPacks) > 0
+	wantDrivers := effectiveType == "autounattend" && len(driverPacks) > 0
 	if tmpl.EnableBaselinePull || wantDrivers {
 		mac, sn := "", ""
 		if host != nil && host.ID != "" && host.MAC != "" {
@@ -328,7 +348,7 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 			sn = real.SN
 		}
 		base := chooseServerBase(h.serverBase, r.Host)
-		if tmpl.Type == "autounattend" {
+		if effectiveType == "autounattend" {
 			var driverCmds []driverCommand
 			if wantDrivers {
 				driverCmds = h.buildDriverCommands(base, driverPacks, task.Arch)
@@ -358,11 +378,11 @@ func (h *InstallTaskHandler) GetAnswerFile(w http.ResponseWriter, r *http.Reques
 					"baseline_pull", tmpl.EnableBaselinePull, "driver_cmds", len(driverCmds))
 			}
 		} else if tmpl.EnableBaselinePull {
-			if augmented, ok := augmentBaselinePull(rendered, tmpl.Type, base, mac, sn, h.cfg.Global.BaselineHooks); ok {
+			if augmented, ok := augmentBaselinePull(rendered, effectiveType, base, mac, sn, h.cfg.Global.BaselineHooks); ok {
 				rendered = augmented
 			} else {
 				slog.Warn("应答模板启用了基线自动下发，但无法安全注入（请人工添加钩子）",
-					"template_type", tmpl.Type, "template_id", tmpl.ID)
+					"template_type", effectiveType, "template_id", tmpl.ID)
 			}
 		}
 	}
