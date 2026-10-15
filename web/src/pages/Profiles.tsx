@@ -10,7 +10,9 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Tag } from '../components/ui/Tag'
 import { useToast } from '../components/ui/Toast'
 import { Input, Select, Textarea } from '../components/ui/FormControls'
-import { api, getNetbootCatalog, type Profile, type MenuEntry, type NetbootDistro, type ProfileScriptVersion } from '../api/client'
+import { ChecklistPicker } from '../components/ui/ChecklistPicker'
+import { Toggle } from '../components/ui/Toggle'
+import { api, getNetbootCatalog, type Profile, type MenuEntry, type NetbootDistro, type ProfileScriptVersion, type DriverPackage } from '../api/client'
 
 export default function Profiles() {
   const { t } = useTranslation()
@@ -19,13 +21,15 @@ export default function Profiles() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Profile | null>(null)
-  const [form, setForm] = useState({ name: '', description: '', arch: '', is_default: false, baselines: [] as string[], variables: {} as Record<string, string>, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '', script: '', san_action: '' as MenuEntry['san_action'], san_no_describe: false, san_drive: '', san_keep_san: false } })
+  const [form, setForm] = useState({ name: '', description: '', arch: '', is_default: false, baselines: [] as string[], driver_packs: [] as string[], variables: {} as Record<string, string>, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '', script: '', san_action: '' as MenuEntry['san_action'], san_no_describe: false, san_drive: '', san_keep_san: false } })
   const [showOSPicker, setShowOSPicker] = useState(false)
   const [showVars, setShowVars] = useState(false)
   const [showScriptPreview, setShowScriptPreview] = useState(false)
   const [saving, setSaving] = useState(false)
   const [nameError, setNameError] = useState(false)
   const [nameAsciiError, setNameAsciiError] = useState(false)
+  const [allDriverPacks, setAllDriverPacks] = useState<DriverPackage[]>([])
+  const [showDrivers, setShowDrivers] = useState(false)
   const [previewProfile, setPreviewProfile] = useState<Profile | null>(null)
   const [osCatalog, setOSCatalog] = useState<NetbootDistro[]>([])
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -39,6 +43,13 @@ export default function Profiles() {
   useEffect(() => {
     getNetbootCatalog().then(res => setOSCatalog(res.data?.distros || [])).catch(() => {})
   }, [])
+  useEffect(() => {
+    api.getDriverPackages().then(res => setAllDriverPacks(res.data ?? [])).catch(() => {})
+  }, [])
+
+  function toggleArr<T>(arr: T[], v: T): T[] {
+    return arr.includes(v) ? arr.filter(i => i !== v) : [...arr, v]
+  }
 
   async function loadProfiles() {
     setLoading(true)
@@ -57,9 +68,10 @@ export default function Profiles() {
     setEditing(null)
     setShowVars(false)
     setShowScriptPreview(false)
+    setShowDrivers(false)
     setNameError(false)
     setNameAsciiError(false)
-    setForm({ name: '', description: '', arch: '', is_default: false, baselines: [], variables: {}, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '', script: '', san_action: '' as MenuEntry['san_action'], san_no_describe: false, san_drive: '', san_keep_san: false } })
+    setForm({ name: '', description: '', arch: '', is_default: false, baselines: [], driver_packs: [], variables: {}, entry: { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '', script: '', san_action: '' as MenuEntry['san_action'], san_no_describe: false, san_drive: '', san_keep_san: false } })
     setShowModal(true)
   }
 
@@ -69,6 +81,7 @@ export default function Profiles() {
     setShowScriptPreview(false)
     setNameError(false)
     setNameAsciiError(false)
+    setShowDrivers((p.driver_packs ?? []).length > 0)
     const e = p.menu?.entries?.[0] || { type: 'direct' as MenuEntry['type'], kernel: '', initrd: '', cmdline: '', url: '', wim: '' }
     setForm({
       name: p.name,
@@ -76,6 +89,7 @@ export default function Profiles() {
       arch: p.arch || '',
       is_default: p.is_default,
       baselines: p.baselines || [],
+      driver_packs: p.driver_packs || [],
       variables: p.variables || {},
       entry: {
         type: e.type,
@@ -116,6 +130,7 @@ export default function Profiles() {
         arch: form.arch,
         is_default: form.is_default,
         baselines: form.baselines,
+        driver_packs: form.driver_packs,
         variables: form.variables,
         menu: { entries: [entryData as MenuEntry] },
       }
@@ -420,6 +435,30 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
             </div>
           </div>
 
+          {/* B2 默认驱动包：主机未显式绑定驱动包时继承 */}
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t('profiles.addDriverPacks')}</h3>
+            <Toggle
+              checked={showDrivers}
+              onChange={v => {
+                setShowDrivers(v)
+                if (!v) setForm({ ...form, driver_packs: [] })
+              }}
+              label={t('profiles.addDriverPacks')}
+            />
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{t('profiles.driverPacksHint')}</p>
+            {showDrivers && (
+              <div className="mt-1.5">
+                <ChecklistPicker
+                  items={allDriverPacks.map(p => ({ id: p.name, name: p.name, badge: `${p.inf_files} INF` }))}
+                  selected={form.driver_packs}
+                  onToggle={id => setForm({ ...form, driver_packs: toggleArr(form.driver_packs, id) })}
+                  emptyText={t('profiles.noDriverPacks')}
+                />
+              </div>
+            )}
+          </div>
+
           {/* 引导项 */}
           <div>
             <h3 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">{t('profiles.bootEntry')}</h3>
@@ -694,6 +733,12 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                   <span className="text-[var(--text-muted)] text-xs">{t('profiles.isDefault')}</span>
                   <p>{previewProfile.is_default ? <Tag color="green">{t('profiles.default')}</Tag> : t('profiles.no')}</p>
                 </div>
+                {(previewProfile.driver_packs ?? []).length > 0 && (
+                  <div>
+                    <span className="text-[var(--text-muted)] text-xs">{t('profiles.addDriverPacks')}</span>
+                    <p className="text-[var(--text-primary)]">{(previewProfile.driver_packs ?? []).join(', ')}</p>
+                  </div>
+                )}
                 {previewProfile.created_at && !previewProfile.created_at.startsWith("0001-") && (
                   <p className="font-mono text-[var(--text-primary)]">{previewProfile.created_at.replace("T", " ").slice(0, 19)}</p>
                 )}

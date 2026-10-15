@@ -26,6 +26,7 @@ export interface Profile {
   arch?: string
   baselines?: string[]
   variables?: Record<string, string>
+  driver_packs?: string[]
   created_at: string
   updated_at: string
 }
