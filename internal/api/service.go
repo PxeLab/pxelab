@@ -1,4 +1,4 @@
-﻿package api
+package api
 
 import (
 	"encoding/json"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/eventbus"
 	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/portcheck"
 	"github.com/pxelab/pxelab/internal/servicemanager"
@@ -21,10 +22,24 @@ type ServiceHandler struct {
 	cfg    *config.Config
 	store  store.Interface
 	saveFn func() error
+	bus    *eventbus.Bus // 服务启停失败时发布事件（事件页可见），可为 nil
 }
 
-func NewServiceHandler(ctrl ServiceController, cfg *config.Config, store store.Interface, saveFn func() error) *ServiceHandler {
-	return &ServiceHandler{ctrl: ctrl, cfg: cfg, store: store, saveFn: saveFn}
+func NewServiceHandler(ctrl ServiceController, cfg *config.Config, store store.Interface, saveFn func() error, bus *eventbus.Bus) *ServiceHandler {
+	return &ServiceHandler{ctrl: ctrl, cfg: cfg, store: store, saveFn: saveFn, bus: bus}
+}
+
+// publishServiceFailure 把服务启停失败发布到事件总线，使失败在「事件」页可见
+// （此前失败只写日志，事件页与实时日志里都看不到）。
+func publishServiceFailure(bus *eventbus.Bus, action, name string, err error) {
+	if bus == nil || err == nil {
+		return
+	}
+	bus.Publish("event", models.Event{
+		Type:    models.EventService,
+		Level:   models.EventError,
+		Message: fmt.Sprintf("服务%s失败: %s（%v）", action, name, err),
+	})
 }
 
 // serviceNameParam 从 URL 中提取 name 参数并做 URL 解码（支持 %2F 等编码）。
@@ -98,6 +113,7 @@ func (h *ServiceHandler) StartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.ctrl.Start(name); err != nil {
+		publishServiceFailure(h.bus, "启动", name, err)
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -122,6 +138,7 @@ func (h *ServiceHandler) StopService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.ctrl.Stop(name); err != nil {
+		publishServiceFailure(h.bus, "停止", name, err)
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -146,6 +163,7 @@ func (h *ServiceHandler) RestartService(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := h.ctrl.Restart(name); err != nil {
+		publishServiceFailure(h.bus, "重启", name, err)
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}

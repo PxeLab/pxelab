@@ -21,6 +21,7 @@ const filterChips = [
   { key: 'boot', label: 'BOOT', color: 'green' as const },
   { key: 'wol', label: 'WOL', color: 'yellow' as const },
   { key: 'ipmi', label: 'IPMI', color: 'yellow' as const },
+  { key: 'service', label: 'SERVICE', color: 'red' as const },
 ]
 
 export default function Events() {
@@ -69,6 +70,7 @@ export default function Events() {
     if (lowerType.includes('boot')) return { label: 'BOOT', color: 'green' as const }
     if (lowerType.includes('wol')) return { label: 'WOL', color: 'yellow' as const }
     if (lowerType.includes('ipmi')) return { label: 'IPMI', color: 'yellow' as const }
+    if (lowerType.includes('service')) return { label: 'SERVICE', color: 'red' as const }
     return { label: 'EVENT', color: 'blue' as const }
   }
 

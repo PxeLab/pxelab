@@ -37,6 +37,7 @@ const SERVICES = [
   { value: 'NFS', label: 'NFS' },
   { value: 'IPMI', label: 'IPMI' },
   { value: 'BOOT', label: 'BOOT' },
+  { value: 'SMB', label: 'SMB' },
 ]
 
 const LEVELS: { value: LogLevel | ''; label: string; color: string }[] = [
@@ -62,6 +63,7 @@ const SERVICE_COLORS: Record<string, string> = {
   NFS: 'bg-blue-500/20 text-blue-400',
   IPMI: 'bg-pink-500/20 text-pink-400',
   BOOT: 'bg-accent-yellow/20 text-accent-yellow',
+  SMB: 'bg-rose-500/20 text-rose-400',
 }
 
 function formatTime(iso: string): string {

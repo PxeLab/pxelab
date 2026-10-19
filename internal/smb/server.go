@@ -76,7 +76,7 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	if len(users) == 0 {
 		// go-filesystems/smb 没有匿名模式：没有账号即拒绝所有连接。
-		slog.Warn("SMB 未配置任何账号，将拒绝所有连接", "service", "smb")
+		slog.Warn("SMB 未配置任何账号，将拒绝所有连接", "service", "SMB")
 	}
 
 	var fsysList []*osfs.FS
@@ -88,7 +88,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	for _, sh := range shares {
 		if strings.TrimSpace(sh.Name) == "" || strings.TrimSpace(sh.Path) == "" {
-			slog.Warn("SMB 共享缺少 name 或 path，已跳过", "service", "smb", "name", sh.Name, "path", sh.Path)
+			slog.Warn("SMB 共享缺少 name 或 path，已跳过", "service", "SMB", "name", sh.Name, "path", sh.Path)
 			continue
 		}
 		if err := os.MkdirAll(sh.Path, 0o755); err != nil {
@@ -122,7 +122,7 @@ func (s *Server) Start(ctx context.Context) error {
 			return fmt.Errorf("smb: 注册共享 %s 失败: %w", sh.Name, err)
 		}
 		fsysList = append(fsysList, fsys)
-		slog.Info("SMB 共享已注册", "service", "smb", "share", sh.Name, "path", sh.Path, "read_only", sh.ReadOnly)
+		slog.Info("SMB 共享已注册", "service", "SMB", "share", sh.Name, "path", sh.Path, "read_only", sh.ReadOnly)
 	}
 
 	addr := fmt.Sprintf(":%d", port)
@@ -203,7 +203,7 @@ func parseAllowIPs(ips []string) []*net.IPNet {
 		if err != nil {
 			ip := net.ParseIP(raw)
 			if ip == nil {
-				slog.Warn("SMB 允许列表解析失败，跳过", "service", "smb", "value", raw)
+				slog.Warn("SMB 允许列表解析失败，跳过", "service", "SMB", "value", raw)
 				continue
 			}
 			bits := 32
@@ -232,7 +232,7 @@ func (l *filteredListener) Accept() (net.Conn, error) {
 		if isAllowedAddr(conn.RemoteAddr(), l.allowNets) {
 			return conn, nil
 		}
-		slog.Warn("SMB 连接被拒绝（不在允许列表）", "service", "smb", "client", conn.RemoteAddr().String())
+		slog.Warn("SMB 连接被拒绝（不在允许列表）", "service", "SMB", "client", conn.RemoteAddr().String())
 		_ = conn.Close()
 	}
 }

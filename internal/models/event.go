@@ -12,6 +12,7 @@ const (
 	EventIPMI    EventType = "IPMI"
 	EventDNS     EventType = "DNS"
 	EventOSImage EventType = "OS_IMAGE"
+	EventService EventType = "SERVICE"
 )
 
 type EventLevel string
