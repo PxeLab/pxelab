@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/pxelab/pxelab/internal/api"
@@ -404,11 +405,12 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 		info, ok := svcMgr.Get(name)
 		return ok && info.Status == servicemanager.StatusRunning
 	}, Version, updater)
-	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP, true, 8080, "TCP")
+	httpPort := listenPortOf(cfg.Global.ListenAddr, 8080)
+	svcMgr.Register("http", "HTTP", httpServer, cfg.ServiceAutoStart.HTTP, true, httpPort, "TCP")
 
 	if appMode {
 		slog.Info("自动打开浏览器")
-		openBrowser("http://localhost:8080")
+		openBrowser(fmt.Sprintf("http://localhost:%d", httpPort))
 	}
 
 	dnsServer := dns.NewServer(cfg, st, bus)
@@ -471,6 +473,20 @@ func useTray() bool {
 		return false
 	}
 	return !isWindowsService()
+}
+
+// listenPortOf 从 ":8080" / "0.0.0.0:8080" 形式的监听地址解析端口，失败时回落 def。
+// HTTP 服务注册的端口必须与真实监听地址一致，否则端口预检会检查错的端口。
+func listenPortOf(addr string, def int) int {
+	_, p, err := net.SplitHostPort(addr)
+	if err != nil || p == "" {
+		return def
+	}
+	n, err := strconv.Atoi(p)
+	if err != nil || n <= 0 || n > 65535 {
+		return def
+	}
+	return n
 }
 
 func openBrowser(url string) {

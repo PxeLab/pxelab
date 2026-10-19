@@ -3,6 +3,8 @@ package servicemanager
 import (
 	"context"
 	"errors"
+	"net"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -85,5 +87,42 @@ func TestStartUnknownService(t *testing.T) {
 	m := New()
 	if err := m.Start("nope"); err == nil {
 		t.Fatal("未知服务应报错")
+	}
+}
+
+// TestStartFailsFastWhenPortBusy 所有服务启动前都做端口预检：端口被占用时
+// 直接返回可读原因，且不会调用 server.Start。
+func TestStartFailsFastWhenPortBusy(t *testing.T) {
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Skipf("无法绑定测试端口: %v", err)
+	}
+	defer l.Close()
+	port := l.Addr().(*net.TCPAddr).Port
+
+	m := New()
+	srv := &fakeServer{name: "smb"}
+	m.Register("smb", "SMB", srv, false, false, port, "tcp")
+
+	err = m.Start("smb")
+	if err == nil {
+		t.Fatal("端口被占用时启动应失败")
+	}
+	if !strings.Contains(err.Error(), strconv.Itoa(port)) {
+		t.Fatalf("错误应包含端口号: %v", err)
+	}
+	if srv.started != 0 {
+		t.Fatalf("预检失败不应调用 server.Start, started=%d", srv.started)
+	}
+
+	info, ok := m.Get("smb")
+	if !ok {
+		t.Fatal("Get 应返回服务")
+	}
+	if info.Status != StatusError {
+		t.Fatalf("status = %q, want error", info.Status)
+	}
+	if info.PortAvailable == nil || *info.PortAvailable {
+		t.Fatalf("PortAvailable 应为 false, got %v", info.PortAvailable)
 	}
 }

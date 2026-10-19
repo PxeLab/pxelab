@@ -546,6 +546,17 @@ function ServiceAutoStartRow({ svc, operating, onToggle }: { svc: ServiceInfo; o
       <div className="flex items-center gap-2.5 min-w-0">
         <span className="text-sm text-[var(--text-primary)] font-medium truncate">{svc.display}</span>
         <span className="text-[10px] font-mono text-[var(--text-muted)] shrink-0">{svc.port}/{svc.protocol}</span>
+        {svc.port_available === false && (
+          <span
+            className="text-[10px] font-semibold text-accent-yellow bg-accent-yellow/10 px-1.5 py-0.5 rounded-full shrink-0 cursor-help"
+            title={t('settings.servicePortBusyTitle', {
+              port: svc.port,
+              holders: (svc.port_holders ?? []).join(', ') || t('settings.servicePortBusyUnknown'),
+            })}
+          >
+            {t('settings.servicePortBusy')}
+          </span>
+        )}
         {svc.protected && (
           <span className="text-[10px] font-semibold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-full">Core</span>
         )}

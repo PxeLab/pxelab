@@ -17,6 +17,10 @@ export interface ServiceInfo {
   protocol: string
   error_msg: string
   started_at: string | null
+  /** 未运行时的端口预检结果；运行中为 null/缺省 */
+  port_available?: boolean | null
+  /** 端口被占用时的占用者描述，如 "svchost.exe (PID 4)" */
+  port_holders?: string[]
 }
 
 export function getServices(): Promise<ApiResponse<ServiceInfo[]>> {

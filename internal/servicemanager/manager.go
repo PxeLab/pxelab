@@ -34,6 +34,10 @@ type ServiceInfo struct {
 	Protocol  string     `json:"protocol"`
 	ErrorMsg  string     `json:"error_msg"`
 	StartedAt *time.Time `json:"started_at"`
+	// PortAvailable 未运行时的端口预检结果：nil = 运行中/无法判断。
+	PortAvailable *bool `json:"port_available,omitempty"`
+	// PortHolders 端口被占用时的占用者描述（如 "svchost.exe (PID 4)"）。
+	PortHolders []string `json:"port_holders,omitempty"`
 }
 
 type managedService struct {
@@ -96,6 +100,23 @@ func (m *Manager) Start(name string) error {
 	// “是否被主动停止”的判断永远成立，重启后的启动失败会被静默吞掉。
 	svc.stopCh = make(chan struct{})
 	svc.mu.Unlock()
+
+	// 端口预检：所有服务启动前统一检查。端口被占用时直接给出可读原因
+	//（不再依赖各服务 bind 失败的文本），并记录服务状态与日志。
+	if svc.port > 0 {
+		if ok, holders := portcheck.Available(svc.port, svc.protocol); !ok {
+			msg := fmt.Sprintf("端口 %d 不可用", svc.port)
+			if d := portcheck.Describe(holders); d != "" {
+				msg = fmt.Sprintf("端口 %d 已被 %s 占用", svc.port, d)
+			}
+			svc.mu.Lock()
+			svc.status = StatusError
+			svc.errorMsg = msg
+			svc.mu.Unlock()
+			slog.Error("服务启动失败", "service", name, "error", msg)
+			return fmt.Errorf("%s", msg)
+		}
+	}
 
 	slog.Info("启动服务", "service", name)
 
@@ -211,6 +232,30 @@ func (m *Manager) batchOp(names []string, op func(string) error) BatchResult {
 	return result
 }
 
+// infoOf 构造对外的服务状态。未运行时顺带做端口预检，供前端提前提示
+// （运行中的服务端口本就归自己所有，探测没有意义）。
+func infoOf(name string, svc *managedService) ServiceInfo {
+	info := ServiceInfo{
+		Name:      name,
+		Display:   svc.display,
+		Status:    svc.status,
+		AutoStart: svc.autoStart,
+		Protected: svc.protected,
+		Port:      svc.port,
+		Protocol:  svc.protocol,
+		ErrorMsg:  svc.errorMsg,
+		StartedAt: svc.startedAt,
+	}
+	if svc.status != StatusRunning && svc.port > 0 {
+		ok, holders := portcheck.Available(svc.port, svc.protocol)
+		info.PortAvailable = &ok
+		if !ok {
+			info.PortHolders = portcheck.DescribeList(holders)
+		}
+	}
+	return info
+}
+
 // List 返回所有服务状态，按 display 排序以保持顺序稳定。
 func (m *Manager) List() []ServiceInfo {
 	m.mu.RLock()
@@ -219,17 +264,7 @@ func (m *Manager) List() []ServiceInfo {
 	infos := make([]ServiceInfo, 0, len(m.services))
 	for name, svc := range m.services {
 		svc.mu.Lock()
-		infos = append(infos, ServiceInfo{
-			Name:      name,
-			Display:   svc.display,
-			Status:    svc.status,
-			AutoStart: svc.autoStart,
-			Protected: svc.protected,
-			Port:      svc.port,
-			Protocol:  svc.protocol,
-			ErrorMsg:  svc.errorMsg,
-			StartedAt: svc.startedAt,
-		})
+		infos = append(infos, infoOf(name, svc))
 		svc.mu.Unlock()
 	}
 
@@ -249,17 +284,7 @@ func (m *Manager) Get(name string) (ServiceInfo, bool) {
 
 	svc.mu.Lock()
 	defer svc.mu.Unlock()
-	return ServiceInfo{
-		Name:      name,
-		Display:   svc.display,
-		Status:    svc.status,
-		AutoStart: svc.autoStart,
-		Protected: svc.protected,
-		Port:      svc.port,
-		Protocol:  svc.protocol,
-		ErrorMsg:  svc.errorMsg,
-		StartedAt: svc.startedAt,
-	}, true
+	return infoOf(name, svc), true
 }
 
 // StopAll 按注册顺序反向停止所有服务。
