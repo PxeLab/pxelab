@@ -16,7 +16,7 @@ func whoOccupies(port int, protocol string) ([]Process, error) {
 		proto = "udp"
 	}
 
-	out, err := exec.Command("netstat", "-ano").Output()
+	out, err := netstatOutput()
 	if err != nil {
 		return nil, fmt.Errorf("netstat: %w", err)
 	}
@@ -56,9 +56,18 @@ func whoOccupies(port int, protocol string) ([]Process, error) {
 	return procs, nil
 }
 
+// netstatOutput 执行 netstat -ano 并返回输出（隐藏控制台窗口，避免闪 cmd）。
+func netstatOutput() ([]byte, error) {
+	cmd := exec.Command("netstat", "-ano")
+	hideWindow(cmd)
+	return cmd.Output()
+}
+
 // processName 用 tasklist 查询 PID 对应的进程名。
 func processName(pid int) string {
-	out, err := exec.Command("tasklist", "/FI", "PID eq "+strconv.Itoa(pid), "/FO", "CSV", "/NH").Output()
+	cmd := exec.Command("tasklist", "/FI", "PID eq "+strconv.Itoa(pid), "/FO", "CSV", "/NH")
+	hideWindow(cmd)
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}
