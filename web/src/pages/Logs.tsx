@@ -98,8 +98,9 @@ export default function Logs() {
     setPanels(prev => prev.map(p => {
       if (p.paused || allPaused) return p
 
-      // 按过滤条件判断（服务端 entry.level 为大写如 INFO，需忽略大小写比较）
-      if (p.service && entry.service !== p.service) return p
+      // 按过滤条件判断（entry.level 为大写如 INFO；service 大小写不统一，
+      // 服务实现用 "HTTP"/"SMB"，而 servicemanager 用注册名 "smb"，统一忽略大小写）
+      if (p.service && String(entry.service ?? '').toLowerCase() !== p.service.toLowerCase()) return p
       if (p.level && entry.level.toLowerCase() !== p.level) return p
 
       const next = [...p.logs, entry]

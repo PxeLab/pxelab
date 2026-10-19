@@ -1,4 +1,4 @@
-﻿package logbus
+package logbus
 
 import (
 	"context"
@@ -13,24 +13,24 @@ import (
 )
 
 type LogEntry struct {
-	Time    time.Time              `json:"time"`
-	Level   string                 `json:"level"`
-	Message string                 `json:"message"`
-	Service string                 `json:"service,omitempty"`
-	MAC     string                 `json:"mac,omitempty"`
-	IP      string                 `json:"ip,omitempty"`
-	Attrs   map[string]any        `json:"attrs,omitempty"`
+	Time    time.Time      `json:"time"`
+	Level   string         `json:"level"`
+	Message string         `json:"message"`
+	Service string         `json:"service,omitempty"`
+	MAC     string         `json:"mac,omitempty"`
+	IP      string         `json:"ip,omitempty"`
+	Attrs   map[string]any `json:"attrs,omitempty"`
 }
 
 type BusHandler struct {
-	next        slog.Handler
-	bus         *eventbus.Bus
-	logDir      string
-	files       map[string]*RotatingFile
-	fileMu      sync.Mutex
-	closed      bool
-	attrs       []slog.Attr // 来自 WithAttrs 的预置属性
-	rotCfg      RotatingConfig
+	next   slog.Handler
+	bus    *eventbus.Bus
+	logDir string
+	files  map[string]*RotatingFile
+	fileMu sync.Mutex
+	closed bool
+	attrs  []slog.Attr // 来自 WithAttrs 的预置属性
+	rotCfg RotatingConfig
 }
 
 // NewBusHandler 创建日志处理器。
@@ -117,9 +117,21 @@ func (h *BusHandler) Handle(ctx context.Context, r slog.Record) error {
 	return nil
 }
 
+// sanitizeLogFileName 把服务名转成安全的日志文件名片段：小写，并把路径分隔符
+// 及其它不适合做文件名的字符替换为 '-'（服务名可能含接口名，如 "dhcp/以太网"）。
+func sanitizeLogFileName(service string) string {
+	s := strings.ToLower(strings.TrimSpace(service))
+	replacer := strings.NewReplacer(
+		"/", "-", `\`, "-", ":", "-", "*", "-", "?", "-",
+		`"`, "-", "<", "-", ">", "-", "|", "-", " ", "-",
+	)
+	return replacer.Replace(s)
+}
+
 func (h *BusHandler) writeServiceLog(entry LogEntry) {
-	// 服务名转小写文件名
-	fname := strings.ToLower(entry.Service) + ".log"
+	// 服务名转小写文件名；名字可能带接口名（如 "dhcp/以太网"），需去掉路径分隔符，
+	// 否则会被当成子目录导致建文件失败。
+	fname := sanitizeLogFileName(entry.Service) + ".log"
 
 	h.fileMu.Lock()
 	defer h.fileMu.Unlock()
