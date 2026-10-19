@@ -67,7 +67,8 @@ func DefaultConfig() *Config {
 			}},
 		},
 		SMB: SMBConfig{
-			Port: DefaultPortSMB,
+			Port:    DefaultPortSMB,
+			Backend: SMBBackendBuiltin,
 			Shares: []SMBShareConfig{{
 				Name:     "isos",
 				Path:     filepath.Join(dataDir, "boot", "isos"),

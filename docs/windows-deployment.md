@@ -21,7 +21,10 @@ PXE 引导链：DHCP（PxeLab 内建，option 66/67 + iPXE 175/177）→ 按架�
 2. 目标机：**UEFI + 网络启动**。wimboot 是 x64 UEFI 方案，Legacy BIOS 请另用 BIOS 版 NBP。
 3. DHCP：PxeLab 内建 DHCP 或 Settings → DHCP 将子网 `next-server` 指向 PxeLab 服务器 IP。
 4. Windows ISO：必须包含 `boot\bootmgr`、`boot\bootmgr.efi`、`boot\boot.sdi`、`boot\bcd`、`sources\boot.wim`（标准安装 ISO 均满足）。
-5. **（路线 B 无人值守）先在 Settings → SMB 启用内置只读 SMB 服务**：填共享名（Recipe B 预设用 `isos`）、共享目录（提取后的 Windows ISO 目录，需含 `sources\install.wim`）、NTLMv2 账号与密码。**Windows 主机部署时须先停用占用 445 端口的「Server」(LanmanServer) 服务**，否则 PxeLab 无法监听 SMB。
+5. **（路线 B 无人值守）先在 Settings → SMB 启用 SMB 介质共享**：填共享名（Recipe B 预设用 `isos`）、共享目录（提取后的 Windows ISO 目录，需含 `sources\install.wim`）。
+   - **Windows 主机**：445 默认被系统的「Server」(LanmanServer) 占用，此时**不需要停系统服务**——把 **实现方式** 切到 **系统 SMB（Windows）** 即可：填一个**已存在**的 Windows 账号（本地账号或 `DOMAIN\user`），PxeLab 会通过 `New-SmbShare` 创建共享并授予该账号共享级 + NTFS 读权限（**需以管理员身份运行 PxeLab**）。WinPE 里仍用 `net use Z: \\<server>\isos /user:<该账号> <密码>`。
+   - 也可以保持 **内置 SMB**：需要先让出 445（`Stop-Service LanmanServer -Force`，或换一台 Linux 主机），并配置 NTLMv2 账号与密码。
+   - 两种方式都支持；切换后需重启 SMB 服务。系统 SMB 方式不适用 `allow_ips`（如需限制请用 Windows 防火墙），也不会停止 LanmanServer。
 
 ## 2. 路线 A：本地 ISO 离线引导进 PE
 

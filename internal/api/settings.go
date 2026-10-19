@@ -1700,18 +1700,23 @@ type smbUserRequest struct {
 
 // SMBSettingsUpdateRequest 是 UpdateSMB 的请求体（与响应区分：账号含明文口令输入）。
 type SMBSettingsUpdateRequest struct {
-	Enabled    bool               `json:"enabled"`
-	Port       int                `json:"port"`
-	ServerName string             `json:"server_name"`
-	AllowIPs   []string           `json:"allow_ips"`
-	Shares     []SMBShareResponse `json:"shares"`
-	Users      []smbUserRequest   `json:"users"`
+	Enabled       bool               `json:"enabled"`
+	Backend       string             `json:"backend"`
+	SystemAccount string             `json:"system_account"`
+	Port          int                `json:"port"`
+	ServerName    string             `json:"server_name"`
+	AllowIPs      []string           `json:"allow_ips"`
+	Shares        []SMBShareResponse `json:"shares"`
+	Users         []smbUserRequest   `json:"users"`
 }
 
 type SMBSettingsResponse struct {
 	Enabled bool `json:"enabled"`
 	Running bool `json:"running"`
-	Port    int  `json:"port"`
+	// Backend: "builtin"（内置服务，监听 Port）| "system"（Windows 系统 SMB）
+	Backend       string `json:"backend"`
+	SystemAccount string `json:"system_account"`
+	Port          int    `json:"port"`
 	// PortAvailable 仅用于诊断：SMB 未运行时探测端口当前是否可绑定
 	// （Windows 上 445 常被 LanmanServer 占用），前端据此给出可操作提示。
 	PortAvailable bool               `json:"port_available"`
@@ -1753,6 +1758,8 @@ func (h *SettingsHandler) GetSMB(w http.ResponseWriter, r *http.Request) {
 	OK(w, SMBSettingsResponse{
 		Enabled:       cfg.SMB.Enabled,
 		Running:       running,
+		Backend:       config.NormalizeSMBBackend(cfg.SMB.Backend),
+		SystemAccount: cfg.SMB.SystemAccount,
 		Port:          cfg.SMB.Port,
 		PortAvailable: portAvailable,
 		ServerName:    cfg.SMB.ServerName,
@@ -1784,6 +1791,18 @@ func (h *SettingsHandler) UpdateSMB(w http.ResponseWriter, r *http.Request) {
 
 	// 口令留空 = 保持原值（前端不再持有明文口令）。先取旧口令快照，再校验/构建，
 	// 校验失败时不改动配置。新增或重命名账号必须提供口令。
+	backend := config.NormalizeSMBBackend(req.Backend)
+	if backend == config.SMBBackendSystem {
+		if runtime.GOOS != "windows" {
+			Error(w, http.StatusBadRequest, "system SMB 后端仅 Windows 支持")
+			return
+		}
+		if strings.TrimSpace(req.SystemAccount) == "" {
+			Error(w, http.StatusBadRequest, "system SMB 后端需要填写 WinPE 连接使用的 Windows 账号")
+			return
+		}
+	}
+
 	h.mu.Lock()
 	oldPass := make(map[string]string, len(h.cfg.SMB.Users))
 	for _, u := range h.cfg.SMB.Users {
@@ -1811,12 +1830,16 @@ func (h *SettingsHandler) UpdateSMB(w http.ResponseWriter, r *http.Request) {
 
 	h.mu.Lock()
 	oldEnabled := h.cfg.SMB.Enabled
+	oldBackend := config.NormalizeSMBBackend(h.cfg.SMB.Backend)
+	oldSystemAccount := h.cfg.SMB.SystemAccount
 	oldPort := h.cfg.SMB.Port
 	oldServerName := h.cfg.SMB.ServerName
 	oldShareNames := smbShareNames(h.cfg.SMB.Shares)
 	oldUserNames := smbUserNames(h.cfg.SMB.Users)
 
 	h.cfg.SMB.Enabled = req.Enabled
+	h.cfg.SMB.Backend = backend
+	h.cfg.SMB.SystemAccount = strings.TrimSpace(req.SystemAccount)
 	if req.Port > 0 {
 		h.cfg.SMB.Port = req.Port
 	}
@@ -1848,6 +1871,12 @@ func (h *SettingsHandler) UpdateSMB(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Port > 0 && oldPort != req.Port {
 		changes = append(changes, fmt.Sprintf("端口: %d→%d", oldPort, req.Port))
+	}
+	if oldBackend != backend {
+		changes = append(changes, fmt.Sprintf("后端: %s→%s", oldBackend, backend))
+	}
+	if oldSystemAccount != strings.TrimSpace(req.SystemAccount) {
+		changes = append(changes, fmt.Sprintf("系统账号: %q→%q", oldSystemAccount, strings.TrimSpace(req.SystemAccount)))
 	}
 	if oldServerName != req.ServerName {
 		changes = append(changes, fmt.Sprintf("服务名: %q→%q", oldServerName, req.ServerName))

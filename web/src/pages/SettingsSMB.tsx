@@ -9,7 +9,7 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Toggle } from '../components/ui/Toggle'
 import { useToast } from '../components/ui/Toast'
 import { SettingsField, SettingsInput } from '../components/settings/SettingsField'
-import { Input } from '../components/ui/FormControls'
+import { Input, Select } from '../components/ui/FormControls'
 import { StringListEditor } from '../components/ui/StringListEditor'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { api, type SMBSettingsData, type SMBShare, type SMBUser } from '../api/client'
@@ -32,6 +32,8 @@ export default function SettingsSMB() {
   const [config, setConfig] = useState<SMBSettingsData>({
     enabled: false,
     running: false,
+    backend: 'builtin',
+    system_account: '',
     port: 445,
     server_name: '',
     allow_ips: [],
@@ -143,6 +145,8 @@ export default function SettingsSMB() {
       setConfig({
         enabled: d.enabled ?? false,
         running: d.running ?? false,
+        backend: d.backend || 'builtin',
+        system_account: d.system_account || '',
         port: d.port || 445,
         server_name: d.server_name || '',
         allow_ips: d.allow_ips || [],
@@ -475,32 +479,63 @@ export default function SettingsSMB() {
                   label={t('settings.smbEnabled')}
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <SettingsField label={t('settings.smbPort')} help={t('settings.smbPortHelp')}>
-                  <SettingsInput
-                    type="number"
-                    min={1}
-                    max={65535}
-                    value={String(config.port)}
-                    onChange={v => setConfig({ ...config, port: Number(v) || 0 })}
-                    placeholder="445"
-                  />
-                </SettingsField>
-                <SettingsField label={t('settings.smbServerName')} help={t('settings.smbServerNameHelp')}>
-                  <SettingsInput
-                    value={config.server_name}
-                    onChange={v => setConfig({ ...config, server_name: v })}
-                    placeholder={t('settings.smbServerNamePlaceholder')}
-                  />
-                </SettingsField>
-              </div>
-              <SettingsField label={t('settings.smbAllowIPs')} help={t('settings.smbAllowIPsHelp')}>
-                <StringListEditor
-                  value={config.allow_ips}
-                  onChange={v => setConfig({ ...config, allow_ips: v })}
-                  placeholder={t('settings.smbAllowIPsPlaceholder')}
-                />
+              <SettingsField label={t('settings.smbBackend')} help={t('settings.smbBackendHelp')}>
+                <Select
+                  value={config.backend}
+                  onChange={e => setConfig({ ...config, backend: e.target.value as 'builtin' | 'system' })}
+                >
+                  <option value="builtin">{t('settings.smbBackendBuiltin')}</option>
+                  <option value="system">{t('settings.smbBackendSystem')}</option>
+                </Select>
+                <p className="mt-1 text-[11px] text-[var(--text-muted)]">{t('settings.smbBackendRestartHint')}</p>
               </SettingsField>
+
+              {config.backend === 'system' ? (
+                <>
+                  <SettingsField label={t('settings.smbSystemAccount')} help={t('settings.smbSystemAccountHelp')}>
+                    <SettingsInput
+                      value={config.system_account}
+                      onChange={v => setConfig({ ...config, system_account: v })}
+                      placeholder={t('settings.smbSystemAccountPlaceholder')}
+                    />
+                  </SettingsField>
+                  <div className="text-xs text-[var(--text-muted)] leading-relaxed bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg px-3 py-2 space-y-1.5">
+                    <p>{t('settings.smbSystemHint')}</p>
+                    <p className="font-mono break-all text-[var(--text-secondary)]">
+                      {`net use Z: \\\\${window.location.hostname}\\${config.shares[0]?.name || 'isos'} /user:${config.system_account || '<account>'} <password>`}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <SettingsField label={t('settings.smbPort')} help={t('settings.smbPortHelp')}>
+                      <SettingsInput
+                        type="number"
+                        min={1}
+                        max={65535}
+                        value={String(config.port)}
+                        onChange={v => setConfig({ ...config, port: Number(v) || 0 })}
+                        placeholder="445"
+                      />
+                    </SettingsField>
+                    <SettingsField label={t('settings.smbServerName')} help={t('settings.smbServerNameHelp')}>
+                      <SettingsInput
+                        value={config.server_name}
+                        onChange={v => setConfig({ ...config, server_name: v })}
+                        placeholder={t('settings.smbServerNamePlaceholder')}
+                      />
+                    </SettingsField>
+                  </div>
+                  <SettingsField label={t('settings.smbAllowIPs')} help={t('settings.smbAllowIPsHelp')}>
+                    <StringListEditor
+                      value={config.allow_ips}
+                      onChange={v => setConfig({ ...config, allow_ips: v })}
+                      placeholder={t('settings.smbAllowIPsPlaceholder')}
+                    />
+                  </SettingsField>
+                </>
+              )}
             </div>
           </Card>
 

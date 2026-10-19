@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // IPXEScriptConfig 定义 iPXE 脚本相关配置（用于 DHCP Option 175）
@@ -154,6 +155,28 @@ type SMBConfig struct {
 	AllowIPs   []string         `yaml:"allow_ips"   mapstructure:"allow_ips"` // 服务级 IP 允许列表，空 = 不限制
 	Shares     []SMBShareConfig `yaml:"shares"      mapstructure:"shares"`
 	Users      []SMBUserConfig  `yaml:"users"       mapstructure:"users"`
+	// Backend 选择 SMB 实现：
+	//   "builtin"（默认）= PxeLab 内置 SMB 服务，自己监听 Port（默认 445）；
+	//   "system"         = 仅 Windows：使用系统自带的 SMB 服务（LanmanServer）
+	//                      创建共享，不占用端口。Windows 上 445 被系统占用时用它。
+	Backend string `yaml:"backend" mapstructure:"backend"`
+	// SystemAccount 是 system 后端下 WinPE 连接共享所用的 Windows 账号
+	// （本地账号或 DOMAIN\user）。PxeLab 只授予其共享与目录权限，不创建账号。
+	SystemAccount string `yaml:"system_account" mapstructure:"system_account"`
+}
+
+// SMB 后端取值。
+const (
+	SMBBackendBuiltin = "builtin"
+	SMBBackendSystem  = "system"
+)
+
+// NormalizeSMBBackend 归一化 SMB 后端名：空/未知值回落 builtin。
+func NormalizeSMBBackend(backend string) string {
+	if strings.EqualFold(strings.TrimSpace(backend), SMBBackendSystem) {
+		return SMBBackendSystem
+	}
+	return SMBBackendBuiltin
 }
 
 type NetbootConfig struct {

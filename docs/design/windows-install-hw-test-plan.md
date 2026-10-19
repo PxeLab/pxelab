@@ -24,7 +24,9 @@
 ### 0.2 必做前置
 
 - [ ] **P0-1**：`Settings → SMB` 已启用只读共享（如 `isos` → `<数据目录>/boot/isos`）并配置 NTLMv2 账号。
-- [ ] **P0-2**：Windows 服务端上，若 445 被 `LanmanServer`（「Server」服务）占用，先停止该服务；确认 `netstat -ano | findstr :445` 监听者为 PxeLab。
+- [ ] **P0-2**：Windows 服务端上 445 通常被 `LanmanServer`（「Server」服务）占用。二选一：
+  - 能停：`Stop-Service LanmanServer -Force`，确认 `netstat -ano | findstr :445` 的监听者变为 PxeLab（**内置 SMB**）；
+  - 不能停/不想停：改用 **系统 SMB 后端**（Settings → SMB → 实现方式 = 系统 SMB），并准备一个已存在的 Windows 账号（**需管理员运行 PxeLab**）。
 - [ ] **P0-3**：Windows 镜像已上传并**提取**（OS Images 页状态 `ready` + `Extracted`）。
 - [ ] **P0-4**：驱动包已放到 `<boot 根目录>/drivers/<包名>/`（按需含 `x64/`、`x86/`、`arm64/` 子目录）。
 - [ ] **P0-5**（可选）：用规模估算工具先看体量：
@@ -45,6 +47,9 @@
 | 编号 | 功能 | 阶段 | 需要真机 |
 |---|---|---|---|
 | A1 | SMB 认证连接（`net use`）可用 | Phase 0 | ✅ |
+| A2 | 系统 SMB 后端（Windows）：建共享 + 授权 + WinPE 连接 | Phase 0 | ✅ |
+| A3 | 系统 SMB 后端：非管理员/账号不存在时给出明确错误 | Phase 0 | ✅ |
+| A4 | 系统 SMB 后端：Stop 只移除自己的共享 | Phase 0 | ✅ |
 | B1 | 离线引导进 PE（本机 wimboot + 本机 Windows 文件） | Phase 0 | ✅ |
 | B2 | `wimboot index=` 选择 install.wim 映像 | Phase 0 / 借鉴项 4 | ✅ |
 | B3 | `winpeshl.ini [LaunchApps]` 拉起 install.bat | Phase 0 | ✅ |
@@ -79,6 +84,36 @@
   3. `dir Z:\sources\install.wim`。
 - **预期**：连接成功、可见 install.wim；无 `System error 1727` / `53` / `67`。
 - **记录**：结果 = 　　；报错码/现象 = 　　；证据（截图/日志）= 　　。
+
+### A2 — 系统 SMB 后端（Windows）
+
+- **目的**：445 被 LanmanServer 占用且无法停止时，用系统 SMB 提供共享。
+- **前置**：PxeLab 以**管理员**身份运行；准备一个**已存在**的 Windows 账号（如 `pxelab`，域账号写 `DOMAIN\user`）。
+- **步骤**：
+  1. Settings → SMB → 实现方式 = **系统 SMB（Windows）**；填写 Windows 账号；共享名 `isos`、目录指向 `...\boot\isos`（不存在会自动创建）；
+  2. 保存 → 重启 SMB 服务；
+  3. 本机验证：`Get-SmbShare -Name isos` 存在且 `Path` 正确；`Get-SmbShareAccess -Name isos` 能看到该账号；
+  4. 目录权限：`icacls <path>` 或实际读取文件验证 NTFS 可读；
+  5. WinPE：`net use Z: \\<server>\isos /user:<账号> <密码>` → `dir Z:\sources\install.wim`。
+- **预期**：共享创建成功；WinPE 能连接并读到 install.wim；界面不再报「端口被占用」（系统后端不占用端口）。
+- **记录**：结果 = 　　；`Get-SmbShare` 输出 = 　　；WinPE 结果 = 　　。
+
+### A3 — 系统 SMB 后端的错误提示
+
+- **步骤**：
+  1. 用**非管理员**身份启动 PxeLab，切系统后端并启动 SMB；
+  2. 再试一个**不存在**的 Windows 账号。
+- **预期**：分别返回明确错误（“需要管理员权限：… New-SmbShare 需要提权” / 账号相关错误），且事件页出现 `SERVICE / ERROR` 记录；**不**出现两个 cmd 闪窗。
+- **记录**：结果 = 　　；错误文本 = 　　。
+
+### A4 — 系统 SMB 后端的生命周期
+
+- **步骤**：
+  1. 启动 SMB（共享被创建）→ 停止 SMB → `Get-SmbShare` 中该共享消失；
+  2. 手工创建一个**同名但不同路径**的共享 → 启动/停止 SMB → 该共享**不被删除**；
+  3. 重复启动两次（幂等）→ 不报错。
+- **预期**：只清理自己的共享；重复启动幂等；LanmanServer 始终保持运行。
+- **记录**：结果 = 　　；现象 = 　　。
 
 ### B1 — 离线引导进 PE
 
@@ -297,6 +332,9 @@
 |---|---|---|---|---|
 | P0-1..5 | 前置检查 | | | |
 | A1 | SMB 认证连接 | | | |
+| A2 | 系统 SMB：建共享+授权+连接 | | | |
+| A3 | 系统 SMB：错误提示 | | | |
+| A4 | 系统 SMB：生命周期 | | | |
 | B1 | 离线引导进 PE | | | |
 | B2 | wimboot `index=` | | | |
 | B3 | `[LaunchApps]` 拉起 install.bat | | | |

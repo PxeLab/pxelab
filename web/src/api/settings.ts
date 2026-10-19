@@ -308,6 +308,10 @@ export interface SMBUser {
 export interface SMBSettingsData {
   enabled: boolean
   running: boolean
+  /** 'builtin'（PxeLab 内置服务，监听 port）| 'system'（Windows 系统 SMB） */
+  backend: 'builtin' | 'system'
+  /** system 后端：WinPE 连接共享所用的 Windows 账号 */
+  system_account: string
   port: number
   /** 未运行时探测端口是否可绑定（Windows 445 常被 LanmanServer 占用） */
   port_available?: boolean

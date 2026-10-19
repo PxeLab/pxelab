@@ -22,6 +22,7 @@
 | 组件 | 位置 |
 |---|---|
 | 介质交付 | `internal/smb/server.go` — 内置最小只读 SMB 服务：NTLMv2 账号认证、IP 白名单、只读 `osfs` 挂载、固定 445 端口 |
+| 介质交付（Windows 备选） | `internal/smb/system*.go` — **系统 SMB 后端**：使用 Windows 自带 SMB（LanmanServer）创建共享（`New-SmbShare` + `icacls`），不占用端口；适用于 445 被系统占用、无法停 LanmanServer 的主机。配置 `smb.backend: builtin \\| system` + `smb.system_account` |
 | 配置 / 生命周期 | `internal/config/{config,defaults,flags}.go`；`internal/api/service.go`；`cmd/pxelab/main.go`（注册 smb 服务） |
 | REST API | `internal/api/settings.go` → `GET/PUT /api/v1/services/smb`、`POST /services/smb/validate-path`、`GET /services/smb/browse-path`（路径校验/浏览复用 NFS 实现）；路由注册于 `internal/api/handler.go` |
 | 前端 | `web/src/pages/SettingsSMB.tsx`（Settings → SMB 页）+ `web/src/components/ui/StringListEditor.tsx`；`web/src/api/settings.ts`、`web/src/api/client.ts`；中英双语 i18n |
@@ -32,8 +33,8 @@
 
 ### 1.2 关键技术决策（已批准）
 
-- **介质交付 = 平台内置只读 SMB，而非 HTTP**：`dism /Apply-Image /ImageFile:` 与 `setup.exe` 不接受 http URL；SMB 是 Windows 原生可达路径。
-- **认证仅 NTLMv2 账号，不做 guest / 匿名**：`go-filesystems/smb` 不支持 guest；且 24H2 / Server 2025 强制 SMB 签名后 guest 被禁。
+- **介质交付 = 平台内置只读 SMB，而非 HTTP**：`dism /Apply-Image /ImageFile:` 与 `setup.exe` 不接受 http URL；SMB 是 Windows 原生可达路径。Windows 上另提供**系统 SMB 后端**（`smb.backend: system`），借用 LanmanServer 的 445 创建共享，避免与系统服务争端口。
+- **认证仅 NTLMv2 账号，不做 guest / 匿名**：`go-filesystems/smb` 不支持 guest；且 24H2 / Server 2025 强制 SMB 签名后 guest 被禁。系统 SMB 后端改用**已存在的 Windows 账号**（PxeLab 只授权、不建账号），原因相同：Win10/11 默认禁止 guest 网络登录。
 - **安装 = Recipe B**：`net use Z: \\<server>\<share>` → `dism /Apply-Image /ImageFile:%SRC%\install.wim /Index:%WIMINDEX%` → `bcdboot … /f UEFI` → 重启；不经交互式 `setup.exe`。
 - **最低支持 Win7 / Server 2008 R2（WinPE 3.0）**；服务端仅 SMB 2.1 / 3.0 / 3.0.2（无 SMB1/2.0）。
 - **WIM 索引贯通**：`models.InstallTask.WIMIndex` → `BootTaskInfo.WIMIndex` → wimboot kernel 行 `index=<n>`（多映像介质）。
@@ -41,7 +42,9 @@
 ### 1.3 已知边界与风险（需真机验证）
 
 - **WinPE 24H2 `System error 1727`**（认证式 SMB 连接失败）：根因 KB5051987，已修于 KB5058411（26100.4061），仍建议真机实测。
-- **Windows 主机 445 端口被 LanmanServer（「Server」服务）占用**：须先停该服务，否则 PxeLab SMB 无法监听。
+- **Windows 主机 445 端口被 LanmanServer（「Server」服务）占用**：两种情况——
+  - 可停服务：先停 LanmanServer 再用**内置 SMB**；
+  - 无法停（部分系统/策略下 `Stop-Service` 被拒或自动重启，示例：`New-SmbShare : 拒绝访问` 说明当前 PowerShell 未提权，而 `System error 5` 也可能来自服务受保护）：改用**系统 SMB 后端**（`smb.backend: system` + `smb.system_account`），PxeLab 以管理员身份创建共享并授权，无需动 LanmanServer。
 - **真机验证缺失**：iPXE `initrd -n <name>` 具名语义（含 `driver_delivery=initrd` 时**多驱动文件注入**的实际表现与 PE 内存占用）、wimboot `index=`、`winpeshl.ini [LaunchApps]`、Recipe B 的 `dism /Apply-Image`、离线 `dism /Add-Driver` 注入（借鉴项 1）均只有 build / vet / 单测级证据，**未在真实 Windows 硬件上跑通**。→ 逐项验证步骤与结果记录见 `docs/design/windows-install-hw-test-plan.md`。
 
 ---

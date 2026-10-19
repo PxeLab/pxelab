@@ -370,8 +370,13 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 	nfsServer := pxelabnfs.NewServer(cfg.NFS.Port, cfg.NFS.MountPoints)
 	svcMgr.Register("nfs", "NFS", nfsServer, cfg.ServiceAutoStart.NFS, false, cfg.NFS.Port, "TCP")
 
-	smbServer := pxelabsmb.NewServer(cfg.SMB)
-	svcMgr.Register("smb", "SMB", smbServer, cfg.ServiceAutoStart.SMB, false, cfg.SMB.Port, "TCP")
+	smbServer := pxelabsmb.NewFromConfig(cfg.SMB)
+	smbPort, smbDisplay := cfg.SMB.Port, "SMB"
+	if config.NormalizeSMBBackend(cfg.SMB.Backend) == config.SMBBackendSystem {
+		// 系统后端借用 LanmanServer 的 445，不自己监听 → 跳过端口预检。
+		smbPort, smbDisplay = 0, "SMB (system)"
+	}
+	svcMgr.Register("smb", smbDisplay, smbServer, cfg.ServiceAutoStart.SMB, false, smbPort, "TCP")
 
 	nfsConnInfo := func() map[string]api.NFSConnectionInfo {
 		stats := nfsServer.GetConnectionStats()
