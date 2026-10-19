@@ -1,4 +1,4 @@
-﻿package servicemanager
+package servicemanager
 
 import (
 	"context"
@@ -25,15 +25,15 @@ const (
 )
 
 type ServiceInfo struct {
-	Name      string      `json:"name"`
-	Display   string      `json:"display"`
-	Status    Status      `json:"status"`
-	AutoStart bool        `json:"auto_start"`
-	Protected bool        `json:"protected"`
-	Port      int         `json:"port"`
-	Protocol  string      `json:"protocol"`
-	ErrorMsg  string      `json:"error_msg"`
-	StartedAt *time.Time  `json:"started_at"`
+	Name      string     `json:"name"`
+	Display   string     `json:"display"`
+	Status    Status     `json:"status"`
+	AutoStart bool       `json:"auto_start"`
+	Protected bool       `json:"protected"`
+	Port      int        `json:"port"`
+	Protocol  string     `json:"protocol"`
+	ErrorMsg  string     `json:"error_msg"`
+	StartedAt *time.Time `json:"started_at"`
 }
 
 type managedService struct {
@@ -88,29 +88,37 @@ func (m *Manager) Start(name string) error {
 	}
 
 	svc.mu.Lock()
-	defer svc.mu.Unlock()
-
 	if svc.status == StatusRunning {
+		svc.mu.Unlock()
 		return nil
 	}
+	// 每次启动重建 stopCh：Stop() 会 close 它；复用已关闭的 channel 会让
+	// “是否被主动停止”的判断永远成立，重启后的启动失败会被静默吞掉。
+	svc.stopCh = make(chan struct{})
+	svc.mu.Unlock()
 
-	slog.Info("启动服务", "name", name)
-	// Start 在 goroutine 中运行，因为所有服务的 Start() 是阻塞的
-	//（进入 serve/read 循环），Stop() 通过关闭 listener / Shutdown 来停止。
-	go func() {
-		if err := svc.server.Start(context.Background()); err != nil {
-			svc.mu.Lock()
-			select {
-			case <-svc.stopCh:
-				// 由 Stop() 触发关闭，非异常退出
-			default:
-				svc.status = StatusError
-				svc.errorMsg = enrichError(svc, err)
-				slog.Error("服务异常退出", "name", name, "error", err)
-			}
-			svc.mu.Unlock()
+	slog.Info("启动服务", "service", name)
+
+	// 同步等待启动结果：各服务的 Start() 只做端口绑定/注册后立即返回
+	// （serve 循环在其内部 goroutine 中），因此 bind 失败等错误在此即可拿到。
+	// 旧实现把 Start 丢进 goroutine，API 会先返回 200，故障只落在日志里，
+	// 前端看不到失败原因。
+	err := svc.server.Start(context.Background())
+
+	svc.mu.Lock()
+	defer svc.mu.Unlock()
+	if err != nil {
+		select {
+		case <-svc.stopCh:
+			// 启动过程中被 Stop() 主动关闭，不算异常
+			return nil
+		default:
 		}
-	}()
+		svc.status = StatusError
+		svc.errorMsg = enrichError(svc, err)
+		slog.Error("服务启动失败", "service", name, "error", svc.errorMsg)
+		return fmt.Errorf("%s", svc.errorMsg)
+	}
 	svc.status = StatusRunning
 	svc.errorMsg = ""
 	now := time.Now()
@@ -154,13 +162,14 @@ func (m *Manager) Stop(name string) error {
 		return nil
 	}
 
-	slog.Info("停止服务", "name", name)
+	slog.Info("停止服务", "service", name)
 	close(svc.stopCh)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := svc.server.Stop(ctx); err != nil {
 		svc.status = StatusError
-			svc.errorMsg = err.Error()
+		svc.errorMsg = err.Error()
+		slog.Error("服务停止失败", "service", name, "error", err)
 		return fmt.Errorf("stop %s: %w", name, err)
 	}
 	svc.status = StatusStopped
@@ -254,7 +263,7 @@ func (m *Manager) Get(name string) (ServiceInfo, bool) {
 }
 
 // StopAll 按注册顺序反向停止所有服务。
-// SetAutoStart 
+// SetAutoStart
 func (m *Manager) SetAutoStart(name string, enabled bool) error {
 	m.mu.RLock()
 	svc, ok := m.services[name]
