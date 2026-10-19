@@ -120,11 +120,43 @@ func (m *Manager) Start(name string) error {
 
 	slog.Info("启动服务", "service", name)
 
-	// 同步等待启动结果：各服务的 Start() 只做端口绑定/注册后立即返回
-	// （serve 循环在其内部 goroutine 中），因此 bind 失败等错误在此即可拿到。
-	// 旧实现把 Start 丢进 goroutine，API 会先返回 200，故障只落在日志里，
-	// 前端看不到失败原因。
-	err := svc.server.Start(context.Background())
+	// 部分服务的 Start() 是**前台 serve 循环**（DHCP/ProxyDHCP 进入 ReadFromUDP
+	// 后永不返回），另一些是 bind/注册后立即返回（HTTP/TFTP/DNS/NFS/SMB）。
+	// 因此放到 goroutine 里跑，并**有限等待**启动结果：
+	//   - 监听型服务（port>0）：等一小段时间即可确认“没有立即失败”；
+	//   - 无监听端口的服务（如 system SMB 后端，Start 里做建共享等实际工作）：
+	//     等它真正返回，才能把失败原因同步返回给 API/前端。
+	// 端口冲突另有上面的预检兜底（立即返回）。
+	wait := 800 * time.Millisecond
+	if svc.port <= 0 {
+		wait = 20 * time.Second
+	}
+
+	startErr := make(chan error, 1)
+	go func() {
+		err := svc.server.Start(context.Background())
+		if err != nil {
+			// 若 Start 在等待窗口之后才失败（前台循环型服务），这里也要落状态。
+			svc.mu.Lock()
+			select {
+			case <-svc.stopCh:
+				// 被 Stop() 主动关闭，非异常
+			default:
+				svc.status = StatusError
+				svc.errorMsg = enrichError(svc, err)
+				slog.Error("服务启动失败", "service", name, "error", svc.errorMsg)
+			}
+			svc.mu.Unlock()
+		}
+		startErr <- err
+	}()
+
+	var err error
+	select {
+	case err = <-startErr:
+	case <-time.After(wait):
+		// 前台 serve 循环型服务（DHCP/ProxyDHCP）：视为已启动
+	}
 
 	svc.mu.Lock()
 	defer svc.mu.Unlock()
@@ -135,15 +167,18 @@ func (m *Manager) Start(name string) error {
 			return nil
 		default:
 		}
-		svc.status = StatusError
-		svc.errorMsg = enrichError(svc, err)
-		slog.Error("服务启动失败", "service", name, "error", svc.errorMsg)
+		if svc.errorMsg == "" {
+			svc.errorMsg = enrichError(svc, err)
+		}
 		return fmt.Errorf("%s", svc.errorMsg)
 	}
-	svc.status = StatusRunning
-	svc.errorMsg = ""
-	now := time.Now()
-	svc.startedAt = &now
+	// 避免覆盖 goroutine 刚写入的失败状态（超时返回后立即失败的情形）
+	if svc.status != StatusError {
+		svc.status = StatusRunning
+		svc.errorMsg = ""
+		now := time.Now()
+		svc.startedAt = &now
+	}
 	return nil
 }
 
