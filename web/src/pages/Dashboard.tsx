@@ -430,13 +430,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-[18px]">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-[12.5px] text-[var(--text-muted)]">
-        <span>{t('nav.section.overview')}</span>
-        <ChevronRight size={12} className="opacity-50" />
-        <span className="text-[var(--text-primary)]">{t('dashboard.title')}</span>
-      </div>
-
       {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">

@@ -314,6 +314,11 @@ export const AppShell: FC<Props> = ({ children }) => {
   const [restarting, setRestarting] = useState(false)
   const [confirmInstall, setConfirmInstall] = useState(false)
 
+  const currentVersion = versionInfo?.current_version || ''
+  const versionLabel = currentVersion
+    ? (currentVersion === 'dev' ? 'dev' : currentVersion.startsWith('v') ? currentVersion : 'v' + currentVersion)
+    : ''
+
   useEffect(() => {
     getVersionInfo().then(res => {
       setVersionInfo(res.data)
@@ -584,6 +589,14 @@ export const AppShell: FC<Props> = ({ children }) => {
               <Settings size={16} className="opacity-70 shrink-0" />
               <span>{t('settings.title')}</span>
             </button>
+          )}
+          {versionLabel && (
+            <div
+              className="mt-1 text-center font-mono text-[10.5px] leading-none text-[var(--text-muted)] select-all"
+              title={`${t('version.current')}: ${versionLabel}`}
+            >
+              {versionLabel}
+            </div>
           )}
         </div>
       </aside>
