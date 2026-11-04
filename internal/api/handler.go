@@ -118,6 +118,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/version", h.Version.GetVersion)
 		r.Post("/version/check", h.Version.CheckUpdate)
 		r.Post("/version/download", h.Version.DownloadUpdate)
+		r.Post("/version/apply", h.Version.ApplyUpdate)
 
 		// Auth routes (public — login, session check)
 		r.Post("/auth/login", h.Auth.Login)

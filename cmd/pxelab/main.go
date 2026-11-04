@@ -400,6 +400,24 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 
 	// 版本检查器（启动时异步检查一次）
 	updater := updatecheck.NewChecker(Version, cfg.Global.DataDir)
+	updater.SetApplyFunc(func(staged *updatecheck.StagedUpdate) (any, error) {
+		plan, err := startApply(staged)
+		if err != nil {
+			return nil, err
+		}
+		if !plan.Service {
+			// 非服务模式：响应返回后退出，由 helper 替换并拉起新进程
+			go func() {
+				time.Sleep(2 * time.Second)
+				os.Exit(0)
+			}()
+		}
+		return map[string]any{
+			"version":    staged.Version,
+			"restarting": true,
+			"service":    plan.Service,
+		}, nil
+	})
 	go func() {
 		if _, err := updater.Check(); err != nil {
 			slog.Debug("启动版本检查失败（不影响运行）", "error", err)
@@ -428,6 +446,9 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "__apply-update" {
+		os.Exit(runApplyHelper(os.Args[2:]))
+	}
 	if useTray() {
 		hideConsoleWindow()
 		cfg, err := config.LoadConfig("")

@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  build: { outDir: '../cmd/PxeLab/webdist' },
+  build: { outDir: '../cmd/pxelab/webdist' },
   server: {
     proxy: {
       '/api': { target: 'http://localhost:8080', changeOrigin: true },
