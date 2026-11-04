@@ -80,18 +80,18 @@ export default function Events() {
         title={t('events.title')}
         actions={
           <>
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-mono font-semibold ${paused ? 'bg-accent-yellow/10 text-accent-yellow' : connected ? 'bg-accent-green/10 text-accent-green' : 'bg-accent-red/10 text-accent-red'}`}>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-mono font-semibold ${paused ? 'bg-accent-yellow/10 text-warning' : connected ? 'bg-accent-green/10 text-success' : 'bg-accent-red/10 text-danger'}`}>
               <StatusDot color={paused ? 'yellow' : connected ? 'green' : 'red'} pulse={!paused && connected} />
               {paused ? t('events.paused') : connected ? t('events.live') : t('settings.disconnected')}
               <span className="text-[var(--text-muted)] font-normal mx-0.5">·</span>
-              <span className="text-[var(--text-muted)] font-normal">{total}+</span>
+              <span className="text-[var(--text-muted)] font-normal">{total}</span>
             </span>
             <Button variant={paused ? 'primary' : 'secondary'} size="sm" onClick={paused ? resume : pause}>
               {paused ? <Play size={14} /> : <Pause size={14} />}
               {paused ? t('events.resume') : t('events.pause')}
             </Button>
             <span title={isFullscreen ? t('common.exitFullscreen') : t('common.fullscreen')}>
-              <Button variant="ghost" size="sm" onClick={toggleFullscreen}>
+              <Button variant="ghost" size="sm" aria-label={isFullscreen ? t('common.exitFullscreen') : t('common.fullscreen')} onClick={toggleFullscreen}>
                 {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
               </Button>
             </span>
@@ -107,7 +107,7 @@ export default function Events() {
             onClick={() => { setFilter(chip.key); setPage(1) }}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
               filter === chip.key
-                ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                ? 'bg-blue-500/10 text-info border-blue-500/30'
                 : 'border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
             }`}
           >
@@ -149,12 +149,12 @@ export default function Events() {
                   return (
                     <div key={e.id || i} className="flex items-center gap-3 px-5 py-2 hover:bg-[var(--bg-hover)]/50 transition-colors text-xs whitespace-nowrap">
                       <div className={`w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                        ic.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-400' :
-                        ic.color === 'orange' ? 'bg-orange-500/10 text-orange-400' :
-                        ic.color === 'purple' ? 'bg-purple-500/10 text-purple-400' :
-                        ic.color === 'green' ? 'bg-accent-green/10 text-accent-green' :
-                        ic.color === 'yellow' ? 'bg-accent-yellow/10 text-accent-yellow' :
-                        'bg-blue-500/10 text-blue-400'
+                        ic.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-text' :
+                        ic.color === 'orange' ? 'bg-orange-500/10 text-orange-text' :
+                        ic.color === 'purple' ? 'bg-purple-500/10 text-purple-text' :
+                        ic.color === 'green' ? 'bg-accent-green/10 text-success' :
+                        ic.color === 'yellow' ? 'bg-accent-yellow/10 text-warning' :
+                        'bg-blue-500/10 text-info'
                       }`}>{ic.label}</div>
                       <span className="w-14 shrink-0 font-semibold text-[var(--text-primary)]">{e.type}</span>
                       <span className="w-36 shrink-0 text-[var(--text-muted)] font-mono">{new Date(e.timestamp).toLocaleString()}</span>

@@ -98,8 +98,8 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
       label: '',
       width: '2rem',
       render: f => f.is_dir
-        ? <Folder size={16} className="text-accent-yellow" />
-        : <File size={16} className="text-blue-500" />,
+        ? <Folder size={16} className="text-warning" />
+        : <File size={16} className="text-info" />,
     },
     {
       key: 'name',
@@ -116,8 +116,8 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
     {
       key: 'modtime',
       label: t('files.colModified'),
-      width: '8rem',
-      className: 'text-[var(--text-muted)] text-xs',
+      width: '9.5rem',
+      className: 'text-[var(--text-muted)] text-xs whitespace-nowrap',
       render: f => timeStr(f.modtime),
     },
     {
@@ -127,7 +127,18 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
       render: f => {
         if (f.is_dir) return <span className="text-xs text-[var(--text-muted)] font-mono">—</span>
         return f.md5 ? (
-          <span className="text-[10px] text-[var(--text-muted)] font-mono" title={f.md5}>{f.md5.slice(0, 16)}</span>
+          <button
+            type="button"
+            title={f.md5}
+            aria-label={`${t('files.copyMd5')} ${f.md5}`}
+            onClick={e => {
+              e.stopPropagation()
+              navigator.clipboard.writeText(f.md5!).then(() => success(t('files.md5Copied'))).catch(() => {})
+            }}
+            className="text-[10px] text-[var(--text-muted)] font-mono hover:text-info rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+          >
+            {f.md5.slice(0, 16)}…
+          </button>
         ) : (
           <span className="text-[10px] text-[var(--text-muted)]">—</span>
         )
@@ -143,7 +154,8 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
       ) : (
         <button
           onClick={e => { e.stopPropagation(); handleDelete(f.name) }}
-          className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-accent-red transition-all"
+          aria-label={`${t('common.delete')} ${f.name}`}
+          className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 rounded text-[var(--text-muted)] hover:text-danger transition-all"
         >
           <Trash2 size={14} />
         </button>
@@ -206,7 +218,7 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
 
       {rootDir && (
         <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-input)] border border-[var(--bg-border)]">
-          <Info size={14} className="text-blue-400 shrink-0" />
+          <Info size={14} className="text-info shrink-0" />
           <span className="text-xs text-[var(--text-muted)]">
             {t('files.rootDir')}: <span className="font-mono text-[var(--text-secondary)]">{rootDir}</span>
           </span>
@@ -239,7 +251,8 @@ export default function Files({ hideHeader, rootPath }: { hideHeader?: boolean; 
         onClose={() => setConfirmDelete(null)}
         onConfirm={doDelete}
         title={t('files.deleteTitle')}
-        message={t('files.deleteConfirm')}
+        confirmLabel={t('common.delete')}
+        message={t('files.deleteConfirm', { name: confirmDelete || '' })}
       />
     </div>
   )

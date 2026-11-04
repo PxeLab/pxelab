@@ -318,10 +318,10 @@ export default function HostDetail() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { action: 'on', label: t('hosts.detail.powerOn'), icon: Power, color: 'text-accent-green hover:border-accent-green/30' },
-              { action: 'off', label: t('hosts.detail.powerOff'), icon: PowerOff, color: 'text-accent-red hover:border-accent-red/30' },
-              { action: 'cycle', label: t('hosts.detail.powerRestart'), icon: RefreshCw, color: 'text-accent-yellow hover:border-accent-yellow/30' },
-              { action: 'status', label: t('hosts.detail.powerStatus'), icon: Activity, color: 'text-blue-400 hover:border-blue-500/30' },
+              { action: 'on', label: t('hosts.detail.powerOn'), icon: Power, color: 'text-success hover:border-accent-green/30' },
+              { action: 'off', label: t('hosts.detail.powerOff'), icon: PowerOff, color: 'text-danger hover:border-accent-red/30' },
+              { action: 'cycle', label: t('hosts.detail.powerRestart'), icon: RefreshCw, color: 'text-warning hover:border-accent-yellow/30' },
+              { action: 'status', label: t('hosts.detail.powerStatus'), icon: Activity, color: 'text-info hover:border-blue-500/30' },
             ].map(({ action, label, icon: Icon, color }) => {
               const bmcMissing = !host.bmc_addr
               return (
@@ -498,7 +498,7 @@ export default function HostDetail() {
                         </Button>
                       )}
                       {task.status === 'failed' && task.error_msg && (
-                        <span className="text-[10px] text-accent-red/60" title={task.error_msg}>{t('common.error')}</span>
+                        <span className="text-[10px] text-danger/60" title={task.error_msg}>{t('common.error')}</span>
                       )}
                     </div>
                   ),
@@ -606,7 +606,7 @@ export default function HostDetail() {
         }
       >
         {taskError && (
-          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">{taskError}</div>
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-danger">{taskError}</div>
         )}
 
         <div className="space-y-4">
@@ -653,7 +653,7 @@ export default function HostDetail() {
             const ver = distro?.versions.find(v => v.codename === newTask.version_codename)
             if (!ver || ver.local || !ver.remote) return null
             return (
-              <div className="text-xs text-amber-400 bg-[var(--bg-card)] border border-amber-400/30 rounded px-3 py-1.5">
+              <div className="text-xs text-warning bg-[var(--bg-card)] border border-amber-400/30 rounded px-3 py-1.5">
                 {t('netbootCatalog.remoteOnlyTitle')}
               </div>
             )
@@ -704,7 +704,7 @@ export default function HostDetail() {
           </div>
 
           {bootConfigError && (
-            <div className="px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">
+            <div className="px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-danger">
               {bootConfigError}
             </div>
           )}
@@ -792,7 +792,7 @@ export default function HostDetail() {
                 {editInherited.map(id => {
                   const b = allBaselines.find(x => x.id === id)
                   return (
-                    <span key={id} className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">{b ? b.name : id}</span>
+                    <span key={id} className="px-1.5 py-0.5 rounded bg-blue-500/10 text-info text-[10px] font-medium">{b ? b.name : id}</span>
                   )
                 })}
               </div>
@@ -868,7 +868,7 @@ export default function HostDetail() {
         open={!!confirmPower}
         onClose={() => setConfirmPower(null)}
         onConfirm={doPower}
-        title={t('hosts.detail.powerConfirm')}
+        title={t('hosts.detail.powerConfirm')} confirmLabel={confirmPower ? t('hosts.detail.' + powerLabelKeys[confirmPower]) : undefined}
         message={confirmPower ? `${t('hosts.detail.' + powerLabelKeys[confirmPower])}?` : ''}
       />
       <ConfirmDialog
@@ -884,6 +884,7 @@ export default function HostDetail() {
           setConfirmDeleteTask(null)
         }}
         title={t('hosts.detail.deleteTaskConfirm')}
+        confirmLabel={t('common.delete')}
         message={t('hosts.detail.deleteTaskMessage')}
       />
     </div>

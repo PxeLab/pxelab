@@ -2,7 +2,7 @@ import type { ApiResponse, Host } from './types'
 import { buildQuery, clearSession, getBaseURL, getSessionToken, request } from './http'
 
 // ── Hosts ──
-export function getHosts(params?: Record<string, unknown>): Promise<ApiResponse<{ hosts: Host[]; meta: { page: number; size: number; total: number } }>> {
+export function getHosts(params?: Record<string, unknown>): Promise<ApiResponse<{ hosts: Host[]; meta: { page: number; size: number; total: number }; online?: number }>> {
   return request('GET', '/hosts' + buildQuery(params))
 }
 

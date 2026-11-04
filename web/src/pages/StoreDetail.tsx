@@ -90,10 +90,10 @@ export default function StoreDetail() {
   if (loadError) {
     return (
       <div className="space-y-5">
-        <button onClick={() => navigate('/store')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-blue-400 transition-colors">
+        <button onClick={() => navigate('/store')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-info transition-colors">
           <ArrowLeft size={14} /> {t('store.detail.backToStore')}
         </button>
-        <Card><div className="py-8 text-center text-sm text-accent-red">{loadError}</div></Card>
+        <Card><div className="py-8 text-center text-sm text-danger">{loadError}</div></Card>
       </div>
     )
   }
@@ -101,7 +101,7 @@ export default function StoreDetail() {
   if (!item) {
     return (
       <div className="space-y-5">
-        <button onClick={() => navigate('/store')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-blue-400 transition-colors">
+        <button onClick={() => navigate('/store')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-info transition-colors">
           <ArrowLeft size={14} /> {t('store.detail.backToStore')}
         </button>
         <Card><div className="py-8 text-center text-sm text-[var(--text-muted)]">{t('store.detail.notFound')}</div></Card>
@@ -111,7 +111,7 @@ export default function StoreDetail() {
 
   return (
     <div className="space-y-5">
-      <button onClick={() => navigate('/store')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-blue-400 transition-colors">
+      <button onClick={() => navigate('/store')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-info transition-colors">
         <ArrowLeft size={14} /> {t('store.detail.backToStore')}
       </button>
 

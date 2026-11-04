@@ -248,9 +248,9 @@ export default function QuickInstall() {
             {i > 0 && <div className={`h-px w-8 ${i <= step ? 'bg-blue-500' : 'bg-[var(--bg-border)]'}`} />}
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
               i === step
-                ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                ? 'border-blue-500/50 bg-blue-500/10 text-info'
                 : i < step
-                  ? 'border-accent-green/30 bg-accent-green/10 text-accent-green'
+                  ? 'border-accent-green/30 bg-accent-green/10 text-success'
                   : 'border-[var(--bg-border)] text-[var(--text-muted)]'
             }`}>
               {i < step ? <Check size={12} /> : <span className="font-mono">{i + 1}</span>}
@@ -330,7 +330,7 @@ export default function QuickInstall() {
                 <Plus size={12} />
                 {t('quickInstall.addManual')}
               </Button>
-              {manualError && <span className="text-xs text-accent-red">{manualError}</span>}
+              {manualError && <span className="text-xs text-danger">{manualError}</span>}
               {selectedMacs.length > 0 && (
                 <span className="ml-auto text-xs text-[var(--text-muted)]">
                   {t('quickInstall.selectedCount', { count: selectedMacs.length })}
@@ -346,7 +346,7 @@ export default function QuickInstall() {
         <Card title={t('quickInstall.selectSystem')}>
           {readySystems.length === 0 ? (
             <div className="py-8 text-center space-y-3">
-              <AlertTriangle size={28} className="mx-auto text-accent-yellow opacity-60" />
+              <AlertTriangle size={28} className="mx-auto text-warning opacity-60" />
               <p className="text-sm text-[var(--text-muted)]">{t('quickInstall.noReadySystems')}</p>
               <Button variant="primary" size="sm" onClick={() => navigate('/store')}>
                 {t('quickInstall.goStore')}
@@ -380,7 +380,7 @@ export default function QuickInstall() {
                         )}
                       </div>
                     </div>
-                    {active && <Check size={16} className="text-blue-400 shrink-0" />}
+                    {active && <Check size={16} className="text-info shrink-0" />}
                   </button>
                 )
               })}
@@ -422,8 +422,8 @@ export default function QuickInstall() {
           {!effectiveTemplate && (
             <Card>
               <div className="flex items-center gap-3">
-                <AlertTriangle size={16} className="text-accent-red shrink-0" />
-                <span className="text-sm text-accent-red flex-1">{t('quickInstall.missingTemplateWarn')}</span>
+                <AlertTriangle size={16} className="text-danger shrink-0" />
+                <span className="text-sm text-danger flex-1">{t('quickInstall.missingTemplateWarn')}</span>
                 <Button size="sm" onClick={() => navigate('/answer-templates')}>
                   {t('quickInstall.goAnswerTemplates')}
                 </Button>
@@ -545,7 +545,7 @@ export default function QuickInstall() {
                     ) : (
                       <>
                         <Tag color="red">{t('quickInstall.resultFail')}</Tag>
-                        <span className="text-xs text-accent-red/80 truncate" title={r.error}>{r.error}</span>
+                        <span className="text-xs text-danger/80 truncate" title={r.error}>{r.error}</span>
                       </>
                     )}
                   </div>

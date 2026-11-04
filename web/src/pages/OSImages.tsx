@@ -28,22 +28,22 @@ function formatSize(bytes: number): string {
 
 function statusIcon(status: string) {
   switch (status) {
-    case 'ready': return <CheckCircle size={14} className="text-accent-green" />
+    case 'ready': return <CheckCircle size={14} className="text-success" />
     case 'uploading':
-    case 'validating': return <Clock size={14} className="text-accent-yellow" />
+    case 'validating': return <Clock size={14} className="text-warning" />
     case 'missing':
-    case 'error': return <AlertCircle size={14} className="text-accent-red" />
+    case 'error': return <AlertCircle size={14} className="text-danger" />
     default: return <Clock size={14} className="text-[var(--text-muted)]" />
   }
 }
 
 function statusColorClass(status: string) {
   switch (status) {
-    case 'ready': return 'text-accent-green'
+    case 'ready': return 'text-success'
     case 'uploading':
-    case 'validating': return 'text-accent-yellow'
+    case 'validating': return 'text-warning'
     case 'missing':
-    case 'error': return 'text-accent-red'
+    case 'error': return 'text-danger'
     default: return 'text-[var(--text-muted)]'
   }
 }
@@ -380,7 +380,7 @@ export default function OSImages() {
         <div className="flex items-center gap-1.5">
           {statusIcon(img.status || '')}
           <span className={`text-[10px] font-medium ${statusColorClass(img.status || '')}`}>{img.status}</span>
-          {img.error_message && <span className="text-[10px] text-accent-red truncate max-w-[160px]" title={img.error_message}>{img.error_message}</span>}
+          {img.error_message && <span className="text-[10px] text-danger truncate max-w-[160px]" title={img.error_message}>{img.error_message}</span>}
         </div>
       ),
     },
@@ -402,7 +402,7 @@ export default function OSImages() {
     {
       key: 'installSource', label: t('osImages.installSource'),
       render: (img) => img.extracted_to
-        ? <span className="text-accent-green font-mono text-[10px]">{`${window.location.origin}/boot/isos/${img.extracted_to.split(/[\\/]/).pop()}/`}</span>
+        ? <span className="text-success font-mono text-[10px]">{`${window.location.origin}/boot/isos/${img.extracted_to.split(/[\\/]/).pop()}/`}</span>
         : <span className="text-[var(--text-muted)]">—</span>,
     },
     { key: 'created_at', label: t('osImages.colCreated'), sortable: true, render: (img) => <span className="text-[10px] text-[var(--text-muted)]">{formatTime(img.created_at || '')}</span> },
@@ -411,7 +411,7 @@ export default function OSImages() {
       render: (img) => (
         <div className="flex items-center justify-end gap-1.5">
           {(img.status === 'error' || (img.status === 'ready' && !img.distro)) && (
-            <button onClick={() => handleReprocess(img.id!)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-blue-400`}>
+            <button onClick={() => handleReprocess(img.id!)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-info`}>
               <RefreshCw size={11} /> {t('osImages.reprocess')}
             </button>
           )}
@@ -423,11 +423,11 @@ export default function OSImages() {
                 </button>
               )}
               {!img.mount_point ? (
-                <button onClick={() => handleMount(img.id!)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-blue-400`}>
+                <button onClick={() => handleMount(img.id!)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-info`}>
                   <HardDrive size={11} /> {t('osImages.mount')}
                 </button>
               ) : (
-                <button onClick={() => setUnmountTarget(img)} className={`${actionBtn} hover:bg-accent-yellow/15 hover:text-accent-yellow`}>
+                <button onClick={() => setUnmountTarget(img)} className={`${actionBtn} hover:bg-accent-yellow/15 hover:text-warning`}>
                   <HardDrive size={11} /> {t('osImages.unmount')}
                 </button>
               )}
@@ -439,7 +439,7 @@ export default function OSImages() {
             </button>
           )}
           {distroKind(img.distro) === 'windows' && img.extracted_to && (
-            <button onClick={() => handleSetCatalogLocal(img.id!)} className={`${actionBtn} hover:bg-accent-green/15 hover:text-accent-green`} title={t('osImages.setCatalogLocalHint')}>
+            <button onClick={() => handleSetCatalogLocal(img.id!)} className={`${actionBtn} hover:bg-accent-green/15 hover:text-success`} title={t('osImages.setCatalogLocalHint')}>
               <CloudDownload size={11} /> {t('osImages.setCatalogLocal')}
             </button>
           )}
@@ -448,15 +448,15 @@ export default function OSImages() {
               onClick={() => openInject(img)}
               disabled={!capabilities?.offline_driver_injection}
               title={capabilities?.offline_driver_injection ? t('osImages.injectDrivers') : t('osImages.injectDriversUnsupported')}
-              className={`${actionBtn} ${capabilities?.offline_driver_injection ? 'hover:bg-cyan-500/15 hover:text-cyan-400' : 'opacity-40 cursor-not-allowed'}`}
+              className={`${actionBtn} ${capabilities?.offline_driver_injection ? 'hover:bg-cyan-500/15 hover:text-cyan-text' : 'opacity-40 cursor-not-allowed'}`}
             >
               <Cpu size={11} /> {t('osImages.injectDrivers')}
             </button>
           )}
-          <button onClick={() => openEdit(img)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-blue-400`}>
+          <button onClick={() => openEdit(img)} className={`${actionBtn} hover:bg-blue-500/15 hover:text-info`}>
             <Pencil size={11} /> {t('osImages.edit')}
           </button>
-          <button onClick={() => setDeleteTarget(img)} className={`${actionBtn} hover:bg-accent-red/15 hover:text-accent-red`}>
+          <button onClick={() => setDeleteTarget(img)} className={`${actionBtn} hover:bg-accent-red/15 hover:text-danger`}>
             <Trash2 size={11} /> {t('osImages.delete')}
           </button>
         </div>
@@ -564,7 +564,7 @@ export default function OSImages() {
             <div className="mt-3 w-full text-left" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between text-[10px] mb-1">
                 <span className="text-[var(--text-secondary)] font-mono truncate mr-2">{uploadProgress.name}</span>
-                <span className="text-blue-400 font-medium shrink-0">{uploadProgress.percent}%</span>
+                <span className="text-info font-medium shrink-0">{uploadProgress.percent}%</span>
               </div>
               <div className="h-1.5 rounded-full bg-[var(--bg-input)] overflow-hidden">
                 <div className="h-full rounded-full bg-blue-500 transition-all duration-200" style={{ width: `${uploadProgress.percent}%` }} />
@@ -625,7 +625,7 @@ export default function OSImages() {
               {t('osImages.deleteFileToo')}
             </label>
             {deleteFileToo && (
-              <p className="text-[11px] font-mono text-accent-red break-all">{deleteTarget.source_path}</p>
+              <p className="text-[11px] font-mono text-danger break-all">{deleteTarget.source_path}</p>
             )}
           </div>
         ) : (
@@ -641,7 +641,7 @@ export default function OSImages() {
         open={!!unmountTarget}
         onClose={() => setUnmountTarget(null)}
         onConfirm={() => { if (unmountTarget?.id) handleUnmount(unmountTarget.id) }}
-        title={t('osImages.unmount')}
+        title={t('osImages.unmount')} confirmLabel={t('osImages.unmount')}
         message={t('osImages.confirmUnmount', { name: unmountTarget?.name })}
       />
 
@@ -673,10 +673,10 @@ export default function OSImages() {
       <Modal open={!!injectTarget} onClose={() => { if (!injecting && !restoring) setInjectTarget(null) }} title={t('osImages.injectTitle')}>
         <div className="space-y-4">
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">{t('osImages.injectHint')}</p>
-          <p className="text-xs text-accent-yellow leading-relaxed">{t('osImages.injectSlowHint')}</p>
+          <p className="text-xs text-warning leading-relaxed">{t('osImages.injectSlowHint')}</p>
 
           {injectTarget && !capabilities?.offline_driver_injection && (
-            <div className="flex items-start gap-2 text-xs text-accent-yellow bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 leading-relaxed">
+            <div className="flex items-start gap-2 text-xs text-warning bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 leading-relaxed">
               <AlertCircle size={13} className="shrink-0 mt-0.5" />
               <span>{t('osImages.injectDriversUnsupported')}</span>
             </div>
@@ -705,7 +705,7 @@ export default function OSImages() {
                   value={injectForm.index}
                   onChange={e => setInjectForm({ ...injectForm, index: parseInt(e.target.value, 10) || 1 })}
                 />
-                <button type="button" onClick={loadInjectIndexes} className={`${actionBtn} hover:bg-blue-500/15 hover:text-blue-400`}>
+                <button type="button" onClick={loadInjectIndexes} className={`${actionBtn} hover:bg-blue-500/15 hover:text-info`}>
                   <RefreshCw size={11} /> {t('osImages.injectLoadIndexes')}
                 </button>
               </div>
@@ -716,7 +716,7 @@ export default function OSImages() {
                       key={ix.index}
                       type="button"
                       onClick={() => setInjectForm({ ...injectForm, index: ix.index })}
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${injectForm.index === ix.index ? 'border-blue-500 text-blue-400' : 'border-[var(--bg-border)] text-[var(--text-muted)]'}`}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${injectForm.index === ix.index ? 'border-blue-500 text-info' : 'border-[var(--bg-border)] text-[var(--text-muted)]'}`}
                       title={ix.description || ix.name || ''}
                     >
                       {ix.index}{ix.name ? ` · ${ix.name}` : ''}
@@ -743,7 +743,7 @@ export default function OSImages() {
 
           {injectResult && (
             <div className="text-xs bg-accent-green/10 border border-accent-green/30 rounded px-3 py-2 space-y-1">
-              <div className="text-accent-green font-medium">{t('osImages.injectDone', { count: injectResult.injected.length })}</div>
+              <div className="text-success font-medium">{t('osImages.injectDone', { count: injectResult.injected.length })}</div>
               {injectResult.drivers && injectResult.drivers.length > 0 && (
                 <div className="text-[var(--text-secondary)]">{t('osImages.injectVerified', { count: injectResult.drivers.length })}</div>
               )}
@@ -796,7 +796,7 @@ export default function OSImages() {
                 <button
                   onClick={() => { setImportDir(browseState.path); setBrowseState(null) }}
                   disabled={!browseState.path}
-                  className="text-[11px] text-blue-400 hover:text-blue-300 font-medium shrink-0 ml-2 disabled:opacity-40"
+                  className="text-[11px] text-info hover:opacity-80 font-medium shrink-0 ml-2 disabled:opacity-40"
                 >
                   {t('osImages.browseSelect')}
                 </button>
@@ -816,7 +816,7 @@ export default function OSImages() {
                     onClick={() => browseTo(browseState.path ? `${browseState.path.replace(/[\\/]+$/, '')}/${d}` : d)}
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-[var(--foreground-primary)] hover:bg-[var(--hover)]"
                   >
-                    <Folder size={12} className="text-accent-yellow shrink-0" /> {d}
+                    <Folder size={12} className="text-warning shrink-0" /> {d}
                   </button>
                 ))}
               </div>

@@ -66,7 +66,7 @@ export function InterfaceEditModal({
                 <span className="text-sm font-medium text-[var(--text-primary)]">{t('settings.subnetNumber', { num: si + 1 })}</span>
                 {form.subnets.length > 1 && (
                   <button onClick={() => setForm({...form, subnets: form.subnets.filter((_, j) => j !== si)})}
-                    className="text-xs text-accent-red transition-colors">{t('settings.subnetRemove')}</button>
+                    className="text-xs text-danger transition-colors">{t('settings.subnetRemove')}</button>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -111,13 +111,13 @@ export function InterfaceEditModal({
                             <button onClick={() => {
                               const sn = [...form.subnets]; sn[si] = {...sn[si], pools: sn[si].pools.filter((_, j) => j !== pi)}
                               setForm({...form, subnets: sn})
-                            }} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-accent-red transition-colors text-xs font-bold">✕</button>
+                            }} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-danger transition-colors text-xs font-bold">✕</button>
                           </div>
                         ))}
                         <button onClick={() => {
                           const sn = [...form.subnets]; sn[si] = {...sn[si], pools: [...sn[si].pools, '']}
                           setForm({...form, subnets: sn})
-                        }} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{t('settings.addAddressRange')}</button>
+                        }} className="text-xs text-info hover:opacity-80 transition-colors">{t('settings.addAddressRange')}</button>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <SettingsField label={t('settings.gateway')}>
@@ -158,7 +158,7 @@ export function InterfaceEditModal({
                     }} className="rounded border-[var(--bg-border)] w-4 h-4" />
                     <span>{t('settings.chainToIpxe')}</span>
                     {s.chainToIPXE && (
-                      <span className="text-xs text-blue-400">{t('settings.chainToIpxeHint')}</span>
+                      <span className="text-xs text-info">{t('settings.chainToIpxeHint')}</span>
                     )}
                   </label>
                   <label className="flex items-center gap-2.5 text-sm text-[var(--text-secondary)] cursor-pointer">
@@ -169,7 +169,7 @@ export function InterfaceEditModal({
                       }} className="rounded border-[var(--bg-border)] w-4 h-4" />
                     <span>{t('settings.enableSubnetWhitelist')}</span>
                     {globalWhitelistEnabled && (
-                      <span className="text-xs text-blue-400">{t('settings.subnetWhitelistForced')}</span>
+                      <span className="text-xs text-info">{t('settings.subnetWhitelistForced')}</span>
                     )}
                   </label>
                 </>

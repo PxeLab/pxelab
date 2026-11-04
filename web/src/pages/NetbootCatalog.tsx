@@ -56,11 +56,11 @@ const ANSWER_TYPES = [
 function archBadge(arch: string) {
   if (!arch) return null
   const colors: Record<string, string> = {
-    amd64: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    x86_64: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    amd64: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-info',
+    x86_64: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-info',
     i386: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    arm64: 'bg-accent-green/10 text-accent-green',
-    aarch64: 'bg-accent-green/10 text-accent-green',
+    arm64: 'bg-accent-green/10 text-success',
+    aarch64: 'bg-accent-green/10 text-success',
   }
   return (
     <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-medium ${colors[arch] || 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
@@ -73,7 +73,7 @@ function bootTypeTag(t: string | undefined) {
   if (!t) return null
   const colors: Record<string, string> = {
     kernel: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
-    memdisk: 'bg-accent-yellow/10 text-accent-yellow',
+    memdisk: 'bg-accent-yellow/10 text-warning',
     memtest: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
     sanboot: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
     wimboot: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
@@ -90,9 +90,9 @@ function installTypeTag(t: string | undefined) {
   const colors: Record<string, string> = {
     legacy: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
     subiquity: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-    live: 'bg-accent-green/10 text-accent-green',
+    live: 'bg-accent-green/10 text-success',
     direct: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-    bsd: 'bg-accent-red/10 text-accent-red',
+    bsd: 'bg-accent-red/10 text-danger',
   }
   return (
     <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-medium ${colors[t] || ''}`}>
@@ -293,10 +293,10 @@ export default function NetbootCatalog() {
                       <span className="text-xs font-medium text-[var(--text-primary)]">{ver.name} ({ver.arch})</span>
                       {isExpanded ? (
                         <button onClick={() => removeVersionOverride(voIdx)}
-                          className="text-[10px] text-accent-red">{t('netbootCatalog.overlayRemove')}</button>
+                          className="text-[10px] text-danger">{t('netbootCatalog.overlayRemove')}</button>
                       ) : (
                         <button onClick={() => addVersionOverride(ver.codename, ver.arch)}
-                          className="text-[10px] text-blue-400 hover:text-blue-300">{t('netbootCatalog.overlayAdd')}</button>
+                          className="text-[10px] text-info hover:opacity-80">{t('netbootCatalog.overlayAdd')}</button>
                       )}
                     </div>
                     {isExpanded && existingVo && (() => {
@@ -387,7 +387,7 @@ export default function NetbootCatalog() {
           {distro.requires_local_image && (
             <span
               title={distro.image_hint || t('netbootCatalog.requiresLocalImageTitle')}
-              className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/15 text-amber-400 whitespace-nowrap"
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/15 text-warning whitespace-nowrap"
             >
               {t('netbootCatalog.requiresLocalImage')}
             </span>
@@ -458,13 +458,13 @@ export default function NetbootCatalog() {
         const statusKey = `${distro.name}/${version.name}/${version.arch}`
         const hasLocal = fileStatuses[statusKey] || !!version.local
         if (hasLocal) {
-          return <CheckCircle2 size={14} className="text-accent-green inline" />
+          return <CheckCircle2 size={14} className="text-success inline" />
         }
         const remoteOnly = !version.local && !!version.remote
         return (
           <span title={remoteOnly ? t('netbootCatalog.remoteOnlyTitle') : t('netbootCatalog.colCacheTitle')} className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wide font-medium">
-            <XCircle size={13} className={remoteOnly ? 'text-amber-400 inline' : 'text-accent-red/60 inline'} />
-            {remoteOnly && <span className="text-amber-400 text-[10px]">{t('netbootCatalog.remoteOnly')}</span>}
+            <XCircle size={13} className={remoteOnly ? 'text-warning inline' : 'text-danger/60 inline'} />
+            {remoteOnly && <span className="text-warning text-[10px]">{t('netbootCatalog.remoteOnly')}</span>}
           </span>
         )
       },
@@ -479,7 +479,7 @@ export default function NetbootCatalog() {
             setCreateTarget({ distro, version })
             setCreateName(distro.name + ' ' + version.name)
           }}
-          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded transition-colors bg-accent-green/15 text-accent-green hover:bg-accent-green/25"
+          className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded transition-colors bg-accent-green/15 text-success hover:bg-accent-green/25"
         >
           <Plus size={12} /> {t('netbootCatalog.create')}
         </button>
@@ -496,7 +496,7 @@ export default function NetbootCatalog() {
             onClick={() => openOverlay(distro)}
             className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded transition-colors ${
               hasOverlay
-                ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/25'
+                ? 'bg-blue-500/15 text-info hover:bg-blue-500/25'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
             }`}
           >
@@ -543,7 +543,7 @@ export default function NetbootCatalog() {
             onClick={() => setSearchParams({ tab: tab.key })}
             className={`px-3 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-[1px] ${
               activeTab === tab.key
-                ? 'border-blue-500 text-blue-400'
+                ? 'border-blue-500 text-info'
                 : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
@@ -578,7 +578,7 @@ export default function NetbootCatalog() {
             {overlays[overlayDistro?.name || '']?.id && (
               <button
                 onClick={() => setConfirmDeleteOverlay(true)}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-red/15 text-accent-red hover:bg-accent-red/25 transition-colors"
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent-red/15 text-danger hover:bg-accent-red/25 transition-colors"
               >
                 <Trash2 size={12} className="inline mr-1" />{t('netbootCatalog.overlayDelete')}
               </button>
@@ -592,7 +592,7 @@ export default function NetbootCatalog() {
             <button
               onClick={saveOverlay}
               disabled={overlaySaving}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 disabled:opacity-40 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-info hover:bg-blue-500/25 disabled:opacity-40 transition-colors"
             >
               {overlaySaving ? t('netbootCatalog.saving') : t('netbootCatalog.overlaySave')}
             </button>
@@ -606,7 +606,9 @@ export default function NetbootCatalog() {
         open={confirmDeleteOverlay}
         onClose={() => setConfirmDeleteOverlay(false)}
         onConfirm={async () => { setConfirmDeleteOverlay(false); await deleteOverlay() }}
+        title={t('common.delete')}
         message={t('netbootCatalog.confirmDeleteOverlay', { name: overlayDistro?.name || '' })}
+        confirmLabel={t('common.delete')}
       />
 
       {/* Create Profile Dialog */}
@@ -643,7 +645,7 @@ export default function NetbootCatalog() {
                 setCreateLoading(false)
               }}
               disabled={createLoading || !createName.trim()}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 disabled:opacity-40 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500/15 text-info hover:bg-blue-500/25 disabled:opacity-40 transition-colors"
             >
               {createLoading ? t('netbootCatalog.creating') : t('netbootCatalog.createConfirm')}
             </button>

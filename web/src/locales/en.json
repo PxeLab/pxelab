@@ -12,6 +12,9 @@
     "failed": "Login failed. Please check your token.",
     "hint": "First time? Check the initial token in the server terminal, or access settings from the local machine."
   },
+  "langSwitch": {
+    "label": "Switch language"
+  },
   "nav": {
     "section": {
       "overview": "Overview",
@@ -37,6 +40,7 @@
       "webhooks": "Notifications"
     },
     "dashboard": "Dashboard",
+    "openMenu": "Open navigation menu",
     "hosts": "Hosts",
     "profiles": "Boot Menu",
     "files": "Files",
@@ -45,7 +49,7 @@
     "logs": "Live Logs",
     "services": "Services",
     "about": "About",
-    "netboot": "OS Catalog",
+    "netboot": "Netboot Catalog",
     "leases": "DHCP Leases",
     "installTasks": "Install Tasks",
     "bmc": "OOB Control",
@@ -56,12 +60,16 @@
     "network": "Network Diagnostics",
     "bootSettings": "Boot Options",
     "baselines": "Baselines", "scripts": "Script Library",
-    "store": "Hub"
+    "store": "Resource Hub"
   },
   "dashboard": {
     "title": "Dashboard",
     "description": "PXE Network Boot Server Overview",
     "serviceStatus": "Service Status",
+    "serviceOverview": "Service Overview",
+    "colService": "Service",
+    "colStatus": "Status",
+    "colMetrics": "Key Metrics",
     "stats": {
       "onlineHosts": "Online Hosts",
       "runningServices": "Running Services",
@@ -80,6 +88,7 @@
     "httpCount": "count",
     "serviceNotRunning": "Service Not Running",
     "noMetrics": "No Data",
+    "httpWindowHint": "Requests, rejections and status codes are deltas for the selected window; active connections are live",
     "offerAckNak": "Offer/Ack/Nak",
     "discoverRequest": "Discover/Request",
     "decline": "Decline",
@@ -194,7 +203,7 @@
       "reportSuccess": "Success",
       "reportFailed": "Failed"
     },
-    "deleteConfirm": "Are you sure you want to delete this host?",
+    "deleteConfirm": "Delete host \"{{name}}\" ({{mac}})? Its boot configuration and records will be removed. This cannot be undone.",
     "created": "Host created",
     "deleted": "Host deleted",
     "deleteTitle": "Delete Host",
@@ -366,7 +375,9 @@
     "title": "Files",
     "upload": "Upload File",
     "delete": "Delete",
-    "deleteConfirm": "Are you sure you want to delete this file?",
+    "deleteConfirm": "Delete file \"{{name}}\"? This cannot be undone.",
+    "copyMd5": "Copy MD5",
+    "md5Copied": "MD5 copied",
     "name": "File Name",
     "size": "Size",
     "modified": "Modified",
@@ -743,7 +754,11 @@
     "newInterface": "New Interface",
     "dhcpEmpty": "No interface configurations. Click \"New Interface\" above to add.",
     "confirmDeleteTitle": "Confirm Delete",
-    "deleteInterfaceConfirm": "Delete interface {{name}} configuration?",
+    "deleteInterfaceConfirm": "Delete the configuration for interface {{name}}? This interface will stop handing out addresses and machines depending on it may fail to boot.",
+    "applyDhcpTitle": "Apply DHCP configuration",
+    "applyDhcpConfirmButton": "Apply and restart DHCP",
+    "applyDhcpConfirm": "This writes {{names}} with {{subnets}} subnet(s).",
+    "applyDhcpHint": "DHCP reloads after applying. Existing leases are kept, but machines that are booting may be interrupted briefly.",
     "saved": "Saved",
     "deleted": "Deleted",
     "loadInterfaceFailed": "Failed to load interface settings",
@@ -933,6 +948,11 @@
     "serviceOpLoading": "{{op}} {{name}}…",
     "serviceOpSuccess": "{{name}} {{op}} succeeded",
     "serviceCount": "{{count}} services",
+    "serviceStatus": "Service status",
+    "stopConfirmTitle": "Stop services",
+    "restartConfirmTitle": "Restart services",
+    "stopConfirm": "Stop {{names}}? Machines currently booting will fail immediately, and unfinished file transfers will be interrupted.",
+    "restartConfirm": "Restart {{names}}? Booting and file transfers will be interrupted briefly.",
     "fieldRequired": "This field is required",
     "invalidJSON": "Invalid JSON format",
   
@@ -1765,7 +1785,7 @@
     "noScripts": "No scripts yet. Create your first script to reuse across baselines."
   },
   "store": {
-    "title": "PxeLab Hub",
+    "title": "PxeLab Resource Hub",
     "description": "Browse and import community-contributed baselines, boot templates, and configurations",
     "searchPlaceholder": "Search Hub items...",
     "import": "Import",

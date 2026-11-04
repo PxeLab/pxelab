@@ -13,9 +13,9 @@ import { DataTable, type Column } from '../components/ui/DataTable'
 import { api, createAndAddBaselineScript, type Baseline, type BaselineScriptAssignment, type scriptDTO, type SetScriptsItem } from '../api/client'
 
 const SCRIPT_TYPE_COLORS: Record<string, string> = {
-  shell: 'bg-accent-green/15 text-accent-green',
-  bat: 'bg-blue-500/15 text-blue-400',
-  powershell: 'bg-accent-yellow/15 text-accent-yellow',
+  shell: 'bg-accent-green/15 text-success',
+  bat: 'bg-blue-500/15 text-info',
+  powershell: 'bg-accent-yellow/15 text-warning',
 }
 
 export default function BaselineDetail() {
@@ -310,7 +310,7 @@ export default function BaselineDetail() {
             </button>
             <button
               onClick={() => handleRemoveScript(item.script_id)}
-              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent-red hover:bg-accent-red/10 transition-colors"
+              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-danger hover:bg-accent-red/10 transition-colors"
               title={t('common.delete')}
             >
               <Trash2 size={14} />
@@ -335,10 +335,10 @@ export default function BaselineDetail() {
   if (loadError) {
     return (
       <div className="space-y-5">
-        <button onClick={() => navigate('/baselines')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-blue-400 transition-colors">
+        <button onClick={() => navigate('/baselines')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-info transition-colors">
           <ArrowLeft size={14} /> {t('common.back')}
         </button>
-        <Card><div className="py-8 text-center text-sm text-accent-red">{loadError}</div></Card>
+        <Card><div className="py-8 text-center text-sm text-danger">{loadError}</div></Card>
       </div>
     )
   }
@@ -348,7 +348,7 @@ export default function BaselineDetail() {
   return (
     <div className="space-y-5">
       {/* Back + Header */}
-      <button onClick={() => navigate('/baselines')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-blue-400 transition-colors">
+      <button onClick={() => navigate('/baselines')} className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-info transition-colors">
         <ArrowLeft size={14} /> {t('common.back')}
       </button>
 
@@ -399,7 +399,7 @@ export default function BaselineDetail() {
                   <div className="bg-[var(--bg-input)] rounded-lg p-3 space-y-1">
                     {Object.entries(baseline.variables).map(([k, v]) => (
                       <div key={k} className="flex items-center gap-2 text-xs">
-                        <span className="font-mono text-blue-400">{k}</span>
+                        <span className="font-mono text-info">{k}</span>
                         <span className="text-[var(--text-muted)]">=</span>
                         <span className="font-mono text-[var(--text-primary)]">{String(v)}</span>
                       </div>
@@ -501,7 +501,7 @@ export default function BaselineDetail() {
                   type="checkbox"
                   checked={selectedScriptIds.has(sc.id)}
                   onChange={() => toggleSelectScript(sc.id)}
-                  className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+                  className="rounded border-[var(--bg-border)] text-info focus:ring-blue-500/30"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -535,7 +535,7 @@ export default function BaselineDetail() {
         }
       >
         {inlineError && (
-          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">{inlineError}</div>
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-danger">{inlineError}</div>
         )}
         <div className="space-y-4">
           <div>
@@ -570,7 +570,7 @@ export default function BaselineDetail() {
         open={deleteScriptTarget !== null}
         onClose={() => setDeleteScriptTarget(null)}
         onConfirm={confirmRemoveScript}
-        title={t('common.delete')}
+        title={t('common.delete')} confirmLabel={t('common.delete')}
         message={t('baselines.deleteScriptConfirm')}
       />
     </div>

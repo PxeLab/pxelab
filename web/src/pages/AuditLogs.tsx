@@ -10,9 +10,9 @@ import { useUIConfig } from '../contexts/UIConfigContext'
 import { api, type AuditLog } from '../api/client'
 
 const actionColors: Record<string, string> = {
-  CREATE: 'bg-accent-green/10 text-accent-green border-accent-green/30',
-  UPDATE: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-  DELETE: 'bg-accent-red/10 text-accent-red border-accent-red/30',
+  CREATE: 'bg-accent-green/10 text-success border-accent-green/30',
+  UPDATE: 'bg-blue-500/10 text-info border-blue-500/30',
+  DELETE: 'bg-accent-red/10 text-danger border-accent-red/30',
 }
 const resourceKeys = [
   'host', 'profile', 'settings', 'tftp_settings', 'dhcp_settings',
@@ -92,7 +92,7 @@ export default function AuditLogs() {
             onClick={() => { setActionFilter(a); setPage(1) }}
             className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
               actionFilter === a
-                ? a ? `${actionColors[a]} border` : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                ? a ? `${actionColors[a]} border` : 'bg-blue-500/10 text-info border-blue-500/30'
                 : 'border-[var(--bg-border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
             }`}
           >

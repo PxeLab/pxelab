@@ -1,4 +1,5 @@
 import { type FC, createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CheckCircle2, XCircle, Info, AlertTriangle, X, Loader2 } from 'lucide-react'
 
 type ToastType = 'success' | 'error' | 'info' | 'warning' | 'loading'
@@ -53,11 +54,11 @@ const colorMap: Record<ToastType, string> = {
 }
 
 const iconColorMap: Record<ToastType, string> = {
-  success: 'text-accent-green',
-  error: 'text-accent-red',
-  info: 'text-blue-400',
-  warning: 'text-accent-yellow',
-  loading: 'text-blue-400 animate-spin',
+  success: 'text-success',
+  error: 'text-danger',
+  info: 'text-info',
+  warning: 'text-warning',
+  loading: 'text-info animate-spin',
 }
 
 const DEFAULT_DURATION = 3500
@@ -65,6 +66,7 @@ const DEFAULT_DURATION = 3500
 let nextId = 0
 
 export const ToastProvider: FC<{ children: ReactNode }> = ({ children }) => {
+  const { t } = useTranslation()
   const [toasts, setToasts] = useState<Toast[]>([])
   const timersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>())
 
@@ -122,17 +124,17 @@ export const ToastProvider: FC<{ children: ReactNode }> = ({ children }) => {
   return (
     <ToastContext.Provider value={{ toast, success, error, info, warning, showToast, dismiss, promise }}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2">
-        {toasts.map(t => {
-          const Icon = iconMap[t.type]
+      <div className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2" role="status" aria-live="polite">
+        {toasts.map(item => {
+          const Icon = iconMap[item.type]
           return (
             <div
-              key={t.id}
-              className={`flex items-center gap-2.5 px-4 py-3 rounded-lg bg-[var(--bg-card)] border ${colorMap[t.type]} shadow-lg text-sm text-[var(--text-primary)] min-w-[300px]`}
+              key={item.id}
+              className={`flex items-start gap-2.5 px-4 py-3 rounded-lg bg-[var(--bg-card)] border ${colorMap[item.type]} shadow-lg text-sm text-[var(--text-primary)] min-w-[300px] max-w-[420px]`}
             >
-              <Icon size={16} className={`shrink-0 ${iconColorMap[t.type]}`} />
-              <span className="flex-1">{t.message}</span>
-              <button onClick={() => dismiss(t.id)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+              <Icon size={16} className={`shrink-0 mt-0.5 ${iconColorMap[item.type]}`} />
+              <span className="flex-1 whitespace-pre-line">{item.message}</span>
+              <button onClick={() => dismiss(item.id)} aria-label={t('common.close')} className="shrink-0 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                 <X size={14} />
               </button>
             </div>

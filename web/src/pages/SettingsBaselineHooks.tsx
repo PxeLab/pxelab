@@ -92,7 +92,7 @@ export default function SettingsBaselineHooks() {
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
                   {t(`baselineHooks.${key}`)}
                   {hooks[key].trim() !== '' && (
-                    <span className="ml-2 px-1.5 py-px rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">{t('baselineHooks.customized')}</span>
+                    <span className="ml-2 px-1.5 py-px rounded bg-blue-500/10 text-info text-[10px] font-medium">{t('baselineHooks.customized')}</span>
                   )}
                 </label>
                 <textarea

@@ -43,26 +43,26 @@ const SERVICES = [
 const LEVELS: { value: LogLevel | ''; label: string; color: string }[] = [
   { value: '', label: 'logs.allLevels', color: '' },
   { value: 'debug', label: 'DEBUG', color: 'text-gray-500' },
-  { value: 'info', label: 'INFO', color: 'text-blue-400' },
-  { value: 'warn', label: 'WARN', color: 'text-accent-yellow' },
-  { value: 'error', label: 'ERROR', color: 'text-accent-red' },
+  { value: 'info', label: 'INFO', color: 'text-info' },
+  { value: 'warn', label: 'WARN', color: 'text-warning' },
+  { value: 'error', label: 'ERROR', color: 'text-danger' },
 ]
 
 const LEVEL_COLORS: Record<string, string> = {
-  debug: 'bg-gray-500/20 text-gray-400',
-  info: 'bg-blue-500/20 text-blue-400',
-  warn: 'bg-accent-yellow/20 text-accent-yellow',
-  error: 'bg-accent-red/20 text-accent-red',
+  debug: 'bg-gray-500/20 text-[var(--text-muted)]',
+  info: 'bg-blue-500/20 text-info',
+  warn: 'bg-accent-yellow/20 text-warning',
+  error: 'bg-accent-red/20 text-danger',
 }
 
 const SERVICE_COLORS: Record<string, string> = {
-  DHCP: 'bg-purple-500/20 text-purple-400',
-  TFTP: 'bg-cyan-500/20 text-cyan-400',
-  HTTP: 'bg-accent-green/20 text-accent-green',
-  DNS: 'bg-orange-500/20 text-orange-400',
-  NFS: 'bg-blue-500/20 text-blue-400',
+  DHCP: 'bg-purple-500/20 text-purple-text',
+  TFTP: 'bg-cyan-500/20 text-cyan-text',
+  HTTP: 'bg-accent-green/20 text-success',
+  DNS: 'bg-orange-500/20 text-orange-text',
+  NFS: 'bg-blue-500/20 text-info',
   IPMI: 'bg-pink-500/20 text-pink-400',
-  BOOT: 'bg-accent-yellow/20 text-accent-yellow',
+  BOOT: 'bg-accent-yellow/20 text-warning',
   SMB: 'bg-rose-500/20 text-rose-400',
 }
 
@@ -197,7 +197,7 @@ export default function Logs() {
               <Trash2 size={14} className="mr-1" /> {t('logs.clearAll')}
             </Button>
             <span title={isFullscreen ? t('common.exitFullscreen') : t('common.fullscreen')}>
-              <Button variant="ghost" size="sm" onClick={toggleFullscreen}>
+              <Button variant="ghost" size="sm" aria-label={isFullscreen ? t('common.exitFullscreen') : t('common.fullscreen')} onClick={toggleFullscreen}>
                 {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
               </Button>
             </span>
@@ -237,7 +237,7 @@ export default function Logs() {
                 <span className="text-[11px] text-[var(--text-muted)] font-mono mr-1">{panel.logs.length}</span>
                 <button
                   onClick={() => clearPanel(panel.id)}
-                  className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-accent-red transition-colors"
+                  className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-danger transition-colors"
                   title={t('logs.clear')}
                 >
                   <Trash2 size={13} />

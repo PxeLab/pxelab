@@ -309,7 +309,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
     { key: 'is_default', label: t('profiles.isDefault'), render: (p) => p.is_default ? <Tag color="green">{t('profiles.default')}</Tag> : null },
     { key: 'actions', label: '', render: (p) => (
       <div className="flex gap-1 whitespace-nowrap">
-        <Button variant="ghost" size="sm" onClick={() => openPreview(p)}><Eye size={13} /></Button>
+        <Button variant="ghost" size="sm" aria-label={`${t('common.preview')} ${p.name}`} onClick={() => openPreview(p)}><Eye size={13} /></Button>
         <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>{t('common.edit')}</Button>
         <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}>{t('common.delete')}</Button>
       </div>
@@ -382,8 +382,8 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
               setNameError(false)
               setForm({ ...form, name: v })
             }} placeholder={t('profiles.namePlaceholder')} />
-            {nameError && <p className="text-xs text-accent-red mt-1">{t('profiles.nameRequired')}</p>}
-            {nameAsciiError && <p className="text-xs text-accent-red mt-1">{t('profiles.nameAsciiOnly')}</p>}
+            {nameError && <p className="text-xs text-danger mt-1">{t('profiles.nameRequired')}</p>}
+            {nameAsciiError && <p className="text-xs text-danger mt-1">{t('profiles.nameAsciiOnly')}</p>}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">{t('profiles.arch')} <span className="text-[var(--text-muted)] font-normal">{t('profiles.archHint')}</span></label>
@@ -426,10 +426,10 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                     const newVars = { ...form.variables }
                     delete newVars[key]
                     setForm({ ...form, variables: newVars })
-                  }} className="text-accent-red/60 hover:text-accent-red text-xs shrink-0 px-1">&times;</button>
+                  }} className="text-danger/60 hover:text-danger text-xs shrink-0 px-1">&times;</button>
                 </div>
               ))}
-              <button type="button" onClick={() => setForm({ ...form, variables: { ...form.variables, '': '' } })} className="text-xs text-blue-500 hover:text-blue-400">
+              <button type="button" onClick={() => setForm({ ...form, variables: { ...form.variables, '': '' } })} className="text-xs text-info hover:text-info">
                 + {t('common.add')}
               </button>
             </div>
@@ -465,7 +465,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
             <div className="bg-[var(--bg-base)] border border-[var(--bg-border)] rounded-lg p-4 space-y-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.entryType')}</label>
-                <select className="w-56 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={form.entry.type} onChange={e => updateEntry('type', e.target.value)}>
+                <select className="w-56 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/40" value={form.entry.type} onChange={e => updateEntry('type', e.target.value)}>
                   <option value="direct">{t('profiles.typeDirect')}</option>
                   <option value="chain">{t('profiles.typeChain')}</option>
                   <option value="local">{t('profiles.typeLocal')}</option>
@@ -488,7 +488,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.cmdline')}</label>
                     <textarea className="w-full bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 font-mono resize-none whitespace-pre-wrap break-all" rows={2} value={form.entry.cmdline || ''} onChange={e => updateEntry('cmdline', e.target.value)} placeholder={t('profiles.cmdlinePlaceholder')} />
                   </div>
-                  <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 text-xs text-accent-yellow leading-relaxed">
+                  <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 text-xs text-warning leading-relaxed">
                     {t('profiles.uefiInitrdHint')}
                   </div>
                 </>
@@ -503,7 +503,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                 <div className="space-y-2">
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.sanAction')}</label>
-                    <select className="w-56 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none" value={form.entry.san_action || 'boot'} onChange={e => updateEntry('san_action', e.target.value === 'boot' ? undefined : e.target.value)}>
+                    <select className="w-56 bg-[var(--bg-input)] border border-[var(--bg-border)] rounded px-2.5 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/40" value={form.entry.san_action || 'boot'} onChange={e => updateEntry('san_action', e.target.value === 'boot' ? undefined : e.target.value)}>
                       <option value="boot">{t('profiles.sanBoot')}</option>
                       <option value="hook">{t('profiles.sanHook')}</option>
                       <option value="zap">{t('profiles.sanZap')}</option>
@@ -541,7 +541,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                   <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.ipxeScript')} <span className="text-[var(--text-muted)] font-normal">{t('profiles.scriptHint')}</span></label>
                   <Textarea size="xs" className="px-2.5 py-1.5 font-mono" rows={6} value={form.entry.script || ''} onChange={e => updateEntry('script', e.target.value)} placeholder={"set keep-san 1\\nsanboot --drive 0x80 http://${next-server}/winpe.iso"} />
                   {editing && (
-                    <button type="button" onClick={openHistory} className="mt-1.5 flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-blue-400 transition-colors">
+                    <button type="button" onClick={openHistory} className="mt-1.5 flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-info transition-colors">
                       <HistoryIcon size={12} />
                       {t('profiles.scriptHistory')} ({versions.length})
                     </button>
@@ -563,8 +563,8 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                               <div className="text-[10px] text-[var(--text-muted)] truncate">{v.comment || '-'}</div>
                             </div>
                             <div className="flex items-center gap-1 ml-2 shrink-0">
-                              <button type="button" onClick={() => handleDiff(editing.id, v.id)} className="px-1.5 py-0.5 text-[10px] rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors">{t('profiles.scriptDiff')}</button>
-                              <button type="button" onClick={() => handleRollback(editing.id, v.id)} className="px-1.5 py-0.5 text-[10px] rounded bg-accent-yellow/10 text-accent-yellow hover:bg-accent-yellow/20 transition-colors">{t('profiles.scriptRollback')}</button>
+                              <button type="button" onClick={() => handleDiff(editing.id, v.id)} className="px-1.5 py-0.5 text-[10px] rounded bg-blue-500/10 text-info hover:bg-blue-500/20 transition-colors">{t('profiles.scriptDiff')}</button>
+                              <button type="button" onClick={() => handleRollback(editing.id, v.id)} className="px-1.5 py-0.5 text-[10px] rounded bg-accent-yellow/10 text-warning hover:bg-accent-yellow/20 transition-colors">{t('profiles.scriptRollback')}</button>
                             </div>
                           </div>
                         ))
@@ -583,7 +583,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                     <label className="block text-xs text-[var(--text-muted)] mb-0.5">{t('profiles.wdsWinBase')}</label>
                     <Input size="xs" className="px-2.5 py-1.5 font-mono" value={form.entry.wim || ''} onChange={e => updateEntry('wim', e.target.value)} placeholder="http://server/extracted/winiso" />
                   </div>
-                  <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 text-xs text-accent-yellow leading-relaxed">
+                  <div className="bg-accent-yellow/10 border border-accent-yellow/30 rounded px-3 py-2 text-xs text-warning leading-relaxed">
                     {t('profiles.wdsHint')}
                   </div>
                 </div>
@@ -593,7 +593,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                 <button
                   type="button"
                   onClick={() => setShowOSPicker(true)}
-                  className="text-xs text-blue-500 hover:text-blue-400"
+                  className="text-xs text-info hover:text-info"
                 >
                   {t('profiles.selectFromOs')}
                 </button>
@@ -692,8 +692,8 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
                           'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                         }`}>{ver.boot_type}</span>
                       )}
-                      {ver.local && <span className="text-accent-green ml-2 text-xs">{t('profiles.local')}</span>}
-                      {!ver.local && ver.remote && <span className="ml-2 text-[10px] text-amber-400" title={t('netbootCatalog.remoteOnlyTitle')}>{t('netbootCatalog.remoteOnly')}</span>}
+                      {ver.local && <span className="text-success ml-2 text-xs">{t('profiles.local')}</span>}
+                      {!ver.local && ver.remote && <span className="ml-2 text-[10px] text-warning" title={t('netbootCatalog.remoteOnlyTitle')}>{t('netbootCatalog.remoteOnly')}</span>}
                     </button>
                   ))}
                 </div>
@@ -844,8 +844,8 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
         <pre className="p-3 bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg text-xs font-mono whitespace-pre-wrap break-all max-h-96 overflow-y-auto leading-relaxed">
           {diffContent.split('\n').map((line, i) => {
             let cls = 'text-[var(--text-primary)]'
-            if (line.startsWith('+')) cls = 'text-accent-green'
-            else if (line.startsWith('-')) cls = 'text-accent-red'
+            if (line.startsWith('+')) cls = 'text-success'
+            else if (line.startsWith('-')) cls = 'text-danger'
             return <div key={i} className={cls}>{line || ' '}</div>
           })}
         </pre>
@@ -854,7 +854,7 @@ ${e.script || t('profiles.emptyScriptPlaceholder')}`
         open={!!confirmDeleteId}
         onClose={() => setConfirmDeleteId(null)}
         onConfirm={doDelete}
-        title={t('profiles.deleteTitle')}
+        title={t('profiles.deleteTitle')} confirmLabel={t('common.delete')}
         message={t('profiles.deleteConfirm')}
       />
     </div>

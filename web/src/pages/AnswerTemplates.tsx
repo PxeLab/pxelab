@@ -472,7 +472,7 @@ export default function AnswerTemplates() {
         <>
           <span className="text-sm font-medium text-[var(--text-primary)]">{tpl.name}</span>
           {tpl.current_version && tpl.current_version > 1 && (
-            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono rounded bg-blue-500/10 text-blue-400">
+            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono rounded bg-blue-500/10 text-info">
               v{tpl.current_version}
             </span>
           )}
@@ -534,15 +534,15 @@ export default function AnswerTemplates() {
       />
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-accent-red/10 border border-accent-red/20 text-sm text-accent-red">
+        <div className="mb-4 px-4 py-3 rounded-lg bg-accent-red/10 border border-accent-red/20 text-sm text-danger">
           {error}
-          <button onClick={() => setError('')} className="float-right text-accent-red/60 hover:text-accent-red">✕</button>
+          <button onClick={() => setError('')} className="float-right text-danger/60 hover:text-danger">✕</button>
         </div>
       )}
 
       {selected.size > 0 && (
         <div className="mb-3 px-4 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-between">
-          <span className="text-xs text-blue-400">{t('answerTemplates.selectedCount', { count: selected.size })}</span>
+          <span className="text-xs text-info">{t('answerTemplates.selectedCount', { count: selected.size })}</span>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={exportBatch}>{t('answerTemplates.exportSelected')}</Button>
             <Button variant="danger" size="sm" onClick={removeBatch}>{t('answerTemplates.deleteSelected')}</Button>
@@ -574,9 +574,9 @@ export default function AnswerTemplates() {
           <>
             {/* Editor error (save/validate failures) */}
             {editorError && (
-              <div className="mb-4 px-3 py-2 rounded-lg text-xs flex items-center gap-2 bg-accent-red/10 text-accent-red border border-accent-red/20">
+              <div className="mb-4 px-3 py-2 rounded-lg text-xs flex items-center gap-2 bg-accent-red/10 text-danger border border-accent-red/20">
                 <span className="flex-1">{editorError}</span>
-                <button onClick={() => setEditorError('')} className="text-accent-red/60 hover:text-accent-red">✕</button>
+                <button onClick={() => setEditorError('')} className="text-danger/60 hover:text-danger">✕</button>
               </div>
             )}
 
@@ -604,7 +604,7 @@ export default function AnswerTemplates() {
                   </Select>
                   <button
                     onClick={() => openPresets(editing.type)}
-                    className="px-2 py-1 text-[10px] rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
+                    className="px-2 py-1 text-[10px] rounded bg-blue-500/10 text-info hover:bg-blue-500/20"
                     title="From preset"
                   >
                     Presets
@@ -628,7 +628,7 @@ export default function AnswerTemplates() {
                 type="checkbox"
                 checked={!!editing.enable_baseline_pull}
                 onChange={e => setEditing({ ...editing, enable_baseline_pull: e.target.checked })}
-                className="mt-0.5 rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+                className="mt-0.5 rounded border-[var(--bg-border)] text-info focus:ring-blue-500/30"
               />
               <span>
                 <span className="block text-sm font-medium text-[var(--text-primary)]">{t('answerTemplates.baselinePull')}</span>
@@ -640,8 +640,8 @@ export default function AnswerTemplates() {
             {validationResult && (
               <div className={`mb-4 px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${
                 validationResult.valid
-                  ? 'bg-accent-green/10 text-accent-green border border-accent-green/20'
-                  : 'bg-accent-red/10 text-accent-red border border-accent-red/20'
+                  ? 'bg-accent-green/10 text-success border border-accent-green/20'
+                  : 'bg-accent-red/10 text-danger border border-accent-red/20'
               }`}>
                 <span>{validationResult.valid ? t('answerTemplates.validTemplate') : t('answerTemplates.validationError')}</span>
                 {validationResult.error && <code className="ml-1 font-mono text-[10px] opacity-70">{validationResult.error}</code>}
@@ -661,7 +661,7 @@ export default function AnswerTemplates() {
 
             {/* Variable hints */}
             <div className="mb-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
-              <p className="text-xs font-medium text-blue-400 mb-2">{t('answerTemplates.availableVars')}</p>
+              <p className="text-xs font-medium text-info mb-2">{t('answerTemplates.availableVars')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {variablesForType(editing.type).map(v => (
                   <button
@@ -678,7 +678,7 @@ export default function AnswerTemplates() {
                         navigator.clipboard.writeText(v)
                       }
                     }}
-                    className="px-2 py-0.5 text-[11px] font-mono rounded bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 transition-colors"
+                    className="px-2 py-0.5 text-[11px] font-mono rounded bg-blue-500/10 text-info hover:bg-blue-500/20 transition-colors"
                   >
                     {v}
                   </button>
@@ -701,9 +701,9 @@ export default function AnswerTemplates() {
       >
         <div className="rounded-lg border border-[var(--bg-border)] overflow-hidden">
           {previewInjected && (
-            <div className="px-3 py-2 text-[11px] space-y-0.5 bg-accent-green/10 text-accent-green border-b border-[var(--bg-border)]">
+            <div className="px-3 py-2 text-[11px] space-y-0.5 bg-accent-green/10 text-success border-b border-[var(--bg-border)]">
               <div>{t('answerTemplates.baselinePullInjected')}</div>
-              <div className="text-accent-green/70">{t('answerTemplates.previewIdentityNote')}</div>
+              <div className="text-success/70">{t('answerTemplates.previewIdentityNote')}</div>
             </div>
           )}
           <pre className="p-3 max-h-80 overflow-y-auto text-[11px] font-mono whitespace-pre-wrap text-[var(--text-primary)]">
@@ -736,7 +736,7 @@ export default function AnswerTemplates() {
                 {p.variables?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {p.variables.map(v => (
-                      <span key={v} className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-accent-yellow/10 text-accent-yellow">
+                      <span key={v} className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-accent-yellow/10 text-warning">
                         {v}
                       </span>
                     ))}
@@ -776,7 +776,7 @@ export default function AnswerTemplates() {
             {versions.map(v => (
               <div key={v.id} className="flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--bg-border)] bg-[var(--bg-input)]">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                  <span className="text-xs font-mono font-bold text-info bg-blue-500/10 px-1.5 py-0.5 rounded">
                     v{v.version}
                   </span>
                   <span className="text-xs text-[var(--text-muted)]">{v.description || '-'}</span>
@@ -787,7 +787,7 @@ export default function AnswerTemplates() {
                   </span>
                   <button
                     onClick={() => handleRollback(v.version)}
-                    className="px-2 py-1 text-[11px] font-medium rounded bg-accent-yellow/10 text-accent-yellow hover:bg-accent-yellow/20 transition-colors"
+                    className="px-2 py-1 text-[11px] font-medium rounded bg-accent-yellow/10 text-warning hover:bg-accent-yellow/20 transition-colors"
                   >
                     {t('answerTemplates.rollback')}
                   </button>
@@ -835,8 +835,8 @@ export default function AnswerTemplates() {
                       <div
                         key={idx}
                         className={`px-3 whitespace-pre-wrap ${
-                          d.type === 'add' ? 'bg-accent-green/10 text-accent-green border-l-2 border-accent-green' :
-                          d.type === 'remove' ? 'bg-accent-red/10 text-accent-red border-l-2 border-accent-red' :
+                          d.type === 'add' ? 'bg-accent-green/10 text-success border-l-2 border-accent-green' :
+                          d.type === 'remove' ? 'bg-accent-red/10 text-danger border-l-2 border-accent-red' :
                           'text-[var(--text-muted)] border-l-2 border-transparent'
                         }`}
                       >
@@ -854,21 +854,21 @@ export default function AnswerTemplates() {
         open={confirmDelete !== null}
         onClose={() => setConfirmDelete(null)}
         onConfirm={doDelete}
-        title={t('answerTemplates.deleteTemplate')}
+        title={t('answerTemplates.deleteTemplate')} confirmLabel={t('common.delete')}
         message={t('answerTemplates.deleteConfirm', { name: confirmDelete?.name || '' })}
       />
       <ConfirmDialog
         open={confirmBatchDelete}
         onClose={() => setConfirmBatchDelete(false)}
         onConfirm={doBatchDelete}
-        title={t('answerTemplates.batchDelete')}
+        title={t('answerTemplates.batchDelete')} confirmLabel={t('common.delete')}
         message={t('answerTemplates.batchDeleteConfirm', { count: selected.size })}
       />
       <ConfirmDialog
         open={confirmRollback !== null}
         onClose={() => setConfirmRollback(null)}
         onConfirm={doRollback}
-        title={t('answerTemplates.rollbackVersion')}
+        title={t('answerTemplates.rollbackVersion')} confirmLabel={t('answerTemplates.rollbackVersion')}
         message={t('answerTemplates.rollbackConfirm', { version: confirmRollback })}
       />
     </div>

@@ -140,7 +140,7 @@ export function LeasesTab() {
     {
       key: '_actions', label: '', width: '60px',
       render: (r) => (
-        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(r)}>
+        <Button variant="ghost" size="sm" aria-label={`${t('common.delete')} ${r.mac}`} onClick={() => setDeleteTarget(r)}>
           <Trash2 size={13} />
         </Button>
       ),
@@ -166,13 +166,13 @@ export function LeasesTab() {
         <Card>
           <div className="text-center">
             <p className="text-xs text-[var(--text-muted)] mb-1">{t('leases.statusActive')}</p>
-            <p className="text-2xl font-bold text-accent-green">{activeLeases}</p>
+            <p className="text-2xl font-bold text-success">{activeLeases}</p>
           </div>
         </Card>
         <Card>
           <div className="text-center">
             <p className="text-xs text-[var(--text-muted)] mb-1">{t('leases.statusExpired')}</p>
-            <p className="text-2xl font-bold text-accent-red">{expiredLeases}</p>
+            <p className="text-2xl font-bold text-danger">{expiredLeases}</p>
           </div>
         </Card>
       </div>
@@ -198,8 +198,8 @@ export function LeasesTab() {
                       <div className="flex items-center gap-4 text-xs text-[var(--text-muted)] mb-2">
                         <span>{t('leases.poolSize')}: <strong className="text-[var(--text-primary)]">{s.pool_size}</strong></span>
                         <span>{t('leases.allocated')}: <strong className="text-[var(--text-primary)]">{s.allocated}</strong></span>
-                        <span>{t('leases.available')}: <strong className="text-accent-green">{s.available}</strong></span>
-                        <span>{t('leases.usage')}: <strong className={s.usage_pct > 80 ? 'text-accent-red' : s.usage_pct > 50 ? 'text-accent-yellow' : 'text-blue-500'}>{s.usage_pct.toFixed(1)}%</strong></span>
+                        <span>{t('leases.available')}: <strong className="text-success">{s.available}</strong></span>
+                        <span>{t('leases.usage')}: <strong className={s.usage_pct > 80 ? 'text-danger' : s.usage_pct > 50 ? 'text-warning' : 'text-info'}>{s.usage_pct.toFixed(1)}%</strong></span>
                       </div>
                       <div className="w-full h-2 bg-[var(--bg-card)] rounded-full overflow-hidden border border-[var(--bg-border)]">
                         <div
@@ -284,7 +284,7 @@ export function LeasesTab() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={() => deleteTarget && handleDelete(deleteTarget.mac)}>{t('common.delete')}</Button>
+            <Button variant="danger" onClick={() => deleteTarget && handleDelete(deleteTarget.mac)}>{t('common.delete')}</Button>
           </>
         }
       >
@@ -308,7 +308,7 @@ export function LeasesTab() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setBatchDeleteOpen(false)}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={handleBatchDelete}>{t('common.delete')}</Button>
+            <Button variant="danger" onClick={handleBatchDelete}>{t('common.delete')}</Button>
           </>
         }
       >
@@ -326,7 +326,7 @@ export function LeasesTab() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setPruneOpen(false)}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={handlePrune}>{t('leases.pruneExpired')}</Button>
+            <Button variant="danger" onClick={handlePrune}>{t('leases.pruneExpired')}</Button>
           </>
         }
       >

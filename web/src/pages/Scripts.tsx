@@ -103,7 +103,7 @@ export default function Scripts({ embedded = false }: { embedded?: boolean } = {
       render: (item: scriptDTO) => (
         <button
           onClick={() => navigate(`/scripts/${item.id}`)}
-          className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+          className="text-sm font-medium text-info hover:opacity-80 transition-colors"
         >
           {item.name}
         </button>
@@ -116,9 +116,9 @@ export default function Scripts({ embedded = false }: { embedded?: boolean } = {
         const st = SCRIPT_TYPES.find(s => s.value === item.type)
         return (
           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-            item.type === 'shell' ? 'bg-accent-green/15 text-accent-green' :
-            item.type === 'bat' ? 'bg-blue-500/15 text-blue-400' :
-            'bg-accent-yellow/15 text-accent-yellow'
+            item.type === 'shell' ? 'bg-accent-green/15 text-success' :
+            item.type === 'bat' ? 'bg-blue-500/15 text-info' :
+            'bg-accent-yellow/15 text-warning'
           }`}>
             {st ? st.label : item.type}
           </span>
@@ -150,7 +150,7 @@ export default function Scripts({ embedded = false }: { embedded?: boolean } = {
         <div className="flex items-center justify-end gap-1">
           <button
             onClick={(e) => { e.stopPropagation(); setDeleteTarget(item) }}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent-red hover:bg-accent-red/10 transition-colors"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-danger hover:bg-accent-red/10 transition-colors"
             title={t('common.delete')}
           >
             <Trash2 size={14} />
@@ -188,7 +188,7 @@ export default function Scripts({ embedded = false }: { embedded?: boolean } = {
 
       {loadError && (
         <Card>
-          <div className="py-8 text-center text-sm text-accent-red">{loadError}</div>
+          <div className="py-8 text-center text-sm text-danger">{loadError}</div>
         </Card>
       )}
 
@@ -236,7 +236,7 @@ export default function Scripts({ embedded = false }: { embedded?: boolean } = {
         }
       >
         {formError && (
-          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">{formError}</div>
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-danger">{formError}</div>
         )}
         <div className="space-y-4">
           <div>
@@ -271,7 +271,7 @@ export default function Scripts({ embedded = false }: { embedded?: boolean } = {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
-        title={t('common.delete')}
+        title={t('common.delete')} confirmLabel={t('common.delete')}
         message={deleteTarget ? t('scripts.deleteConfirm', { name: deleteTarget.name }) : ''}
       />
     </div>

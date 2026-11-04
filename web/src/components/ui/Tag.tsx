@@ -14,13 +14,13 @@ const colorClasses: Record<TagVariant, Record<TagColor, string>> = {
     orange: 'bg-orange-500 text-white',
   },
   subtle: {
-    blue: 'bg-blue-500/10 text-blue-400',
-    green: 'bg-accent-green/10 text-accent-green',
-    yellow: 'bg-accent-yellow/10 text-accent-yellow',
-    red: 'bg-accent-red/10 text-accent-red',
-    purple: 'bg-purple-500/10 text-purple-400',
-    cyan: 'bg-cyan-500/10 text-cyan-400',
-    orange: 'bg-orange-500/10 text-orange-400',
+    blue: 'bg-blue-500/10 text-info',
+    green: 'bg-accent-green/10 text-success',
+    yellow: 'bg-accent-yellow/10 text-warning',
+    red: 'bg-accent-red/10 text-danger',
+    purple: 'bg-purple-500/10 text-purple-text',
+    cyan: 'bg-cyan-500/10 text-cyan-text',
+    orange: 'bg-orange-500/10 text-orange-text',
   },
 }
 

@@ -26,13 +26,15 @@ export function DHCPConfigTab() {
   const [showModal, setShowModal] = useState(false)
   const [editIndex, setEditIndex] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<InterfaceConfig>({ ...defaultIface })
-  const [modalSaving, setModalSaving] = useState(false)
 
   // Global whitelist state
   const [globalWhitelist, setGlobalWhitelist] = useState(false)
 
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+
+  // 保存前先确认：写配置会触发 DHCP 重载，正在引导的机器可能中断
+  const [pendingApply, setPendingApply] = useState<InterfaceConfig[] | null>(null)
 
   useEffect(() => { loadSettings() }, [])
 
@@ -88,51 +90,58 @@ export function DHCPConfigTab() {
     setShowModal(true)
   }
 
-  async function handleModalSave() {
+  function handleModalSave() {
     const errs = validateFormItem(editForm)
     if (errs.length > 0) { showError(errs.join('\n')); return }
-    setModalSaving(true)
+    const next = editIndex !== null
+      ? interfaces.map((iface, i) => i === editIndex ? editForm : iface)
+      : [...interfaces, editForm]
+    // 先关编辑弹窗、再确认；取消时把编辑弹窗原样打开，已填内容不丢
+    setShowModal(false)
+    setPendingApply(next)
+  }
+
+  async function applyInterfaces(next: InterfaceConfig[]) {
+    setPendingApply(null)
+    setInterfaces(next)
+    setSaving(true)
     try {
-      const next = editIndex !== null
-        ? interfaces.map((iface, i) => i === editIndex ? editForm : iface)
-        : [...interfaces, editForm]
-      setInterfaces(next)
-      setShowModal(false)
-      setSaving(true)
-      const payload: InterfaceSettings[] = next.filter(iface => iface.name).map(iface => ({
-        name: iface.name, ip: iface.ip,
-        subnets: iface.subnets.map(s => ({
-          cidr: s.cidr, dhcp_mode: s.dhcpMode, pools: s.pools.filter(p => p && p.includes('-')),
-          gateway: s.gateway, dns_servers: s.dnsServers, lease_time: parseInt(s.leaseTime) || 3600, next_server: s.nextServer, chain_to_ipxe: s.chainToIPXE, whitelist_enabled: s.whitelistEnabled,
-        })),
-        subnet: iface.subnets[0]?.cidr || '', pools: [], gateway: iface.subnets[0]?.gateway || '',
-        dns_servers: iface.subnets[0]?.dnsServers || '', lease_time: parseInt(iface.subnets[0]?.leaseTime || '3600') || 3600,
-        next_server: iface.subnets[0]?.nextServer || '',
-      }))
+      const payload = buildPayload(next)
       await api.updateInterfaceSettings({ interfaces: payload })
       success(t('settings.saved'))
     } catch (err: any) { showError(err.message || t('settings.saveFailed')) }
-    finally { setModalSaving(false); setSaving(false) }
+    finally { setSaving(false) }
+  }
+
+  function buildPayload(next: InterfaceConfig[]): InterfaceSettings[] {
+    return next.filter(iface => iface.name).map(iface => ({
+      name: iface.name, ip: iface.ip,
+      subnets: iface.subnets.map(s => ({
+        cidr: s.cidr, dhcp_mode: s.dhcpMode, pools: s.pools.filter(p => p && p.includes('-')),
+        gateway: s.gateway, dns_servers: s.dnsServers, lease_time: parseInt(s.leaseTime) || 3600, next_server: s.nextServer, chain_to_ipxe: s.chainToIPXE, whitelist_enabled: s.whitelistEnabled,
+      })),
+      subnet: iface.subnets[0]?.cidr || '', pools: [], gateway: iface.subnets[0]?.gateway || '',
+      dns_servers: iface.subnets[0]?.dnsServers || '', lease_time: parseInt(iface.subnets[0]?.leaseTime || '3600') || 3600,
+      next_server: iface.subnets[0]?.nextServer || '',
+    }))
+  }
+
+  const applySummary = (next: InterfaceConfig[]) => {
+    const named = next.filter(iface => iface.name)
+    return {
+      names: named.map(iface => iface.name).join(', '),
+      subnets: named.reduce((a, iface) => a + iface.subnets.length, 0),
+    }
   }
 
   async function handleDelete(i: number) {
     setDeleteTarget(null)
     const next = interfaces.filter((_, j) => j !== i)
     setInterfaces(next)
-      setSaving(true)
-      try {
-        const payload: InterfaceSettings[] = next.filter(iface => iface.name).map(iface => ({
-          name: iface.name, ip: iface.ip,
-          subnets: iface.subnets.map(s => ({
-            cidr: s.cidr, dhcp_mode: s.dhcpMode, pools: s.pools.filter(p => p && p.includes('-')),
-            gateway: s.gateway, dns_servers: s.dnsServers, lease_time: parseInt(s.leaseTime) || 3600, next_server: s.nextServer, chain_to_ipxe: s.chainToIPXE, whitelist_enabled: s.whitelistEnabled,
-          })),
-          subnet: iface.subnets[0]?.cidr || '', pools: [], gateway: iface.subnets[0]?.gateway || '',
-          dns_servers: iface.subnets[0]?.dnsServers || '', lease_time: parseInt(iface.subnets[0]?.leaseTime || '3600') || 3600,
-          next_server: iface.subnets[0]?.nextServer || '',
-        }))
-        await api.updateInterfaceSettings({ interfaces: payload })
-        success(t('settings.deleted'))
+    setSaving(true)
+    try {
+      await api.updateInterfaceSettings({ interfaces: buildPayload(next) })
+      success(t('settings.deleted'))
     } catch (err: any) { showError(err.message || t('settings.deleteFailed')) }
     finally { setSaving(false) }
   }
@@ -212,8 +221,8 @@ export function DHCPConfigTab() {
     }},
     { key: '_actions', label: '', width: '80px', render: (r) => (
       <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-        <Button variant="ghost" size="sm" onClick={() => openEdit(r.idx)}><Pencil size={13} /></Button>
-        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(r.idx)}><Trash2 size={13} /></Button>
+        <Button variant="ghost" size="sm" aria-label={`${t('common.edit')} ${r.iface.name || `#${r.idx + 1}`}`} onClick={() => openEdit(r.idx)}><Pencil size={13} /></Button>
+        <Button variant="ghost" size="sm" aria-label={`${t('common.delete')} ${r.iface.name || `#${r.idx + 1}`}`} onClick={() => setDeleteTarget(r.idx)}><Trash2 size={13} /></Button>
       </div>
     )},
   ]
@@ -236,21 +245,35 @@ export function DHCPConfigTab() {
       </Card>
 
       <InterfaceEditModal open={showModal} onClose={() => setShowModal(false)}
-        form={editForm} setForm={setEditForm} onSave={handleModalSave} saving={modalSaving} availableIfaces={availableIfaces}
+        form={editForm} setForm={setEditForm} onSave={handleModalSave} saving={false} availableIfaces={availableIfaces}
         globalWhitelistEnabled={globalWhitelist}
       />
 
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={t('settings.confirmDeleteTitle')} width="400px" disableBackdropClose
+      <Modal open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title={t('settings.confirmDeleteTitle')} width="400px" disableBackdropClose
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={() => deleteTarget !== null && handleDelete(deleteTarget)}>{t('common.delete')}</Button>
+            <Button variant="danger" onClick={() => deleteTarget !== null && handleDelete(deleteTarget)}>{t('common.delete')}</Button>
           </>
         }
       >
         <p className="text-sm text-[var(--text-secondary)]">
           {t('settings.deleteInterfaceConfirm', { name: deleteTarget !== null ? interfaces[deleteTarget]?.name || `#${deleteTarget + 1}` : '' })}
         </p>
+      </Modal>
+
+      <Modal open={!!pendingApply} onClose={() => { setPendingApply(null); setShowModal(true) }} title={t('settings.applyDhcpTitle')} width="440px" disableBackdropClose
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setPendingApply(null); setShowModal(true) }}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={() => pendingApply && applyInterfaces(pendingApply)}>{t('settings.applyDhcpConfirmButton')}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-[var(--text-secondary)]">
+          {pendingApply && t('settings.applyDhcpConfirm', applySummary(pendingApply))}
+        </p>
+        <p className="mt-2 text-xs text-[var(--text-muted)]">{t('settings.applyDhcpHint')}</p>
       </Modal>
     </div>
   )

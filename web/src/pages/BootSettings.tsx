@@ -186,21 +186,21 @@ export default function BootSettings() {
               </Card>
               <Card padding={false}>
                 <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-accent-green/40">
-                  <span className="text-base font-bold text-accent-green">{checkResult.present}</span>
+                  <span className="text-base font-bold text-success">{checkResult.present}</span>
                   <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.present')}</span>
                 </div>
               </Card>
               <Card padding={false}>
                 <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-accent-red/40">
-                  <span className="text-base font-bold text-accent-red">{checkResult.missing}</span>
+                  <span className="text-base font-bold text-danger">{checkResult.missing}</span>
                   <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.missing')}</span>
                 </div>
               </Card>
               <Card padding={false}>
                 <div className="px-3 py-2.5 flex items-center gap-3 border-l-2 border-l-accent-yellow/40">
                   {checkResult.all_ok
-                    ? <><CheckCircle size={16} className="text-accent-green" /><span className="text-[11px] font-semibold text-accent-green">{t('bootloader.ok')}</span></>
-                    : <><XCircle size={16} className="text-accent-red" /><span className="text-[11px] font-semibold text-accent-red">{t('bootloader.issues')}</span></>
+                    ? <><CheckCircle size={16} className="text-success" /><span className="text-[11px] font-semibold text-success">{t('bootloader.ok')}</span></>
+                    : <><XCircle size={16} className="text-danger" /><span className="text-[11px] font-semibold text-danger">{t('bootloader.issues')}</span></>
                   }
                   <span className="text-[11px] text-[var(--text-muted)]">{t('bootloader.status')}</span>
                 </div>
@@ -222,7 +222,7 @@ export default function BootSettings() {
           </div>
           <div className="flex items-center gap-2">
             {saveMsg && (
-              <span className={`text-xs ${saveMsg.ok ? 'text-accent-green' : 'text-accent-red'}`}>
+              <span className={`text-xs ${saveMsg.ok ? 'text-success' : 'text-danger'}`}>
                 {saveMsg.text}
               </span>
             )}
@@ -397,13 +397,13 @@ function buildArchColumns(
               ))}
             </Select>
             {support === 'fallback' && (
-              <div className="flex items-center gap-1 text-[10px] text-blue-400 mt-1">
+              <div className="flex items-center gap-1 text-[10px] text-info mt-1">
                 <ArrowRight size={10} />
                 <span>{t('bootSettings.willFallback', '运行时自动回退')}</span>
               </div>
             )}
             {support === 'unsupported' && (
-              <div className="flex items-center gap-1 text-[10px] text-accent-yellow mt-1">
+              <div className="flex items-center gap-1 text-[10px] text-warning mt-1">
                 <span>{t('bootSettings.notNative', '非原生支持')}</span>
               </div>
             )}
@@ -528,7 +528,7 @@ function FileStatus({ info }: { info?: BootFileInfo }) {
   if (!info) {
     return (
       <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
-        <XCircle size={10} className="text-accent-yellow" />
+        <XCircle size={10} className="text-warning" />
         <span>-</span>
       </div>
     )
@@ -536,8 +536,8 @@ function FileStatus({ info }: { info?: BootFileInfo }) {
   return (
     <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)]">
       {info.present
-        ? <CheckCircle size={10} className="text-accent-green shrink-0" />
-        : <XCircle size={10} className={info.required ? 'text-accent-red' : 'text-accent-yellow'} />
+        ? <CheckCircle size={10} className="text-success shrink-0" />
+        : <XCircle size={10} className={info.required ? 'text-danger' : 'text-warning'} />
       }
       <span className="font-mono">{info.present ? formatSize(info.size ?? 0) : '-'}</span>
     </div>

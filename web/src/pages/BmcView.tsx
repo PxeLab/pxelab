@@ -210,8 +210,8 @@ export default function BmcView() {
 
   const statusColor = (cfg: BMCConfigType) => {
     const s = statusMap[cfg.id!]
-    if (s === 'on') return 'text-accent-green'
-    if (s === 'off') return 'text-accent-red'
+    if (s === 'on') return 'text-success'
+    if (s === 'off') return 'text-danger'
     return 'text-[var(--text-muted)]'
   }
 
@@ -250,12 +250,12 @@ export default function BmcView() {
       label: t('bmc.colHost'),
       render: cfg => (
         <div className="flex items-center gap-2">
-          <code className="text-sm font-mono text-blue-400">{cfg.host}:{cfg.port}</code>
+          <code className="text-sm font-mono text-info">{cfg.host}:{cfg.port}</code>
           <a
             href={bmcWebURL(cfg.host)}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors"
+            className="p-1 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-info transition-colors"
             title={t('bmc.openWeb')}
           >
             <ExternalLink size={12} />
@@ -267,7 +267,7 @@ export default function BmcView() {
       key: 'protocol',
       label: t('bmc.colProtocol'),
       render: cfg => (
-        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/5 text-blue-400 border border-blue-500/10">
+        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-blue-500/5 text-info border border-blue-500/10">
           {cfg.protocol?.toUpperCase()}
         </span>
       ),
@@ -290,7 +290,7 @@ export default function BmcView() {
       key: 'boot_mode',
       label: t('bmc.colBootMode'),
       render: cfg => (
-        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/5 text-purple-400 border border-purple-500/10">
+        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/5 text-purple-text border border-purple-500/10">
           {cfg.boot_mode || 'auto'}
         </span>
       ),
@@ -319,18 +319,18 @@ export default function BmcView() {
       label: t('bmc.colActions'),
       render: cfg => (
         <div className="flex items-center justify-end gap-1">
-          <button onClick={() => powerAction(cfg, 'on')} className="p-1.5 rounded hover:bg-accent-green/10 text-[var(--text-muted)] hover:text-accent-green transition-colors" title={t('bmc.powerOn')}>
+          <button onClick={() => powerAction(cfg, 'on')} className="p-1.5 rounded hover:bg-accent-green/10 text-[var(--text-muted)] hover:text-success transition-colors" title={t('bmc.powerOn')}>
             <Play size={14} />
           </button>
-          <button onClick={() => powerAction(cfg, 'off')} className="p-1.5 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors" title={t('bmc.powerOff')}>
+          <button onClick={() => powerAction(cfg, 'off')} className="p-1.5 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-danger transition-colors" title={t('bmc.powerOff')}>
             <Square size={14} />
           </button>
-          <button onClick={() => powerAction(cfg, 'restart')} className="p-1.5 rounded hover:bg-accent-yellow/10 text-[var(--text-muted)] hover:text-accent-yellow transition-colors" title={t('bmc.powerRestart')}>
+          <button onClick={() => powerAction(cfg, 'restart')} className="p-1.5 rounded hover:bg-accent-yellow/10 text-[var(--text-muted)] hover:text-warning transition-colors" title={t('bmc.powerRestart')}>
             <RotateCcw size={14} />
           </button>
           <button
             onClick={() => { setBootDeviceCfg(cfg); setBootDevice('pxe') }}
-            className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors"
+            className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-info transition-colors"
             title={t('bmc.bootDevice')}
           >
             <Disc size={14} />
@@ -338,13 +338,13 @@ export default function BmcView() {
           <button
             onClick={() => refreshSingle(cfg)}
             disabled={refreshingIds.has(cfg.id!)}
-            className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors disabled:opacity-40"
+            className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-info transition-colors disabled:opacity-40"
             title={t('bmc.refreshDevice')}
           >
             <RefreshCw size={14} className={refreshingIds.has(cfg.id!) ? 'animate-spin' : ''} />
           </button>
-          <button onClick={() => openEdit(cfg)} className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-blue-400 transition-colors" title={t('bmc.edit')}>✎</button>
-          <button onClick={() => handleDelete(cfg)} className="p-1.5 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors" title={t('bmc.delete')}>
+          <button onClick={() => openEdit(cfg)} className="p-1.5 rounded hover:bg-blue-500/10 text-[var(--text-muted)] hover:text-info transition-colors" title={t('bmc.edit')}>✎</button>
+          <button onClick={() => handleDelete(cfg)} className="p-1.5 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-danger transition-colors" title={t('bmc.delete')}>
             <Trash2 size={14} />
           </button>
         </div>
@@ -370,7 +370,7 @@ export default function BmcView() {
         className="mb-0"
         actions={
           <>
-            <Button variant="ghost" size="sm" onClick={loadConfigs}>
+            <Button variant="ghost" size="sm" aria-label={t('common.refresh')} onClick={loadConfigs}>
               <RefreshCw size={14} />
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setCsvOpen(true)}>

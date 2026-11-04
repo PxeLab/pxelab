@@ -84,7 +84,7 @@ export default function ScriptDetail() {
   if (fetchError && !isNew) {
     return (
       <div className="flex flex-col gap-4 py-10 items-center">
-        <p className="text-sm text-accent-red">{fetchError}</p>
+        <p className="text-sm text-danger">{fetchError}</p>
         <Button variant="secondary" size="sm" onClick={() => navigate('/scripts')}>
           {t('common.back')}
         </Button>

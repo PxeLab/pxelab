@@ -7,8 +7,9 @@ import { useRadius } from '../../hooks/useRadius'
 import { ThemeSwitcher } from '../ThemeSwitcher'
 import { LangSwitch } from '../LangSwitch'
 import { StatusDot } from '../ui/StatusDot'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
-import { getServices, startService, stopService, restartService, batchService, getVersionInfo, downloadUpdate, type ServiceInfo, type VersionInfo } from '../../api/client'
+import { getServices, batchService, getVersionInfo, downloadUpdate, type ServiceInfo, type VersionInfo } from '../../api/client'
 import SettingsModal from './SettingsModal'
 import LogoMark from '../LogoMark'
 import { CommandPalette } from '../CommandPalette'
@@ -104,9 +105,9 @@ interface Props {
 
 // start/stop/restart 操作按钮的配色，批量操作区和单项操作区共用
 const opButtonColors = {
-  green: 'bg-accent-green/15 text-accent-green hover:bg-accent-green/25',
-  red: 'bg-accent-red/15 text-accent-red hover:bg-accent-red/25',
-  orange: 'bg-orange-500/15 text-orange-400 hover:bg-orange-500/25',
+  green: 'bg-accent-green/15 text-success hover:bg-accent-green/25',
+  red: 'bg-accent-red/15 text-danger hover:bg-accent-red/25',
+  orange: 'bg-orange-500/15 text-orange-text hover:bg-orange-500/25',
 } as const
 
 function OpButton({ color, size = 'md', disabled, busy, label, onClick }: {
@@ -119,7 +120,7 @@ function OpButton({ color, size = 'md', disabled, busy, label, onClick }: {
 }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      className={`${size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1'} text-[10px] font-medium rounded ${opButtonColors[color]} disabled:opacity-40 transition-colors`}>
+      className={`${size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1'} text-[11px] font-medium rounded ${opButtonColors[color]} disabled:opacity-40 transition-colors`}>
       {busy ? '...' : label}
     </button>
   )
@@ -131,6 +132,8 @@ function ServiceDropdown() {
   const [services, setServices] = useState<ServiceInfo[]>([])
   const [open, setOpen] = useState(false)
   const [operating, setOperating] = useState<Set<string>>(new Set())
+  // 停止/重启会中断正在引导的机器：先确认，写清对象与后果
+  const [pending, setPending] = useState<{ op: 'stop' | 'restart'; names: string[] } | null>(null)
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const hoverOpen = () => {
@@ -138,6 +141,7 @@ function ServiceDropdown() {
     setOpen(true)
   }
   const hoverClose = () => {
+    if (pending) return
     hoverTimer.current = setTimeout(() => setOpen(false), 200)
   }
   // 触屏无 hover，点击切换展开/收起；与 hover 不冲突：hover 打开后点击即收起，
@@ -163,29 +167,13 @@ function ServiceDropdown() {
   const stopped = services.filter(s => s.status === 'stopped').length
   const errors = services.filter(s => s.status === 'error').length
 
-  const runOp = async (name: string, op: 'start' | 'stop' | 'restart') => {
-    setOperating(prev => new Set(prev).add(name + op))
-    const opLabel = t(`common.${op}`)
-    try {
-      const p = op === 'start' ? startService(name) : op === 'stop' ? stopService(name) : restartService(name)
-      await toast.promise(p, {
-        loading: t('common.serviceOpLoading', { op: opLabel, name }),
-        success: t('common.serviceOpSuccess', { name, op: opLabel.toLowerCase() }),
-      })
-      await load()
-    } catch {
-      // toast.promise 已把失败原因原地展示在通知上
-    }
-    setOperating(prev => { const next = new Set(prev); next.delete(name + op); return next })
-  }
+  const serviceLabel = (name: string) => services.find(s => s.name === name)?.display ?? name
 
-  const batchAll = async (op: 'start' | 'stop' | 'restart') => {
-    const targets = services.filter(s => !s.protected && (op === 'start' ? s.status !== 'running' : true))
-    if (targets.length === 0) return
-    const names = targets.map(s => s.name)
+  const batchNames = async (op: 'start' | 'stop' | 'restart', names: string[]) => {
+    if (names.length === 0) return
     names.forEach(n => setOperating(prev => new Set(prev).add(n + op)))
     const opLabel = t(`common.${op}`)
-    const name = t('common.serviceCount', { count: targets.length })
+    const name = names.length === 1 ? serviceLabel(names[0]) : t('common.serviceCount', { count: names.length })
     try {
       await toast.promise(batchService(op, names), {
         loading: t('common.serviceOpLoading', { op: opLabel, name }),
@@ -198,23 +186,41 @@ function ServiceDropdown() {
     names.forEach(n => setOperating(prev => { const next = new Set(prev); next.delete(n + op); return next }))
   }
 
+  // 启动无破坏性，直接执行；停止/重启先确认，写明会中断哪些服务
+  const requestOp = (op: 'start' | 'stop' | 'restart', names: string[]) => {
+    if (names.length === 0) return
+    if (op === 'start') {
+      void batchNames('start', names)
+      return
+    }
+    setOpen(false)
+    setPending({ op, names })
+  }
+
+  const batchAll = (op: 'start' | 'stop' | 'restart') => {
+    const targets = services.filter(s => !s.protected && (op === 'start' ? s.status !== 'running' : true))
+    return requestOp(op, targets.map(s => s.name))
+  }
+
   const anyOperating = (op: string) => services.some(s => operating.has(s.name + op))
 
   return (
     <div className="relative" onMouseEnter={hoverOpen} onMouseLeave={hoverClose}>
       <button
         onClick={clickToggle}
-        className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-semibold bg-[var(--bg-card)] border border-[var(--bg-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:shadow-sm transition-all duration-200"
+        aria-expanded={open}
+        aria-label={t('common.serviceStatus')}
+        className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs font-mono font-semibold bg-[var(--bg-card)] border border-[var(--bg-border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:shadow-sm transition-all duration-200"
       >
         <div className="flex items-center gap-2.5 py-0.5">
-          <span className="flex items-center gap-1"><StatusDot color="green" /><span className="text-accent-green font-bold">{running}</span><span className="text-[10px] text-[var(--text-muted)]">{t('common.running')}</span></span>
-          <span className="flex items-center gap-1"><StatusDot color="yellow" /><span className="text-accent-yellow font-bold">{stopped}</span><span className="text-[10px] text-[var(--text-muted)]">{t('common.stopped')}</span></span>
-          <span className="flex items-center gap-1"><StatusDot color="red" /><span className="text-accent-red font-bold">{errors}</span><span className="text-[10px] text-[var(--text-muted)]">{t('common.error')}</span></span>
+          <span className="flex items-center gap-1"><StatusDot color="green" /><span className="text-success font-bold">{running}</span><span className="text-[11px] text-[var(--text-muted)] hidden sm:inline">{t('common.running')}</span></span>
+          <span className="flex items-center gap-1"><StatusDot color="yellow" /><span className="text-warning font-bold">{stopped}</span><span className="text-[11px] text-[var(--text-muted)] hidden sm:inline">{t('common.stopped')}</span></span>
+          <span className="flex items-center gap-1"><StatusDot color="red" /><span className="text-danger font-bold">{errors}</span><span className="text-[11px] text-[var(--text-muted)] hidden sm:inline">{t('common.error')}</span></span>
         </div>
       </button>
       {open && (
         <div onMouseEnter={hoverOpen} onMouseLeave={hoverClose}>
-          <div className="absolute right-0 top-full mt-2 w-[520px] z-50 rounded-xl bg-[var(--bg-elevated)] border border-[var(--bg-border)] shadow-xl overflow-hidden animate-fade-in">
+          <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-[520px] z-50 rounded-xl bg-[var(--bg-elevated)] border border-[var(--bg-border)] shadow-xl overflow-hidden animate-fade-in">
             {/* 一键操作 */}
             <div className="px-4 py-3 border-b border-[var(--bg-border)] bg-[var(--bg-base)]/50">
               <div className="flex items-center gap-1.5">
@@ -236,23 +242,23 @@ function ServiceDropdown() {
                       <StatusDot color={color as any} />
                       <div className="min-w-0">
                         <span className="text-xs font-medium text-[var(--text-primary)]">{svc.display}</span>
-                        <span className="text-[10px] text-[var(--text-muted)] ml-2 font-mono">{svc.port}/{svc.protocol}</span>
+                        <span className="text-[11px] text-[var(--text-muted)] ml-2 font-mono">{svc.port}/{svc.protocol}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {svc.protected ? (
-                        <span className="text-[10px] text-blue-400 font-medium">Core</span>
+                        <span className="text-[11px] text-info font-medium">Core</span>
                       ) : (
                         <>
                           {svc.status !== 'running' && (
-                            <OpButton color="green" size="sm" onClick={() => runOp(svc.name, 'start')}
+                            <OpButton color="green" size="sm" onClick={() => requestOp('start', [svc.name])}
                               disabled={operating.has(svc.name + 'start')} busy={operating.has(svc.name + 'start')} label={t('common.start')} />
                           )}
                           {svc.status === 'running' && (
-                            <OpButton color="red" size="sm" onClick={() => runOp(svc.name, 'stop')}
+                            <OpButton color="red" size="sm" onClick={() => requestOp('stop', [svc.name])}
                               disabled={operating.has(svc.name + 'stop')} busy={operating.has(svc.name + 'stop')} label={t('common.stop')} />
                           )}
-                          <OpButton color="orange" size="sm" onClick={() => runOp(svc.name, 'restart')}
+                          <OpButton color="orange" size="sm" onClick={() => requestOp('restart', [svc.name])}
                             disabled={operating.has(svc.name + 'restart')} busy={operating.has(svc.name + 'restart')} label={t('common.restart')} />
                         </>
                       )}
@@ -264,6 +270,20 @@ function ServiceDropdown() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!pending}
+        onClose={() => setPending(null)}
+        onConfirm={() => {
+          const p = pending
+          setPending(null)
+          if (p) void batchNames(p.op, p.names)
+        }}
+        title={pending?.op === 'stop' ? t('common.stopConfirmTitle') : t('common.restartConfirmTitle')}
+        message={pending ? t(pending.op === 'stop' ? 'common.stopConfirm' : 'common.restartConfirm', {
+          names: pending.names.map(serviceLabel).join(', '),
+        }) : ''}
+        confirmLabel={pending ? t(`common.${pending.op}`) : undefined}
+      />
     </div>
   )
 }
@@ -376,6 +396,9 @@ export const AppShell: FC<Props> = ({ children }) => {
   })()
 
   const pageTitle = () => {
+    // 不在主导航里的页面单独映射，避免顶栏/标签标题回退成"仪表板"
+    if (location.pathname === '/quick-install') return t('quickInstall.title')
+    if (location.pathname.startsWith('/hosts/')) return t('hosts.detail.title')
     for (const section of navSections) {
       for (const item of section.items) {
         if (item.path && isActive(item.path)) return t(item.label)
@@ -388,6 +411,11 @@ export const AppShell: FC<Props> = ({ children }) => {
     }
     return t('nav.dashboard')
   }
+
+  // 顶栏不再重复页面标题，改为同步浏览器标签标题
+  useEffect(() => {
+    document.title = `${pageTitle()} · PxeLab`
+  }, [location.pathname, t])
 
   return (
     <div className={`flex min-h-screen text-[var(--text-primary)] ${macosCards ? '' : 'bg-[var(--bg-base)]'}`}>
@@ -409,7 +437,7 @@ export const AppShell: FC<Props> = ({ children }) => {
           {!sidebarCollapsed && (
             <>
               <span className="text-lg font-bold tracking-tight transition-all duration-300">
-                Pxe<span className="text-blue-500">Lab</span>
+                Pxe<span className="text-info">Lab</span>
               </span>
               <button
                 onClick={() => setSidebarCollapsed(true)}
@@ -427,7 +455,7 @@ export const AppShell: FC<Props> = ({ children }) => {
           {navSections.map((section, sIdx) => (
             <div key={section.label}>
               {sIdx > 0 && !sidebarCollapsed && <div className="mx-2 my-2 border-t border-[var(--bg-border)]/50" />}
-              <div className={`px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold transition-opacity duration-200 ${sidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0' : ''}`}>
+              <div className={`px-3 py-1.5 text-[11px] uppercase tracking-wider text-[var(--text-muted)] font-semibold transition-opacity duration-200 ${sidebarCollapsed ? 'opacity-0 h-0 overflow-hidden py-0' : ''}`}>
                 {t(section.label)}
               </div>
               {section.items.map((item) => {
@@ -436,20 +464,38 @@ export const AppShell: FC<Props> = ({ children }) => {
                   const Icon = item.icon
                   const firstChildPath = item.children.find(c => c.path)?.path
                   return (
-                    <button
-                      key={item.label}
-                      onClick={() => { firstChildPath && navigate(firstChildPath); setSidebarOpen(false) }}
-                      className={`w-full flex items-center py-2 rounded-lg text-sm font-medium transition-all duration-200 text-left ${
-                        sidebarCollapsed ? 'justify-center gap-0 px-3'
-                        : 'gap-2.5 pl-5 pr-3 ' + (hasActiveChild
-                            ? 'bg-blue-500/10 text-blue-400 shadow-sm'
-                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] hover:shadow-sm')
-                      }`}
-                      title={sidebarCollapsed ? t(item.label) : undefined}
-                    >
-                      {Icon && <Icon size={16} className="shrink-0 opacity-70" />}
-                      <span className={`${sidebarCollapsed ? 'hidden' : ''}`}>{t(item.label)}</span>
-                    </button>
+                    <div key={item.label}>
+                      <button
+                        onClick={() => { firstChildPath && navigate(firstChildPath); setSidebarOpen(false) }}
+                        className={`w-full flex items-center py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-left ${
+                          sidebarCollapsed ? 'justify-center gap-0 px-3'
+                          : 'gap-2.5 pl-5 pr-3 ' + (hasActiveChild
+                              ? 'bg-blue-500/10 text-info shadow-sm'
+                              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] hover:shadow-sm')
+                        }`}
+                        title={sidebarCollapsed ? t(item.label) : undefined}
+                      >
+                        {Icon && <Icon size={16} className="shrink-0 opacity-70" />}
+                        <span className={`${sidebarCollapsed ? 'hidden' : ''}`}>{t(item.label)}</span>
+                      </button>
+                      {/* 窄屏抽屉里展开子项，避免「服务配置」只能回到 DHCP */}
+                      <div className="lg:hidden mt-0.5 space-y-0.5">
+                        {item.children.map(child => child.path && (
+                          <button
+                            key={child.path}
+                            onClick={() => { child.path && navigate(child.path); setSidebarOpen(false) }}
+                            aria-current={isActive(child.path) ? 'page' : undefined}
+                            className={`w-full flex items-center py-3 pl-11 pr-3 rounded-lg text-sm transition-colors text-left ${
+                              isActive(child.path)
+                                ? 'text-info bg-blue-500/5'
+                                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                            }`}
+                          >
+                            {t(child.label)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )
                 }
 
@@ -463,7 +509,7 @@ export const AppShell: FC<Props> = ({ children }) => {
                     className={`w-full flex items-center py-2 rounded-lg text-sm font-medium transition-all duration-200 text-left relative ${
                       sidebarCollapsed ? 'justify-center gap-0 px-3'
                     : 'gap-2.5 pl-5 pr-3 ' + (active
-                        ? 'bg-blue-500/10 text-blue-400 shadow-sm'
+                        ? 'bg-blue-500/10 text-info shadow-sm'
                         : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] hover:shadow-sm')
                     }`}
                     title={sidebarCollapsed ? t(item.label) : undefined}
@@ -476,7 +522,7 @@ export const AppShell: FC<Props> = ({ children }) => {
                     {item.badge && (
                       <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
                         sidebarCollapsed ? 'hidden'
-                      : active ? 'bg-blue-500/15 text-blue-400' : 'bg-[var(--bg-card)] text-[var(--text-muted)]'
+                      : active ? 'bg-blue-500/15 text-info' : 'bg-[var(--bg-card)] text-[var(--text-muted)]'
                       }`}>
                         {item.badge}
                       </span>
@@ -532,20 +578,21 @@ export const AppShell: FC<Props> = ({ children }) => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
+              aria-label={t('nav.openMenu')}
+              aria-expanded={sidebarOpen}
               className="lg:hidden p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               <Menu size={20} />
             </button>
-            <h1 className="lg:hidden text-lg font-bold tracking-tight text-[var(--text-primary)]">{pageTitle()}</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => setPaletteOpen(true)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--bg-border)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)] transition-colors"
             >
               <Search size={14} />
               <span className="hidden md:inline text-xs">{t('commandPalette.placeholder')}</span>
-              <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded border border-[var(--bg-border)] bg-[var(--bg-elevated)] text-[10px] font-mono text-[var(--text-muted)]">⌘K</kbd>
+              <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded border border-[var(--bg-border)] bg-[var(--bg-elevated)] text-[11px] font-mono text-[var(--text-muted)]">⌘K</kbd>
             </button>
             <NotificationCenter />
             <ServiceDropdown />
@@ -556,33 +603,33 @@ export const AppShell: FC<Props> = ({ children }) => {
 
         {/* Update banner */}
         {versionInfo?.check?.update_available && (
-          <div className="bg-gradient-to-r from-blue-600/10 via-blue-500/10 to-indigo-600/10 border-b border-blue-500/20 px-4 lg:px-8 py-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="relative flex h-2 w-2">
+          <div className="bg-gradient-to-r from-blue-600/10 via-blue-500/10 to-indigo-600/10 border-b border-blue-500/20 px-4 lg:px-8 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3">
+            <div className="flex items-center gap-2 text-xs sm:text-sm min-w-0">
+              <span className="relative flex h-2 w-2 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
               </span>
-              <span className="text-blue-400 font-medium">{t('version.updateAvailable', { version: versionInfo.check.latest_version })}</span>
+              <span className="text-info font-medium truncate">{t('version.updateAvailable', { version: versionInfo.check.latest_version })}</span>
               <a
                 href={versionInfo.check.release_info?.release_notes_url || '#'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-400/70 hover:text-blue-300 underline underline-offset-2 text-xs ml-1"
+                className="text-info hover:opacity-80 underline underline-offset-2 text-xs ml-1 shrink-0"
               >
                 {t('version.releaseNotes')}
               </a>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={handleDownload}
                 disabled={downloading}
-                className="px-3 py-1 text-xs font-medium rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+                className="px-3 py-1 text-xs font-medium rounded-lg bg-blue-500/20 text-info hover:bg-blue-500/30 transition-colors disabled:opacity-50"
               >
                 {downloading ? t('version.downloading') : t('version.download')}
               </button>
               <button
                 onClick={() => setSettingsModalOpen(true)}
-                className="text-blue-400/60 hover:text-blue-300 text-xs transition-colors"
+                className="text-info hover:opacity-80 text-xs transition-colors"
               >
                 {t('version.viewDetails')}
               </button>
@@ -594,7 +641,7 @@ export const AppShell: FC<Props> = ({ children }) => {
           {/* Level 3 Sub-nav */}
           {activeLevel3Parent && activeLevel3Parent.children && (
             <div className="w-[160px] shrink-0 border-r border-[var(--bg-border)] bg-[var(--bg-elevated)]/30 hidden lg:flex flex-col py-3 gap-0.5">
-              <div className="px-4 pb-2 text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
+              <div className="px-4 pb-2 text-[11px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
                 {t(activeLevel3Parent.label)}
               </div>
               {activeLevel3Parent.children.map(child => {
@@ -606,7 +653,7 @@ export const AppShell: FC<Props> = ({ children }) => {
                     aria-current={childActive ? 'page' : undefined}
                     className={`w-full flex items-center gap-2.5 px-4 py-2 text-sm font-medium transition-all duration-200 text-left relative ${
                       childActive
-                        ? 'bg-blue-500/10 text-blue-400'
+                        ? 'bg-blue-500/10 text-info'
                         : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
                     }`}
                   >
@@ -622,6 +669,30 @@ export const AppShell: FC<Props> = ({ children }) => {
 
           {/* Page content */}
           <div className="flex-1 p-4 lg:p-8 min-w-0">
+            {/* 移动端三级导航：桌面端由左侧子导航承担，窄屏改为可横向滑动的标签条 */}
+            {activeLevel3Parent?.children && (
+              <div className="lg:hidden -mx-4 -mt-4 mb-4 px-4 border-b border-[var(--bg-border)] overflow-x-auto">
+                <div className="flex min-w-max gap-1 py-2">
+                  {activeLevel3Parent.children.map(child => {
+                    const childActive = child.path && isActive(child.path)
+                    return (
+                      <button
+                        key={child.path}
+                        onClick={() => { child.path && navigate(child.path) }}
+                        aria-current={childActive ? 'page' : undefined}
+                        className={`shrink-0 rounded-full px-3 py-2 text-xs font-medium transition-colors ${
+                          childActive
+                            ? 'bg-blue-500/10 text-info'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                        }`}
+                      >
+                        {t(child.label)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             {children}
           </div>
         </div>

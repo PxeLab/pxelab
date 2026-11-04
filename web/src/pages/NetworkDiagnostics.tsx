@@ -33,7 +33,7 @@ export default function NetworkDiagnostics() {
             onClick={() => setTab(key)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-[1px] ${
               tab === key
-                ? 'border-blue-500 text-blue-400'
+                ? 'border-blue-500 text-info'
                 : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
@@ -130,7 +130,7 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
     { key: 'ttl', label: 'TTL', render: pkt => pkt.ttl || '-' },
     { key: 'bytes', label: 'Bytes', render: pkt => pkt.bytes || '-' },
     { key: 'status', label: t('network.status'), render: pkt => pkt.error ? (
-      <span className="text-accent-red">{pkt.error}</span>
+      <span className="text-danger">{pkt.error}</span>
     ) : (
       <StatusDot color="green" />
     ) },
@@ -185,13 +185,13 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
               type="checkbox"
               checked={continuous}
               onChange={e => setContinuous(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-[var(--bg-border)] bg-[var(--bg-input)] text-blue-500 focus:ring-blue-500/30"
+              className="w-3.5 h-3.5 rounded border-[var(--bg-border)] bg-[var(--bg-input)] text-info focus:ring-blue-500/30"
             />
             <span className="text-xs text-[var(--text-secondary)]">{t('network.continuous')}</span>
           </label>
           <button
             onClick={() => setAdvanced(!advanced)}
-            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 pb-0.5"
+            className="text-xs text-info hover:opacity-80 flex items-center gap-1 pb-0.5"
           >
             <span className={`transition-transform ${advanced ? 'rotate-90' : ''}`}>▶</span>
             {t('network.advancedOptions')}
@@ -264,11 +264,11 @@ function PingPanel({ interfaces }: { interfaces: NetworkInterface[] }) {
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-base)]">
                   <div className="text-[var(--text-muted)] text-xs">{t('network.received')}</div>
-                  <div className="text-accent-green font-semibold">{result.received}/{result.sent}</div>
+                  <div className="text-success font-semibold">{result.received}/{result.sent}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-base)]">
                   <div className="text-[var(--text-muted)] text-xs">{t('network.lost')}</div>
-                  <div className="text-accent-red font-semibold">{result.lost}</div>
+                  <div className="text-danger font-semibold">{result.lost}</div>
                 </div>
                 <div className="p-3 rounded-lg bg-[var(--bg-base)]">
                   <div className="text-[var(--text-muted)] text-xs">{t('network.avgRTT')}</div>
@@ -373,7 +373,7 @@ function TraceroutePanel({ interfaces }: { interfaces: NetworkInterface[] }) {
     { key: 'rtt', label: '1', className: 'text-right font-mono text-[var(--text-primary)]', render: hop => hop.rtt ? (
       formatRTT(hop.rtt)
     ) : (
-      <span className="text-accent-red">*</span>
+      <span className="text-danger">*</span>
     ) },
   ]
   if (probes > 1) {
@@ -419,7 +419,7 @@ function TraceroutePanel({ interfaces }: { interfaces: NetworkInterface[] }) {
           </div>
           <button
             onClick={() => setAdvanced(!advanced)}
-            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 pb-0.5"
+            className="text-xs text-info hover:opacity-80 flex items-center gap-1 pb-0.5"
           >
             <span className={`transition-transform ${advanced ? 'rotate-90' : ''}`}>▶</span>
             {t('network.advancedOptions')}

@@ -246,7 +246,7 @@ export default function SettingsWebhooks() {
         }
       >
         {formError && (
-          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">{formError}</div>
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-danger">{formError}</div>
         )}
         <div className="space-y-4">
           <div>
@@ -298,6 +298,7 @@ export default function SettingsWebhooks() {
 
       <ConfirmDialog
         open={!!confirmDelete}
+        confirmLabel={t('common.delete')}
         onClose={() => setConfirmDelete(null)}
         onConfirm={async () => {
           if (!confirmDelete) return

@@ -67,7 +67,7 @@ export default function LoginPage({ onLogin }: LoginProps) {
           </div>
 
           {error && (
-            <div className="text-sm text-accent-red bg-accent-red/10 border border-accent-red/20 rounded-xl px-4 py-3">
+            <div className="text-sm text-danger bg-accent-red/10 border border-accent-red/20 rounded-xl px-4 py-3">
               {error}
             </div>
           )}

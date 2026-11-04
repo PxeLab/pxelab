@@ -5,10 +5,10 @@ import { Bell, CheckCheck, Info, CheckCircle2, AlertTriangle, XCircle } from 'lu
 import { useNotifications, type Notification } from '../hooks/useNotifications'
 
 const typeIcon: Record<Notification['type'], { icon: typeof Info; className: string }> = {
-  info: { icon: Info, className: 'text-blue-400' },
-  success: { icon: CheckCircle2, className: 'text-accent-green' },
-  warning: { icon: AlertTriangle, className: 'text-accent-yellow' },
-  error: { icon: XCircle, className: 'text-accent-red' },
+  info: { icon: Info, className: 'text-info' },
+  success: { icon: CheckCircle2, className: 'text-success' },
+  warning: { icon: AlertTriangle, className: 'text-warning' },
+  error: { icon: XCircle, className: 'text-danger' },
 }
 
 export function NotificationCenter() {
@@ -71,7 +71,7 @@ export function NotificationCenter() {
             <button
               onClick={markAllRead}
               disabled={unreadCount === 0}
-              className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 disabled:text-[var(--foreground-muted)] disabled:cursor-default transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-info hover:opacity-80 disabled:text-[var(--foreground-muted)] disabled:cursor-default transition-colors"
             >
               <CheckCheck size={13} />
               {t('notifications.markAllRead')}
@@ -113,7 +113,7 @@ export function NotificationCenter() {
           <div className="border-t border-[var(--border)] bg-[var(--background)]/50">
             <button
               onClick={() => { setOpen(false); navigate('/events') }}
-              className="w-full px-4 py-2.5 text-center text-xs font-medium text-blue-400 hover:text-blue-300 hover:bg-[var(--hover)]/50 transition-colors"
+              className="w-full px-4 py-2.5 text-center text-xs font-medium text-info hover:opacity-80 hover:bg-[var(--hover)]/50 transition-colors"
             >
               {t('common.viewAll')}
             </button>

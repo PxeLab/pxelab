@@ -158,8 +158,8 @@ export default function SettingsDNS() {
     { key: 'enabled', label: t('settings.enabled'), render: (r) => <Toggle checked={r.enabled} onChange={() => toggleEnabled(r)} /> },
     { key: 'actions', label: '', render: (r) => (
       <div className="flex gap-1">
-        <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Eye size={13} /></Button>
-        <Button variant="ghost" size="sm" onClick={() => r.id && setDeleteTarget(r)}><Trash2 size={13} /></Button>
+        <Button variant="ghost" size="sm" aria-label={`${t('common.edit')} ${r.name}`} onClick={() => openEdit(r)}><Eye size={13} /></Button>
+        <Button variant="ghost" size="sm" aria-label={`${t('common.delete')} ${r.name}`} onClick={() => r.id && setDeleteTarget(r)}><Trash2 size={13} /></Button>
       </div>
     ), width: '80px' },
   ]
@@ -282,7 +282,7 @@ export default function SettingsDNS() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={() => deleteTarget?.id && handleDelete(deleteTarget.id)}>{t('settings.confirmDeleteAction')}</Button>
+            <Button variant="danger" onClick={() => deleteTarget?.id && handleDelete(deleteTarget.id)}>{t('settings.confirmDeleteAction')}</Button>
           </>
         }
       >
