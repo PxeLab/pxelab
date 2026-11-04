@@ -106,6 +106,7 @@
     "unauthorized": "Unauthorized",
     "labelRequests": "Requests",
     "labelErrors": "Errors",
+    "labelTrafficIn": "In Traffic",
     "labelTrafficOut": "Out Traffic",
     "labelRate": "Rate",
     "labelActiveConns": "Active Conns",

@@ -18,7 +18,10 @@ import (
 	"github.com/go-filesystems/osfs"
 	gofsmb "github.com/go-filesystems/smb"
 	"github.com/pxelab/pxelab/internal/config"
+	"github.com/pxelab/pxelab/internal/metrics"
 )
+
+var smbMetrics = metrics.DefaultRegistry.GetOrCreate("smb")
 
 // Server 实现 app.Server 接口，导出配置中的共享目录。
 type Server struct {
@@ -140,6 +143,7 @@ func (s *Server) Start(ctx context.Context) error {
 	if len(allowNets) > 0 {
 		listener = &filteredListener{Listener: listener, allowNets: allowNets}
 	}
+	listener = &meteredListener{Listener: listener}
 
 	s.mu.Lock()
 	s.srv = srv
@@ -153,6 +157,7 @@ func (s *Server) Start(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 			default:
+				smbMetrics.RecordError()
 				slog.Error("SMB Serve 异常退出", "service", "SMB", "error", err)
 			}
 		}
@@ -189,6 +194,46 @@ func (s *Server) Stop(ctx context.Context) error {
 		}
 	}
 	return firstErr
+}
+
+// meteredListener 统计 SMB 连接数与收发字节，供仪表盘/监控接口使用。
+type meteredListener struct {
+	net.Listener
+}
+
+func (l *meteredListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	smbMetrics.ActiveConns.Add(1)
+	return &meteredConn{Conn: conn}, nil
+}
+
+type meteredConn struct {
+	net.Conn
+	closeOnce sync.Once
+}
+
+func (c *meteredConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	if n > 0 {
+		smbMetrics.RecordBytes(int64(n), false)
+	}
+	return n, err
+}
+
+func (c *meteredConn) Write(p []byte) (int, error) {
+	n, err := c.Conn.Write(p)
+	if n > 0 {
+		smbMetrics.RecordBytes(int64(n), true)
+	}
+	return n, err
+}
+
+func (c *meteredConn) Close() error {
+	c.closeOnce.Do(func() { smbMetrics.ActiveConns.Add(-1) })
+	return c.Conn.Close()
 }
 
 // parseAllowIPs 把 "IP" / "CIDR" 字符串解析为网段列表，跳过无法解析的项。
@@ -232,6 +277,7 @@ func (l *filteredListener) Accept() (net.Conn, error) {
 		if isAllowedAddr(conn.RemoteAddr(), l.allowNets) {
 			return conn, nil
 		}
+		smbMetrics.RecordRejected()
 		slog.Warn("SMB 连接被拒绝（不在允许列表）", "service", "SMB", "client", conn.RemoteAddr().String())
 		_ = conn.Close()
 	}

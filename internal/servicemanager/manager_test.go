@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/models"
 )
 
 type fakeServer struct {
@@ -195,5 +198,70 @@ func TestStartFailsFastWhenPortBusy(t *testing.T) {
 	}
 	if info.PortAvailable == nil || *info.PortAvailable {
 		t.Fatalf("PortAvailable 应为 false, got %v", info.PortAvailable)
+	}
+}
+
+func TestServiceLifecycleEvents(t *testing.T) {
+	m := New()
+	bus := eventbus.New()
+	m.SetEventBus(bus)
+
+	events := make(chan models.Event, 8)
+	bus.Subscribe("event", func(e eventbus.Event) {
+		if ev, ok := e.Payload.(models.Event); ok {
+			events <- ev
+		}
+	})
+
+	m.Register("smb", "SMB", &fakeServer{name: "smb"}, false, false, 0, "tcp")
+	if err := m.Start("smb"); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if err := m.Stop("smb"); err != nil {
+		t.Fatalf("Stop() error = %v", err)
+	}
+
+	for _, want := range []string{"SMB 已启动", "SMB 已停止"} {
+		select {
+		case ev := <-events:
+			if ev.Type != models.EventService || ev.Level != models.EventInfo {
+				t.Fatalf("event = %+v, want SERVICE/INFO", ev)
+			}
+			if !strings.Contains(ev.Message, want) {
+				t.Fatalf("message = %q, want %q", ev.Message, want)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timed out waiting for %q", want)
+		}
+	}
+}
+
+func TestServiceFailureEvent(t *testing.T) {
+	m := New()
+	bus := eventbus.New()
+	m.SetEventBus(bus)
+
+	events := make(chan models.Event, 4)
+	bus.Subscribe("event", func(e eventbus.Event) {
+		if ev, ok := e.Payload.(models.Event); ok {
+			events <- ev
+		}
+	})
+
+	m.Register("smb", "SMB", &fakeServer{name: "smb", startErr: errors.New("boom")}, false, false, 0, "tcp")
+	if err := m.Start("smb"); err == nil {
+		t.Fatal("Start() = nil, want error")
+	}
+
+	select {
+	case ev := <-events:
+		if ev.Type != models.EventService || ev.Level != models.EventError {
+			t.Fatalf("event = %+v, want SERVICE/ERROR", ev)
+		}
+		if !strings.Contains(ev.Message, "SMB 启动失败") || !strings.Contains(ev.Message, "boom") {
+			t.Fatalf("message = %q", ev.Message)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for failure event")
 	}
 }

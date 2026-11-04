@@ -273,6 +273,7 @@ func run(cfg *config.Config, appMode bool, ctx context.Context) error {
 	dhcpHandler := dhcp.NewHandler(cfg, st, bus, leaseMgr)
 	dhcpHandler.InitSubnets()
 	svcMgr := servicemanager.New()
+	svcMgr.SetEventBus(bus)
 
 	// DHCP/ProxyDHCP — 按子网 DHCP 模式注册对应服务
 	hasDHCP := false

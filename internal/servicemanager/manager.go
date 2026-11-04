@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/pxelab/pxelab/internal/app"
+	"github.com/pxelab/pxelab/internal/eventbus"
+	"github.com/pxelab/pxelab/internal/models"
 	"github.com/pxelab/pxelab/internal/portcheck"
 )
 
@@ -58,12 +60,29 @@ type Manager struct {
 	services map[string]*managedService
 	order    []string // registration order for deterministic stop
 	mu       sync.RWMutex
+	bus      *eventbus.Bus
 }
 
 func New() *Manager {
 	return &Manager{
 		services: make(map[string]*managedService),
 	}
+}
+
+// SetEventBus 订阅事件总线，用于把服务启停/错误写入事件日志。
+func (m *Manager) SetEventBus(bus *eventbus.Bus) {
+	m.bus = bus
+}
+
+func (m *Manager) publishService(display string, level models.EventLevel, message string) {
+	if m.bus == nil {
+		return
+	}
+	m.bus.PublishAsync("event", models.Event{
+		Type:    models.EventService,
+		Level:   level,
+		Message: message,
+	})
 }
 
 // Register 注册服务。name 是唯一标识，display 是展示名。
@@ -114,6 +133,7 @@ func (m *Manager) Start(name string) error {
 			svc.errorMsg = msg
 			svc.mu.Unlock()
 			slog.Error("服务启动失败", "service", name, "error", msg)
+			m.publishService(svc.display, models.EventError, fmt.Sprintf("%s 启动失败: %s", svc.display, msg))
 			return fmt.Errorf("%s", msg)
 		}
 	}
@@ -145,6 +165,7 @@ func (m *Manager) Start(name string) error {
 				svc.status = StatusError
 				svc.errorMsg = enrichError(svc, err)
 				slog.Error("服务启动失败", "service", name, "error", svc.errorMsg)
+				m.publishService(svc.display, models.EventError, fmt.Sprintf("%s 启动失败: %s", svc.display, svc.errorMsg))
 			}
 			svc.mu.Unlock()
 		}
@@ -178,6 +199,7 @@ func (m *Manager) Start(name string) error {
 		svc.errorMsg = ""
 		now := time.Now()
 		svc.startedAt = &now
+		m.publishService(svc.display, models.EventInfo, fmt.Sprintf("%s 已启动", svc.display))
 	}
 	return nil
 }
@@ -226,10 +248,12 @@ func (m *Manager) Stop(name string) error {
 		svc.status = StatusError
 		svc.errorMsg = err.Error()
 		slog.Error("服务停止失败", "service", name, "error", err)
+		m.publishService(svc.display, models.EventError, fmt.Sprintf("%s 停止失败: %s", svc.display, err))
 		return fmt.Errorf("stop %s: %w", name, err)
 	}
 	svc.status = StatusStopped
 	svc.startedAt = nil
+	m.publishService(svc.display, models.EventInfo, fmt.Sprintf("%s 已停止", svc.display))
 	return nil
 }
 

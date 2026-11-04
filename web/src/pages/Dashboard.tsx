@@ -208,9 +208,9 @@ export default function Dashboard() {
     { name: 'NFS', port: ':2049', key: 'nfs' },
   ]
 
-  // 未在详情卡中展示的运行服务（如 SMB），单独提示，避免 KPI 与卡片数量对不上
-  const otherRunningServices = serviceList.filter(s =>
-    s.status === 'running' && !services.some(svc => s.name === svc.key || s.name.startsWith(svc.key + '/'))
+  // 未在固定六项中展示的服务（如 SMB）同样进入总览，停止/错误状态也要可见
+  const otherServices = serviceList.filter(s =>
+    !services.some(svc => s.name === svc.key || s.name.startsWith(svc.key + '/'))
   )
 
   const dm = (k: string) => metrics?.services[k]?.metrics
@@ -282,6 +282,13 @@ export default function Dashboard() {
           { label: t('dashboard.labelTransferTraffic'), value: fmtBytes((m.bytesOut ?? 0) + (m.bytesIn ?? 0)) },
           { label: t('dashboard.labelRate'), value: `${avgRate(m.requestRate ?? [])}/s` },
         ] : []
+      case 'smb':
+        return m ? [
+          { label: t('dashboard.labelActiveConns'), value: String(m.activeConns ?? 0) },
+          { label: t('dashboard.labelTrafficIn'), value: fmtBytes(m.bytesIn ?? 0) },
+          { label: t('dashboard.labelTrafficOut'), value: fmtBytes(m.bytesOut ?? 0) },
+          { label: t('dashboard.labelRejected'), value: String(m.rejected ?? 0), tone: 'warn' },
+        ] : []
       default:
         return []
     }
@@ -302,15 +309,15 @@ export default function Dashboard() {
         metrics: serviceMetrics(svc.key),
       }
     }),
-    ...otherRunningServices.map(svc => ({
+    ...otherServices.map(svc => ({
       key: svc.name,
       name: svc.display || svc.name,
       port: svc.port ? `:${svc.port}${svc.protocol ? `/${svc.protocol.toUpperCase()}` : ''}` : '',
-      status: 'running' as const,
+      status: svc.status,
       uptime: fmtUptime(svc.started_at),
       startTime: svc.started_at ? new Date(svc.started_at).toLocaleString() : '—',
-      errorMsg: '',
-      metrics: [] as MetricPair[],
+      errorMsg: svc.error_msg || '',
+      metrics: serviceMetrics(svc.name),
     })),
   ]
 

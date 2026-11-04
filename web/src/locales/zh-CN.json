@@ -107,6 +107,7 @@
     "unauthorized": "未授权",
     "labelRequests": "请求",
     "labelErrors": "错误",
+    "labelTrafficIn": "接收流量",
     "labelTrafficOut": "下发流量",
     "labelRate": "速率",
     "labelActiveConns": "活跃连接",
