@@ -18,6 +18,13 @@ import (
 // 默认官网版本信息地址
 const DefaultVersionEndpoint = "https://www.pxelab.com/version.json"
 
+// GitHub 仓库与 API 地址；下载更新时优先走 API，避免部分网络阻断 github.com 直连
+const (
+	defaultAPIBase      = "https://api.github.com"
+	defaultDownloadBase = "https://github.com"
+	defaultRepo         = "PxeLab/pxelab"
+)
+
 // Checker 版本检查器
 type Checker struct {
 	currentVersion string
@@ -26,6 +33,10 @@ type Checker struct {
 	lastResult     *CheckResult
 	mu             sync.RWMutex
 	client         *http.Client
+	downloadClient *http.Client
+	apiBase        string
+	downloadBase   string
+	repo           string
 }
 
 // NewChecker 创建版本检查器
@@ -39,6 +50,13 @@ func NewChecker(currentVersion, dataDir string) *Checker {
 		client: &http.Client{
 			Timeout: 15 * time.Second,
 		},
+		// 更新包可能较大，单独给下载更长的超时
+		downloadClient: &http.Client{
+			Timeout: 10 * time.Minute,
+		},
+		apiBase:      defaultAPIBase,
+		downloadBase: defaultDownloadBase,
+		repo:         defaultRepo,
 	}
 }
 
@@ -148,12 +166,6 @@ func (c *Checker) Download() (*DownloadResult, error) {
 
 	version := strings.TrimPrefix(result.LatestVersion, "v")
 	assetName := AssetName(version, runtime.GOOS, runtime.GOARCH)
-	downloadURL := fmt.Sprintf(
-		"https://github.com/pxelab/pxelab/releases/download/v%s/%s",
-		version, assetName,
-	)
-
-	slog.Info("开始下载更新", "url", downloadURL, "version", version)
 
 	updatesDir := filepath.Join(c.dataDir, "updates")
 	if err := os.MkdirAll(updatesDir, 0755); err != nil {
@@ -173,43 +185,139 @@ func (c *Checker) Download() (*DownloadResult, error) {
 		}, nil
 	}
 
-	// 下载
-	resp, err := c.client.Get(downloadURL)
+	var attempts []string
+
+	// 首选 GitHub API：先解析 asset，再通过 asset API 下载。
+	// 部分网络会阻断 github.com/releases/download 直连，但 api.github.com 可用。
+	assetURL, resolveErr := c.resolveAssetURL(version, assetName)
+	if resolveErr == nil {
+		if err := c.downloadFile(assetURL, destPath); err == nil {
+			fi, statErr := os.Stat(destPath)
+			if statErr != nil {
+				return nil, fmt.Errorf("下载完成但读取文件失败: %w", statErr)
+			}
+			slog.Info("更新包下载完成", "path", destPath, "size", fi.Size(), "via", "github-api")
+			return &DownloadResult{
+				FilePath: destPath,
+				FileName: assetName,
+				FileSize: fi.Size(),
+				Version:  version,
+			}, nil
+		} else {
+			attempts = append(attempts, err.Error())
+		}
+	} else {
+		attempts = append(attempts, resolveErr.Error())
+	}
+
+	// 回退到直连地址（网络允许时更简单）
+	directURL := fmt.Sprintf("%s/%s/releases/download/v%s/%s", c.downloadBase, c.repo, version, assetName)
+	if err := c.downloadFile(directURL, destPath); err == nil {
+		fi, statErr := os.Stat(destPath)
+		if statErr != nil {
+			return nil, fmt.Errorf("下载完成但读取文件失败: %w", statErr)
+		}
+		slog.Info("更新包下载完成", "path", destPath, "size", fi.Size(), "via", "direct")
+		return &DownloadResult{
+			FilePath: destPath,
+			FileName: assetName,
+			FileSize: fi.Size(),
+			Version:  version,
+		}, nil
+	} else {
+		attempts = append(attempts, err.Error())
+	}
+
+	return nil, fmt.Errorf("下载失败: %s。请检查网络/代理，或从 https://github.com/%s/releases 手动下载", strings.Join(attempts, "; "), c.repo)
+}
+
+// resolveAssetURL 查询 GitHub release，返回指定 asset 的 API 下载地址。
+func (c *Checker) resolveAssetURL(version, assetName string) (string, error) {
+	url := fmt.Sprintf("%s/repos/%s/releases/tags/v%s", c.apiBase, c.repo, version)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("下载失败: %w", err)
+		return "", fmt.Errorf("创建 release 查询请求失败: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "PxeLab/"+c.currentVersion)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("查询 release 失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return "", fmt.Errorf("release v%s 不存在", version)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("查询 release 失败: HTTP %d", resp.StatusCode)
+	}
+
+	var release struct {
+		Assets []struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return "", fmt.Errorf("解析 release 失败: %w", err)
+	}
+
+	for _, asset := range release.Assets {
+		if asset.Name == assetName {
+			return fmt.Sprintf("%s/repos/%s/releases/assets/%d", c.apiBase, c.repo, asset.ID), nil
+		}
+	}
+	return "", fmt.Errorf("release v%s 缺少资源 %s", version, assetName)
+}
+
+// downloadFile 下载 url 到 destPath，先写 .tmp 再原子重命名。
+func (c *Checker) downloadFile(url, destPath string) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("创建下载请求失败: %w", err)
+	}
+	req.Header.Set("User-Agent", "PxeLab/"+c.currentVersion)
+	if strings.Contains(url, "/releases/assets/") {
+		// GitHub asset API 需要这个 Accept 才返回二进制内容
+		req.Header.Set("Accept", "application/octet-stream")
+	}
+
+	resp, err := c.downloadClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("请求下载地址失败: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("下载失败: HTTP %d", resp.StatusCode)
+		return fmt.Errorf("下载返回 HTTP %d", resp.StatusCode)
 	}
 
-	f, err := os.Create(destPath + ".tmp")
+	tmpPath := destPath + ".tmp"
+	f, err := os.Create(tmpPath)
 	if err != nil {
-		return nil, fmt.Errorf("创建临时文件失败: %w", err)
+		return fmt.Errorf("创建临时文件失败: %w", err)
 	}
-
-	written, err := io.Copy(f, resp.Body)
-	if err != nil {
+	success := false
+	defer func() {
 		f.Close()
-		os.Remove(destPath + ".tmp")
-		return nil, fmt.Errorf("写入文件失败: %w", err)
+		if !success {
+			os.Remove(tmpPath)
+		}
+	}()
+
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		return fmt.Errorf("写入文件失败: %w", err)
 	}
-	f.Close()
-
-	// 重命名临时文件
-	if err := os.Rename(destPath+".tmp", destPath); err != nil {
-		return nil, fmt.Errorf("重命名文件失败: %w", err)
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("关闭文件失败: %w", err)
 	}
-
-	slog.Info("更新包下载完成", "path", destPath, "size", written)
-
-	return &DownloadResult{
-		FilePath: destPath,
-		FileName: assetName,
-		FileSize: written,
-		Version:  version,
-	}, nil
+	if err := os.Rename(tmpPath, destPath); err != nil {
+		return fmt.Errorf("重命名文件失败: %w", err)
+	}
+	success = true
+	return nil
 }
 
 // compareVersions 比较两个语义化版本号
