@@ -9,7 +9,7 @@ import { LangSwitch } from '../LangSwitch'
 import { StatusDot } from '../ui/StatusDot'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
-import { getServices, batchService, getVersionInfo, downloadUpdate, type ServiceInfo, type VersionInfo } from '../../api/client'
+import { getServices, batchService, getVersionInfo, downloadUpdate, applyUpdate, type ServiceInfo, type VersionInfo } from '../../api/client'
 import SettingsModal from './SettingsModal'
 import LogoMark from '../LogoMark'
 import { CommandPalette } from '../CommandPalette'
@@ -17,7 +17,7 @@ import { NotificationCenter } from '../NotificationCenter'
 import {
   LayoutDashboard, Server, FileCode, Activity, Settings,
   ShieldCheck, Network, Menu, ChevronRight, ChevronLeft,
-  HardDrive, Cpu, Wifi, Disc, Bell, ScrollText, Search, Package,
+  HardDrive, Cpu, Wifi, Disc, Bell, ScrollText, Search, Package, RefreshCw,
 } from 'lucide-react'
 
 interface NavItem {
@@ -310,6 +310,9 @@ export const AppShell: FC<Props> = ({ children }) => {
   const toast = useToast()
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null)
   const [downloading, setDownloading] = useState(false)
+  const [applying, setApplying] = useState(false)
+  const [restarting, setRestarting] = useState(false)
+  const [confirmInstall, setConfirmInstall] = useState(false)
 
   useEffect(() => {
     getVersionInfo().then(res => {
@@ -330,6 +333,35 @@ export const AppShell: FC<Props> = ({ children }) => {
       setDownloading(false)
     }
   }, [t, toast])
+
+  const handleApply = useCallback(async () => {
+    setConfirmInstall(false)
+    setApplying(true)
+    const oldVersion = versionInfo?.current_version
+    try {
+      await applyUpdate()
+      setRestarting(true)
+      // 服务重启通常需要几秒；期间请求会失败，继续重试直到版本变化
+      for (let i = 0; i < 45; i++) {
+        await new Promise(resolve => window.setTimeout(resolve, 2000))
+        try {
+          const res = await getVersionInfo()
+          if (res.data.current_version && res.data.current_version !== oldVersion) {
+            window.location.reload()
+            return
+          }
+        } catch {
+          // 服务尚未恢复，继续等待
+        }
+      }
+      setRestarting(false)
+      toast.error(t('version.restartTimeout'))
+    } catch (e: any) {
+      toast.error(e?.message || t('version.applyFailed'))
+    } finally {
+      setApplying(false)
+    }
+  }, [versionInfo, t, toast])
 
   // 全局 ⌘K / Ctrl+K 切换命令面板
   useEffect(() => {
@@ -621,9 +653,16 @@ export const AppShell: FC<Props> = ({ children }) => {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
+                onClick={() => setConfirmInstall(true)}
+                disabled={applying || downloading || restarting}
+                className="px-3 py-1 text-xs font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                {applying ? t('version.installing') : t('version.install')}
+              </button>
+              <button
                 onClick={handleDownload}
-                disabled={downloading}
-                className="px-3 py-1 text-xs font-medium rounded-lg bg-blue-500/20 text-info hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+                disabled={downloading || applying || restarting}
+                className="hidden sm:inline px-3 py-1 text-xs font-medium rounded-lg bg-blue-500/20 text-info hover:bg-blue-500/30 transition-colors disabled:opacity-50"
               >
                 {downloading ? t('version.downloading') : t('version.download')}
               </button>
@@ -697,6 +736,26 @@ export const AppShell: FC<Props> = ({ children }) => {
           </div>
         </div>
       </main>
+
+      <ConfirmDialog
+        open={confirmInstall}
+        onClose={() => setConfirmInstall(false)}
+        onConfirm={handleApply}
+        title={t('version.installTitle')}
+        message={t('version.installConfirm', { version: versionInfo?.check?.latest_version || '' })}
+        confirmLabel={t('version.installConfirmButton')}
+        danger={false}
+      />
+
+      {restarting && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm" role="status" aria-live="assertive">
+          <div className="w-[360px] max-w-[90vw] rounded-xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-6 text-center shadow-xl">
+            <RefreshCw size={22} className="mx-auto animate-spin text-info" />
+            <p className="mt-3 text-sm font-semibold text-[var(--text-primary)]">{t('version.restarting')}</p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">{t('version.restartingHint')}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

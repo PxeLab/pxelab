@@ -37,6 +37,7 @@ type Checker struct {
 	apiBase        string
 	downloadBase   string
 	repo           string
+	applyFn        func(*StagedUpdate) (any, error)
 }
 
 // NewChecker 创建版本检查器

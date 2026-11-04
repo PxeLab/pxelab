@@ -146,3 +146,9 @@ export interface DownloadResult {
 	file_size: number
 	version: string
 }
+
+export interface ApplyResult {
+	version: string
+	restarting: boolean
+	service?: boolean
+}

@@ -3,6 +3,8 @@ version: 2
 before:
   hooks:
     - sh -c "cd web && npm ci && npm run build"
+    # Linux 大小写敏感：确认前端产物落在 Go 包实际 embed 的目录里
+    - sh -c "ls cmd/pxelab/webdist/index.html cmd/pxelab/webdist/assets/*.js >/dev/null"
     - sh scripts/update-version-json.sh
 
 builds:

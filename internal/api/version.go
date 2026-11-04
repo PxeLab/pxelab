@@ -78,3 +78,20 @@ func (h *VersionHandler) DownloadUpdate(w http.ResponseWriter, r *http.Request) 
 
 	OK(w, result)
 }
+
+// ApplyUpdate 下载、校验并安装更新，随后由宿主进程重启。
+// POST /api/v1/version/apply
+func (h *VersionHandler) ApplyUpdate(w http.ResponseWriter, r *http.Request) {
+	if h.updateChecker == nil {
+		Error(w, http.StatusServiceUnavailable, "版本检查器未初始化")
+		return
+	}
+
+	result, err := h.updateChecker.Apply()
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	OK(w, result)
+}
