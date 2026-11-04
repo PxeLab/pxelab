@@ -550,8 +550,8 @@ export default function Dashboard() {
       </section>
 
       {/* Events + charts */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-start">
-        <section className="overflow-hidden rounded-md border border-[var(--bg-border)] bg-[var(--bg-card)] shadow-sm">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+        <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-[var(--bg-border)] bg-[var(--bg-card)] shadow-sm">
           <div className="flex min-h-[50px] items-center justify-between gap-3 border-b border-[var(--bg-border)] px-4 py-2">
             <div className="flex items-baseline gap-2">
               <h2 className="text-[14.5px] font-semibold text-[var(--text-primary)]">{t('dashboard.recentEvents')}</h2>
@@ -566,11 +566,11 @@ export default function Dashboard() {
           </div>
 
           {events.length === 0 ? (
-            <p className="py-10 text-center text-sm text-[var(--text-muted)]">{t('dashboard.noEvents')}</p>
+            <div className="flex flex-1 items-center justify-center py-10 text-sm text-[var(--text-muted)]">{t('dashboard.noEvents')}</div>
           ) : (
-            <div>
+            <div className="flex flex-1 flex-col">
               {events.slice(0, 8).map((e, i) => (
-                <div key={i} className="flex min-h-[52px] items-center gap-2.5 border-b border-[var(--bg-border)]/60 px-4 py-2 last:border-b-0 hover:bg-[var(--bg-base)]/40">
+                <div key={i} className="flex min-h-[52px] max-h-[64px] flex-1 items-center gap-2.5 border-b border-[var(--bg-border)]/60 px-4 py-2 last:border-b-0 hover:bg-[var(--bg-base)]/40">
                   <span className="w-[52px] shrink-0 font-mono text-[11.5px] text-[var(--text-muted)]">{fmtEventTime(e.timestamp)}</span>
                   <span className="shrink-0 rounded border border-[var(--bg-border)] bg-[var(--bg-base)]/60 px-1.5 py-0.5 text-center font-mono text-[10.5px] uppercase text-[var(--text-secondary)]">
                     {e.type}
