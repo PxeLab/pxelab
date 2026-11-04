@@ -133,7 +133,7 @@ export const ToastProvider: FC<{ children: ReactNode }> = ({ children }) => {
               className={`flex items-start gap-2.5 px-4 py-3 rounded-lg bg-[var(--bg-card)] border ${colorMap[item.type]} shadow-lg text-sm text-[var(--text-primary)] min-w-[300px] max-w-[420px]`}
             >
               <Icon size={16} className={`shrink-0 mt-0.5 ${iconColorMap[item.type]}`} />
-              <span className="flex-1 whitespace-pre-line">{item.message}</span>
+              <span className="flex-1 whitespace-pre-line break-all">{item.message}</span>
               <button onClick={() => dismiss(item.id)} aria-label={t('common.close')} className="shrink-0 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                 <X size={14} />
               </button>

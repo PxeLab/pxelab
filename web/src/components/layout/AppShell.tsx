@@ -323,7 +323,7 @@ export const AppShell: FC<Props> = ({ children }) => {
     setDownloading(true)
     try {
       const res = await downloadUpdate()
-      toast.success(t('version.downloadReady', { path: res.data.file_name }))
+      toast.success(t('version.downloadReady', { path: res.data.file_path }))
     } catch (e: any) {
       toast.error(e?.message || t('version.downloadFailed'))
     } finally {
