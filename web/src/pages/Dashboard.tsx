@@ -413,6 +413,21 @@ export default function Dashboard() {
   const rangeLabel = (r: '5m' | '30m' | '1h') =>
     t(r === '5m' ? 'dashboard.range5m' : r === '30m' ? 'dashboard.range30m' : 'dashboard.range1h')
 
+  const levelBadgeClass = (level: string) => {
+    const l = (level || 'INFO').toUpperCase()
+    if (l === 'ERROR' || l === 'FATAL') return 'border-accent-red/25 bg-accent-red/10 text-danger'
+    if (l === 'WARN' || l === 'WARNING') return 'border-accent-yellow/25 bg-accent-yellow/10 text-warning'
+    return 'border-[var(--bg-border)] bg-[var(--bg-base)]/60 text-[var(--text-muted)]'
+  }
+
+  // 右侧已单独展示 MAC，消息末尾重复的 MAC 去掉，避免同一行出现两次
+  const eventMessage = (message: string, mac?: string) => {
+    const msg = (message || '').trimEnd()
+    if (!mac || !msg.endsWith(mac)) return msg
+    const stripped = msg.slice(0, -mac.length).replace(/[：:\s、-]+$/, '')
+    return stripped || msg
+  }
+
   return (
     <div className="space-y-[18px]">
       {/* Breadcrumb */}
@@ -570,14 +585,20 @@ export default function Dashboard() {
           ) : (
             <div className="flex flex-1 flex-col">
               {events.slice(0, 8).map((e, i) => (
-                <div key={i} className="flex min-h-[52px] max-h-[64px] flex-1 items-center gap-2.5 border-b border-[var(--bg-border)]/60 px-4 py-2 last:border-b-0 hover:bg-[var(--bg-base)]/40">
+                <div key={i} className="flex min-h-[52px] max-h-[64px] flex-1 items-center gap-3 border-b border-[var(--bg-border)]/60 px-4 py-2 last:border-b-0 hover:bg-[var(--bg-base)]/40">
                   <span className="w-[52px] shrink-0 font-mono text-[11.5px] text-[var(--text-muted)]">{fmtEventTime(e.timestamp)}</span>
                   <span className="shrink-0 rounded border border-[var(--bg-border)] bg-[var(--bg-base)]/60 px-1.5 py-0.5 text-center font-mono text-[10.5px] uppercase text-[var(--text-secondary)]">
                     {e.type}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] text-[var(--text-primary)]">{e.message}</div>
-                    {e.mac && <div className="truncate font-mono text-[11.5px] text-[var(--text-muted)]">{e.mac}</div>}
+                    <div className="truncate text-[13px] text-[var(--text-primary)]">{eventMessage(e.message, e.mac)}</div>
+                    {e.mac && <div className="truncate font-mono text-[11px] text-[var(--text-muted)] sm:hidden">{e.mac}</div>}
+                  </div>
+                  <div className="hidden w-[132px] shrink-0 flex-col items-end gap-1 sm:flex">
+                    {e.mac && <span className="max-w-full truncate font-mono text-[11px] text-[var(--text-secondary)]">{e.mac}</span>}
+                    <span className={'rounded border px-1.5 py-0.5 font-mono text-[10px] leading-none ' + levelBadgeClass(e.level)}>
+                      {(e.level || 'INFO').toUpperCase()}
+                    </span>
                   </div>
                 </div>
               ))}
