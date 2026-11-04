@@ -272,6 +272,14 @@ func (s *sqliteStore) ListHosts(ctx context.Context, search string, page, size i
 	return hosts, total, nil
 }
 
+func (s *sqliteStore) CountOnlineHosts(ctx context.Context, since time.Time) (int64, error) {
+	var total int64
+	err := s.db.WithContext(ctx).Model(&models.Host{}).
+		Where("last_online IS NOT NULL AND last_online >= ?", since).
+		Count(&total).Error
+	return total, err
+}
+
 func (s *sqliteStore) GetHost(ctx context.Context, id string) (*models.Host, error) {
 	var host models.Host
 	if err := s.db.WithContext(ctx).First(&host, "id = ?", id).Error; err != nil {
@@ -419,6 +427,12 @@ func (s *sqliteStore) ListEvents(ctx context.Context, filter EventFilter) ([]mod
 	}
 	if filter.Level != "" {
 		query = query.Where("level = ?", filter.Level)
+	}
+	if filter.From > 0 {
+		query = query.Where("timestamp >= ?", time.Unix(filter.From, 0))
+	}
+	if filter.To > 0 {
+		query = query.Where("timestamp <= ?", time.Unix(filter.To, 0))
 	}
 	query.Count(&total)
 	if err := query.Order("timestamp DESC").Offset((filter.Page - 1) * filter.Size).Limit(filter.Size).Find(&events).Error; err != nil {

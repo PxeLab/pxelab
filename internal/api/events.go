@@ -87,6 +87,12 @@ func (r *eventRing) List(filter store.EventFilter) ([]models.Event, int64) {
 		if filter.Mac != "" && (e.MAC == nil || !strings.EqualFold(*e.MAC, filter.Mac)) {
 			continue
 		}
+		if filter.From > 0 && e.Timestamp.Unix() < filter.From {
+			continue
+		}
+		if filter.To > 0 && e.Timestamp.Unix() > filter.To {
+			continue
+		}
 		filtered = append(filtered, e)
 	}
 
@@ -157,10 +163,14 @@ func (h *EventHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	h.ensureSubscribed()
 
+	from, _ := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
+	to, _ := strconv.ParseInt(r.URL.Query().Get("to"), 10, 64)
 	filter := store.EventFilter{
 		Type:  r.URL.Query().Get("type"),
 		Level: r.URL.Query().Get("level"),
 		Mac:   r.URL.Query().Get("mac"),
+		From:  from,
+		To:    to,
 		Page:  page,
 		Size:  size,
 	}

@@ -57,6 +57,8 @@ type WOLStore interface {
 
 type HostStore interface {
 	ListHosts(ctx context.Context, search string, page, size int) ([]models.Host, int64, error)
+	// CountOnlineHosts 统计 last_online 不早于 since 的主机数（真实总数，不随分页截断）
+	CountOnlineHosts(ctx context.Context, since time.Time) (int64, error)
 	GetHost(ctx context.Context, id string) (*models.Host, error)
 	GetHostByMAC(ctx context.Context, mac string) (*models.Host, error)
 	GetHostBySN(ctx context.Context, sn string) (*models.Host, error)

@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
-	"regexp"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -25,14 +26,28 @@ func (h *HostHandler) List(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	size, _ := strconv.Atoi(r.URL.Query().Get("size"))
 	search := r.URL.Query().Get("search")
-	if page < 1 { page = 1 }
-	if size < 1 || size > 100 { size = 20 }
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 || size > 100 {
+		size = 20
+	}
 	hosts, total, err := h.store.ListHosts(r.Context(), search, page, size)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	OK(w, map[string]any{"hosts": hosts, "meta": Meta{Page: page, Size: size, Total: total}})
+	resp := map[string]any{"hosts": hosts, "meta": Meta{Page: page, Size: size, Total: total}}
+	// online_within=<秒> 时附带真实在线主机总数（基于 last_online，不受分页限制）
+	if onlineWithin, _ := strconv.Atoi(r.URL.Query().Get("online_within")); onlineWithin > 0 {
+		online, err := h.store.CountOnlineHosts(r.Context(), time.Now().Add(-time.Duration(onlineWithin)*time.Second))
+		if err != nil {
+			Error(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		resp["online"] = online
+	}
+	OK(w, resp)
 }
 
 func (h *HostHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -77,7 +92,7 @@ var macAddressRe = regexp.MustCompile(`^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$`)
 
 func (h *HostHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	
+
 	// 保存旧值
 	oldHost, err := h.store.GetHost(r.Context(), id)
 	if err != nil {

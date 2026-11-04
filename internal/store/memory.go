@@ -172,6 +172,19 @@ func (s *memoryStore) ListHosts(_ context.Context, search string, page, size int
 	return list[offset:end], total, nil
 }
 
+func (s *memoryStore) CountOnlineHosts(_ context.Context, since time.Time) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var total int64
+	for _, h := range s.hosts {
+		if h.LastOnline != nil && !h.LastOnline.Before(since) {
+			total++
+		}
+	}
+	return total, nil
+}
+
 func (s *memoryStore) GetHost(_ context.Context, id string) (*models.Host, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -417,6 +430,12 @@ func (s *memoryStore) ListEvents(_ context.Context, filter EventFilter) ([]model
 			continue
 		}
 		if filter.Level != "" && !strings.EqualFold(string(e.Level), filter.Level) {
+			continue
+		}
+		if filter.From > 0 && e.Timestamp.Unix() < filter.From {
+			continue
+		}
+		if filter.To > 0 && e.Timestamp.Unix() > filter.To {
 			continue
 		}
 		list = append(list, e)
