@@ -297,8 +297,8 @@ export default function Hosts() {
     { key: 'last_context', label: t('hosts.recordsContext'), render: (r) => <span className="text-xs text-[var(--text-muted)]">{r.last_context || '—'}</span> },
     { key: 'claimed', label: t('hosts.recordsClaimed'), render: (r) => (
       r.claimed_host_id
-        ? <span className="text-xs text-accent-green">{r.claimed_host || r.claimed_host_id}</span>
-        : <span className="text-xs text-accent-yellow">{t('hosts.recordsNotClaimed')}</span>
+        ? <span className="text-xs text-success">{r.claimed_host || r.claimed_host_id}</span>
+        : <span className="text-xs text-warning">{t('hosts.recordsNotClaimed')}</span>
     ) },
     { key: 'actions', label: '', className: 'text-right', render: (r) => (
       <div className="flex items-center justify-end gap-2">
@@ -342,16 +342,22 @@ export default function Hosts() {
         onClick={e => e.stopPropagation()}
       />
     ) },
-    { key: 'mac', label: t('hosts.columns.mac'), render: (h) => <span className="font-mono text-xs text-[var(--text-primary)]">{h.mac}</span>, sortable: true },
-    { key: 'name', label: t('hosts.columns.hostname'), render: (h) => <span className="font-medium text-[var(--text-primary)]">{h.name || '—'}</span> },
-    { key: 'ip', label: t('hosts.columns.ip'), render: (h) => <span className="font-mono text-xs">{h.ip}</span> },
-    { key: 'boot_count', label: t('hosts.columns.bootCount'), render: (h) => <span className="font-mono text-xs">{h.boot_count}</span> },
-    { key: 'last_online', label: t('hosts.columns.lastOnline'), render: (h) => (
+    { key: 'mac', label: t('hosts.columns.mac'), className: 'hidden sm:table-cell whitespace-nowrap', render: (h) => <span className="font-mono text-xs text-[var(--text-primary)]">{h.mac}</span>, sortable: true },
+    { key: 'name', label: t('hosts.columns.hostname'), render: (h) => (
+      <div className="min-w-0">
+        <div className="font-medium text-[var(--text-primary)] truncate">{h.name || '—'}</div>
+        {/* 窄屏把 MAC/IP 收到主机名下面，避免关键列被横向滚动裁掉 */}
+        <div className="sm:hidden font-mono text-[11px] text-[var(--text-muted)] truncate">{h.mac}{h.ip ? ` · ${h.ip}` : ''}</div>
+      </div>
+    )},
+    { key: 'ip', label: t('hosts.columns.ip'), className: 'hidden sm:table-cell whitespace-nowrap', render: (h) => <span className="font-mono text-xs">{h.ip}</span> },
+    { key: 'boot_count', label: t('hosts.columns.bootCount'), className: 'hidden md:table-cell', render: (h) => <span className="font-mono text-xs">{h.boot_count}</span> },
+    { key: 'last_online', label: t('hosts.columns.lastOnline'), className: 'hidden md:table-cell', render: (h) => (
       <span className="font-mono text-xs text-[var(--text-muted)]">{h.last_online ? new Date(h.last_online).toLocaleString() : '—'}</span>
     )},
     { key: 'actions', label: '', render: (h) => (
       <div onClick={e => e.stopPropagation()}><Button variant="ghost" size="sm" onClick={() => handleDelete(h.id)}>{t('common.delete')}</Button></div>
-    ), width: '60px' },
+    ), className: 'whitespace-nowrap sticky right-0 z-[1] bg-[var(--bg-card)] group-hover:bg-[var(--bg-hover)] shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.25)]', width: '1%' },
   ]
 
   return (
@@ -384,7 +390,7 @@ export default function Hosts() {
             >
               {tab.label}
               {tab.key === 'records' && records.filter(r => !r.claimed_host_id).length > 0 && (
-                <span className="ml-1.5 px-1.5 py-px rounded-full bg-accent-red/15 text-accent-red text-[10px]">
+                <span className="ml-1.5 px-1.5 py-px rounded-full bg-accent-red/15 text-danger text-[10px]">
                   {records.filter(r => !r.claimed_host_id).length}
                 </span>
               )}
@@ -474,7 +480,7 @@ export default function Hosts() {
         open={clearMode !== ''}
         onClose={() => setClearMode('')}
         onConfirm={doClearRecords}
-        title={t('hosts.recordsClearTitle')}
+        title={t('hosts.recordsClearTitle')} confirmLabel={clearMode === 'unknown' ? t('hosts.recordsClearUnknown') : t('hosts.recordsClearAll')}
         message={clearMode === 'unknown' ? t('hosts.recordsClearUnknownConfirm') : t('hosts.recordsClearAllConfirm')}
       />
 
@@ -491,7 +497,7 @@ export default function Hosts() {
       >
         <div className="space-y-4">
           {createError && (
-            <div className="px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/30 text-accent-red text-xs">{createError}</div>
+            <div className="px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/30 text-danger text-xs">{createError}</div>
           )}
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">{t('hosts.columns.mac')}</label>
@@ -537,7 +543,7 @@ export default function Hosts() {
                 {inheritedBaselineIds.map(id => {
                   const b = allBaselines.find(x => x.id === id)
                   return (
-                    <span key={id} className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">{b ? b.name : id}</span>
+                    <span key={id} className="px-1.5 py-0.5 rounded bg-blue-500/10 text-info text-[10px] font-medium">{b ? b.name : id}</span>
                   )
                 })}
               </div>
@@ -625,7 +631,7 @@ export default function Hosts() {
       >
         <div className="space-y-4">
           {batchError && (
-            <div className="px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/30 text-accent-red text-xs">{batchError}</div>
+            <div className="px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/30 text-danger text-xs">{batchError}</div>
           )}
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
@@ -643,7 +649,7 @@ export default function Hosts() {
           </div>
           {batchSystems.length === 0 ? (
             <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-accent-yellow/10 border border-accent-yellow/30">
-              <span className="text-xs text-accent-yellow flex-1">{t('batchInstall.noReadySystems')}</span>
+              <span className="text-xs text-warning flex-1">{t('batchInstall.noReadySystems')}</span>
               <Button size="sm" onClick={() => navigate('/store')}>{t('quickInstall.goStore')}</Button>
             </div>
           ) : (
@@ -675,7 +681,7 @@ export default function Hosts() {
                 </Select>
                 {batchSys && !batchTemplate && (
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xs text-accent-red flex-1">{t('quickInstall.missingTemplateWarn')}</span>
+                    <span className="text-xs text-danger flex-1">{t('quickInstall.missingTemplateWarn')}</span>
                     <Button size="sm" onClick={() => navigate('/answer-templates')}>{t('quickInstall.goAnswerTemplates')}</Button>
                   </div>
                 )}
@@ -684,7 +690,7 @@ export default function Hosts() {
           )}
           {batchSkipped.length > 0 && (
             <div className="rounded-lg border border-accent-yellow/30 bg-accent-yellow/5 px-3 py-2 space-y-1">
-              <p className="text-xs font-semibold text-accent-yellow">{t('batchInstall.skippedTitle')}</p>
+              <p className="text-xs font-semibold text-warning">{t('batchInstall.skippedTitle')}</p>
               {batchSkipped.map(s => (
                 <div key={s.mac} className="text-xs font-mono text-[var(--text-muted)]">{s.mac} — {s.reason}</div>
               ))}
@@ -701,7 +707,11 @@ export default function Hosts() {
         onClose={() => setConfirmDelete(null)}
         onConfirm={doDelete}
         title={t('hosts.deleteTitle')}
-        message={t('hosts.deleteConfirm')}
+        confirmLabel={t('common.delete')}
+        message={t('hosts.deleteConfirm', {
+          name: hosts.find(h => h.id === confirmDelete)?.name || confirmDelete || '',
+          mac: hosts.find(h => h.id === confirmDelete)?.mac || '',
+        })}
       />
     </div>
   )

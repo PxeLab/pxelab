@@ -181,7 +181,7 @@ export default function InstallTasks() {
         const name = host ? (
           <button
             onClick={() => navigate(`/hosts/${host.id}`)}
-            className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            className="text-sm font-medium text-info hover:opacity-80 transition-colors"
           >
             {host.name || host.id}
           </button>
@@ -283,7 +283,7 @@ export default function InstallTasks() {
             </Button>
           )}
           {task.status === 'failed' && task.error_msg && (
-            <span className="text-[10px] text-accent-red/60" title={task.error_msg}>{t('common.error')}</span>
+            <span className="text-[10px] text-danger/60" title={task.error_msg}>{t('common.error')}</span>
           )}
         </>
       ),
@@ -334,7 +334,7 @@ export default function InstallTasks() {
       {/* Error state */}
       {loadError && (
         <Card>
-          <div className="py-8 text-center text-sm text-accent-red">{loadError}</div>
+          <div className="py-8 text-center text-sm text-danger">{loadError}</div>
         </Card>
       )}
 
@@ -408,10 +408,10 @@ export default function InstallTasks() {
           </div>
           <div className="flex items-center gap-4 flex-wrap px-5 py-3 border-b border-[var(--bg-border)] text-xs text-[var(--text-muted)]">
             <span>{t('installTasks.countTotal')} <b className="text-[var(--text-primary)]">{b.counts.total}</b></span>
-            <span className="text-blue-400">{t('installTasks.countPending')} <b>{b.counts.pending}</b></span>
-            <span className="text-orange-400">{t('installTasks.countInstalling')} <b>{b.counts.installing}</b></span>
-            <span className="text-accent-green">{t('installTasks.countDone')} <b>{b.counts.done}</b></span>
-            <span className="text-accent-red">{t('installTasks.countFailed')} <b>{b.counts.failed}</b></span>
+            <span className="text-info">{t('installTasks.countPending')} <b>{b.counts.pending}</b></span>
+            <span className="text-orange-text">{t('installTasks.countInstalling')} <b>{b.counts.installing}</b></span>
+            <span className="text-success">{t('installTasks.countDone')} <b>{b.counts.done}</b></span>
+            <span className="text-danger">{t('installTasks.countFailed')} <b>{b.counts.failed}</b></span>
           </div>
           <div>
             {b.tasks.map(task => {
@@ -423,7 +423,7 @@ export default function InstallTasks() {
                   <span className="text-xs text-[var(--text-muted)]">{task.distro_name} {task.version_codename}</span>
                   <span className="ml-auto flex items-center gap-2">
                     {task.status === 'failed' && task.error_msg && (
-                      <span className="max-w-[200px] truncate text-[10px] text-accent-red/70" title={task.error_msg}>{task.error_msg}</span>
+                      <span className="max-w-[200px] truncate text-[10px] text-danger/70" title={task.error_msg}>{task.error_msg}</span>
                     )}
                     <Tag color={task.status === 'done' ? 'green' : task.status === 'failed' ? 'red' : task.status === 'installing' ? 'orange' : 'blue'}>
                       {task.status}
@@ -462,7 +462,7 @@ export default function InstallTasks() {
         }
       >
         {taskError && (
-          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">{taskError}</div>
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-danger">{taskError}</div>
         )}
 
         <div className="space-y-4">
@@ -526,7 +526,7 @@ export default function InstallTasks() {
             const ver = distro?.versions.find(v => v.codename === newTask.version_codename)
             if (!ver || ver.local || !ver.remote) return null
             return (
-              <div className="text-xs text-amber-400 bg-[var(--bg-card)] border border-amber-400/30 rounded px-3 py-1.5">
+              <div className="text-xs text-warning bg-[var(--bg-card)] border border-amber-400/30 rounded px-3 py-1.5">
                 {t('netbootCatalog.remoteOnlyTitle')}
               </div>
             )
@@ -564,14 +564,14 @@ export default function InstallTasks() {
         open={!!confirmDeleteTask}
         onClose={() => setConfirmDeleteTask(null)}
         onConfirm={doDeleteTask}
-        title={t('hosts.detail.deleteTaskConfirm')}
+        title={t('hosts.detail.deleteTaskConfirm')} confirmLabel={t('common.delete')}
         message={t('hosts.detail.deleteTaskMessage')}
       />
       <ConfirmDialog
         open={!!confirmCancelBatch}
         onClose={() => setConfirmCancelBatch(null)}
         onConfirm={doCancelBatch}
-        title={t('installTasks.batchCancelTitle')}
+        title={t('installTasks.batchCancelTitle')} confirmLabel={t('installTasks.batchCancel')}
         message={t('installTasks.batchCancelMessage')}
       />
     </div>

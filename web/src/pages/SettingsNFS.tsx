@@ -244,7 +244,7 @@ export default function SettingsNFS() {
           {(mp.connection_count || 0) > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); setClientsModalIndex(mp._index) }}
-              className="px-1.5 py-0.5 text-xs rounded-full bg-accent-green/20 text-accent-green flex items-center gap-1 hover:bg-accent-green/30 transition-colors cursor-pointer"
+              className="px-1.5 py-0.5 text-xs rounded-full bg-accent-green/20 text-success flex items-center gap-1 hover:bg-accent-green/30 transition-colors cursor-pointer"
             >
               <Users size={10} />
               {mp.connection_count}
@@ -274,8 +274,8 @@ export default function SettingsNFS() {
       render: (mp) => (
         <span className={`px-2 py-0.5 text-xs rounded-full ${
           mp.read_only
-            ? 'bg-blue-500/20 text-blue-400'
-            : 'bg-accent-yellow/20 text-accent-yellow'
+            ? 'bg-blue-500/20 text-info'
+            : 'bg-accent-yellow/20 text-warning'
         }`}>
           {mp.read_only ? t('settings.nfsReadOnlyYes') : t('settings.nfsReadOnlyNo')}
         </span>
@@ -306,6 +306,7 @@ export default function SettingsNFS() {
           <Button
             variant="ghost"
             size="sm"
+            aria-label={`${t('common.edit')} ${mp.label || mp.export_path || `#${mp._index + 1}`}`}
             onClick={() => handleEdit(mp._index)}
             className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
           >
@@ -314,8 +315,9 @@ export default function SettingsNFS() {
           <Button
             variant="ghost"
             size="sm"
+            aria-label={`${t('common.delete')} ${mp.label || mp.export_path || `#${mp._index + 1}`}`}
             onClick={() => handleDeleteClick(mp._index)}
-            className="text-accent-red"
+            className="text-danger"
           >
             <Trash2 size={14} />
           </Button>
@@ -444,12 +446,12 @@ export default function SettingsNFS() {
                       {validatingPath ? (
                         <Loader2 size={14} className="animate-spin text-[var(--text-muted)]" />
                       ) : pathValidation?.exists ? (
-                        <span className="flex items-center gap-1 text-xs text-accent-green">
+                        <span className="flex items-center gap-1 text-xs text-success">
                           <CheckCircle size={12} />
                           {t('settings.nfsPathExists')}{pathValidation.writable ? ` · ${t('settings.nfsPathWritable')}` : ` · ${t('settings.nfsPathNotWritable')}`}
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-xs text-accent-yellow">
+                        <span className="flex items-center gap-1 text-xs text-warning">
                           <XCircle size={12} />
                           {t('settings.nfsPathNotExist')}
                         </span>
@@ -510,7 +512,7 @@ export default function SettingsNFS() {
         open={deleteIndex !== null}
         onClose={() => setDeleteIndex(null)}
         onConfirm={handleDeleteConfirm}
-        title={t('settings.nfsDeleteMountPoint')}
+        title={t('settings.nfsDeleteMountPoint')} confirmLabel={t('common.delete')}
         message={deleteIndex !== null
           ? t('settings.nfsDeleteMountPointConfirm', {
               path: config.mount_points[deleteIndex]?.export_path || ''
@@ -627,7 +629,7 @@ export default function SettingsNFS() {
                 <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
               </div>
             ) : browseError ? (
-              <div className="py-8 text-center text-sm text-accent-yellow">{browseError}</div>
+              <div className="py-8 text-center text-sm text-warning">{browseError}</div>
             ) : browseEntries.length === 0 ? (
               <div className="py-8 text-center text-sm text-[var(--text-muted)]">{t('settings.nfsBrowseEmpty')}</div>
             ) : (
@@ -638,7 +640,7 @@ export default function SettingsNFS() {
                     onClick={() => loadBrowseDir(entry.path)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--bg-input)] transition-colors border-b border-[var(--bg-border)] last:border-b-0"
                   >
-                    <FolderOpen size={14} className="text-accent-yellow shrink-0" />
+                    <FolderOpen size={14} className="text-warning shrink-0" />
                     <span className="text-[var(--text-primary)]">{entry.name}</span>
                     <span className="ml-auto text-xs text-[var(--text-muted)] font-mono">{entry.path}</span>
                   </button>

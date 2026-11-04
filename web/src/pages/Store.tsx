@@ -125,7 +125,7 @@ export default function Store() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         <PageHeader title={t('store.title')} description={t('store.description')} />
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-3 text-[var(--text-muted)]">
@@ -139,12 +139,12 @@ export default function Store() {
 
   if (loadError) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         <PageHeader title={t('store.title')} description={t('store.description')} />
         <Card className="p-12">
           <div className="flex flex-col items-center gap-4 text-center">
             <div className="w-12 h-12 rounded-full bg-accent-red/10 flex items-center justify-center">
-              <AlertCircle size={24} className="text-accent-red" />
+              <AlertCircle size={24} className="text-danger" />
             </div>
             <div>
               <h3 className="text-base font-semibold text-[var(--text-primary)]">{t('store.storeUnavailable')}</h3>
@@ -161,7 +161,7 @@ export default function Store() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title={t('store.title')}
         description={t('store.description')}
@@ -173,7 +173,7 @@ export default function Store() {
             </Button>
             <Button variant="secondary" onClick={loadCatalog} disabled={loading}>
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              {t('store.retry')}
+              {t('common.refresh')}
             </Button>
           </>
         }
@@ -200,7 +200,7 @@ export default function Store() {
               onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors -mb-px ${
                 activeTab === tab.key
-                  ? 'border-blue-500 text-blue-400'
+                  ? 'border-blue-500 text-info'
                   : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
             >
@@ -316,8 +316,8 @@ function StoreCard({ item, onImport }: { item: StoreItem; onImport: () => void }
         {/* Tags */}
         {item.tags && item.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {item.tags.slice(0, 4).map(tag => (
-              <Tag key={tag}>{tag}</Tag>
+            {item.tags.slice(0, 4).map((tag, index) => (
+              <Tag key={`${tag}-${index}`}>{tag}</Tag>
             ))}
             {item.tags.length > 4 && (
               <span className="text-[10px] text-[var(--text-muted)]">+{item.tags.length - 4}</span>

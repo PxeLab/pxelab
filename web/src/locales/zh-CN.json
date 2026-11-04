@@ -12,6 +12,9 @@
     "failed": "登录失败，请检查令牌是否正确",
     "hint": "首次使用？在服务器终端查看初始令牌，或从本机访问设置页面。"
   },
+  "langSwitch": {
+    "label": "切换语言"
+  },
   "nav": {
     "section": {
       "overview": "概览",
@@ -37,6 +40,7 @@
       "webhooks": "通知"
     },
     "dashboard": "仪表板",
+    "openMenu": "打开导航菜单",
     "hosts": "主机管理",
     "profiles": "引导菜单",
     "files": "文件管理",
@@ -45,7 +49,7 @@
     "logs": "实时日志",
     "services": "服务管理",
     "about": "关于",
-    "netboot": "系统目录",
+    "netboot": "网络引导目录",
     "leases": "DHCP 租约",
     "installTasks": "安装任务",
     "bmc": "带外管理",
@@ -57,12 +61,16 @@
     "bootSettings": "引导选项",
     "baselines": "基线脚本",
     "scripts": "脚本库",
-    "store": "Hub"
+    "store": "资源中心"
   },
   "dashboard": {
     "title": "仪表盘",
     "description": "PXE 网络启动服务器运行概览",
     "serviceStatus": "服务状态",
+    "serviceOverview": "服务总览",
+    "colService": "服务",
+    "colStatus": "状态",
+    "colMetrics": "关键指标",
     "stats": {
       "onlineHosts": "在线主机",
       "runningServices": "运行服务",
@@ -81,6 +89,7 @@
     "httpCount": "次数",
     "serviceNotRunning": "服务未运行",
     "noMetrics": "暂无数据",
+    "httpWindowHint": "请求、拒绝与状态码为所选时间窗口内的增量，活跃连接为实时值",
     "offerAckNak": "Offer/Ack/Nak",
     "discoverRequest": "Discover/Request",
     "decline": "Decline",
@@ -195,7 +204,7 @@
       "reportSuccess": "成功",
       "reportFailed": "失败"
     },
-    "deleteConfirm": "确定要删除该主机吗？",
+    "deleteConfirm": "确定要删除主机「{{name}}」（{{mac}}）吗？该主机的引导配置与引导记录将一并删除，无法恢复。",
     "created": "主机已创建",
     "deleted": "主机已删除",
     "deleteTitle": "删除主机",
@@ -367,7 +376,9 @@
     "title": "文件管理",
     "upload": "上传文件",
     "delete": "删除",
-    "deleteConfirm": "确定要删除该文件吗？",
+    "deleteConfirm": "确定要删除文件「{{name}}」吗？此操作不可恢复。",
+    "copyMd5": "复制 MD5",
+    "md5Copied": "MD5 已复制",
     "name": "文件名",
     "size": "大小",
     "modified": "修改时间",
@@ -744,7 +755,11 @@
     "newInterface": "新增接口",
     "dhcpEmpty": "暂无接口配置，点击右上角「新增接口」添加",
     "confirmDeleteTitle": "确认删除",
-    "deleteInterfaceConfirm": "确定要删除接口 {{name}} 的配置吗？",
+    "deleteInterfaceConfirm": "确定要删除接口 {{name}} 的配置吗？此接口将不再分配地址，依赖它的机器可能无法引导。",
+    "applyDhcpTitle": "应用 DHCP 配置",
+    "applyDhcpConfirmButton": "应用并重启 DHCP",
+    "applyDhcpConfirm": "将写入 {{names}}，共 {{subnets}} 个子网。",
+    "applyDhcpHint": "应用后 DHCP 服务会重新加载，已下发的租约保留；正在引导的机器可能短暂中断。",
     "saved": "已保存",
     "deleted": "已删除",
     "loadInterfaceFailed": "加载接口配置失败",
@@ -934,6 +949,11 @@
     "serviceOpLoading": "正在{{op}} {{name}}…",
     "serviceOpSuccess": "{{name}}{{op}}成功",
     "serviceCount": "{{count}} 个服务",
+    "serviceStatus": "服务状态",
+    "stopConfirmTitle": "停止服务",
+    "restartConfirmTitle": "重启服务",
+    "stopConfirm": "停止 {{names}}？正在引导的机器会立即失败，未完成的文件传输会中断。",
+    "restartConfirm": "重启 {{names}}？重启期间引导与文件传输会短暂中断。",
     "fieldRequired": "此字段为必填项",
     "invalidJSON": "JSON 格式无效",
   
@@ -1766,7 +1786,7 @@
     "noScripts": "暂无脚本。创建您的第一个脚本以在脚本集间复用。"
   },
   "store": {
-    "title": "PxeLab Hub",
+    "title": "PxeLab 资源中心",
     "description": "浏览并导入社区贡献的基线脚本、引导模板和配置方案",
     "searchPlaceholder": "搜索 Hub 内容...",
     "import": "导入",

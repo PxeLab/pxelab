@@ -186,7 +186,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
 
         {probeError && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-accent-red/5 border border-accent-red/10">
-            <span className="text-xs text-accent-red flex-1">{probeError}</span>
+            <span className="text-xs text-danger flex-1">{probeError}</span>
             <button onClick={() => { setProbeError(''); skipProbe() }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] underline shrink-0">
               {t('bmc.skipProbe')}
             </button>
@@ -195,7 +195,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
 
         {(probeResult || probeSkipped) && (
           <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-blue-400">
+            <div className="flex items-center gap-2 text-xs font-semibold text-info">
               <Monitor size={14} />
               {t('bmc.deviceInfo')}
             </div>
@@ -252,7 +252,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
               href={`https://${host}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 underline"
+              className="text-info hover:opacity-80 underline"
             >
               https://{host}
             </a>
@@ -260,7 +260,7 @@ export default function BMCConfigForm({ open, onClose, onSaved, editConfig }: Pr
         )}
 
         {error && (
-          <div className="p-2 rounded bg-accent-red/5 border border-accent-red/10 text-xs text-accent-red">
+          <div className="p-2 rounded bg-accent-red/5 border border-accent-red/10 text-xs text-danger">
             {error}
           </div>
         )}

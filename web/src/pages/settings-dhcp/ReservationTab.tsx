@@ -177,8 +177,8 @@ export function ReservationTab() {
     { key: 'subnet_cidr', label: t('reservations.subnet'), render: (r) => <span className="font-mono text-xs">{r.subnet_cidr}</span> },
     { key: '_actions', label: '', width: '80px', render: (r) => (
       <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-        <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil size={13} /></Button>
-        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(r)}><Trash2 size={13} /></Button>
+        <Button variant="ghost" size="sm" aria-label={`${t('common.edit')} ${r.mac}`} onClick={() => openEdit(r)}><Pencil size={13} /></Button>
+        <Button variant="ghost" size="sm" aria-label={`${t('common.delete')} ${r.mac}`} onClick={() => setDeleteTarget(r)}><Trash2 size={13} /></Button>
       </div>
     )},
   ]
@@ -272,12 +272,12 @@ export function ReservationTab() {
               {form.ip && (
                 <div className="mt-1.5 text-[11px] leading-relaxed">
                   {ipConflict.type ? (
-                    <span className="text-accent-red">
+                    <span className="text-danger">
                       <span className="font-medium">{t('settings.ipConflict')}</span>
                       {ipConflict.detail}
                     </span>
                   ) : (
-                    <span className="text-accent-green">{t('settings.ipAvailable')}</span>
+                    <span className="text-success">{t('settings.ipAvailable')}</span>
                   )}
                 </div>
               )}
@@ -299,7 +299,7 @@ export function ReservationTab() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
-            <Button variant="primary" onClick={() => deleteTarget && handleDelete(deleteTarget)}>{t('common.delete')}</Button>
+            <Button variant="danger" onClick={() => deleteTarget && handleDelete(deleteTarget)}>{t('common.delete')}</Button>
           </>
         }
       >

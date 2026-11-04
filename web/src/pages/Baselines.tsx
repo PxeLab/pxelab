@@ -141,7 +141,7 @@ export default function Baselines() {
       render: bl => (
         <button
           onClick={() => navigate(`/baselines/${bl.id}`)}
-          className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+          className="text-sm font-medium text-info hover:opacity-80 transition-colors"
         >
           {bl.name}
         </button>
@@ -180,7 +180,7 @@ export default function Baselines() {
         <div className="flex items-center justify-end gap-1">
           <button
             onClick={() => navigate(`/baselines/${bl.id}`)}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-info hover:bg-blue-500/10 transition-colors"
             title={t('baselines.scripts')}
           >
             <Eye size={14} />
@@ -194,7 +194,7 @@ export default function Baselines() {
           </button>
           <button
             onClick={() => handleDelete(bl)}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent-red hover:bg-accent-red/10 transition-colors"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-danger hover:bg-accent-red/10 transition-colors"
             title={t('common.delete')}
           >
             <Trash2 size={14} />
@@ -252,7 +252,7 @@ export default function Baselines() {
 
           {loadError && (
         <Card>
-          <div className="py-8 text-center text-sm text-accent-red">{loadError}</div>
+          <div className="py-8 text-center text-sm text-danger">{loadError}</div>
         </Card>
       )}
 
@@ -300,7 +300,7 @@ export default function Baselines() {
         }
       >
         {formError && (
-          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-accent-red">{formError}</div>
+          <div className="mb-4 px-3 py-2 rounded-lg bg-accent-red/10 border border-accent-red/20 text-xs text-danger">{formError}</div>
         )}
         <div className="space-y-4">
           <div>
@@ -326,7 +326,7 @@ export default function Baselines() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={doDelete}
-        title={t('baselines.deleteConfirmTitle')}
+        title={t('baselines.deleteConfirmTitle')} confirmLabel={t('common.delete')}
         message={deleteTarget ? t('baselines.deleteConfirmMsg') : ''}
       />
         </>

@@ -41,7 +41,7 @@ export const StringListEditor: FC<Props> = ({ value, onChange, placeholder, allo
               <button
                 type="button"
                 onClick={() => onChange(value.filter((_, idx) => idx !== i))}
-                className="text-foreground-muted hover:text-accent-red transition-colors"
+                className="text-foreground-muted hover:text-danger transition-colors"
               >
                 <X size={12} />
               </button>

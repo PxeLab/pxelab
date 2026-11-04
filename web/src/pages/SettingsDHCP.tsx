@@ -27,7 +27,7 @@ export default function SettingsInterfaces() {
             onClick={() => setSearchParams({ tab: tab.key })}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-[1px] ${
               activeTab === tab.key
-                ? 'border-blue-500 text-blue-400'
+                ? 'border-blue-500 text-info'
                 : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >

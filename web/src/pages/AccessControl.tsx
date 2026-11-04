@@ -303,14 +303,14 @@ export default function AccessControl() {
     { key: 'type', label: t('accessControl.colType'), render: entry => (
       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
         entry.type === 'blacklist'
-          ? 'bg-accent-red/10 text-accent-red'
-          : 'bg-accent-green/10 text-accent-green'
+          ? 'bg-accent-red/10 text-danger'
+          : 'bg-accent-green/10 text-success'
       }`}>
         {entry.type === 'blacklist' ? t('accessControl.typeBlacklist') : t('accessControl.typeWhitelist')}
       </span>
     ) },
     { key: 'subnet_cidr', label: t('accessControl.colSubnet'), render: entry => (
-      <span className="font-mono text-xs text-blue-400">{entry.subnet_cidr || '-'}</span>
+      <span className="font-mono text-xs text-info">{entry.subnet_cidr || '-'}</span>
     ) },
     { key: 'reason', label: t('accessControl.colReason'), render: entry => (
       <span className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>
@@ -325,7 +325,7 @@ export default function AccessControl() {
             ? handleDeleteBlacklist(Number(entry.id.replace('bl-', '')))
             : handleDeleteWhitelist(Number(entry.id.replace('wl-', '')))
           }
-          className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+          className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-danger transition-colors"
           title={t('accessControl.titleDelete')}
         >
           <Trash2 size={14} />
@@ -339,7 +339,7 @@ export default function AccessControl() {
       <span className="font-mono text-sm">{entry.mac}</span>
     ) },
     { key: 'subnet_cidr', label: t('accessControl.colSubnet'), render: entry => (
-      <span className="font-mono text-xs text-blue-400">{entry.subnet_cidr || t('accessControl.allSubnets')}</span>
+      <span className="font-mono text-xs text-info">{entry.subnet_cidr || t('accessControl.allSubnets')}</span>
     ) },
     { key: 'reason', label: t('accessControl.colReason'), render: entry => (
       <span className="text-xs text-[var(--text-muted)]">{entry.reason || '-'}</span>
@@ -350,7 +350,7 @@ export default function AccessControl() {
     { key: 'actions', label: t('accessControl.colActions'), render: entry => (
       <button
         onClick={() => handleDeleteWhitelist(entry.id)}
-        className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+        className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-danger transition-colors"
         title={t('accessControl.titleDelete')}
       >
         <Trash2 size={14} />
@@ -371,7 +371,7 @@ export default function AccessControl() {
     { key: 'actions', label: t('accessControl.colActions'), render: entry => (
       <button
         onClick={() => handleDeleteBlacklist(entry.id)}
-        className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+        className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-danger transition-colors"
         title={t('accessControl.titleDelete')}
       >
         <Trash2 size={14} />
@@ -392,13 +392,13 @@ export default function AccessControl() {
       <span className="font-mono text-sm">{entry.mac}</span>
     ) },
     { key: 'subnet_cidr', label: t('accessControl.colSubnet'), render: entry => (
-      <span className="font-mono text-xs text-blue-400">{entry.subnet_cidr}</span>
+      <span className="font-mono text-xs text-info">{entry.subnet_cidr}</span>
     ) },
     { key: 'reason', label: t('accessControl.colRejectReason'), render: entry => (
       <span className="text-xs text-[var(--text-muted)]">{entry.reason}</span>
     ) },
     { key: 'count', label: t('accessControl.colRequestCount'), render: entry => (
-      <span className="text-xs font-mono text-accent-yellow">{entry.count}</span>
+      <span className="text-xs font-mono text-warning">{entry.count}</span>
     ) },
     { key: 'last_seen', label: t('accessControl.colLastRequest'), render: entry => (
       <span className="text-xs text-[var(--text-muted)]">{formatTime(entry.last_seen)}</span>
@@ -407,21 +407,21 @@ export default function AccessControl() {
       <div className="flex items-center gap-1">
         <button
           onClick={() => handleAddToWhitelist(entry.mac, entry.subnet_cidr)}
-          className="p-1 rounded hover:bg-accent-green/10 text-[var(--text-muted)] hover:text-accent-green transition-colors"
+          className="p-1 rounded hover:bg-accent-green/10 text-[var(--text-muted)] hover:text-success transition-colors"
           title={t('accessControl.titleAddToWhitelist')}
         >
           <ShieldPlus size={14} />
         </button>
         <button
           onClick={() => handleAddToBlacklist(entry.mac, entry.subnet_cidr)}
-          className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+          className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-danger transition-colors"
           title={t('accessControl.titleAddToBlacklist')}
         >
           <ShieldX size={14} />
         </button>
         <button
           onClick={() => handleDeleteUnauthorized(entry.id)}
-          className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-accent-red transition-colors"
+          className="p-1 rounded hover:bg-accent-red/10 text-[var(--text-muted)] hover:text-danger transition-colors"
           title={t('accessControl.titleIgnore')}
         >
           <Trash2 size={14} />
@@ -452,7 +452,7 @@ export default function AccessControl() {
         className="mb-0"
         actions={
           <>
-            <Button variant="ghost" size="sm" onClick={loadAll}>
+            <Button variant="ghost" size="sm" aria-label={t('common.refresh')} onClick={loadAll}>
               <RefreshCw size={14} />
             </Button>
             <Button variant="danger" size="sm" onClick={() => openAddModal('blacklist')}>
@@ -475,19 +475,19 @@ export default function AccessControl() {
             onClick={() => setSearchParams({ tab: tab.key })}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-[1px] ${
               activeTab === tab.key
-                ? 'border-blue-500 text-blue-400'
+                ? 'border-blue-500 text-info'
                 : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
-            {tab.key === 'unauthorized' && <AlertTriangle size={14} className="text-accent-yellow" />}
+            {tab.key === 'unauthorized' && <AlertTriangle size={14} className="text-warning" />}
             {tab.label}
             {tab.badge ? (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-yellow/10 text-accent-yellow">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-yellow/10 text-warning">
                 {tab.badge}
               </span>
             ) : tab.count !== undefined ? (
               <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                activeTab === tab.key ? 'bg-blue-500/10 text-blue-400' : 'bg-[var(--bg-card)] text-[var(--text-muted)]'
+                activeTab === tab.key ? 'bg-blue-500/10 text-info' : 'bg-[var(--bg-card)] text-[var(--text-muted)]'
               }`}>
                 {tab.count}
               </span>
@@ -631,7 +631,7 @@ export default function AccessControl() {
                 onClick={() => setAddType('blacklist')}
                 className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
                   addType === 'blacklist'
-                    ? 'bg-accent-red/15 text-accent-red shadow-sm'
+                    ? 'bg-accent-red/15 text-danger shadow-sm'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -641,7 +641,7 @@ export default function AccessControl() {
                 onClick={() => setAddType('whitelist')}
                 className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
                   addType === 'whitelist'
-                    ? 'bg-accent-green/15 text-accent-green shadow-sm'
+                    ? 'bg-accent-green/15 text-success shadow-sm'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -667,7 +667,7 @@ export default function AccessControl() {
             />
             {addInput.trim() && (
               <div className="mt-2 flex items-center gap-2">
-                <span className={`text-xs ${macsValid ? 'text-accent-green' : 'text-accent-red'}`}>
+                <span className={`text-xs ${macsValid ? 'text-success' : 'text-danger'}`}>
                   {macsValid
                     ? t('accessControl.macValid', { count: parsedMACs.length })
                     : t('accessControl.macInvalid', { count: parsedMACs.length })}

@@ -32,7 +32,7 @@ export function ChecklistPicker<T extends string | number>(props: {
           onChange={e => setFilter(e.target.value)}
         />
         {props.selected.length > 0 && (
-          <span className="shrink-0 px-1.5 py-px rounded bg-blue-500/10 text-blue-400 text-[10px] font-medium">
+          <span className="shrink-0 px-1.5 py-px rounded bg-blue-500/10 text-info text-[10px] font-medium">
             {t('common.selectedCount', { count: props.selected.length })}
           </span>
         )}
@@ -48,7 +48,7 @@ export function ChecklistPicker<T extends string | number>(props: {
                 checked={on}
                 disabled={isDisabled}
                 onChange={() => props.onToggle(item.id)}
-                className="rounded border-[var(--bg-border)] text-blue-500 focus:ring-blue-500/30"
+                className="rounded border-[var(--bg-border)] text-info focus:ring-blue-500/30"
               />
               <span className="text-[var(--text-muted)] truncate">{item.name}</span>
               {item.badge && (

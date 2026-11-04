@@ -297,8 +297,8 @@ export default function SettingsSMB() {
       render: (s) => (
         <span className={`px-2 py-0.5 text-xs rounded-full ${
           s.read_only
-            ? 'bg-blue-500/20 text-blue-400'
-            : 'bg-accent-yellow/20 text-accent-yellow'
+            ? 'bg-blue-500/20 text-info'
+            : 'bg-accent-yellow/20 text-warning'
         }`}>
           {s.read_only ? t('settings.smbReadOnlyYes') : t('settings.smbReadOnlyNo')}
         </span>
@@ -329,6 +329,7 @@ export default function SettingsSMB() {
           <Button
             variant="ghost"
             size="sm"
+            aria-label={`${t('common.edit')} ${s.name || `#${s._index + 1}`}`}
             onClick={() => handleEditShare(s._index)}
             className="text-foreground-muted hover:text-foreground"
           >
@@ -337,8 +338,9 @@ export default function SettingsSMB() {
           <Button
             variant="ghost"
             size="sm"
+            aria-label={`${t('common.delete')} ${s.name || `#${s._index + 1}`}`}
             onClick={() => setDeleteShareIndex(s._index)}
-            className="text-accent-red"
+            className="text-danger"
           >
             <Trash2 size={14} />
           </Button>
@@ -370,6 +372,7 @@ export default function SettingsSMB() {
           <Button
             variant="ghost"
             size="sm"
+            aria-label={`${t('common.edit')} ${u.name || `#${u._index + 1}`}`}
             onClick={() => handleEditUser(u._index)}
             className="text-foreground-muted hover:text-foreground"
           >
@@ -378,8 +381,9 @@ export default function SettingsSMB() {
           <Button
             variant="ghost"
             size="sm"
+            aria-label={`${t('common.delete')} ${u.name || `#${u._index + 1}`}`}
             onClick={() => setDeleteUserIndex(u._index)}
-            className="text-accent-red"
+            className="text-danger"
           >
             <Trash2 size={14} />
           </Button>
@@ -421,7 +425,7 @@ export default function SettingsSMB() {
         <>
           {/* 端口冲突提示：未运行且端口不可绑定（Windows 445 常被 LanmanServer 占用） */}
           {!config.running && config.port_available === false && (
-            <div className="mb-4 flex items-start gap-2 text-xs text-accent-yellow bg-accent-yellow/10 border border-accent-yellow/30 rounded-lg px-3 py-2 leading-relaxed">
+            <div className="mb-4 flex items-start gap-2 text-xs text-warning bg-accent-yellow/10 border border-accent-yellow/30 rounded-lg px-3 py-2 leading-relaxed">
               <AlertCircle size={14} className="shrink-0 mt-0.5" />
               <span>{t('settings.smbPortConflictHint', { port: config.port })}</span>
             </div>
@@ -460,7 +464,7 @@ export default function SettingsSMB() {
           {/* Info note */}
           <Card className="mb-4">
             <div className="flex items-start gap-3">
-              <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
+              <Info size={16} className="text-info shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <p className="text-xs text-foreground-secondary">{t('settings.smbGuestNote')}</p>
                 <p className="text-xs text-foreground-secondary">{t('settings.smbRestartNote')}</p>
@@ -614,12 +618,12 @@ export default function SettingsSMB() {
                     {validatingPath ? (
                       <Loader2 size={14} className="animate-spin text-foreground-muted" />
                     ) : pathValidation?.exists ? (
-                      <span className="flex items-center gap-1 text-xs text-accent-green">
+                      <span className="flex items-center gap-1 text-xs text-success">
                         <CheckCircle size={12} />
                         {t('settings.smbPathExists')}{pathValidation.writable ? ` · ${t('settings.smbPathWritable')}` : ` · ${t('settings.smbPathNotWritable')}`}
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs text-accent-yellow">
+                      <span className="flex items-center gap-1 text-xs text-warning">
                         <XCircle size={12} />
                         {t('settings.smbPathNotExist')}
                       </span>
@@ -718,7 +722,7 @@ export default function SettingsSMB() {
         open={deleteShareIndex !== null}
         onClose={() => setDeleteShareIndex(null)}
         onConfirm={handleDeleteShareConfirm}
-        title={t('settings.smbDeleteShare')}
+        title={t('settings.smbDeleteShare')} confirmLabel={t('common.delete')}
         message={deleteShareIndex !== null
           ? t('settings.smbDeleteShareConfirm', { name: config.shares[deleteShareIndex]?.name || '' })
           : ''}
@@ -730,7 +734,7 @@ export default function SettingsSMB() {
         open={deleteUserIndex !== null}
         onClose={() => setDeleteUserIndex(null)}
         onConfirm={handleDeleteUserConfirm}
-        title={t('settings.smbDeleteUser')}
+        title={t('settings.smbDeleteUser')} confirmLabel={t('common.delete')}
         message={deleteUserIndex !== null
           ? t('settings.smbDeleteUserConfirm', { name: config.users[deleteUserIndex]?.name || '' })
           : ''}
@@ -787,7 +791,7 @@ export default function SettingsSMB() {
                 <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
               </div>
             ) : browseError ? (
-              <div className="py-8 text-center text-sm text-accent-yellow">{browseError}</div>
+              <div className="py-8 text-center text-sm text-warning">{browseError}</div>
             ) : browseEntries.length === 0 ? (
               <div className="py-8 text-center text-sm text-foreground-muted">{t('settings.smbBrowseEmpty')}</div>
             ) : (
@@ -798,7 +802,7 @@ export default function SettingsSMB() {
                     onClick={() => loadBrowseDir(entry.path)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-hover transition-colors border-b border-border last:border-b-0"
                   >
-                    <FolderOpen size={14} className="text-accent-yellow shrink-0" />
+                    <FolderOpen size={14} className="text-warning shrink-0" />
                     <span className="text-foreground">{entry.name}</span>
                     <span className="ml-auto text-xs text-foreground-muted font-mono">{entry.path}</span>
                   </button>

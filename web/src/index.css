@@ -12,7 +12,16 @@
   --border: #dce0ea;
   --foreground: #0f1729;
   --foreground-secondary: #475569;
-  --foreground-muted: #94a3b8;
+  --foreground-muted: #5b6678;
+
+  /* 语义文本色：与强调色分开，保证浅色背景上达到 AA 4.5:1 */
+  --success: #15803d;
+  --warning: #a16207;
+  --danger: #b91c1c;
+  --info: #1d4ed8;
+  --purple-text: #7e22ce;
+  --cyan-text: #0e7490;
+  --orange-text: #c2410c;
 
   /* 圆角基准：Tailwind rounded-* 全部按倍率派生，用户可调 */
   --radius-base: 0.5rem;
@@ -94,7 +103,15 @@ html.theme-macos .card-glass {
   --border: #2d3348;
   --foreground: #edf0f7;
   --foreground-secondary: #9ba3b8;
-  --foreground-muted: #5c6480;
+  --foreground-muted: #8b93a8;
+
+  --success: #4ade80;
+  --warning: #facc15;
+  --danger: #f87171;
+  --info: #60a5fa;
+  --purple-text: #c084fc;
+  --cyan-text: #22d3ee;
+  --orange-text: #fb923c;
 
   --shadow-color: 220 60% 2%;
   --shadow-sm: 0 1px 3px hsl(var(--shadow-color) / 0.3), 0 1px 2px hsl(var(--shadow-color) / 0.4);
@@ -118,6 +135,15 @@ html.theme-macos .card-glass {
   --color-foreground-secondary: var(--foreground-secondary);
   --color-foreground-muted: var(--foreground-muted);
 
+  /* 语义文本色（保证 AA 对比度），与填充用的 accent-* 分开 */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-purple-text: var(--purple-text);
+  --color-cyan-text: var(--cyan-text);
+  --color-orange-text: var(--orange-text);
+
   /* accent-blue 跟随调色板主色；其余为固定状态色 */
   --color-accent-blue: var(--color-blue-500);
   --color-accent-green: #22c55e;
@@ -138,12 +164,23 @@ html.theme-macos .card-glass {
 /* ── Font ── */
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 标题避免末行孤字，正文避免行尾单词悬空；不支持的浏览器保留默认换行 */
+h1, h2, h3, h4 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
 .font-mono {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Animations ── */
@@ -216,6 +253,15 @@ body {
   ::view-transition-old(root),
   ::view-transition-new(root) {
     animation: none;
+  }
+  /* 状态点脉冲、骨架微光、弹窗进出都不应无视系统的减少动效设置 */
+  .animate-pulse,
+  .animate-ping,
+  .animate-shimmer,
+  .animate-fade-in,
+  .animate-modal-in,
+  .animate-overlay-in {
+    animation: none !important;
   }
 }
 

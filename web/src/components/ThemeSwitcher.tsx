@@ -111,12 +111,12 @@ export function ThemeSwitcher({ theme, palette, onSetTheme, onChangePalette, rad
             <button
               onClick={() => { onToggleMacOS?.(); setOpen(false) }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                macosCards ? 'bg-blue-500/10 text-blue-400' : 'text-[var(--foreground-secondary)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]'
+                macosCards ? 'bg-blue-500/10 text-info' : 'text-[var(--foreground-secondary)] hover:bg-[var(--hover)] hover:text-[var(--foreground)]'
               }`}
             >
               <span className="text-xs font-medium">macOS Cards</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                macosCards ? 'bg-blue-500/20 text-blue-400' : 'bg-[var(--input)] text-[var(--foreground-muted)]'
+                macosCards ? 'bg-blue-500/20 text-info' : 'bg-[var(--input)] text-[var(--foreground-muted)]'
               }`}>
                 {macosCards ? 'ON' : 'OFF'}
               </span>

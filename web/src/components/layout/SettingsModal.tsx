@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X, Save, Copy, Check, RotateCw, Settings as SettingsIcon, Monitor, FileCode, Activity, HardDrive, Download, RefreshCw } from 'lucide-react'
@@ -39,6 +39,7 @@ export default function SettingsModal({ open, onClose }: Props) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [tokenCopied, setTokenCopied] = useState(false)
+  const [originalToken, setOriginalToken] = useState('')
   const [availableIfaces, setAvailableIfaces] = useState<InterfaceInfo[]>([])
   const [general, setGeneral] = useState<GeneralSettings | null>(null)
   const [netboot, setNetboot] = useState<NetbootSettingsData | null>(null)
@@ -48,6 +49,27 @@ export default function SettingsModal({ open, onClose }: Props) {
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null)
   const [checking, setChecking] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const restoreRef = useRef<HTMLElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
+  // 设置面板是全屏对话框：读屏可识别，Esc 可关闭，关闭后焦点回到触发按钮
+  useEffect(() => {
+    if (!open) return
+    restoreRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const root = document.getElementById('root')
+    root?.setAttribute('inert', '')
+    panelRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      root?.removeAttribute('inert')
+      const el = restoreRef.current
+      if (el && document.contains(el)) el.focus()
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -63,6 +85,7 @@ export default function SettingsModal({ open, onClose }: Props) {
       .then(([g, nb, ifaces, svc, log, ver]) => {
         const gen = g.data as unknown as GeneralSettings
         setGeneral(gen)
+        setOriginalToken(gen.token || '')
         setOriginalDataDir(gen.data_dir || '')
         setNetboot(nb.data as unknown as NetbootSettingsData)
         setAvailableIfaces(ifaces.data as unknown as InterfaceInfo[])
@@ -149,7 +172,15 @@ export default function SettingsModal({ open, onClose }: Props) {
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-overlay-in" onClick={onClose}>
-      <div className="flex w-full h-full md:w-[75vw] md:h-[80vh] md:max-w-[900px] md:rounded-xl bg-[var(--bg-elevated)] border border-[var(--bg-border)] overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('settings.title')}
+        tabIndex={-1}
+        className="flex w-full h-full md:w-[75vw] md:h-[80vh] md:max-w-[900px] md:rounded-xl bg-[var(--bg-elevated)] border border-[var(--bg-border)] overflow-hidden outline-none"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Sidebar */}
         <aside className="w-[160px] shrink-0 bg-[var(--bg-base)] border-r border-[var(--bg-border)] flex flex-col overflow-hidden">
           <div className="flex items-center h-14 px-4 border-b border-[var(--bg-border)] shrink-0">
@@ -162,7 +193,7 @@ export default function SettingsModal({ open, onClose }: Props) {
               return (
                 <button key={item.key} onClick={() => setSection(item.key)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    active ? 'bg-blue-500/10 text-blue-400' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
+                    active ? 'bg-blue-500/10 text-info' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]'
                   }`}>
                   <Icon size={16} className="shrink-0 opacity-70" />
                   <span>{item.label}</span>
@@ -185,7 +216,7 @@ export default function SettingsModal({ open, onClose }: Props) {
                   {saving ? t('settings.loading') : t('settings.save')}
                 </Button>
               )}
-              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+              <button onClick={onClose} aria-label={t('common.close')} className="p-1.5 rounded-lg hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -200,7 +231,7 @@ export default function SettingsModal({ open, onClose }: Props) {
               </div>
             ) : (
               <>
-                {section === 'general' && general && <GeneralForm config={general} onChange={setGeneral} tokenCopied={tokenCopied} onCopy={copyToken} onRegenerate={regenerateToken} ifaces={availableIfaces} originalDataDir={originalDataDir} />}
+                {section === 'general' && general && <GeneralForm config={general} onChange={setGeneral} tokenCopied={tokenCopied} onCopy={copyToken} onRegenerate={regenerateToken} ifaces={availableIfaces} originalDataDir={originalDataDir} tokenChanged={general.token !== originalToken} />}
                 {section === 'boot' && general && <BootForm config={general} onChange={setGeneral} />}
                 {section === 'netboot' && netboot && <NetbootForm data={netboot} onChange={setNetboot} />}
                 {section === 'services' && services.length > 0 && <ServicesForm services={services} onReload={async () => { try { const res = await getServices(); setServices(res.data as unknown as ServiceInfo[]) } catch {} }} />}
@@ -218,7 +249,7 @@ export default function SettingsModal({ open, onClose }: Props) {
 
 // ── General Settings ──
 
-function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifaces, originalDataDir }: {
+function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifaces, originalDataDir, tokenChanged }: {
   config: GeneralSettings
   onChange: (c: GeneralSettings) => void
   tokenCopied: boolean
@@ -226,6 +257,7 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
   onRegenerate: () => void
   ifaces: InterfaceInfo[]
   originalDataDir?: string
+  tokenChanged: boolean
 }) {
   const { t } = useTranslation()
   const inputCls = 'w-full bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-blue-500'
@@ -242,7 +274,7 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
       <SettingsField label={t('common.serverName', '服务器名称')}>
         <input className={inputCls} value={config.server_name} onChange={e => onChange({...config, server_name: e.target.value})} />
         {!serverNameValid && (
-          <p className="text-xs text-accent-yellow mt-1">{t('common.serverNameHint')}</p>
+          <p className="text-xs text-warning mt-1">{t('common.serverNameHint')}</p>
         )}
       </SettingsField>
       <SettingsField label={t('common.logLevel', '日志级别')}>
@@ -309,7 +341,7 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
               : config.token || t('settings.notSet')}
             className="flex-1 bg-[var(--bg-card)] border border-[var(--bg-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--text-primary)] font-mono outline-none select-all" />
           <button onClick={onCopy} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-card)] transition-colors text-[var(--text-secondary)]" title={t('settings.modalCopy')}>
-            {tokenCopied ? <Check size={16} className="text-accent-green" /> : <Copy size={16} />}
+            {tokenCopied ? <Check size={16} className="text-success" /> : <Copy size={16} />}
           </button>
           <button onClick={onRegenerate} className="p-2 rounded-lg border border-[var(--bg-border)] hover:bg-[var(--bg-card)] transition-colors text-[var(--text-secondary)]" title={t('settings.modalRegenerate')}>
             <RotateCw size={16} />
@@ -317,8 +349,8 @@ function GeneralForm({ config, onChange, tokenCopied, onCopy, onRegenerate, ifac
         </div>
         <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.modalTokenHelp')}</p>
 
-        {config.token && !config.token.includes('...') && (
-          <div className="mt-2 px-3 py-2 bg-accent-yellow/10 border border-accent-yellow/30 rounded-lg text-xs text-accent-yellow">
+        {tokenChanged && config.token && (
+          <div className="mt-2 px-3 py-2 bg-accent-yellow/10 border border-accent-yellow/30 rounded-lg text-xs text-warning">
             {t('settings.modalNewTokenWarning')}
           </div>
         )}
@@ -471,8 +503,8 @@ function NetbootForm({ data, onChange }: { data: NetbootSettingsData; onChange: 
                   onClick={() => onChange({...data, catalog_redirect: {...data.catalog_redirect, target_url: p.url}})}
                   className={`text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-colors ${
                     data.catalog_redirect.target_url === p.url
-                      ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                      : 'border-[var(--bg-border)] text-[var(--text-secondary)] hover:border-blue-500/30 hover:text-blue-400'
+                      ? 'bg-blue-500/15 text-info border-blue-500/30'
+                      : 'border-[var(--bg-border)] text-[var(--text-secondary)] hover:border-blue-500/30 hover:text-info'
                   }`}
                 >
                   {p.label}
@@ -548,7 +580,7 @@ function ServiceAutoStartRow({ svc, operating, onToggle }: { svc: ServiceInfo; o
         <span className="text-[10px] font-mono text-[var(--text-muted)] shrink-0">{svc.port}/{svc.protocol}</span>
         {svc.port_available === false && (
           <span
-            className="text-[10px] font-semibold text-accent-yellow bg-accent-yellow/10 px-1.5 py-0.5 rounded-full shrink-0 cursor-help"
+            className="text-[10px] font-semibold text-warning bg-accent-yellow/10 px-1.5 py-0.5 rounded-full shrink-0 cursor-help"
             title={t('settings.servicePortBusyTitle', {
               port: svc.port,
               holders: (svc.port_holders ?? []).join(', ') || t('settings.servicePortBusyUnknown'),
@@ -558,11 +590,11 @@ function ServiceAutoStartRow({ svc, operating, onToggle }: { svc: ServiceInfo; o
           </span>
         )}
         {svc.protected && (
-          <span className="text-[10px] font-semibold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-full">Core</span>
+          <span className="text-[10px] font-semibold text-info bg-blue-500/10 px-1.5 py-0.5 rounded-full">Core</span>
         )}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className={`text-xs ${svc.auto_start ? 'text-accent-green' : 'text-[var(--text-muted)]'}`}>
+        <span className={`text-xs ${svc.auto_start ? 'text-success' : 'text-[var(--text-muted)]'}`}>
           {svc.auto_start ? t('settings.modalEnabled') : t('settings.modalDisabled')}
         </span>
         <Toggle
@@ -733,7 +765,7 @@ function AboutForm({ versionInfo, checking, downloading, onCheckUpdate, onDownlo
         {versionInfo?.check?.update_available && (
           <div className="flex items-center justify-between">
             <span className="text-xs text-[var(--text-muted)]">{t('common.status')}</span>
-            <span className="text-xs font-medium text-accent-green flex items-center gap-1">
+            <span className="text-xs font-medium text-success flex items-center gap-1">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-75" />
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-green" />
@@ -751,7 +783,7 @@ function AboutForm({ versionInfo, checking, downloading, onCheckUpdate, onDownlo
         {versionInfo?.check?.error && (
           <div className="flex items-center justify-between">
             <span className="text-xs text-[var(--text-muted)]">{t('common.status')}</span>
-            <span className="text-xs text-accent-yellow">{t('version.checkFailed')}</span>
+            <span className="text-xs text-warning">{t('version.checkFailed')}</span>
           </div>
         )}
       </div>
@@ -793,7 +825,7 @@ function AboutForm({ versionInfo, checking, downloading, onCheckUpdate, onDownlo
                 href={versionInfo.check.release_info.release_notes_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2"
+                className="inline-flex items-center gap-1 text-xs text-info hover:opacity-80 underline underline-offset-2"
               >
                 {t('version.releaseNotes')} ↗
               </a>
