@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Activity, Server, Zap, ChevronRight, Wifi, BarChart3, Users, FileText, ArrowUpRight, ArrowDownRight, Rocket } from 'lucide-react'
-import { StatusDot } from '../components/ui/StatusDot'
+import {
+  Activity, Server, ChevronRight, Wifi, Users, FileText, Rocket, RefreshCw, Info,
+  Router, Share2, Download, Globe, Network, HardDrive,
+} from 'lucide-react'
 import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
-import { PageHeader } from '../components/ui/PageHeader'
 import { api, type Event, type MetricsSnapshot, type TimeBucket, getServices, type ServiceInfo } from '../api/client'
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, CartesianGrid, type PieLabelRenderProps } from 'recharts'
 
@@ -72,16 +72,52 @@ function ChartTooltip({ active, payload, label, formatter }: any) {
   )
 }
 
+function RangeTabs({ value, onChange }: { value: '5m' | '30m' | '1h'; onChange: (v: '5m' | '30m' | '1h') => void }) {
+  const { t } = useTranslation()
+  const labels = { '5m': 'range5m', '30m': 'range30m', '1h': 'range1h' } as const
+  return (
+    <div className="inline-flex h-[30px] items-center rounded-[5px] border border-[var(--bg-border)] bg-[var(--bg-base)]/60 p-0.5">
+      {(['5m', '30m', '1h'] as const).map(key => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange(key)}
+          aria-pressed={value === key}
+          className={`h-6 rounded-[3px] px-2 text-xs font-medium transition-colors ${
+            value === key
+              ? 'bg-[var(--bg-card)] text-info shadow-sm'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          {t(`dashboard.${labels[key]}`)}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+const SERVICE_ICONS: Record<string, typeof Server> = {
+  dhcp: Router,
+  proxy: Share2,
+  tftp: Download,
+  http: Globe,
+  dns: Network,
+  nfs: HardDrive,
+}
+
 export default function Dashboard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [events, setEvents] = useState<Event[]>([])
+  const [eventTotal, setEventTotal] = useState(0)
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null)
   const [dnsCount, setDnsCount] = useState(0)
   const [serviceList, setServiceList] = useState<ServiceInfo[]>([])
   const [onlineHosts, setOnlineHosts] = useState(0)
   const [todayBoots, setTodayBoots] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [trafficRange, setTrafficRange] = useState<'5m' | '30m' | '1h'>('5m')
   const [httpRange, setHttpRange] = useState<'5m' | '30m' | '1h'>('5m')
   const httpDeltasRef = useRef<{ time: number; requests: number; rejected: number; status2xx: number; status3xx: number; status4xx: number; status5xx: number }[]>([])
@@ -101,6 +137,7 @@ export default function Dashboard() {
         api.getEvents({ type: 'BOOT', from: String(dayStart), page: '1', size: '1' }).catch(() => null),
       ])
       setEvents(e.data.events ?? [])
+      setEventTotal(e.data.meta.total ?? 0)
       setMetrics(m.data)
       setDnsCount(d.data.records.length)
       setServiceList(svcs.data)
@@ -142,8 +179,14 @@ export default function Dashboard() {
       console.error('Failed to load dashboard', err)
     } finally {
       setLoading(false)
+      setLastUpdated(new Date())
     }
   }, [])
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true)
+    try { await load() } finally { setRefreshing(false) }
+  }, [load])
 
   useEffect(() => { load(); intervalRef.current = window.setInterval(load, 5000); return () => clearInterval(intervalRef.current) }, [load])
 
@@ -271,12 +314,14 @@ export default function Dashboard() {
     })),
   ]
 
+  const runningServiceCount = serviceRows.filter(r => r.status === 'running').length
+
   const statCards = [
-    { label: t('dashboard.stats.onlineHosts'), value: onlineHosts, color: 'green', icon: Server },
-    { label: t('dashboard.stats.runningServices'), value: serviceRows.filter(r => r.status === 'running').length, color: 'blue', icon: Wifi },
-    { label: t('dashboard.activeLeases'), value: dhcpData?.activeLeases ?? 0, color: 'cyan', icon: Users },
-    { label: t('dashboard.dnsRecords'), value: dnsCount, color: 'violet', icon: FileText },
-    { label: t('dashboard.todayBoots'), value: todayBoots, color: 'orange', icon: Activity },
+    { label: t('dashboard.stats.onlineHosts'), value: onlineHosts, icon: Server, hint: t('dashboard.kpiOnlineHint') },
+    { label: t('dashboard.stats.runningServices'), value: runningServiceCount, icon: Wifi, hint: t('common.serviceCount', { count: runningServiceCount }) },
+    { label: t('dashboard.activeLeases'), value: dhcpData?.activeLeases ?? 0, icon: Users, hint: t('dashboard.kpiLeaseHint') },
+    { label: t('dashboard.dnsRecords'), value: dnsCount, icon: FileText, hint: t('dashboard.kpiDnsHint') },
+    { label: t('dashboard.todayBoots'), value: todayBoots, icon: Activity, hint: t('dashboard.kpiBootsHint') },
   ]
 
   const archPieData = dhcpData?.archBreakdown
@@ -316,285 +361,327 @@ export default function Dashboard() {
       }))
   }, [metrics, trafficRange])
 
-  const eventIcon = (type: string) => {
-    const t = type.toLowerCase()
-    if (t.includes('dhcp')) return { label: 'DHCP', color: 'bg-cyan-500/10 text-cyan-text' }
-    if (t.includes('tftp')) return { label: 'TFTP', color: 'bg-orange-500/10 text-orange-text' }
-    if (t.includes('http')) return { label: 'HTTP', color: 'bg-purple-500/10 text-purple-text' }
-    if (t.includes('boot')) return { label: 'BOOT', color: 'bg-accent-green/10 text-success' }
-    if (t.includes('ipmi')) return { label: 'IPMI', color: 'bg-accent-yellow/10 text-warning' }
-    if (t.includes('dns')) return { label: 'DNS', color: 'bg-violet-500/10 text-violet-400' }
-    return { label: 'EVT', color: 'bg-blue-500/10 text-info' }
+  const fmtEventTime = (iso: string) => {
+    try { return new Date(iso).toLocaleTimeString(undefined, { hour12: false }) } catch { return '—' }
   }
 
+  const statusPill = (status: 'running' | 'stopped' | 'error') => {
+    if (status === 'running') {
+      return (
+        <span className="inline-flex h-[22px] items-center gap-1.5 rounded-full border border-accent-green/25 bg-accent-green/10 px-2 text-[11.5px] font-medium text-success">
+          <span className="h-[5px] w-[5px] rounded-full bg-accent-green" />
+          {t('common.running')}
+        </span>
+      )
+    }
+    if (status === 'error') {
+      return (
+        <span className="inline-flex h-[22px] items-center gap-1.5 rounded-full border border-accent-red/25 bg-accent-red/10 px-2 text-[11.5px] font-medium text-danger">
+          <span className="h-[5px] w-[5px] rounded-full bg-accent-red" />
+          {t('common.error')}
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex h-[22px] items-center gap-1.5 rounded-full border border-[var(--bg-border)] bg-[var(--bg-base)]/60 px-2 text-[11.5px] font-medium text-[var(--text-muted)]">
+        <span className="h-[5px] w-[5px] rounded-full bg-[var(--text-muted)]" />
+        {t('common.stopped')}
+      </span>
+    )
+  }
+
+  const metricList = (row: (typeof serviceRows)[number]) => (
+    row.metrics.length > 0 ? (
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        {row.metrics.map(m => {
+          const tone = m.tone === 'danger' ? 'text-danger' : m.tone === 'warn' ? 'text-warning' : 'text-[var(--text-primary)]'
+          return (
+            <span key={m.label} className="whitespace-nowrap">
+              <span className="text-xs text-[var(--text-muted)]">{m.label}</span>{' '}
+              <span className={'font-mono text-[13px] ' + tone}>{m.value}</span>
+            </span>
+          )
+        })}
+      </div>
+    ) : (
+      <span className="text-xs text-[var(--text-muted)]">
+        {row.status === 'stopped' ? t('dashboard.serviceNotRunning') : t('dashboard.noMetrics')}
+      </span>
+    )
+  )
+
+  const rangeLabel = (r: '5m' | '30m' | '1h') =>
+    t(r === '5m' ? 'dashboard.range5m' : r === '30m' ? 'dashboard.range30m' : 'dashboard.range1h')
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <PageHeader
-        title={t('dashboard.title')}
-        description={t('dashboard.description')}
-        size="lg"
-        className="mb-0"
-        actions={
-          <Button variant="primary" onClick={() => navigate('/quick-install')}>
+    <div className="space-y-[18px]">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-[12.5px] text-[var(--text-muted)]">
+        <span>{t('nav.section.overview')}</span>
+        <ChevronRight size={12} className="opacity-50" />
+        <span className="text-[var(--text-primary)]">{t('dashboard.title')}</span>
+      </div>
+
+      {/* Page header */}
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">{t('dashboard.title')}</h1>
+          <p className="mt-1 text-[13px] text-[var(--text-muted)]">{t('dashboard.description')}</p>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+          <button
+            onClick={refresh}
+            disabled={refreshing}
+            aria-label={t('common.refresh')}
+            className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-60"
+          >
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+            {t('dashboard.lastUpdated')}
+            <span className="font-mono text-[var(--text-primary)]">{lastUpdated ? lastUpdated.toLocaleTimeString() : '—'}</span>
+          </button>
+          <span className="hidden text-xs text-[var(--text-muted)] sm:inline">
+            {t('dashboard.autoRefresh', { seconds: 5 })}
+          </span>
+          <Button variant="primary" className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate('/quick-install')}>
             <Rocket size={14} />
             {t('quickInstall.entryButton')}
           </Button>
-        }
-      />
+        </div>
+      </div>
 
-      {/* Stats Cards */}
+      {/* KPI */}
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 h-[106px] animate-shimmer" />
+            <div key={i} className="h-[96px] rounded-md border border-[var(--bg-border)] bg-[var(--bg-card)] animate-shimmer" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {statCards.map((s, i) => {
             const Icon = s.icon
             return (
-              <div key={i} className="group relative overflow-hidden rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">{s.label}</span>
-                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${
-                      s.color === 'green' ? 'bg-accent-green/10 text-success' :
-                      s.color === 'blue' ? 'bg-blue-500/10 text-info' :
-                      s.color === 'cyan' ? 'bg-cyan-500/10 text-cyan-text' :
-                      s.color === 'violet' ? 'bg-violet-500/10 text-violet-400' :
-                      'bg-orange-500/10 text-orange-text'
-                    }`}>
-                      <Icon size={16} />
-                    </span>
-                  </div>
-                  <div className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">{s.value}</div>
+              <div key={i} className="min-w-0 rounded-md border border-[var(--bg-border)] bg-[var(--bg-card)] px-4 py-3 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[12.5px] leading-snug text-[var(--text-muted)]">{s.label}</span>
+                  <Icon size={16} className="mt-0.5 shrink-0 text-[var(--text-muted)]" />
                 </div>
+                <div className="mt-1.5 font-mono text-[29px] font-semibold leading-none tracking-tight text-[var(--text-primary)]">{s.value}</div>
+                <div className="mt-1 truncate text-[11.5px] text-[var(--text-muted)]">{s.hint}</div>
               </div>
             )
           })}
         </div>
       )}
 
-      {/* Service Overview */}
-      <div className="overflow-hidden rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] shadow-sm">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--bg-border)]">
-          <div className="flex items-center gap-2">
-            <Zap size={14} className="text-info" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{t('dashboard.serviceOverview')}</span>
+      {/* Service overview */}
+      <section className="overflow-hidden rounded-md border border-[var(--bg-border)] bg-[var(--bg-card)] shadow-sm">
+        <div className="flex min-h-[50px] flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-[var(--bg-border)] px-4 py-2">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <h2 className="text-[14.5px] font-semibold text-[var(--text-primary)]">{t('dashboard.serviceOverview')}</h2>
+            <span className="text-xs text-[var(--text-muted)]">{t('common.serviceCount', { count: serviceRows.length })}</span>
           </div>
-          <button onClick={() => navigate('/services')} className="flex items-center gap-1 text-xs font-medium text-info hover:opacity-80 transition-colors">
-            {t('nav.services')} <ChevronRight size={12} />
+          <button
+            onClick={() => navigate('/services')}
+            className="inline-flex items-center gap-1 text-xs font-medium text-info transition-opacity hover:opacity-80"
+          >
+            {t('nav.services')} <ChevronRight size={13} />
           </button>
         </div>
-        <div className="hidden md:grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,2.4fr)] gap-4 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--bg-border)] bg-[var(--bg-base)]/30">
+
+        <div className="hidden h-9 grid-cols-[19%_12%_10%_11%_48%] items-center border-b border-[var(--bg-border)] bg-[var(--bg-base)]/40 px-4 text-[11.5px] font-semibold text-[var(--text-muted)] md:grid">
           <span>{t('dashboard.colService')}</span>
+          <span>{t('dashboard.colPort')}</span>
           <span>{t('dashboard.colStatus')}</span>
-          <span>{t('dashboard.colMetrics')}</span>
+          <span className="text-right pr-6">{t('dashboard.colUptime')}</span>
+          <span className="pl-6">{t('dashboard.colMetrics')}</span>
         </div>
+
         {loading ? (
           <div>
             {services.map(svc => (
-              <div key={svc.key} className="h-11 border-b border-[var(--bg-border)] last:border-b-0 animate-shimmer" />
+              <div key={svc.key} className="h-[50px] border-b border-[var(--bg-border)]/60 last:border-b-0 animate-shimmer" />
             ))}
           </div>
         ) : (
           <div>
-            {serviceRows.map(row => (
-              <div key={row.key} className="grid grid-cols-1 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,2.4fr)] md:items-center gap-1 md:gap-4 px-5 py-2.5 border-b border-[var(--bg-border)] last:border-b-0">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <StatusDot color={row.status === 'running' ? 'green' : row.status === 'error' ? 'red' : 'yellow'} pulse={row.status === 'running'} />
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">{row.name}</span>
-                  <span className="text-[11px] font-mono text-[var(--text-muted)]">{row.port}</span>
-                </div>
-                <div className="flex items-center gap-2 min-w-0 pl-5 md:pl-0">
-                  <span className={`text-[11px] font-semibold tracking-wide ${
-                    row.status === 'running' ? 'text-success' : row.status === 'error' ? 'text-danger' : 'text-[var(--text-muted)]'
-                  }`}>
-                    {row.status === 'running' ? t('common.running') : row.status === 'error' ? t('common.error') : t('common.stopped')}
-                  </span>
-                  {row.status === 'running' && (
-                    <span className="text-[11px] font-mono text-[var(--text-muted)]" title={`${t('dashboard.startedAt')} ${row.startTime}`}>{row.uptime}</span>
-                  )}
-                  {row.status === 'error' && row.errorMsg && (
-                    <span className="text-[11px] font-mono text-danger/80 truncate" title={row.errorMsg}>{row.errorMsg}</span>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 pl-5 md:pl-0 text-xs font-mono text-[var(--text-primary)]">
-                  {row.metrics.length > 0 ? row.metrics.map(m => (
-                    <span key={m.label} className="whitespace-nowrap">
-                      <span className="text-[var(--text-muted)]">{m.label}</span>{' '}
-                      <span className={m.tone === 'danger' ? 'text-danger' : m.tone === 'warn' ? 'text-warning' : ''}>{m.value}</span>
-                    </span>
-                  )) : (
-                    <span className="text-[var(--text-muted)]">{row.status === 'stopped' ? t('dashboard.serviceNotRunning') : t('dashboard.noMetrics')}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {dm('http') && (
-          <p className="px-5 py-2 text-[11px] leading-snug text-[var(--text-muted)] border-t border-[var(--bg-border)]">{t('dashboard.httpWindowHint')}</p>
-        )}
-      </div>
-
-      {/* Events */}
-      <Card
-        padding={false}
-        title={
-          <div className="flex items-center gap-2">
-            <Activity size={14} className="text-info" />
-            <span>{t('dashboard.recentEvents')}</span>
-          </div>
-        }
-        footer={
-          <button onClick={() => navigate('/events')} className="flex items-center gap-1 text-info hover:opacity-80 text-xs font-medium transition-colors">
-            {t('common.viewAll')} <ChevronRight size={12} />
-          </button>
-        }
-      >
-        {events.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)] text-center py-6">{t('dashboard.noEvents')}</p>
-        ) : (
-          <div>
-            {events.slice(0, 6).map((e, i) => {
-              const ic = eventIcon(e.type)
+            {serviceRows.map(row => {
+              const Icon = SERVICE_ICONS[row.key] ?? Server
               return (
-                <div key={i} className="flex items-center gap-3 px-5 py-2.5 border-b border-[var(--bg-border)] last:border-b-0 hover:bg-[var(--bg-hover)]/30 transition-colors group">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${ic.color}`}>{ic.label}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[var(--text-primary)]">{e.type}</span>
-                      {e.mac && <span className="text-[11px] font-mono text-[var(--text-muted)]">{e.mac}</span>}
+                <div key={row.key} className="border-b border-[var(--bg-border)]/60 last:border-b-0">
+                  {/* Desktop */}
+                  <div className="hidden min-h-[50px] grid-cols-[19%_12%_10%_11%_48%] items-center px-4 hover:bg-[var(--bg-base)]/40 md:grid">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Icon size={15} className="shrink-0 text-[var(--text-muted)]" />
+                      <span className="truncate text-[13.5px] font-semibold text-[var(--text-primary)]">{row.name}</span>
                     </div>
-                    <p className="text-[11px] text-[var(--text-muted)] truncate">{e.message}</p>
+                    <span className="whitespace-nowrap font-mono text-[12.5px] text-[var(--text-secondary)]">{row.port || '—'}</span>
+                    <span>{statusPill(row.status)}</span>
+                    <span className="pr-6 text-right font-mono text-[12.5px] text-[var(--text-secondary)]">{row.uptime}</span>
+                    <div className="min-w-0 pl-6">{metricList(row)}</div>
                   </div>
-                  <span className="text-[11px] text-[var(--text-muted)] font-mono shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {new Date(e.timestamp).toLocaleTimeString()}
-                  </span>
+
+                  {/* Mobile */}
+                  <div className="px-4 py-3 md:hidden">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Icon size={15} className="shrink-0 text-[var(--text-muted)]" />
+                        <span className="truncate text-sm font-semibold text-[var(--text-primary)]">{row.name}</span>
+                      </div>
+                      {statusPill(row.status)}
+                    </div>
+                    <div className="mt-1 font-mono text-[11.5px] text-[var(--text-muted)]">
+                      {row.port || '—'} · {row.uptime}
+                    </div>
+                    <div className="mt-1.5">{metricList(row)}</div>
+                  </div>
                 </div>
               )
             })}
           </div>
         )}
-      </Card>
 
-      {/* Charts Row */}
-      <div className={`grid grid-cols-1 gap-5 ${archPieData.length > 0 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
-        {archPieData.length > 0 && (
-          <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Server size={14} className="text-cyan-text" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{t('dashboard.chartDhcpArch')}</span>
-            </div>
-            <div className="h-52">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={archPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }: PieLabelRenderProps) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}>
-                    {archPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+        {dm('http') && (
+          <div className="flex items-start gap-1.5 border-t border-[var(--bg-border)] bg-[var(--bg-base)]/30 px-4 py-2.5 text-[11.5px] leading-snug text-[var(--text-muted)]">
+            <span className="mt-0.5 shrink-0"><Info size={13} /></span>
+            <span>{t('dashboard.httpWindowHint')}</span>
           </div>
         )}
+      </section>
 
-        <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <BarChart3 size={14} className="text-purple-text" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{t('dashboard.chartHttpStatus')}</span>
+      {/* Events + charts */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-start">
+        <section className="overflow-hidden rounded-md border border-[var(--bg-border)] bg-[var(--bg-card)] shadow-sm">
+          <div className="flex min-h-[50px] items-center justify-between gap-3 border-b border-[var(--bg-border)] px-4 py-2">
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-[14.5px] font-semibold text-[var(--text-primary)]">{t('dashboard.recentEvents')}</h2>
+              <span className="text-xs text-[var(--text-muted)]">{t('dashboard.eventCount', { count: eventTotal })}</span>
             </div>
-            <div className="flex items-center gap-1 bg-[var(--bg-base)]/50 rounded-lg p-0.5">
-              {[['5m', t('dashboard.range5m')], ['30m', t('dashboard.range30m')], ['1h', t('dashboard.range1h')]].map(([key, label]) => (
-                <button key={key} onClick={() => setHttpRange(key as any)} className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-colors ${httpRange === key ? 'bg-blue-500/20 text-info' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => navigate('/events')}
+              className="inline-flex items-center gap-1 text-xs font-medium text-info transition-opacity hover:opacity-80"
+            >
+              {t('common.viewAll')} <ChevronRight size={13} />
+            </button>
           </div>
-          {httpStatusData.some(d => d.value > 0) ? (
-            <div className="h-52">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={httpStatusData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="value" name={t('dashboard.httpCount')} radius={[4, 4, 0, 0]}>
-                    {httpStatusData.map((d, i) => <Cell key={i} fill={d.fill} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+
+          {events.length === 0 ? (
+            <p className="py-10 text-center text-sm text-[var(--text-muted)]">{t('dashboard.noEvents')}</p>
           ) : (
-            <p className="text-xs text-[var(--text-muted)] text-center py-6">{t('common.noData')}</p>
-          )}
-          <div className="flex flex-wrap gap-3 mt-2 text-xs text-[var(--text-muted)]">
-            {httpStatusData.map(d => (
-              <span key={d.name} className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded" style={{ background: d.fill }} /> {d.name}: {d.value}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-[var(--bg-border)] bg-[var(--bg-card)] p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <BarChart3 size={14} className="text-success" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{t('dashboard.chartTraffic')}</span>
-            </div>
-            <div className="flex items-center gap-1 bg-[var(--bg-base)]/50 rounded-lg p-0.5">
-              {[['5m', t('dashboard.range5m')], ['30m', t('dashboard.range30m')], ['1h', t('dashboard.range1h')]].map(([key, label]) => (
-                <button key={key} onClick={() => setTrafficRange(key as any)} className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-colors ${trafficRange === key ? 'bg-blue-500/20 text-info' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>
-                  {label}
-                </button>
+            <div>
+              {events.slice(0, 8).map((e, i) => (
+                <div key={i} className="flex min-h-[52px] items-center gap-2.5 border-b border-[var(--bg-border)]/60 px-4 py-2 last:border-b-0 hover:bg-[var(--bg-base)]/40">
+                  <span className="w-[52px] shrink-0 font-mono text-[11.5px] text-[var(--text-muted)]">{fmtEventTime(e.timestamp)}</span>
+                  <span className="shrink-0 rounded border border-[var(--bg-border)] bg-[var(--bg-base)]/60 px-1.5 py-0.5 text-center font-mono text-[10.5px] uppercase text-[var(--text-secondary)]">
+                    {e.type}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] text-[var(--text-primary)]">{e.message}</div>
+                    {e.mac && <div className="truncate font-mono text-[11.5px] text-[var(--text-muted)]">{e.mac}</div>}
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-          {trafficChartData.length > 0 ? (
-            <>
-              <div className="h-40">
+          )}
+        </section>
+
+        <div className="flex flex-col gap-4">
+          {/* HTTP status */}
+          <section className="overflow-hidden rounded-md border border-[var(--bg-border)] bg-[var(--bg-card)] shadow-sm">
+            <div className="flex min-h-[50px] flex-wrap items-center justify-between gap-2 border-b border-[var(--bg-border)] px-4 py-2">
+              <h2 className="text-[14.5px] font-semibold text-[var(--text-primary)]">{t('dashboard.chartHttpStatus')}</h2>
+              <RangeTabs value={httpRange} onChange={setHttpRange} />
+            </div>
+            <div className="p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                <span>{t('dashboard.rangeSelected', { range: rangeLabel(httpRange) })}</span>
+                <span className="opacity-50">·</span>
+                <span>{t('dashboard.requestsInWindow', { count: httpRecent ? httpRecent.requests : 0 })}</span>
+              </div>
+              {httpStatusData.some(d => d.value > 0) ? (
+                <div className="h-[140px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={httpStatusData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
+                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Bar dataKey="value" name={t('dashboard.httpCount')} radius={[3, 3, 0, 0]} barSize={28} isAnimationActive={false}>
+                        {httpStatusData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex h-[140px] items-center justify-center text-xs text-[var(--text-muted)]">{t('common.noData')}</div>
+              )}
+              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-[var(--text-muted)]">
+                {httpStatusData.map(d => (
+                  <span key={d.name} className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-sm" style={{ background: d.fill }} />
+                    {d.name}<span className="font-mono text-[var(--text-primary)]">{d.value}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Traffic */}
+          <section className="overflow-hidden rounded-md border border-[var(--bg-border)] bg-[var(--bg-card)] shadow-sm">
+            <div className="flex min-h-[50px] flex-wrap items-center justify-between gap-2 border-b border-[var(--bg-border)] px-4 py-2">
+              <h2 className="text-[14.5px] font-semibold text-[var(--text-primary)]">{t('dashboard.chartTraffic')}</h2>
+              <RangeTabs value={trafficRange} onChange={setTrafficRange} />
+            </div>
+            <div className="p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
+                {trafficServices.map(svc => (
+                  <span key={svc} className="inline-flex items-center gap-2 whitespace-nowrap">
+                    <span className="h-[2px] w-4 rounded-full" style={{ background: trafficColors[svc] }} />
+                    <span className="font-medium text-[var(--text-primary)]">{trafficLabels[svc]}</span>
+                    <span className="font-mono text-[var(--text-muted)]">{bwRate(metrics?.services[svc]?.metrics?.bandwidth ?? [])}</span>
+                  </span>
+                ))}
+              </div>
+              {trafficChartData.length > 0 ? (
+                <div className="h-[120px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={trafficChartData} margin={{ top: 5, right: 8, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.6} />
+                      <XAxis dataKey="time" tick={{ fontSize: 10.5, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                      <YAxis tick={{ fontSize: 10.5, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1024 * 1024 ? (v / 1024 / 1024).toFixed(0) + 'MB' : v >= 1024 ? (v / 1024).toFixed(0) + 'KB' : v + 'B'} />
+                      <Tooltip content={<ChartTooltip formatter={(v: any) => fmtBytes(Math.round(Number(v)))} />} />
+                      {trafficServices.map(svc => (
+                        <Line key={svc} type="monotone" dataKey={svc} name={trafficLabels[svc]} stroke={trafficColors[svc]} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex h-[120px] items-center justify-center text-xs text-[var(--text-muted)]">{t('common.noData')}</div>
+              )}
+            </div>
+          </section>
+
+          {/* DHCP arch (only when present) */}
+          {archPieData.length > 0 && (
+            <section className="overflow-hidden rounded-md border border-[var(--bg-border)] bg-[var(--bg-card)] shadow-sm">
+              <div className="flex min-h-[50px] items-center gap-2 border-b border-[var(--bg-border)] px-4 py-2">
+                <h2 className="text-[14.5px] font-semibold text-[var(--text-primary)]">{t('dashboard.chartDhcpArch')}</h2>
+              </div>
+              <div className="h-[170px] p-2">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trafficChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" strokeOpacity={0.5} />
-                    <XAxis dataKey="time" tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                    <YAxis tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1024 * 1024 ? `${(v / 1024 / 1024).toFixed(0)}MB` : v >= 1024 ? `${(v / 1024).toFixed(0)}KB` : `${v}B`} />
-                    <Tooltip content={<ChartTooltip formatter={(v: any) => fmtBytes(Math.round(Number(v)))} />} />
-                    {trafficServices.map(svc => (
-                      <Line key={svc} type="monotone" dataKey={svc} name={trafficLabels[svc]} stroke={trafficColors[svc]} strokeWidth={1.5} dot={false} />
-                    ))}
-                  </LineChart>
+                  <PieChart>
+                    <Pie data={archPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={62} isAnimationActive={false} label={({ name, percent }: PieLabelRenderProps) => (name ?? '') + ' ' + (((percent ?? 0) * 100).toFixed(0)) + '%'}>
+                      {archPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip />} />
+                  </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="grid grid-cols-3 gap-2 mt-3">
-                {trafficServices.map(svc => {
-                  const m = metrics?.services[svc]?.metrics
-                  return (
-                    <div key={svc} className="bg-[var(--bg-base)]/50 rounded-xl p-2.5">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{ background: trafficColors[svc] }} />
-                        <span className="text-[11px] font-semibold text-[var(--text-muted)]">{trafficLabels[svc]}</span>
-                      </div>
-                      <div className="text-xs font-mono text-[var(--text-primary)] font-semibold">{bwRate(m?.bandwidth ?? [])}</div>
-                      <div className="flex items-center gap-2 mt-1 text-[11px] font-mono text-[var(--text-muted)]">
-                        <span className="flex items-center gap-0.5"><ArrowUpRight size={10} className="text-success" />{fmtBytes(m?.bytesOut ?? 0)}</span>
-                        <span className="flex items-center gap-0.5"><ArrowDownRight size={10} className="text-info" />{fmtBytes(m?.bytesIn ?? 0)}</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </>
-          ) : (
-            <p className="text-xs text-[var(--text-muted)] text-center py-6">{t('common.noData')}</p>
+            </section>
           )}
         </div>
       </div>
-
     </div>
   )
 }
