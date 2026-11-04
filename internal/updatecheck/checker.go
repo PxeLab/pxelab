@@ -66,14 +66,41 @@ func (c *Checker) WithEndpoint(endpoint string) *Checker {
 	return c
 }
 
-// Check 向官网发起版本检查，返回结果并更新缓存
+// fetchSiteInfo 拉取并解析官网 version.json。
+func (c *Checker) fetchSiteInfo() (ReleaseInfo, error) {
+	resp, err := c.client.Get(c.endpoint)
+	if err != nil {
+		return ReleaseInfo{}, fmt.Errorf("请求 %s 失败: %w", c.endpoint, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ReleaseInfo{}, fmt.Errorf("读取版本信息失败: %w", err)
+	}
+
+	var info ReleaseInfo
+	if err := json.Unmarshal(body, &info); err != nil {
+		return ReleaseInfo{}, fmt.Errorf("解析 version.json 失败: %w", err)
+	}
+	if info.LatestVersion == "" {
+		return ReleaseInfo{}, fmt.Errorf("version.json 缺少 latest_version 字段")
+	}
+	return info, nil
+}
+
+// Check 向官网发起版本检查，返回结果并更新缓存。
+// version.json 不可用或落后时，以 GitHub 最新 release 兜底。
 func (c *Checker) Check() (*CheckResult, error) {
 	slog.Debug("版本检查", "endpoint", c.endpoint, "current", c.currentVersion)
 
-	resp, err := c.client.Get(c.endpoint)
-	if err != nil {
-		errMsg := fmt.Sprintf("版本检查请求失败: %v", err)
-		slog.Warn("版本检查失败", "error", err)
+	info, siteErr := c.fetchSiteInfo()
+	githubInfo, githubErr := c.latestFromGitHub()
+
+	switch {
+	case siteErr != nil && githubErr != nil:
+		errMsg := fmt.Sprintf("版本检查失败: %v; GitHub: %v", siteErr, githubErr)
+		slog.Warn("版本检查失败", "site", siteErr, "github", githubErr)
 		result := &CheckResult{
 			CurrentVersion:  c.currentVersion,
 			UpdateAvailable: false,
@@ -83,22 +110,23 @@ func (c *Checker) Check() (*CheckResult, error) {
 		c.mu.Lock()
 		c.lastResult = result
 		c.mu.Unlock()
-		return result, fmt.Errorf("version check request failed: %w", err)
-	}
-	defer resp.Body.Close()
+		return result, fmt.Errorf("version check failed: %w", siteErr)
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response failed: %w", err)
-	}
+	case siteErr != nil:
+		slog.Warn("版本源不可用，使用 GitHub 最新 release", "error", siteErr, "github", githubInfo.LatestVersion)
+		info = *githubInfo
 
-	var info ReleaseInfo
-	if err := json.Unmarshal(body, &info); err != nil {
-		return nil, fmt.Errorf("parse version.json failed: %w", err)
-	}
+	case githubErr != nil:
+		slog.Debug("查询 GitHub 最新 release 失败，继续使用 version.json", "error", githubErr)
 
-	if info.LatestVersion == "" {
-		return nil, fmt.Errorf("version.json missing latest_version field")
+	default:
+		// version.json 可能滞后；GitHub release 更新时以 GitHub 为准，避免提示旧版本后下载失败
+		if compareVersions(githubInfo.LatestVersion, info.LatestVersion) > 0 {
+			slog.Info("version.json 落后于 GitHub release，使用 GitHub 最新版本",
+				"version_json", info.LatestVersion, "github", githubInfo.LatestVersion)
+			githubInfo.MinUpgradeVersion = info.MinUpgradeVersion
+			info = *githubInfo
+		}
 	}
 
 	// 语义化版本比较
@@ -141,6 +169,60 @@ func (c *Checker) Check() (*CheckResult, error) {
 	)
 
 	return result, nil
+}
+
+// latestFromGitHub 查询 GitHub 最新正式 release，作为 version.json 的兜底数据源。
+func (c *Checker) latestFromGitHub() (*ReleaseInfo, error) {
+	url := fmt.Sprintf("%s/repos/%s/releases/latest", c.apiBase, c.repo)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "PxeLab/"+c.currentVersion)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("查询 GitHub 最新 release 失败: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("查询 GitHub 最新 release 失败: HTTP %d", resp.StatusCode)
+	}
+
+	var release struct {
+		TagName     string `json:"tag_name"`
+		PublishedAt string `json:"published_at"`
+		HTMLURL     string `json:"html_url"`
+		Assets      []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return nil, fmt.Errorf("解析 GitHub release 失败: %w", err)
+	}
+
+	version := strings.TrimPrefix(release.TagName, "v")
+	if version == "" {
+		return nil, fmt.Errorf("GitHub release 缺少 tag_name")
+	}
+
+	info := &ReleaseInfo{
+		LatestVersion:     version,
+		ReleaseDate:       release.PublishedAt,
+		ReleaseNotesURL:   release.HTMLURL,
+		DownloadURL:       release.HTMLURL,
+		MinUpgradeVersion: "",
+	}
+	checksumName := "pxelab_" + version + "_checksums.txt"
+	for _, asset := range release.Assets {
+		if asset.Name == checksumName {
+			info.ChecksumsURL = asset.BrowserDownloadURL
+			break
+		}
+	}
+	return info, nil
 }
 
 // Result 返回最近一次缓存的检查结果（不会发起网络请求）
