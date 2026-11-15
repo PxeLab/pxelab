@@ -444,8 +444,10 @@ func appendProxyPXEOptions(reply *dhcpv4.DHCPv4, serverIP, nextServer net.IP) {
 		reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionTFTPServerName,
 			[]byte(nextServer.String())))
 	}
+	// Option 43 子选项 6 值 0x08 = 有 bootfile 时直接下载(bit3)，不进行 boot server 发现。
+	// 不能置 bit2(0x04)：它要求客户端只接受子选项 8 中列出的服务器，而本响应不提供该列表。
 	reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
-		[]byte{6, 1, 0x0C}))
+		[]byte{6, 1, 0x08}))
 	reply.UpdateOption(dhcpv4.OptClassIdentifier("PXEClient"))
 }
 
@@ -490,9 +492,10 @@ func appendDHCPOptions(reply *dhcpv4.DHCPv4, serverIP, nextServer net.IP, subnet
 	reply.UpdateOption(dhcpv4.OptIPAddressLeaseTime(time.Duration(leaseTime) * time.Second))
 
 	// Option 43 · PXE Vendor Specific — Discovery Control
-	// 子选项 6 值 0x0C = 禁用 PXE 服务器发现(bit2) + 禁止用户提示(bit3)
+	// 子选项 6 值 0x08 = 有 bootfile 时直接下载(bit3)，不进行 boot server 发现。
+	// 不能置 bit2(0x04)：它要求客户端只接受子选项 8 中列出的服务器，而本响应不提供该列表。
 	reply.UpdateOption(dhcpv4.OptGeneric(dhcpv4.OptionVendorSpecificInformation,
-		[]byte{6, 1, 0x0C}))
+		[]byte{6, 1, 0x08}))
 }
 
 func iPXEScriptURL(serverIP net.IP, mac string, cfg *config.IPXEScriptConfig) string {
