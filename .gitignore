@@ -50,6 +50,9 @@ pxelab.db*
 .env
 .env.local
 
+# Local design explorations (screenshots are large, kept out of history)
+design-demos/
+
 # Agent/tool artifacts
 .omo/
 .playwright-mcp/
